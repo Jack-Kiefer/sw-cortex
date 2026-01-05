@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp-servers/github/index.ts"]
+    },
+    "task-manager": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp-servers/task-manager/index.ts"],
+      "env": {
+        "TASK_DB_PATH": "./tasks/tasks.db"
+      }
+    },
+    "db": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp-servers/db/index.ts"]
+    }
+  }
+}

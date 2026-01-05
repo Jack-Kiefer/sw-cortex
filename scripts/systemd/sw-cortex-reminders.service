@@ -1,0 +1,17 @@
+[Unit]
+Description=sw-cortex Reminder Check
+After=network.target
+
+[Service]
+Type=oneshot
+User=jackk
+WorkingDirectory=/home/jackk/sw-cortex
+Environment="PATH=/home/jackk/.nvm/versions/node/v22.17.0/bin:/usr/bin"
+ExecStart=/home/jackk/.nvm/versions/node/v22.17.0/bin/npx tsx scripts/check-reminders.ts
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

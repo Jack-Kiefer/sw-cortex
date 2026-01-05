@@ -1,0 +1,19 @@
+[Unit]
+Description=sw-cortex Web UI
+After=network.target
+
+[Service]
+Type=simple
+User=jackk
+WorkingDirectory=/home/jackk/sw-cortex
+Environment="PATH=/home/jackk/.nvm/versions/node/v22.17.0/bin:/usr/bin"
+ExecStart=/home/jackk/.nvm/versions/node/v22.17.0/bin/npx tsx --watch src/api/server.ts
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
