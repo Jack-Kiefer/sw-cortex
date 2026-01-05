@@ -16,13 +16,14 @@ Personal work intelligence platform for Jack. Answers questions, manages tasks, 
 
 This workspace has 3 MCP servers that provide tools for Claude to use:
 
-| Server | Purpose | Tools |
-|--------|---------|-------|
-| **task-manager** | Tasks, reminders, projects | 13 tools |
-| **db** | Database queries (read-only) | 4 tools |
-| **github** | GitHub repo access (read-only) | 9 tools |
+| Server           | Purpose                        | Tools    |
+| ---------------- | ------------------------------ | -------- |
+| **task-manager** | Tasks, reminders, projects     | 13 tools |
+| **db**           | Database queries (read-only)   | 4 tools  |
+| **github**       | GitHub repo access (read-only) | 9 tools  |
 
 **IMPORTANT**: When working on multi-step problems, use the task-manager tools to track progress:
+
 1. Create tasks for each step with `mcp__task-manager__add_task`
 2. Update status as you work with `mcp__task-manager__update_task`
 3. Mark complete when done with `mcp__task-manager__complete_task`
@@ -65,6 +66,12 @@ npm run typecheck        # Run TypeScript checks
 # Task Management
 npm run task:serve       # Start task MCP server (auto-creates DB)
 
+# Database Migrations (SQLite)
+npm run db:generate      # Generate migration from schema changes
+npm run db:migrate       # Apply pending migrations
+npm run db:push          # Push schema directly (dev only)
+npm run db:studio        # Open Drizzle Studio GUI
+
 # Testing
 npm run test             # Run all tests
 npm run test:watch       # Watch mode
@@ -73,6 +80,49 @@ npm run test:watch       # Watch mode
 npm run format           # Prettier format all
 npm run lint             # ESLint check
 ```
+
+## SQLite Database Migrations
+
+The local task database uses Drizzle ORM with migrations stored in `drizzle/`.
+
+### Schema Location
+
+- Schema: `src/db/schema.ts`
+- Migrations: `drizzle/*.sql`
+- Config: `drizzle.config.ts`
+
+### Making Schema Changes
+
+1. Edit `src/db/schema.ts` to add/modify tables or columns
+2. Generate migration: `npm run db:generate`
+3. Apply migration: `npm run db:migrate`
+
+### Example: Adding a Column
+
+```typescript
+// In src/db/schema.ts
+export const reminders = sqliteTable('reminders', {
+  // ... existing columns
+  newColumn: text('new_column'), // Add new column
+});
+```
+
+Then run:
+
+```bash
+npm run db:generate  # Creates drizzle/0001_xxx.sql
+npm run db:migrate   # Applies the migration
+```
+
+### Quick Development (No Migration)
+
+For rapid iteration, use `db:push` to sync schema directly:
+
+```bash
+npm run db:push  # Directly syncs schema (may lose data)
+```
+
+**Note:** Use migrations in production, `db:push` only for local dev.
 
 ## Slash Commands
 
@@ -87,32 +137,47 @@ npm run lint             # ESLint check
 ## Workflow
 
 ### Starting a Session
+
 1. **Plan Mode First** (shift+tab twice) - Get alignment before coding
 2. Review the plan with Claude until satisfied
 3. Switch to auto-accept mode for implementation
 4. Use `/commit-push-pr` when done
 
 ### Task Management
+
 1. Use `/task add` for new work items
 2. Link tasks to projects when relevant
 3. Use `/remind` for time-sensitive items
 4. Reminders delivered via Slack DM
 
 ### Verification
-Every significant change should have verification. Use the `verify-app` subagent or write explicit test commands.
 
-## Database Access (mcp__db__*)
+Every significant change should have verification. **Always spawn the `verify-app` subagent** before committing - no exceptions.
+
+### Use Subagents Liberally
+
+- **Exploring code?** → Spawn `Explore` agent
+- **Finished a feature?** → Spawn `code-simplifier`
+- **About to commit?** → Spawn `verify-app`
+- **Complex investigation?** → Spawn `general-purpose` agent
+
+Subagents keep the main conversation focused and produce better results.
+
+## Database Access (mcp**db**\*)
 
 ### Read-Only Policy
+
 All production database access is READ-ONLY. Never run write queries against production.
 
 ### Available Databases
+
 - `wishdesk` - WishDesk MySQL
 - `sugarwish` - Live SugarWish MySQL
 - `odoo` - Odoo PostgreSQL
 - `retool` - Retool PostgreSQL
 
 ### MCP Tools
+
 ```
 mcp__db__list_databases      # List available databases
 mcp__db__list_tables         # List tables in a database
@@ -121,6 +186,7 @@ mcp__db__query_database      # Execute SELECT query
 ```
 
 ### Example Queries
+
 ```
 # List tables in WishDesk
 mcp__db__list_tables { database: "wishdesk" }
@@ -138,11 +204,13 @@ mcp__db__describe_table { database: "sugarwish", table: "orders" }
 ## Integrations
 
 ### Slack
+
 - Bot token configured for messaging
 - Vector search via Qdrant for message history
 - Reminders delivered as DMs
 
 ### GitHub (Read-Only)
+
 - Repos: SERP, SWAC, sugarwish-odoo, sugarwish-laravel
 - MCP Tools:
   - `mcp__github__list_repos` - List configured repos
@@ -154,11 +222,13 @@ mcp__db__describe_table { database: "sugarwish", table: "orders" }
   - `mcp__github__get_pull_request` - Get PR details
 
 ### n8n
+
 - Self-hosted instance
 - Workflow exports stored in `workflows/n8n/`
 - Daily digest workflow runs at 8:00 AM
 
 ### Retool
+
 - Configs stored in `workflows/retool/`
 - PostgreSQL database queries documented
 
@@ -186,17 +256,60 @@ mcp__db__describe_table { database: "sugarwish", table: "orders" }
 - Don't forget to verify changes work
 - Don't commit without running tests
 
-## Subagents
+## Subagents (Use Frequently!)
 
-### code-simplifier
-Runs after completing a feature to simplify and clean up code. Reduces complexity without changing functionality.
+**IMPORTANT**: Spawn subagents liberally. They run in parallel, reduce context bloat, and produce better results than doing everything inline. When in doubt, spawn an agent.
 
-### verify-app
-Tests the application end-to-end after changes. Documents results and catches regressions.
+### When to Spawn Subagents
+
+| Situation             | Agent                        | Why                        |
+| --------------------- | ---------------------------- | -------------------------- |
+| After writing code    | `code-simplifier`            | Clean up before committing |
+| Before committing     | `verify-app`                 | Catch issues early         |
+| Exploring codebase    | `Explore` (built-in)         | Preserves main context     |
+| Multi-file search     | `Explore` (built-in)         | More thorough than inline  |
+| Complex investigation | `general-purpose` (built-in) | Deep dive without bloat    |
+
+### Available Subagents
+
+#### code-simplifier
+
+**Run after completing any feature.** Simplifies code, removes dead code, improves naming, extracts patterns. Always run this before committing new features.
+
+```
+Spawn: Task tool with subagent_type="code-simplifier"
+```
+
+#### verify-app
+
+**Run before every commit.** Runs typecheck, lint, tests, and checks for debug statements. This is your quality gate.
+
+```
+Spawn: Task tool with subagent_type="verify-app"
+```
+
+### Subagent Best Practices
+
+1. **Spawn early, spawn often** - Don't try to do everything in the main conversation
+2. **Run agents in parallel** - Multiple Task calls in one message
+3. **Use for exploration** - Keep main context clean for implementation
+4. **Always verify-app before commits** - No exceptions
+5. **Always code-simplifier after features** - Catch complexity before it spreads
+
+### Example: Feature Implementation Flow
+
+```
+1. Plan the feature (main conversation)
+2. Implement the feature (main conversation)
+3. Spawn code-simplifier → cleans up the code
+4. Spawn verify-app → confirms everything works
+5. Commit with confidence
+```
 
 ## Environment Variables
 
 Required in `.env.local` (not committed):
+
 ```
 # Databases
 WISHDESK_DB_HOST=
@@ -235,56 +348,61 @@ GITHUB_TOKEN=
 
 ## Quick Reference
 
-### Task Management (mcp__task-manager__*)
-| Need to... | Do this |
-|------------|---------|
-| Add a task | `mcp__task-manager__add_task { title, description?, project?, priority? }` |
-| List tasks | `mcp__task-manager__list_tasks { status?, project? }` |
-| Update a task | `mcp__task-manager__update_task { id, status?, title?, priority? }` |
-| Complete a task | `mcp__task-manager__complete_task { id }` |
-| Snooze a task | `mcp__task-manager__snooze_task { id, duration }` (e.g., "2h", "1d") |
-| Move to project | `mcp__task-manager__move_task { id, project }` |
-| Delete a task | `mcp__task-manager__delete_task { id }` |
-| Set reminder | `mcp__task-manager__add_reminder { message, remindAt }` |
-| List reminders | `mcp__task-manager__list_reminders { status? }` |
-| Cancel reminder | `mcp__task-manager__cancel_reminder { id }` |
-| List projects | `mcp__task-manager__list_projects` |
-| Create project | `mcp__task-manager__create_project { name, description?, githubRepo? }` |
+### Task Management (mcp**task-manager**\*)
 
-### Database Access (mcp__db__*)
-| Need to... | Do this |
-|------------|---------|
-| List databases | `mcp__db__list_databases` |
-| List tables | `mcp__db__list_tables { database }` |
-| Describe table | `mcp__db__describe_table { database, table }` |
+| Need to...      | Do this                                                                    |
+| --------------- | -------------------------------------------------------------------------- |
+| Add a task      | `mcp__task-manager__add_task { title, description?, project?, priority? }` |
+| List tasks      | `mcp__task-manager__list_tasks { status?, project? }`                      |
+| Update a task   | `mcp__task-manager__update_task { id, status?, title?, priority? }`        |
+| Complete a task | `mcp__task-manager__complete_task { id }`                                  |
+| Snooze a task   | `mcp__task-manager__snooze_task { id, duration }` (e.g., "2h", "1d")       |
+| Move to project | `mcp__task-manager__move_task { id, project }`                             |
+| Delete a task   | `mcp__task-manager__delete_task { id }`                                    |
+| Set reminder    | `mcp__task-manager__add_reminder { message, remindAt }`                    |
+| List reminders  | `mcp__task-manager__list_reminders { status? }`                            |
+| Cancel reminder | `mcp__task-manager__cancel_reminder { id }`                                |
+| List projects   | `mcp__task-manager__list_projects`                                         |
+| Create project  | `mcp__task-manager__create_project { name, description?, githubRepo? }`    |
+
+### Database Access (mcp**db**\*)
+
+| Need to...     | Do this                                               |
+| -------------- | ----------------------------------------------------- |
+| List databases | `mcp__db__list_databases`                             |
+| List tables    | `mcp__db__list_tables { database }`                   |
+| Describe table | `mcp__db__describe_table { database, table }`         |
 | Query database | `mcp__db__query_database { database, query, limit? }` |
 
-### GitHub Access (mcp__github__*)
-| Need to... | Do this |
-|------------|---------|
-| List repos | `mcp__github__list_repos` |
-| Search code | `mcp__github__search_code { query, repo? }` |
-| Get file | `mcp__github__get_file { repo, path, ref? }` |
-| List files | `mcp__github__list_files { repo, path? }` |
-| List branches | `mcp__github__list_branches { repo }` |
-| List commits | `mcp__github__list_commits { repo, branch?, path? }` |
-| List PRs | `mcp__github__list_pull_requests { repo, state? }` |
-| Get PR details | `mcp__github__get_pull_request { repo, pr_number }` |
+### GitHub Access (mcp**github**\*)
+
+| Need to...     | Do this                                              |
+| -------------- | ---------------------------------------------------- |
+| List repos     | `mcp__github__list_repos`                            |
+| Search code    | `mcp__github__search_code { query, repo? }`          |
+| Get file       | `mcp__github__get_file { repo, path, ref? }`         |
+| List files     | `mcp__github__list_files { repo, path? }`            |
+| List branches  | `mcp__github__list_branches { repo }`                |
+| List commits   | `mcp__github__list_commits { repo, branch?, path? }` |
+| List PRs       | `mcp__github__list_pull_requests { repo, state? }`   |
+| Get PR details | `mcp__github__get_pull_request { repo, pr_number }`  |
 
 ### Slash Commands
-| Need to... | Do this |
-|------------|---------|
-| Add task quickly | `/task add [title]` |
-| List tasks | `/task list` |
-| Set reminder | `/remind [message] in [duration]` |
-| Create PR | `/commit-push-pr` |
-| Deep analysis | `/analyze [description]` |
+
+| Need to...       | Do this                           |
+| ---------------- | --------------------------------- |
+| Add task quickly | `/task add [title]`               |
+| List tasks       | `/task list`                      |
+| Set reminder     | `/remind [message] in [duration]` |
+| Create PR        | `/commit-push-pr`                 |
+| Deep analysis    | `/analyze [description]`          |
 
 ---
 
 ## When in Doubt, Search
 
 **Always use WebSearch when uncertain about:**
+
 - Current API documentation or syntax
 - Library versions and compatibility
 - Error messages you don't recognize
@@ -298,11 +416,13 @@ Don't guess - search first, then act with confidence.
 When solving multi-step problems or bugs:
 
 1. **Create a task** to track the work:
+
    ```
    mcp__task-manager__add_task { title: "Fix login bug", project: "SERP" }
    ```
 
 2. **Break down into subtasks** if complex:
+
    ```
    mcp__task-manager__add_task { title: "Investigate auth flow", project: "SERP" }
    mcp__task-manager__add_task { title: "Fix token validation", project: "SERP" }
@@ -310,16 +430,19 @@ When solving multi-step problems or bugs:
    ```
 
 3. **Query databases** to understand data:
+
    ```
    mcp__db__query_database { database: "sugarwish", query: "SELECT * FROM users WHERE..." }
    ```
 
 4. **Search GitHub** for related code:
+
    ```
    mcp__github__search_code { query: "validateToken", repo: "SERP" }
    ```
 
 5. **Mark tasks complete** as you finish:
+
    ```
    mcp__task-manager__complete_task { id: 1 }
    ```
@@ -331,4 +454,4 @@ When solving multi-step problems or bugs:
 
 ---
 
-*Add to this file whenever Claude makes a mistake, so it learns.*
+_Add to this file whenever Claude makes a mistake, so it learns._

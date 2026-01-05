@@ -5,11 +5,13 @@ Deep analysis of a task or feature request before implementation. Researches how
 **THIS IS A READ-ONLY COMMAND. NO FILES ARE CREATED OR MODIFIED.**
 
 ## Usage
+
 ```
 /project:analyze [task description or feature request]
 ```
 
 ## Examples
+
 ```
 /project:analyze "integrate payment processing system"
 /project:analyze "add real-time notifications to chat"
@@ -17,8 +19,10 @@ Deep analysis of a task or feature request before implementation. Researches how
 ```
 
 ---
+
 description: READ-ONLY analysis - researches patterns, explores codebase, identifies risks. Never modifies files.
 allowed-tools: Task, WebSearch, WebFetch, Grep, Glob, Read, Bash(read-only)
+
 ---
 
 # Analysis Request: $ARGUMENTS
@@ -28,7 +32,7 @@ allowed-tools: Task, WebSearch, WebFetch, Grep, Glob, Read, Bash(read-only)
 **YOU ARE IN READ-ONLY ANALYSIS MODE.**
 
 - ❌ DO NOT create any files
-- ❌ DO NOT modify any files  
+- ❌ DO NOT modify any files
 - ❌ DO NOT write any code
 - ❌ DO NOT run any commands that change state
 - ❌ DO NOT fix, implement, or resolve anything
@@ -50,9 +54,11 @@ Think hard about this analysis task. You are conducting pre-implementation resea
 Launch these research tasks **in parallel** using the Task tool:
 
 ### 1.1 External Pattern Research (subagent_type: general-purpose)
+
 Search for how others have implemented similar functionality:
+
 - Search GitHub for repositories solving similar problems
-- Search Stack Overflow for common patterns and pitfalls  
+- Search Stack Overflow for common patterns and pitfalls
 - Look for official documentation or best practices guides
 - Find blog posts or tutorials about this type of implementation
 - Note any libraries, packages, or frameworks commonly used
@@ -60,7 +66,9 @@ Search for how others have implemented similar functionality:
 Focus queries on: "$ARGUMENTS"
 
 ### 1.2 Codebase Exploration (subagent_type: Explore, thoroughness: very thorough)
+
 Analyze the existing codebase:
+
 - Search for related existing functionality using Grep and Glob
 - Identify files and systems that will be affected
 - Understand current patterns, conventions, and architecture
@@ -68,7 +76,9 @@ Analyze the existing codebase:
 - Map dependencies and integration points
 
 ### 1.3 Data Structure Analysis (if applicable)
+
 If the task involves database operations:
+
 - Use MCP database tools to LIST TABLES FIRST
 - Then DESCRIBE relevant tables to understand schema
 - Document field names, relationships, and constraints
@@ -79,13 +89,16 @@ If the task involves database operations:
 After gathering research, analyze findings:
 
 ### 2.1 Requirements Extraction
+
 - Core objective and success criteria
 - Scope boundaries (what's in vs out)
 - Dependencies and prerequisites
 - User-facing vs system-level changes
 
 ### 2.2 Implementation Assessment
+
 Based on research, determine:
+
 - Which existing patterns from the codebase to follow
 - Which external patterns/approaches are most applicable
 - New components, endpoints, or files required
@@ -93,6 +106,7 @@ Based on research, determine:
 - Third-party dependencies to consider
 
 ### 2.3 Risk Identification
+
 - Technical challenges and limitations
 - Potential breaking changes
 - Performance implications
@@ -101,7 +115,9 @@ Based on research, determine:
 - Integration complexity
 
 ### 2.4 Alternative Approaches
+
 List 2-3 viable implementation approaches with tradeoffs:
+
 - Approach A: [description] — Pros/Cons
 - Approach B: [description] — Pros/Cons
 - Recommended approach with justification
@@ -124,7 +140,7 @@ Present your analysis in this conversation. Do not create any files.
 - [Key patterns, libraries, or approaches found]
 - [Links to relevant resources]
 
-#### Codebase Insights  
+#### Codebase Insights
 - **Related Files**: [list of affected files/modules]
 - **Existing Patterns**: [patterns to follow]
 - **Integration Points**: [systems to connect with]
@@ -162,16 +178,76 @@ Present your analysis in this conversation. Do not create any files.
 - [Any ambiguities that need human input]
 
 ### 📝 Ready to Implement?
-When you're ready to proceed, say "implement" or "go ahead" and I will begin.
+
+**Option 1: Manual** - Say "implement" or "go ahead" and I will begin.
+
+**Option 2: Autonomous (Ralph Loop)** - Copy and run this command:
+```
+
+/ralph-loop "[IMPLEMENTATION_PROMPT]" --completion-promise "COMPLETE" --max-iterations [ITERATIONS]
+
+```
+
+```
+
+---
+
+## Phase 4: Generate Ralph Loop Command
+
+After completing the analysis, generate a ready-to-use `/ralph-loop` command.
+
+**Create the IMPLEMENTATION_PROMPT by:**
+
+1. Summarizing the task in 1-2 sentences
+2. Listing the key implementation steps from your plan
+3. Specifying verification steps (typecheck, lint, test)
+4. Including the completion signal
+
+**Set ITERATIONS based on complexity:**
+
+- Low complexity: 10-15 iterations
+- Medium complexity: 20-30 iterations
+- High complexity: 40-50 iterations
+
+**Output format:**
+
+```
+### 🤖 Ralph Loop Command
+
+Copy and run this to implement autonomously:
+
+\`\`\`
+/ralph-loop "Implement: [task summary]
+
+Steps:
+1. [step 1]
+2. [step 2]
+3. [step 3]
+...
+
+Verification:
+- Run npm run typecheck
+- Run npm run lint
+- Run npm run test (if applicable)
+- Manually verify the feature works
+
+When all steps complete and verification passes, output: <promise>COMPLETE</promise>
+
+If stuck after 10+ attempts, output: <promise>BLOCKED</promise> with explanation." --completion-promise "COMPLETE" --max-iterations [N]
+\`\`\`
 ```
 
 ---
 
 ## ⛔ FINAL REMINDER
 
-This analysis is complete when you have OUTPUT TEXT describing the plan.
+This analysis is complete when you have:
+
+1. OUTPUT TEXT describing the plan
+2. Generated a ready-to-use `/ralph-loop` command
 
 **DO NOT:**
+
 - Create a plan file
 - Create any implementation files
 - Make any code changes

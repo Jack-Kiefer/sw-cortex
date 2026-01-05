@@ -93,9 +93,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
 }
 
 // Create SSH tunnel and return local port
-async function createTunnel(
-  config: DatabaseConfig
-): Promise<number> {
+async function createTunnel(config: DatabaseConfig): Promise<number> {
   if (!config.ssh) {
     throw new Error('SSH config required for tunnel');
   }
@@ -115,26 +113,20 @@ async function createTunnel(
     try {
       const keyPath = config.ssh!.privateKeyPath.replace('~', process.env.HOME || '');
       privateKey = readFileSync(keyPath, 'utf8');
-    } catch (err) {
+    } catch {
       reject(new Error(`Failed to read SSH key: ${config.ssh!.privateKeyPath}`));
       return;
     }
 
     // Create local server to forward connections
     const server = createServer((socket) => {
-      sshClient.forwardOut(
-        '127.0.0.1',
-        0,
-        config.host,
-        config.port,
-        (err, stream) => {
-          if (err) {
-            socket.end();
-            return;
-          }
-          socket.pipe(stream).pipe(socket);
+      sshClient.forwardOut('127.0.0.1', 0, config.host, config.port, (err, stream) => {
+        if (err) {
+          socket.end();
+          return;
         }
-      );
+        socket.pipe(stream).pipe(socket);
+      });
     });
 
     server.listen(0, '127.0.0.1', () => {

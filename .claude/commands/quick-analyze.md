@@ -3,13 +3,16 @@
 Quick assessment of a task without deep external research. Use for smaller changes where codebase context is sufficient.
 
 ## Usage
+
 ```
 /project:quick-analyze [task description]
 ```
 
 ---
+
 description: Quick codebase-focused analysis for smaller tasks
 allowed-tools: Task, Grep, Glob, Read, Bash, mcp
+
 ---
 
 # Quick Analysis: $ARGUMENTS
@@ -19,11 +22,13 @@ Think about this task and provide a focused assessment. **DO NOT make any code c
 ## Quick Assessment Process
 
 ### 1. Codebase Scan (use Explore subagent, thoroughness: medium)
+
 - Find related files and existing patterns
 - Identify integration points
 - Note conventions to follow
 
 ### 2. If Database Involved
+
 - List relevant tables using MCP tools
 - Check schema constraints
 

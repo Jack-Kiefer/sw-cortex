@@ -19,8 +19,7 @@ export const REMINDER_STATUS = {
   SNOOZED: 'snoozed',
 } as const;
 
-export type ReminderStatus =
-  (typeof REMINDER_STATUS)[keyof typeof REMINDER_STATUS];
+export type ReminderStatus = (typeof REMINDER_STATUS)[keyof typeof REMINDER_STATUS];
 
 // Priority levels
 export const PRIORITY = {
@@ -66,6 +65,13 @@ export const tasks = sqliteTable('tasks', {
     .notNull()
     .$defaultFn(() => new Date()),
   completedAt: integer('completed_at', { mode: 'timestamp' }),
+  // Notification fields (unified reminder support)
+  notifyAt: integer('notify_at', { mode: 'timestamp' }), // When to send Slack notification
+  notificationSent: integer('notification_sent', { mode: 'boolean' }).default(false),
+  notificationChannel: text('notification_channel'), // Slack channel/DM for notification
+  notificationSnoozedUntil: integer('notification_snoozed_until', {
+    mode: 'timestamp',
+  }), // Snooze the notification separately from task
 });
 
 // Reminders table
@@ -81,6 +87,10 @@ export const reminders = sqliteTable('reminders', {
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),
+  // Button interaction tracking
+  slackMessageTs: text('slack_message_ts'), // Slack message timestamp for updates
+  interacted: integer('interacted', { mode: 'boolean' }).default(false), // User clicked a button
+  lastRemindedAt: integer('last_reminded_at', { mode: 'timestamp' }), // For daily re-reminders
 });
 
 // Task activity log for history

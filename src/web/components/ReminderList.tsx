@@ -1,18 +1,8 @@
 import { useState } from 'react';
-
-interface Reminder {
-  id: number;
-  message: string;
-  remindAt: string;
-  status: string;
-  taskId: number | null;
-  snoozedUntil: string | null;
-  sentAt: string | null;
-  createdAt: string;
-}
+import type { ReminderResponse } from '../../types/index.js';
 
 interface ReminderListProps {
-  reminders: Reminder[];
+  reminders: ReminderResponse[];
   onCancel: (id: number) => void;
   onSnooze: (id: number, duration: string) => void;
 }
@@ -34,9 +24,7 @@ export default function ReminderList({ reminders, onCancel, onSnooze }: Reminder
 
   if (reminders.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-500">
-        No pending reminders. Add one above!
-      </div>
+      <div className="text-center py-12 text-slate-500">No pending reminders. Add one above!</div>
     );
   }
 

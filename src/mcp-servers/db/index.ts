@@ -31,11 +31,15 @@ import * as dbService from '../../services/databases.js';
 const tools: Tool[] = [
   {
     name: 'query_database',
-    description: 'Execute a read-only SQL query against a database (wishdesk, sugarwish, odoo, retool)',
+    description:
+      'Execute a read-only SQL query against a database (wishdesk, sugarwish, odoo, retool)',
     inputSchema: {
       type: 'object',
       properties: {
-        database: { type: 'string', description: 'Database name: wishdesk, sugarwish, odoo, retool' },
+        database: {
+          type: 'string',
+          description: 'Database name: wishdesk, sugarwish, odoo, retool',
+        },
         query: { type: 'string', description: 'SQL query (SELECT only)' },
         limit: { type: 'number', description: 'Max rows to return' },
       },
@@ -48,7 +52,10 @@ const tools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        database: { type: 'string', description: 'Database name: wishdesk, sugarwish, odoo, retool' },
+        database: {
+          type: 'string',
+          description: 'Database name: wishdesk, sugarwish, odoo, retool',
+        },
       },
       required: ['database'],
     },
@@ -72,10 +79,7 @@ const tools: Tool[] = [
   },
 ];
 
-const server = new Server(
-  { name: 'db', version: '1.0.0' },
-  { capabilities: { tools: {} } }
-);
+const server = new Server({ name: 'db', version: '1.0.0' }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
@@ -114,7 +118,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   } catch (error) {
     return {
-      content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
+      content: [
+        { type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` },
+      ],
       isError: true,
     };
   }

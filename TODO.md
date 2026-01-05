@@ -5,6 +5,7 @@ Remaining setup tasks for the workspace.
 ## Immediate (Before Using)
 
 - [x] **Install dependencies** ✅ DONE
+
   ```bash
   cd /home/jackk/sw-cortex
   npm install
@@ -51,10 +52,13 @@ Remaining setup tasks for the workspace.
   - Add to `.env.local`: `SLACK_USER_ID=U0123456789`
 
 - [ ] **Install systemd timer**
+
   ```bash
   ./scripts/install-systemd.sh
   ```
+
   Or manually:
+
   ```bash
   sudo cp scripts/systemd/sw-cortex-reminders.* /etc/systemd/system/
   sudo systemctl daemon-reload

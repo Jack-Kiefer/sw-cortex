@@ -3,12 +3,18 @@
 import 'dotenv/config';
 
 /**
- * Task Manager MCP Server
+ * Task Manager MCP Server v2.0
  *
- * Provides tools for:
+ * Unified task and notification model:
+ * - Tasks can have optional notifications (replacing separate reminders)
+ * - Notifications are time-triggered Slack messages linked to tasks
+ * - Projects organize tasks into logical groups
+ *
+ * Tools:
  * - Task management (add, list, complete, snooze, move, delete)
- * - Reminders (add, list, cancel, snooze)
+ * - Notifications (set, snooze, clear on tasks)
  * - Projects (list, create)
+ * - Legacy reminder tools (deprecated, create tasks internally)
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -21,25 +27,41 @@ import {
 
 import { initDb } from '../../db/index.js';
 import * as taskService from '../../services/tasks.js';
-import * as reminderService from '../../services/reminders.js';
+import * as logReader from '../../services/log-reader.js';
 
 // Initialize task database
 initDb();
 
 const tools: Tool[] = [
-  // Task tools
+  // ==================
+  // Task Tools
+  // ==================
   {
     name: 'add_task',
-    description: 'Add a new task',
+    description: 'Add a new task. Can optionally include a notification time for Slack reminders.',
     inputSchema: {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Task title' },
         description: { type: 'string', description: 'Task description' },
-        project: { type: 'string', description: 'Project name' },
-        priority: { type: 'number', description: 'Priority 1-4 (1=low, 4=urgent)' },
+        project: {
+          type: 'string',
+          description: 'Project name (auto-created if new)',
+        },
+        priority: {
+          type: 'number',
+          description: 'Priority 1-4 (1=low, 4=urgent)',
+        },
         dueDate: { type: 'string', description: 'Due date (ISO format)' },
         tags: { type: 'array', items: { type: 'string' } },
+        notifyAt: {
+          type: 'string',
+          description: 'When to send Slack notification (ISO date or duration like "2h", "1d")',
+        },
+        notificationChannel: {
+          type: 'string',
+          description: 'Slack channel for notification (defaults to DM)',
+        },
       },
       required: ['title'],
     },
@@ -50,7 +72,10 @@ const tools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        status: { type: 'string', enum: ['pending', 'in_progress', 'completed', 'snoozed', 'all'] },
+        status: {
+          type: 'string',
+          enum: ['pending', 'in_progress', 'completed', 'snoozed', 'all'],
+        },
         project: { type: 'string' },
         limit: { type: 'number' },
       },
@@ -65,7 +90,10 @@ const tools: Tool[] = [
         id: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
-        status: { type: 'string', enum: ['pending', 'in_progress', 'completed', 'snoozed'] },
+        status: {
+          type: 'string',
+          enum: ['pending', 'in_progress', 'completed', 'snoozed'],
+        },
         priority: { type: 'number' },
         dueDate: { type: 'string' },
       },
@@ -88,7 +116,10 @@ const tools: Tool[] = [
       type: 'object',
       properties: {
         id: { type: 'number' },
-        duration: { type: 'string', description: 'Duration like "2h", "30m", "1d"' },
+        duration: {
+          type: 'string',
+          description: 'Duration like "2h", "30m", "1d"',
+        },
       },
       required: ['id', 'duration'],
     },
@@ -115,47 +146,70 @@ const tools: Tool[] = [
     },
   },
 
-  // Reminder tools
+  // ==================
+  // Notification Tools (unified with tasks)
+  // ==================
   {
-    name: 'add_reminder',
-    description: 'Add a reminder (delivered via Slack)',
+    name: 'set_task_notification',
+    description:
+      'Set or update a Slack notification for a task. The notification will be sent at the specified time.',
     inputSchema: {
       type: 'object',
       properties: {
-        message: { type: 'string' },
-        remindAt: { type: 'string', description: 'When to remind (ISO date or duration like "2h")' },
-        taskId: { type: 'number', description: 'Link to a task (optional)' },
+        id: { type: 'number', description: 'Task ID' },
+        notifyAt: {
+          type: 'string',
+          description: 'When to notify (ISO date or duration like "2h")',
+        },
+        channel: {
+          type: 'string',
+          description: 'Slack channel (optional, defaults to DM)',
+        },
       },
-      required: ['message', 'remindAt'],
+      required: ['id', 'notifyAt'],
     },
   },
   {
-    name: 'list_reminders',
-    description: 'List reminders',
+    name: 'snooze_task_notification',
+    description:
+      "Snooze a task's notification (delays the Slack message without changing the task status)",
     inputSchema: {
       type: 'object',
       properties: {
-        status: { type: 'string', enum: ['pending', 'sent', 'cancelled', 'all'] },
-        limit: { type: 'number' },
+        id: { type: 'number', description: 'Task ID' },
+        duration: {
+          type: 'string',
+          description: 'Duration like "15m", "1h", "1d"',
+        },
       },
+      required: ['id', 'duration'],
     },
   },
   {
-    name: 'cancel_reminder',
-    description: 'Cancel a reminder',
+    name: 'clear_task_notification',
+    description: "Remove a task's notification (task remains, notification is cleared)",
     inputSchema: {
       type: 'object',
-      properties: { id: { type: 'number' } },
+      properties: {
+        id: { type: 'number', description: 'Task ID' },
+      },
       required: ['id'],
     },
   },
   {
-    name: 'get_due_reminders',
-    description: 'Get reminders that are due now (for reminder service)',
+    name: 'get_tasks_due_for_notification',
+    description: 'Get tasks with notifications that are due now (for notification service)',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'list_tasks_with_notifications',
+    description: 'List all tasks that have pending notifications',
     inputSchema: { type: 'object', properties: {} },
   },
 
-  // Project tools
+  // ==================
+  // Project Tools
+  // ==================
   {
     name: 'list_projects',
     description: 'List all projects',
@@ -174,10 +228,109 @@ const tools: Tool[] = [
       required: ['name'],
     },
   },
+
+  // ==================
+  // Legacy Reminder Tools (deprecated - create tasks internally)
+  // ==================
+  {
+    name: 'add_reminder',
+    description: '[DEPRECATED: Use add_task with notifyAt] Creates a task with a notification',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: 'Reminder message (becomes task title)' },
+        remindAt: {
+          type: 'string',
+          description: 'When to remind (ISO date or duration)',
+        },
+        project: { type: 'string', description: 'Project to assign to' },
+      },
+      required: ['message', 'remindAt'],
+    },
+  },
+  {
+    name: 'list_reminders',
+    description: '[DEPRECATED: Use list_tasks_with_notifications] Lists tasks with notifications',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number' },
+      },
+    },
+  },
+
+  // ==================
+  // Log Tools
+  // ==================
+  {
+    name: 'search_logs',
+    description:
+      'Search sw-cortex service logs. Use this to understand what happened recently or debug issues.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: {
+          type: 'string',
+          description: 'Filter by service name (e.g., "slack-handler", "reminders")',
+        },
+        level: {
+          type: 'string',
+          enum: ['DEBUG', 'INFO', 'WARN', 'ERROR'],
+          description: 'Filter by log level',
+        },
+        search: {
+          type: 'string',
+          description: 'Text to search for in log messages',
+        },
+        since: {
+          type: 'string',
+          description: 'Time filter: duration like "1h", "24h" or ISO date',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max entries to return (default 100)',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_recent_logs',
+    description: 'Get the most recent log entries across all services',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Number of entries (default 50)',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_recent_errors',
+    description: 'Get recent ERROR level logs to identify issues',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Number of errors (default 20)',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_log_stats',
+    description: 'Get statistics about logs (counts by level, service, etc.)',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];
 
 const server = new Server(
-  { name: 'task-manager', version: '1.0.0' },
+  { name: 'task-manager', version: '2.0.0' },
   { capabilities: { tools: {} } }
 );
 
@@ -219,25 +372,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         break;
       case 'delete_task':
-        result = { success: taskService.deleteTask((args as { id: number }).id) };
+        result = {
+          success: taskService.deleteTask((args as { id: number }).id),
+        };
         break;
 
-      // Reminder operations
-      case 'add_reminder':
-        result = reminderService.addReminder(
-          args as Parameters<typeof reminderService.addReminder>[0]
+      // Notification operations
+      case 'set_task_notification':
+        result = taskService.setTaskNotification(
+          (args as { id: number; notifyAt: string; channel?: string }).id,
+          (args as { id: number; notifyAt: string; channel?: string }).notifyAt,
+          (args as { id: number; notifyAt: string; channel?: string }).channel
         );
         break;
-      case 'list_reminders':
-        result = reminderService.listReminders(
-          args as Parameters<typeof reminderService.listReminders>[0]
+      case 'snooze_task_notification':
+        result = taskService.snoozeTaskNotification(
+          (args as { id: number; duration: string }).id,
+          (args as { id: number; duration: string }).duration
         );
         break;
-      case 'cancel_reminder':
-        result = reminderService.cancelReminder((args as { id: number }).id);
+      case 'clear_task_notification':
+        result = taskService.clearTaskNotification((args as { id: number }).id);
         break;
-      case 'get_due_reminders':
-        result = reminderService.getDueReminders();
+      case 'get_tasks_due_for_notification':
+        result = taskService.getTasksDueForNotification();
+        break;
+      case 'list_tasks_with_notifications':
+        result = taskService.listTasksWithNotifications();
         break;
 
       // Project operations
@@ -245,9 +406,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = taskService.listProjects();
         break;
       case 'create_project':
-        result = taskService.createProject(
-          args as Parameters<typeof taskService.createProject>[0]
+        result = taskService.createProject(args as Parameters<typeof taskService.createProject>[0]);
+        break;
+
+      // Legacy reminder operations (create tasks internally)
+      case 'add_reminder': {
+        const reminderArgs = args as {
+          message: string;
+          remindAt: string;
+          project?: string;
+        };
+        console.error('[DEPRECATED] add_reminder called - use add_task with notifyAt instead');
+        result = taskService.addTask({
+          title: reminderArgs.message,
+          project: reminderArgs.project ?? 'Personal',
+          notifyAt: reminderArgs.remindAt,
+        });
+        break;
+      }
+      case 'list_reminders': {
+        console.error(
+          '[DEPRECATED] list_reminders called - use list_tasks_with_notifications instead'
         );
+        result = taskService.listTasksWithNotifications();
+        break;
+      }
+
+      // Log operations
+      case 'search_logs':
+        result = logReader.searchLogs(args as Parameters<typeof logReader.searchLogs>[0]);
+        break;
+      case 'get_recent_logs':
+        result = logReader.getRecentLogs((args as { limit?: number }).limit);
+        break;
+      case 'get_recent_errors':
+        result = logReader.getRecentErrors((args as { limit?: number }).limit);
+        break;
+      case 'get_log_stats':
+        result = logReader.getLogStats();
         break;
 
       default:
@@ -259,7 +455,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   } catch (error) {
     return {
-      content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
+      content: [
+        {
+          type: 'text',
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
       isError: true,
     };
   }
@@ -268,7 +469,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Task Manager MCP Server running on stdio');
+  console.error('Task Manager MCP Server v2.0 (Unified Model) running on stdio');
 }
 
 main().catch(console.error);

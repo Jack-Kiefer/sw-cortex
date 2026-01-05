@@ -12,6 +12,7 @@ echo "Installing sw-cortex services..."
 sudo cp "$SYSTEMD_DIR/sw-cortex-reminders.service" /etc/systemd/system/
 sudo cp "$SYSTEMD_DIR/sw-cortex-reminders.timer" /etc/systemd/system/
 sudo cp "$SYSTEMD_DIR/sw-cortex-web.service" /etc/systemd/system/
+sudo cp "$SYSTEMD_DIR/sw-cortex-slack.service" /etc/systemd/system/
 
 # Reload systemd
 sudo systemctl daemon-reload
@@ -26,6 +27,11 @@ echo "Enabling web UI..."
 sudo systemctl enable sw-cortex-web.service
 sudo systemctl start sw-cortex-web.service
 
+# Enable and start Slack handler
+echo "Enabling Slack handler..."
+sudo systemctl enable sw-cortex-slack.service
+sudo systemctl start sw-cortex-slack.service
+
 echo ""
 echo "Done! Status:"
 echo ""
@@ -35,9 +41,14 @@ echo ""
 echo "Web UI:"
 systemctl status sw-cortex-web.service --no-pager || true
 echo ""
+echo "Slack Handler:"
+systemctl status sw-cortex-slack.service --no-pager || true
+echo ""
 echo "Web UI available at: http://localhost:4000"
 echo ""
 echo "Commands:"
 echo "  View web logs: journalctl -u sw-cortex-web.service -f"
 echo "  View reminder logs: journalctl -u sw-cortex-reminders.service -f"
+echo "  View Slack logs: journalctl -u sw-cortex-slack.service -f"
 echo "  Restart web: sudo systemctl restart sw-cortex-web.service"
+echo "  Restart Slack: sudo systemctl restart sw-cortex-slack.service"

@@ -2,35 +2,46 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write(*.ts)",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+            "command": "npx prettier --write \"$CLAUDE_TOOL_INPUT_FILE_PATH\" 2>/dev/null || true",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "npx eslint --fix \"$CLAUDE_TOOL_INPUT_FILE_PATH\" 2>/dev/null || true",
+            "timeout": 20
           }
         ]
-      },
+      }
+    ],
+    "Stop": [
       {
-        "matcher": "Write(*.tsx)",
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+            "command": "printf '\\a' && (notify-send 'Claude Code' 'Task completed' 2>/dev/null || true)"
           }
         ]
-      },
+      }
+    ],
+    "Notification": [
       {
-        "matcher": "Write(*.json)",
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+            "command": "printf '\\a' && (notify-send 'Claude Code' 'Needs your input' 2>/dev/null || true)"
           }
         ]
       }
     ]
   },
   "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
       "mcp__task-manager__*",
       "mcp__wishdesk-db__*",
@@ -406,16 +417,9 @@
       "Bash(cd backend && npm install && cd ..)",
       "Bash(npm run build --prefix frontend)"
     ],
-    "deny": [
-    ]
+    "deny": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "serp-database",
-    "browser",
-    "db"
-  ],
-  "disabledMcpjsonServers": [
-    "mcp-db-tool"
-  ]
+  "enabledMcpjsonServers": ["serp-database", "browser", "db"],
+  "disabledMcpjsonServers": ["mcp-db-tool"]
 }

@@ -34,9 +34,7 @@ function getClient(): Octokit {
 function findRepo(name: string): RepoConfig {
   const lower = name.toLowerCase();
   const repo = REPOS.find(
-    (r) =>
-      r.repo.toLowerCase() === lower ||
-      `${r.owner}/${r.repo}`.toLowerCase() === lower
+    (r) => r.repo.toLowerCase() === lower || `${r.owner}/${r.repo}`.toLowerCase() === lower
   );
   if (!repo) {
     throw new Error(

@@ -1,30 +1,31 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
-
-interface Task {
-  id: number;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: number;
-  projectId: number | null;
-  dueDate: string | null;
-  tags: string | null;
-  createdAt: string;
-  completedAt: string | null;
-  snoozedUntil: string | null;
-}
+import type { TaskResponse, ProjectResponse } from '../../types/index.js';
 
 interface TaskItemProps {
-  task: Task;
+  task: TaskResponse;
+  project: ProjectResponse | null;
+  onSelect: (task: TaskResponse) => void;
   onComplete: (id: number) => void;
   onSnooze: (id: number, duration: string) => void;
   onDelete: (id: number) => void;
+  onSnoozeNotification: (id: number, duration: string) => void;
+  onClearNotification: (id: number) => void;
 }
 
-export default function TaskItem({ task, onComplete, onSnooze, onDelete }: TaskItemProps) {
+export default function TaskItem({
+  task,
+  project,
+  onSelect,
+  onComplete,
+  onSnooze,
+  onDelete,
+  onSnoozeNotification,
+  onClearNotification,
+}: TaskItemProps) {
   const [showSnooze, setShowSnooze] = useState(false);
+  const [showNotificationSnooze, setShowNotificationSnooze] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -50,18 +51,38 @@ export default function TaskItem({ task, onComplete, onSnooze, onDelete }: TaskI
     4: 'Urgent',
   };
 
+  // Format notification time
+  const formatNotificationTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = date.getTime() - now.getTime();
+
+    if (diff < 0) return 'Overdue';
+    if (diff < 60000) return '< 1 min';
+    if (diff < 3600000) return `${Math.round(diff / 60000)}m`;
+    if (diff < 86400000) return `${Math.round(diff / 3600000)}h`;
+    return `${Math.round(diff / 86400000)}d`;
+  };
+
+  const hasNotification = task.notifyAt && !task.notificationSent;
+  const notificationTime = task.notificationSnoozedUntil || task.notifyAt;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition"
+      className={`bg-white dark:bg-slate-800 rounded-lg p-4 border transition shadow-sm dark:shadow-none ${
+        hasNotification
+          ? 'border-yellow-500/50 hover:border-yellow-500'
+          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+      }`}
     >
       <div className="flex items-start gap-3">
         {/* Drag handle */}
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-400 mt-1"
+          className="cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 hover:text-slate-500 dark:hover:text-slate-400 mt-1"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
@@ -88,40 +109,117 @@ export default function TaskItem({ task, onComplete, onSnooze, onDelete }: TaskI
           )}
         </button>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        {/* Content - clickable area */}
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelect(task)}>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span
-              className={`text-base ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-white'}`}
+              className={`text-base hover:underline ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}
             >
               {task.title}
             </span>
+
+            {/* Project badge */}
+            {project && (
+              <span
+                className="text-xs px-2 py-0.5 rounded"
+                style={{
+                  backgroundColor: `${project.color ?? '#6366f1'}20`,
+                  color: project.color ?? '#6366f1',
+                }}
+              >
+                {project.name}
+              </span>
+            )}
+
+            {/* Status badge */}
             <span className={`text-xs px-2 py-0.5 rounded ${statusColors[task.status]}`}>
               {task.status.replace('_', ' ')}
             </span>
-            {task.priority > 2 && (
+
+            {/* Priority badge */}
+            {task.priority && task.priority > 2 && (
               <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">
                 {priorityLabels[task.priority]}
               </span>
             )}
+
+            {/* Notification badge */}
+            {hasNotification && notificationTime && (
+              <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                </svg>
+                {formatNotificationTime(notificationTime)}
+              </span>
+            )}
           </div>
+
+          {/* Description */}
           {task.description && (
-            <p className="text-sm text-slate-400 truncate">{task.description}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 whitespace-pre-wrap">
+              {task.description}
+            </p>
           )}
+
+          {/* Due date */}
           {task.dueDate && (
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
               Due: {new Date(task.dueDate).toLocaleDateString()}
             </p>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          {/* Notification controls */}
+          {hasNotification && (
+            <div className="relative">
+              <button
+                onClick={() => setShowNotificationSnooze(!showNotificationSnooze)}
+                className="p-1.5 rounded text-yellow-500 dark:text-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                title="Snooze notification"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                </svg>
+              </button>
+              {showNotificationSnooze && (
+                <div className="absolute right-0 top-8 bg-white dark:bg-slate-700 rounded-lg shadow-xl z-10 py-1 min-w-[120px] border border-slate-200 dark:border-slate-600">
+                  <div className="px-3 py-1 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-600">
+                    Snooze notification
+                  </div>
+                  {['15m', '30m', '1h', '2h', '1d'].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        onSnoozeNotification(task.id, d);
+                        setShowNotificationSnooze(false);
+                      }}
+                      className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600"
+                    >
+                      {d}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      onClearNotification(task.id);
+                      setShowNotificationSnooze(false);
+                    }}
+                    className="block w-full text-left px-3 py-1.5 text-sm text-red-500 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-600 border-t border-slate-200 dark:border-slate-600"
+                  >
+                    Clear notification
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Task snooze */}
           <div className="relative">
             <button
               onClick={() => setShowSnooze(!showSnooze)}
-              className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition"
-              title="Snooze"
+              className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              title="Snooze task"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -133,7 +231,10 @@ export default function TaskItem({ task, onComplete, onSnooze, onDelete }: TaskI
               </svg>
             </button>
             {showSnooze && (
-              <div className="absolute right-0 top-8 bg-slate-700 rounded-lg shadow-xl z-10 py-1 min-w-[100px]">
+              <div className="absolute right-0 top-8 bg-white dark:bg-slate-700 rounded-lg shadow-xl z-10 py-1 min-w-[100px] border border-slate-200 dark:border-slate-600">
+                <div className="px-3 py-1 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-600">
+                  Snooze task
+                </div>
                 {['30m', '1h', '2h', '1d', '1w'].map((d) => (
                   <button
                     key={d}
@@ -141,7 +242,7 @@ export default function TaskItem({ task, onComplete, onSnooze, onDelete }: TaskI
                       onSnooze(task.id, d);
                       setShowSnooze(false);
                     }}
-                    className="block w-full text-left px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-600"
+                    className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600"
                   >
                     {d}
                   </button>
@@ -149,9 +250,11 @@ export default function TaskItem({ task, onComplete, onSnooze, onDelete }: TaskI
               </div>
             )}
           </div>
+
+          {/* Delete */}
           <button
             onClick={() => onDelete(task.id)}
-            className="p-1.5 rounded text-slate-400 hover:text-red-400 hover:bg-slate-700 transition"
+            className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
             title="Delete"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

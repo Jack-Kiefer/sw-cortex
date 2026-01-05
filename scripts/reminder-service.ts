@@ -1,24 +1,24 @@
 #!/usr/bin/env npx tsx
 
 /**
- * Reminder Service
+ * Notification Service (formerly Reminder Service)
  *
  * Run this periodically (via cron or systemd timer) to:
- * 1. Check for due reminders
+ * 1. Check for tasks with due notifications
  * 2. Send Slack notifications
- * 3. Mark reminders as sent
+ * 3. Mark notifications as sent
  *
  * Usage:
  *   npx tsx scripts/reminder-service.ts
  *
  * Environment variables:
  *   SLACK_BOT_TOKEN - Slack bot token for sending DMs
- *   SLACK_USER_ID - Default user ID to send reminders to
+ *   SLACK_USER_ID - Default user ID to send notifications to
  */
 
 import { WebClient } from '@slack/web-api';
 import { initDb } from '../src/db/index.js';
-import { getDueReminders, markReminderSent } from '../src/services/reminders.js';
+import { getTasksDueForNotification, markTaskNotificationSent } from '../src/services/tasks.js';
 
 // Initialize database
 initDb();
@@ -27,9 +27,9 @@ initDb();
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 const defaultUserId = process.env.SLACK_USER_ID;
 
-async function sendSlackReminder(
-  message: string,
-  taskTitle?: string,
+async function sendSlackNotification(
+  title: string,
+  description: string | null,
   channel?: string
 ): Promise<boolean> {
   const targetChannel = channel || defaultUserId;
@@ -40,9 +40,12 @@ async function sendSlackReminder(
   }
 
   try {
-    let text = `🔔 *Reminder*\n${message}`;
-    if (taskTitle) {
-      text += `\n\n📋 Related task: ${taskTitle}`;
+    let text = `🔔 *Task Notification*\n*${title}*`;
+    if (description) {
+      // Truncate long descriptions
+      const truncatedDesc =
+        description.length > 500 ? description.substring(0, 497) + '...' : description;
+      text += `\n\n${truncatedDesc}`;
     }
 
     await slack.chat.postMessage({
@@ -58,36 +61,36 @@ async function sendSlackReminder(
   }
 }
 
-async function processReminders(): Promise<void> {
-  const dueReminders = getDueReminders();
+async function processNotifications(): Promise<void> {
+  const dueTasks = getTasksDueForNotification();
 
-  console.log(`Found ${dueReminders.length} due reminders`);
+  console.log(`Found ${dueTasks.length} tasks with due notifications`);
 
-  for (const { reminder, taskTitle } of dueReminders) {
-    console.log(`Processing reminder ${reminder.id}: ${reminder.message}`);
+  for (const task of dueTasks) {
+    console.log(`Processing task ${task.id}: ${task.title}`);
 
-    const success = await sendSlackReminder(
-      reminder.message,
-      taskTitle,
-      reminder.slackChannel ?? undefined
+    const success = await sendSlackNotification(
+      task.title,
+      task.description,
+      task.notificationChannel ?? undefined
     );
 
     if (success) {
-      markReminderSent(reminder.id);
-      console.log(`✓ Reminder ${reminder.id} sent successfully`);
+      markTaskNotificationSent(task.id);
+      console.log(`✓ Notification for task ${task.id} sent successfully`);
     } else {
-      console.error(`✗ Failed to send reminder ${reminder.id}`);
+      console.error(`✗ Failed to send notification for task ${task.id}`);
     }
   }
 }
 
 // Run the service
-processReminders()
+processNotifications()
   .then(() => {
-    console.log('Reminder service completed');
+    console.log('Notification service completed');
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Reminder service failed:', error);
+    console.error('Notification service failed:', error);
     process.exit(1);
   });

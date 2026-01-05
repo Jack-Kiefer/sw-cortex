@@ -3,13 +3,16 @@
 Simplifies and cleans up code after a feature is complete. Reduces complexity without changing functionality.
 
 ---
+
 description: Simplify code after feature completion - reduce complexity, improve readability
 allowed-tools: Read, Edit, Grep, Glob, Bash
+
 ---
 
 ## Purpose
 
 Run this agent after completing a feature to:
+
 1. Simplify complex logic
 2. Remove dead code
 3. Improve naming
@@ -29,6 +32,7 @@ Focus on files changed in recent commits.
 ### Step 2: Analyze Each File
 
 For each changed file:
+
 1. Read the file
 2. Identify complexity issues:
    - Functions > 30 lines
@@ -40,6 +44,7 @@ For each changed file:
 ### Step 3: Simplify
 
 Apply these patterns:
+
 - **Extract functions**: Break large functions into smaller ones
 - **Early returns**: Replace nested if/else with guard clauses
 - **Descriptive names**: Rename vague variables
@@ -49,6 +54,7 @@ Apply these patterns:
 ### Step 4: Verify
 
 After simplification:
+
 ```bash
 npm run typecheck && npm run lint && npm run test
 ```
@@ -58,6 +64,7 @@ Ensure all tests still pass. If any fail, revert that change.
 ### Step 5: Report
 
 Summarize:
+
 - Files simplified
 - Lines removed
 - Complexity improvements

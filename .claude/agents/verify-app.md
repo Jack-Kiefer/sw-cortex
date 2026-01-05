@@ -3,8 +3,10 @@
 Tests the application end-to-end after changes. Runs comprehensive verification and documents results.
 
 ---
+
 description: End-to-end application verification - tests, type checks, lint, manual verification
 allowed-tools: Bash, Read, Grep, Glob
+
 ---
 
 ## Purpose
@@ -35,6 +37,7 @@ echo "Tests: $([ $? -eq 0 ] && echo 'PASS' || echo 'FAIL')"
 ### Step 3: MCP Server Verification
 
 If task MCP server changes were made:
+
 ```bash
 # Start server in background
 npm run task:serve &
@@ -53,6 +56,7 @@ kill $MCP_PID
 ### Step 4: Integration Points
 
 Check each integration:
+
 - [ ] Task database accessible
 - [ ] Slack bot token valid (if Slack changes)
 - [ ] Database connections work (if DB changes)
@@ -93,6 +97,7 @@ git diff HEAD | grep -E "(console\.log|TODO|FIXME|debugger)"
 ## Failure Handling
 
 If any step fails:
+
 1. Document the failure
 2. Show the error output
 3. Suggest fixes
@@ -101,6 +106,7 @@ If any step fails:
 ## Success Criteria
 
 All of these must pass:
+
 - [ ] TypeScript compiles without errors
 - [ ] No lint errors
 - [ ] All tests pass

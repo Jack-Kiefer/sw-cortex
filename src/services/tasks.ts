@@ -3,7 +3,7 @@
  * Used by both MCP server and reminder service
  */
 
-import { eq, and, desc, asc, lte } from 'drizzle-orm';
+import { eq, and, desc, asc, lte, isNotNull } from 'drizzle-orm';
 import {
   db,
   tasks,
@@ -12,7 +12,6 @@ import {
   TASK_STATUS,
   type Task,
   type Project,
-  type NewTask,
 } from '../db/index.js';
 
 // Duration parsing
@@ -37,13 +36,15 @@ function logActivity(
   previousValue?: unknown,
   newValue?: unknown
 ): void {
-  db.insert(taskActivity).values({
-    taskId,
-    action,
-    previousValue: previousValue ? JSON.stringify(previousValue) : null,
-    newValue: newValue ? JSON.stringify(newValue) : null,
-    createdAt: new Date(),
-  }).run();
+  db.insert(taskActivity)
+    .values({
+      taskId,
+      action,
+      previousValue: previousValue ? JSON.stringify(previousValue) : null,
+      newValue: newValue ? JSON.stringify(newValue) : null,
+      createdAt: new Date(),
+    })
+    .run();
 }
 
 // Project operations
@@ -86,6 +87,19 @@ export function createProject(data: {
     .get();
 }
 
+// Parse notification time from various formats (ISO date or duration)
+export function parseNotifyAt(input: string): Date {
+  // Try ISO date first
+  const isoDate = new Date(input);
+  if (!isNaN(isoDate.getTime())) {
+    return isoDate;
+  }
+
+  // Try duration (e.g., "2h", "30m", "1d")
+  const ms = parseDuration(input);
+  return new Date(Date.now() + ms);
+}
+
 // Task operations
 export function addTask(data: {
   title: string;
@@ -94,6 +108,8 @@ export function addTask(data: {
   priority?: number;
   dueDate?: string;
   tags?: string[];
+  notifyAt?: string; // ISO date or duration like "2h"
+  notificationChannel?: string;
 }): Task {
   let projectId: number | null = null;
 
@@ -114,6 +130,9 @@ export function addTask(data: {
       status: TASK_STATUS.PENDING,
       createdAt: new Date(),
       updatedAt: new Date(),
+      notifyAt: data.notifyAt ? parseNotifyAt(data.notifyAt) : null,
+      notificationSent: false,
+      notificationChannel: data.notificationChannel ?? null,
     })
     .returning()
     .get();
@@ -126,21 +145,12 @@ export function getTask(id: number): Task | undefined {
   return db.select().from(tasks).where(eq(tasks.id, id)).get();
 }
 
-export function listTasks(filters?: {
-  status?: string;
-  project?: string;
-  limit?: number;
-}): Task[] {
+export function listTasks(filters?: { status?: string; project?: string; limit?: number }): Task[] {
   // Un-snooze tasks that are past their snooze time
   const now = new Date();
   db.update(tasks)
     .set({ status: TASK_STATUS.PENDING, snoozedUntil: null, updatedAt: now })
-    .where(
-      and(
-        eq(tasks.status, TASK_STATUS.SNOOZED),
-        lte(tasks.snoozedUntil, now)
-      )
-    )
+    .where(and(eq(tasks.status, TASK_STATUS.SNOOZED), lte(tasks.snoozedUntil, now)))
     .run();
 
   const conditions = [];
@@ -186,12 +196,7 @@ export function updateTask(
   if (data.priority !== undefined) updates.priority = data.priority;
   if (data.dueDate !== undefined) updates.dueDate = new Date(data.dueDate);
 
-  const updated = db
-    .update(tasks)
-    .set(updates)
-    .where(eq(tasks.id, id))
-    .returning()
-    .get();
+  const updated = db.update(tasks).set(updates).where(eq(tasks.id, id)).returning().get();
 
   logActivity(id, 'updated', existing, updated);
   return updated;
@@ -267,4 +272,136 @@ export function deleteTask(id: number): boolean {
   db.delete(tasks).where(eq(tasks.id, id)).run();
 
   return true;
+}
+
+// ============================================
+// Notification Operations (Unified Reminders)
+// ============================================
+
+/**
+ * Set or update notification for a task
+ */
+export function setTaskNotification(id: number, notifyAt: string, channel?: string): Task {
+  const existing = getTask(id);
+  if (!existing) throw new Error(`Task ${id} not found`);
+
+  const updated = db
+    .update(tasks)
+    .set({
+      notifyAt: parseNotifyAt(notifyAt),
+      notificationSent: false,
+      notificationChannel: channel ?? existing.notificationChannel,
+      notificationSnoozedUntil: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, id))
+    .returning()
+    .get();
+
+  logActivity(id, 'notification_set', null, { notifyAt: updated.notifyAt });
+  return updated;
+}
+
+/**
+ * Clear notification from a task
+ */
+export function clearTaskNotification(id: number): Task {
+  const existing = getTask(id);
+  if (!existing) throw new Error(`Task ${id} not found`);
+
+  const updated = db
+    .update(tasks)
+    .set({
+      notifyAt: null,
+      notificationSent: false,
+      notificationSnoozedUntil: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, id))
+    .returning()
+    .get();
+
+  logActivity(id, 'notification_cleared', null, null);
+  return updated;
+}
+
+/**
+ * Snooze a task's notification (separate from snoozing the task itself)
+ */
+export function snoozeTaskNotification(id: number, duration: string): Task {
+  const existing = getTask(id);
+  if (!existing) throw new Error(`Task ${id} not found`);
+
+  const snoozedUntil = new Date(Date.now() + parseDuration(duration));
+
+  const updated = db
+    .update(tasks)
+    .set({
+      notificationSnoozedUntil: snoozedUntil,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, id))
+    .returning()
+    .get();
+
+  logActivity(id, 'notification_snoozed', null, { snoozedUntil });
+  return updated;
+}
+
+/**
+ * Mark a task's notification as sent
+ */
+export function markTaskNotificationSent(id: number): Task {
+  const existing = getTask(id);
+  if (!existing) throw new Error(`Task ${id} not found`);
+
+  return db
+    .update(tasks)
+    .set({
+      notificationSent: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, id))
+    .returning()
+    .get();
+}
+
+/**
+ * Get all tasks that have notifications due now
+ * Used by the notification service to send Slack messages
+ */
+export function getTasksDueForNotification(): Task[] {
+  const now = new Date();
+
+  // Un-snooze notifications that are past their snooze time
+  db.update(tasks)
+    .set({ notificationSnoozedUntil: null })
+    .where(lte(tasks.notificationSnoozedUntil, now))
+    .run();
+
+  // Get tasks with notifications due
+  return db
+    .select()
+    .from(tasks)
+    .where(and(lte(tasks.notifyAt, now), eq(tasks.notificationSent, false)))
+    .all()
+    .filter((task) => {
+      // Exclude if notification is snoozed
+      if (task.notificationSnoozedUntil && task.notificationSnoozedUntil > now) {
+        return false;
+      }
+      return true;
+    });
+}
+
+/**
+ * List tasks with pending notifications
+ */
+export function listTasksWithNotifications(): Task[] {
+  return db
+    .select()
+    .from(tasks)
+    .where(and(isNotNull(tasks.notifyAt), eq(tasks.notificationSent, false)))
+    .orderBy(asc(tasks.notifyAt))
+    .all();
 }

@@ -3,6 +3,7 @@
 Manage tasks in the sw-cortex task system.
 
 ## Usage
+
 ```
 /task add [title]           # Add a new task
 /task list                  # List all pending tasks
@@ -13,6 +14,7 @@ Manage tasks in the sw-cortex task system.
 ```
 
 ## Examples
+
 ```
 /task add Fix the login bug in WishDesk
 /task list
@@ -23,12 +25,13 @@ Manage tasks in the sw-cortex task system.
 ```
 
 ---
-description: Manage tasks - add, list, complete, snooze, move
----
+
+## description: Manage tasks - add, list, complete, snooze, move
 
 # Task Command: $ARGUMENTS
 
 Parse the arguments to determine the action:
+
 - If starts with "add": Create a new task with the remaining text as title
 - If "list" alone: Show all pending tasks
 - If "list [project]": Show tasks for that project
@@ -37,12 +40,14 @@ Parse the arguments to determine the action:
 - If "move [id] [project]": Move task to project
 
 Use the task-manager MCP server tools:
+
 - `mcp__task-manager__add_task` - Add new task
 - `mcp__task-manager__list_tasks` - List tasks
 - `mcp__task-manager__update_task` - Update task status
 - `mcp__task-manager__move_task` - Move to project
 
 Format output as a clean table or list. Include:
+
 - Task ID
 - Title
 - Status

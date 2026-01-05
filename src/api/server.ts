@@ -5,11 +5,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDb } from '../db/index.js';
 import * as taskService from '../services/tasks.js';
-import * as reminderService from '../services/reminders.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.API_PORT || 4000;
+const PORT = process.env.API_PORT || 3001;
 
 // Initialize database
 initDb();
@@ -20,7 +19,9 @@ app.use(express.json());
 // Serve static files from dist in production
 app.use(express.static(path.join(__dirname, '../../dist')));
 
+// ==================
 // Tasks API
+// ==================
 app.get('/api/tasks', (req, res) => {
   const { status, project } = req.query;
   const tasks = taskService.listTasks({
@@ -76,7 +77,42 @@ app.post('/api/tasks/reorder', (req, res) => {
   res.json({ success: true });
 });
 
+// ==================
+// Task Notification API (Unified Reminders)
+// ==================
+app.post('/api/tasks/:id/notification', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { notifyAt, channel } = req.body;
+  const task = taskService.setTaskNotification(id, notifyAt, channel);
+  res.json(task);
+});
+
+app.post('/api/tasks/:id/notification/snooze', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { duration } = req.body;
+  const task = taskService.snoozeTaskNotification(id, duration);
+  res.json(task);
+});
+
+app.delete('/api/tasks/:id/notification', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const task = taskService.clearTaskNotification(id);
+  res.json(task);
+});
+
+app.get('/api/tasks/notifications/due', (_req, res) => {
+  const tasks = taskService.getTasksDueForNotification();
+  res.json(tasks);
+});
+
+app.get('/api/tasks/notifications/pending', (_req, res) => {
+  const tasks = taskService.listTasksWithNotifications();
+  res.json(tasks);
+});
+
+// ==================
 // Projects API
+// ==================
 app.get('/api/projects', (_req, res) => {
   const projects = taskService.listProjects();
   res.json(projects);
@@ -87,31 +123,60 @@ app.post('/api/projects', (req, res) => {
   res.json(project);
 });
 
-// Reminders API
+// ==================
+// Legacy Reminders API (Deprecated - Creates tasks internally)
+// ==================
 app.get('/api/reminders', (req, res) => {
-  const { status } = req.query;
-  const reminders = reminderService.listReminders({
-    status: status as string,
-  });
+  // Return tasks with notifications as "reminders" for backwards compatibility
+  const tasks = taskService.listTasksWithNotifications();
+  // Map to reminder-like format
+  const reminders = tasks.map((task) => ({
+    id: task.id,
+    message: task.title,
+    remindAt: task.notifyAt,
+    status: task.notificationSent ? 'sent' : 'pending',
+    taskId: task.id,
+    snoozedUntil: task.notificationSnoozedUntil,
+    sentAt: null,
+    createdAt: task.createdAt,
+  }));
   res.json(reminders);
 });
 
 app.post('/api/reminders', (req, res) => {
-  const reminder = reminderService.addReminder(req.body);
-  res.json(reminder);
+  // Create a task with notification instead
+  const { message, remindAt, project } = req.body;
+  const task = taskService.addTask({
+    title: message,
+    project: project || 'Personal',
+    notifyAt: remindAt,
+  });
+  res.json({
+    id: task.id,
+    message: task.title,
+    remindAt: task.notifyAt,
+    status: 'pending',
+    taskId: task.id,
+  });
 });
 
 app.post('/api/reminders/:id/cancel', (req, res) => {
+  // Clear the notification from the task
   const id = parseInt(req.params.id, 10);
-  const reminder = reminderService.cancelReminder(id);
-  res.json(reminder);
+  taskService.clearTaskNotification(id);
+  res.json({ id, status: 'cancelled' });
 });
 
 app.post('/api/reminders/:id/snooze', (req, res) => {
+  // Snooze the task's notification
   const id = parseInt(req.params.id, 10);
   const { duration } = req.body;
-  const reminder = reminderService.snoozeReminder(id, duration);
-  res.json(reminder);
+  const task = taskService.snoozeTaskNotification(id, duration);
+  res.json({
+    id: task.id,
+    snoozedUntil: task.notificationSnoozedUntil,
+    status: 'snoozed',
+  });
 });
 
 // SPA fallback - serve index.html for all non-API routes
@@ -119,6 +184,34 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, '../../dist/index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`sw-cortex running on http://localhost:${PORT}`);
+// Error handling middleware
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
 });
+
+const server = app.listen(PORT, () => {
+  console.log(`sw-cortex API running on http://localhost:${PORT}`);
+  console.log('Using unified task/notification model v2.0');
+});
+
+// Graceful shutdown
+const shutdown = (signal: string) => {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+
+  // Force close after 10s
+  setTimeout(() => {
+    console.error('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

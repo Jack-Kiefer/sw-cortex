@@ -207,10 +207,7 @@ const tools: Tool[] = [
 ];
 
 // Create MCP server
-const server = new Server(
-  { name: 'github', version: '1.0.0' },
-  { capabilities: { tools: {} } }
-);
+const server = new Server({ name: 'github', version: '1.0.0' }, { capabilities: { tools: {} } });
 
 // Handle list tools
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
@@ -232,13 +229,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       case 'search_code':
-        result = await githubService.searchCode(
-          (args as { query: string }).query,
-          {
-            repo: (args as { repo?: string }).repo,
-            limit: (args as { limit?: number }).limit,
-          }
-        );
+        result = await githubService.searchCode((args as { query: string }).query, {
+          repo: (args as { repo?: string }).repo,
+          limit: (args as { limit?: number }).limit,
+        });
         break;
 
       case 'get_file':
@@ -258,31 +252,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       case 'list_branches':
-        result = await githubService.listBranches(
-          (args as { repo: string }).repo,
-          { limit: (args as { limit?: number }).limit }
-        );
+        result = await githubService.listBranches((args as { repo: string }).repo, {
+          limit: (args as { limit?: number }).limit,
+        });
         break;
 
       case 'list_commits':
-        result = await githubService.listCommits(
-          (args as { repo: string }).repo,
-          {
-            branch: (args as { branch?: string }).branch,
-            path: (args as { path?: string }).path,
-            limit: (args as { limit?: number }).limit,
-          }
-        );
+        result = await githubService.listCommits((args as { repo: string }).repo, {
+          branch: (args as { branch?: string }).branch,
+          path: (args as { path?: string }).path,
+          limit: (args as { limit?: number }).limit,
+        });
         break;
 
       case 'list_pull_requests':
-        result = await githubService.listPullRequests(
-          (args as { repo: string }).repo,
-          {
-            state: (args as { state?: 'open' | 'closed' | 'all' }).state,
-            limit: (args as { limit?: number }).limit,
-          }
-        );
+        result = await githubService.listPullRequests((args as { repo: string }).repo, {
+          state: (args as { state?: 'open' | 'closed' | 'all' }).state,
+          limit: (args as { limit?: number }).limit,
+        });
         break;
 
       case 'get_pull_request':
