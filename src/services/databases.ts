@@ -38,7 +38,17 @@ const activeTunnels: Map<string, TunnelInfo> = new Map();
 
 // Get database configs from environment
 export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
-  // SSH config (shared across databases that need tunneling)
+  // SSH config for live databases (sugarwish)
+  const liveSshConfig = process.env.LIVE_SSH_HOST
+    ? {
+        host: process.env.LIVE_SSH_HOST,
+        port: parseInt(process.env.LIVE_SSH_PORT || '22', 10),
+        user: process.env.LIVE_SSH_USER || '',
+        privateKeyPath: process.env.LIVE_SSH_KEY_PATH || '~/.ssh/id_rsa',
+      }
+    : undefined;
+
+  // General SSH config (fallback)
   const sshConfig = process.env.SSH_BASTION_HOST
     ? {
         host: process.env.SSH_BASTION_HOST,
@@ -67,7 +77,8 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.SUGARWISH_DB_USER || '',
       password: process.env.SUGARWISH_DB_PASSWORD || '',
       database: process.env.SUGARWISH_DB_NAME || '',
-      ssh: process.env.SUGARWISH_USE_SSH === 'true' ? sshConfig : undefined,
+      // Use LIVE_SSH_TUNNEL=true to enable SSH tunnel for sugarwish
+      ssh: process.env.LIVE_SSH_TUNNEL === 'true' ? liveSshConfig : undefined,
     },
     odoo: {
       name: 'odoo',
@@ -207,6 +218,10 @@ async function getPGPool(config: DatabaseConfig): Promise<pg.Pool> {
       password: config.password,
       database: config.database,
       max: 5,
+      // Enable SSL for remote PostgreSQL connections (required by Odoo, Retool)
+      ssl: {
+        rejectUnauthorized: false, // Accept self-signed certificates
+      },
     });
     pgPools.set(key, pool);
   }
