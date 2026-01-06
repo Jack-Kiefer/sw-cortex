@@ -28,6 +28,15 @@ import {
 
 import * as dbService from '../../services/databases.js';
 
+// Lazy load discoveries service to avoid startup issues
+let discoveriesService: typeof import('../../services/discoveries.js') | null = null;
+async function getDiscoveriesService() {
+  if (!discoveriesService) {
+    discoveriesService = await import('../../services/discoveries.js');
+  }
+  return discoveriesService;
+}
+
 const tools: Tool[] = [
   {
     name: 'query_database',
@@ -100,12 +109,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'list_tables':
         result = await dbService.listTables((args as { database: string }).database);
         break;
-      case 'describe_table':
-        result = await dbService.describeTable(
-          (args as { database: string; table: string }).database,
-          (args as { database: string; table: string }).table
-        );
+      case 'describe_table': {
+        const database = (args as { database: string; table: string }).database;
+        const table = (args as { database: string; table: string }).table;
+        const columns = await dbService.describeTable(database, table);
+
+        // Try to fetch table notes (async since discoveries uses Qdrant)
+        let notes: Array<{ title: string; description: string | null; type: string | null }> = [];
+        try {
+          const discoveries = await getDiscoveriesService();
+          const tableNotes = await discoveries.getTableNotes(database, table);
+          notes = tableNotes.map((n) => ({
+            title: n.title,
+            description: n.description,
+            type: n.type,
+          }));
+        } catch {
+          // Discoveries service may not be available, continue without notes
+        }
+
+        result = {
+          columns,
+          notes: notes.length > 0 ? notes : undefined,
+        };
         break;
+      }
       case 'list_databases':
         result = dbService.listDatabases();
         break;

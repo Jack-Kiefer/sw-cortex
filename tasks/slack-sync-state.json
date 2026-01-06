@@ -1,0 +1,1448 @@
+{
+  "channels": {
+    "C07P673EF": {
+      "channelId": "C07P673EF",
+      "channelName": "general",
+      "lastSyncedTs": "1767720604.394909",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:30:17.902Z"
+    },
+    "C07P69VHB": {
+      "channelId": "C07P69VHB",
+      "channelName": "random",
+      "lastSyncedTs": "1767374609.144079",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:31:22.209Z"
+    },
+    "C4086K801": {
+      "channelId": "C4086K801",
+      "channelName": "billing",
+      "lastSyncedTs": "1767635187.563819",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:34:43.042Z"
+    },
+    "C014ESG8FS6": {
+      "channelId": "C014ESG8FS6",
+      "channelName": "glitches",
+      "lastSyncedTs": "1767387097.002289",
+      "messageCount": 1017,
+      "lastSyncTime": "2026-01-06T20:35:29.961Z"
+    },
+    "C01PFETJ5B9": {
+      "channelId": "C01PFETJ5B9",
+      "channelName": "enterprise",
+      "lastSyncedTs": "1767129498.704249",
+      "messageCount": 593,
+      "lastSyncTime": "2026-01-06T20:35:47.556Z"
+    },
+    "C025KEUDK99": {
+      "channelId": "C025KEUDK99",
+      "channelName": "ops-and-tech",
+      "lastSyncedTs": "1767731703.344299",
+      "messageCount": 1235,
+      "lastSyncTime": "2026-01-06T20:36:21.021Z"
+    },
+    "C028YQP7MMY": {
+      "channelId": "C028YQP7MMY",
+      "channelName": "low-nps-scores",
+      "lastSyncedTs": "1759410460.276079",
+      "messageCount": 208,
+      "lastSyncTime": "2026-01-06T20:37:13.544Z"
+    },
+    "C02AL6W5ZC7": {
+      "channelId": "C02AL6W5ZC7",
+      "channelName": "ops-and-newproducts",
+      "lastSyncedTs": "1767723382.829789",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:38:09.712Z"
+    },
+    "C02BXMKTS3U": {
+      "channelId": "C02BXMKTS3U",
+      "channelName": "ops-automation",
+      "lastSyncedTs": "1744379334.436819",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-06T20:38:10.207Z"
+    },
+    "C036RHDJEPM": {
+      "channelId": "C036RHDJEPM",
+      "channelName": "gratitudefriday",
+      "lastSyncedTs": "1766217398.208659",
+      "messageCount": 534,
+      "lastSyncTime": "2026-01-06T20:38:33.111Z"
+    },
+    "C03FN6F8QMR": {
+      "channelId": "C03FN6F8QMR",
+      "channelName": "devs-only",
+      "lastSyncedTs": "1767376842.054279",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:39:36.748Z"
+    },
+    "C03NU72Q4EP": {
+      "channelId": "C03NU72Q4EP",
+      "channelName": "readwatchlisten",
+      "lastSyncedTs": "1766982647.673399",
+      "messageCount": 166,
+      "lastSyncTime": "2026-01-06T20:39:43.093Z"
+    },
+    "C041ALT1ZN0": {
+      "channelId": "C041ALT1ZN0",
+      "channelName": "platform-gc-sync",
+      "lastSyncedTs": "1766776239.527359",
+      "messageCount": 299,
+      "lastSyncTime": "2026-01-06T20:39:56.120Z"
+    },
+    "C042YT940KS": {
+      "channelId": "C042YT940KS",
+      "channelName": "wellnesswednesday",
+      "lastSyncedTs": "1765986621.778089",
+      "messageCount": 268,
+      "lastSyncTime": "2026-01-06T20:40:03.940Z"
+    },
+    "C065WT71JSD": {
+      "channelId": "C065WT71JSD",
+      "channelName": "tech-time-off-requests",
+      "lastSyncedTs": "1746541108.298149",
+      "messageCount": 156,
+      "lastSyncTime": "2026-01-06T20:40:25.248Z"
+    },
+    "C06UUSFS39T": {
+      "channelId": "C06UUSFS39T",
+      "channelName": "avalara-alert",
+      "lastSyncedTs": "1767683012.075589",
+      "messageCount": 881,
+      "lastSyncTime": "2026-01-06T20:41:14.740Z"
+    },
+    "C070F9C4TPY": {
+      "channelId": "C070F9C4TPY",
+      "channelName": "retool-development",
+      "lastSyncedTs": "1763579810.098719",
+      "messageCount": 181,
+      "lastSyncTime": "2026-01-06T20:41:19.004Z"
+    },
+    "C075VDP6B0F": {
+      "channelId": "C075VDP6B0F",
+      "channelName": "da-boys",
+      "lastSyncedTs": "1754093173.150749",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:41:20.728Z"
+    },
+    "C076Q906HK3": {
+      "channelId": "C076Q906HK3",
+      "channelName": "merch-platform-sync",
+      "lastSyncedTs": "1765933364.234719",
+      "messageCount": 316,
+      "lastSyncTime": "2026-01-06T20:41:28.315Z"
+    },
+    "C07GY977AEM": {
+      "channelId": "C07GY977AEM",
+      "channelName": "api-warnings",
+      "lastSyncedTs": "1767677139.208119",
+      "messageCount": 1394,
+      "lastSyncTime": "2026-01-06T20:42:08.310Z"
+    },
+    "C07QRF6MHD4": {
+      "channelId": "C07QRF6MHD4",
+      "channelName": "odoo-prixite",
+      "lastSyncedTs": "1766687264.915179",
+      "messageCount": 498,
+      "lastSyncTime": "2026-01-06T20:42:25.547Z"
+    },
+    "C07R56LB0AC": {
+      "channelId": "C07R56LB0AC",
+      "channelName": "address-error",
+      "lastSyncedTs": "1767730008.949069",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:43:13.534Z"
+    },
+    "C083M27KU8L": {
+      "channelId": "C083M27KU8L",
+      "channelName": "jack-test",
+      "lastSyncedTs": "1767715296.104119",
+      "messageCount": 220,
+      "lastSyncTime": "2026-01-06T20:43:21.077Z"
+    },
+    "C084Z9EKDSL": {
+      "channelId": "C084Z9EKDSL",
+      "channelName": "live-product-warnings",
+      "lastSyncedTs": "1767732084.316659",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:44:10.433Z"
+    },
+    "C088M68FD47": {
+      "channelId": "C088M68FD47",
+      "channelName": "api-autofix",
+      "lastSyncedTs": "1767697200.538579",
+      "messageCount": 1479,
+      "lastSyncTime": "2026-01-06T20:44:53.055Z"
+    },
+    "C08DGBM7B52": {
+      "channelId": "C08DGBM7B52",
+      "channelName": "retool-processes",
+      "lastSyncedTs": "1766431219.981249",
+      "messageCount": 15,
+      "lastSyncTime": "2026-01-06T20:44:54.808Z"
+    },
+    "C08GLQFHMJB": {
+      "channelId": "C08GLQFHMJB",
+      "channelName": "ec_order_dev_retool_sync",
+      "lastSyncedTs": "1755120046.731779",
+      "messageCount": 23,
+      "lastSyncTime": "2026-01-06T20:44:55.496Z"
+    },
+    "C08GUB56F27": {
+      "channelId": "C08GUB56F27",
+      "channelName": "cs_wishdesk",
+      "lastSyncedTs": "1766790431.809929",
+      "messageCount": 211,
+      "lastSyncTime": "2026-01-06T20:45:01.793Z"
+    },
+    "C08JXDKLJH1": {
+      "channelId": "C08JXDKLJH1",
+      "channelName": "retool-ticket-ready-for-review",
+      "lastSyncedTs": "1742594237.182749",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:45:03.664Z"
+    },
+    "C08Q4QSN9B7": {
+      "channelId": "C08Q4QSN9B7",
+      "channelName": "swkb",
+      "lastSyncedTs": "1746815786.917479",
+      "messageCount": 12,
+      "lastSyncTime": "2026-01-06T20:45:05.494Z"
+    },
+    "C08QZ85C0R4": {
+      "channelId": "C08QZ85C0R4",
+      "channelName": "ops-retool",
+      "lastSyncedTs": "1767642003.967129",
+      "messageCount": 94,
+      "lastSyncTime": "2026-01-06T20:45:07.541Z"
+    },
+    "C08R91ZQBNX": {
+      "channelId": "C08R91ZQBNX",
+      "channelName": "vibing",
+      "lastSyncedTs": "1762972935.991709",
+      "messageCount": 58,
+      "lastSyncTime": "2026-01-06T20:45:08.891Z"
+    },
+    "C08S04GTTNZ": {
+      "channelId": "C08S04GTTNZ",
+      "channelName": "wishdesk_notifications",
+      "lastSyncedTs": "1767731742.408279",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:45:57.991Z"
+    },
+    "C08TDS7DRK2": {
+      "channelId": "C08TDS7DRK2",
+      "channelName": "devgroup_wishdesk",
+      "lastSyncedTs": "1767726462.205829",
+      "messageCount": 1089,
+      "lastSyncTime": "2026-01-06T20:46:28.369Z"
+    },
+    "C091G8ZEG78": {
+      "channelId": "C091G8ZEG78",
+      "channelName": "devgroup-serp",
+      "lastSyncedTs": "1762351936.261389",
+      "messageCount": 28,
+      "lastSyncTime": "2026-01-06T20:46:30.408Z"
+    },
+    "C091RAT8NNQ": {
+      "channelId": "C091RAT8NNQ",
+      "channelName": "idea",
+      "lastSyncedTs": "1764865438.717429",
+      "messageCount": 58,
+      "lastSyncTime": "2026-01-06T20:46:31.700Z"
+    },
+    "C094N5L8P7Z": {
+      "channelId": "C094N5L8P7Z",
+      "channelName": "devops-monitoring-dev",
+      "lastSyncedTs": "1766507405.795079",
+      "messageCount": 10,
+      "lastSyncTime": "2026-01-06T20:46:32.166Z"
+    },
+    "C09573S0SSC": {
+      "channelId": "C09573S0SSC",
+      "channelName": "ellens-dinner-tempchannel",
+      "lastSyncedTs": "1753812016.060319",
+      "messageCount": 40,
+      "lastSyncTime": "2026-01-06T20:46:32.869Z"
+    },
+    "C095WQ8AAR0": {
+      "channelId": "C095WQ8AAR0",
+      "channelName": "custom-mug-and-treats-fulfillment",
+      "lastSyncedTs": "1767725627.638829",
+      "messageCount": 88,
+      "lastSyncTime": "2026-01-06T20:46:35.369Z"
+    },
+    "C0986P364BC": {
+      "channelId": "C0986P364BC",
+      "channelName": "serp-bugs-features",
+      "lastSyncedTs": "1755528201.717709",
+      "messageCount": 17,
+      "lastSyncTime": "2026-01-06T20:46:37.315Z"
+    },
+    "C09MC0X2E7R": {
+      "channelId": "C09MC0X2E7R",
+      "channelName": "test-jack",
+      "lastSyncedTs": "1761080227.227049",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:46:38.990Z"
+    },
+    "C09NMDKUAU8": {
+      "channelId": "C09NMDKUAU8",
+      "channelName": "placeholder-orders",
+      "lastSyncedTs": "1767645124.183149",
+      "messageCount": 104,
+      "lastSyncTime": "2026-01-06T20:46:41.585Z"
+    },
+    "C09SAUZ6Y65": {
+      "channelId": "C09SAUZ6Y65",
+      "channelName": "chatgpt-app-development",
+      "lastSyncedTs": "1762899498.860769",
+      "messageCount": 15,
+      "lastSyncTime": "2026-01-06T20:46:42.268Z"
+    },
+    "C09SH3UFD98": {
+      "channelId": "C09SH3UFD98",
+      "channelName": "benefits-hub",
+      "lastSyncedTs": "1765814532.209859",
+      "messageCount": 59,
+      "lastSyncTime": "2026-01-06T20:46:43.811Z"
+    },
+    "C09TZ6SFKHT": {
+      "channelId": "C09TZ6SFKHT",
+      "channelName": "ai-inspo",
+      "lastSyncedTs": "1765471460.837499",
+      "messageCount": 108,
+      "lastSyncTime": "2026-01-06T20:46:47.391Z"
+    },
+    "C0A1F8FS6R0": {
+      "channelId": "C0A1F8FS6R0",
+      "channelName": "preselect-address-fixes",
+      "lastSyncedTs": "1767718825.320849",
+      "messageCount": 115,
+      "lastSyncTime": "2026-01-06T20:46:49.934Z"
+    },
+    "G01LS8CAD43": {
+      "channelId": "G01LS8CAD43",
+      "channelName": "ops-management",
+      "lastSyncedTs": "1767709369.140999",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:47:55.373Z"
+    },
+    "D0A4BK9MCAX": {
+      "channelId": "D0A4BK9MCAX",
+      "channelName": "DM-U016WBQ80SK",
+      "lastSyncedTs": "1766113121.847019",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:47:55.741Z"
+    },
+    "D09QFTYSF50": {
+      "channelId": "D09QFTYSF50",
+      "channelName": "DM-U08KVEQD3FU",
+      "lastSyncedTs": "1765208204.576429",
+      "messageCount": 18,
+      "lastSyncTime": "2026-01-06T20:47:56.632Z"
+    },
+    "D09GZL5CSJW": {
+      "channelId": "D09GZL5CSJW",
+      "channelName": "DM-U07P7U8G3",
+      "lastSyncedTs": "1758747491.257809",
+      "messageCount": 3,
+      "lastSyncTime": "2026-01-06T20:47:57.008Z"
+    },
+    "D09EGB35FEH": {
+      "channelId": "D09EGB35FEH",
+      "channelName": "DM-U040H8EFXQS",
+      "lastSyncedTs": "1757523313.139729",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:47:57.403Z"
+    },
+    "D09E8CHN7BN": {
+      "channelId": "D09E8CHN7BN",
+      "channelName": "DM-U09E514UEAC",
+      "lastSyncedTs": "1758043016.404529",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:47:57.785Z"
+    },
+    "D09C8UP0TT6": {
+      "channelId": "D09C8UP0TT6",
+      "channelName": "DM-U08E88DDKT3",
+      "lastSyncedTs": "1756297024.982839",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:47:58.164Z"
+    },
+    "D0991EHU94G": {
+      "channelId": "D0991EHU94G",
+      "channelName": "DM-U05RVBSA4TD",
+      "lastSyncedTs": "1753984377.506949",
+      "messageCount": 3,
+      "lastSyncTime": "2026-01-06T20:47:58.457Z"
+    },
+    "D098R61SQAK": {
+      "channelId": "D098R61SQAK",
+      "channelName": "DM-U04CDD0L4K1",
+      "lastSyncedTs": "1757615374.211179",
+      "messageCount": 6,
+      "lastSyncTime": "2026-01-06T20:47:58.847Z"
+    },
+    "D0971JEF2A2": {
+      "channelId": "D0971JEF2A2",
+      "channelName": "DM-U096P936NQ7",
+      "lastSyncedTs": "1767728268.887399",
+      "messageCount": 95,
+      "lastSyncTime": "2026-01-06T20:48:00.802Z"
+    },
+    "D0965M9MDBL": {
+      "channelId": "D0965M9MDBL",
+      "channelName": "DM-U096TUV5B9N",
+      "lastSyncedTs": "1758199276.502099",
+      "messageCount": 66,
+      "lastSyncTime": "2026-01-06T20:48:02.645Z"
+    },
+    "D094QUEHUUB": {
+      "channelId": "D094QUEHUUB",
+      "channelName": "DM-U092N4R4SD8",
+      "lastSyncedTs": "1752003527.597789",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:48:03.020Z"
+    },
+    "D091D5S8E2V": {
+      "channelId": "D091D5S8E2V",
+      "channelName": "DM-U045FJ66K6K",
+      "lastSyncedTs": "1765226571.922529",
+      "messageCount": 75,
+      "lastSyncTime": "2026-01-06T20:48:04.865Z"
+    },
+    "D08R154KTA4": {
+      "channelId": "D08R154KTA4",
+      "channelName": "DM-U068USJ2LQM",
+      "lastSyncedTs": "1761656119.358849",
+      "messageCount": 88,
+      "lastSyncTime": "2026-01-06T20:48:06.429Z"
+    },
+    "D08PPGJGKJL": {
+      "channelId": "D08PPGJGKJL",
+      "channelName": "DM-U03858W1K7C",
+      "lastSyncedTs": "1746203134.861499",
+      "messageCount": 25,
+      "lastSyncTime": "2026-01-06T20:48:07.381Z"
+    },
+    "D08N7V54GRK": {
+      "channelId": "D08N7V54GRK",
+      "channelName": "DM-U066CLB2R8Q",
+      "lastSyncedTs": "1766379316.842629",
+      "messageCount": 26,
+      "lastSyncTime": "2026-01-06T20:48:07.977Z"
+    },
+    "D08LL1JFYUV": {
+      "channelId": "D08LL1JFYUV",
+      "channelName": "DM-U06UV0142S0",
+      "lastSyncedTs": "1765510233.564719",
+      "messageCount": 19,
+      "lastSyncTime": "2026-01-06T20:48:08.486Z"
+    },
+    "D08KEG4LJ7J": {
+      "channelId": "D08KEG4LJ7J",
+      "channelName": "DM-U02VA6ZRJKW",
+      "lastSyncedTs": "1759929266.940609",
+      "messageCount": 6,
+      "lastSyncTime": "2026-01-06T20:48:08.962Z"
+    },
+    "D08G818HUBB": {
+      "channelId": "D08G818HUBB",
+      "channelName": "DM-U02NDPWN6BS",
+      "lastSyncedTs": "1767287197.581849",
+      "messageCount": 14,
+      "lastSyncTime": "2026-01-06T20:48:09.708Z"
+    },
+    "D08DHJVGV9Q": {
+      "channelId": "D08DHJVGV9Q",
+      "channelName": "DM-U01JMCHDX0F",
+      "lastSyncedTs": "1767724592.948999",
+      "messageCount": 58,
+      "lastSyncTime": "2026-01-06T20:48:10.694Z"
+    },
+    "D08D12D1WRZ": {
+      "channelId": "D08D12D1WRZ",
+      "channelName": "DM-U029Y2X828P",
+      "lastSyncedTs": "1759258753.797459",
+      "messageCount": 23,
+      "lastSyncTime": "2026-01-06T20:48:11.353Z"
+    },
+    "D08C6Q42875": {
+      "channelId": "D08C6Q42875",
+      "channelName": "DM-U05LWH4UY4Q",
+      "lastSyncedTs": "1739032543.314339",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:48:11.737Z"
+    },
+    "D08BXCZQZV4": {
+      "channelId": "D08BXCZQZV4",
+      "channelName": "DM-U099GLS5D",
+      "lastSyncedTs": "1747075133.088889",
+      "messageCount": 32,
+      "lastSyncTime": "2026-01-06T20:48:13.088Z"
+    },
+    "D08A5D3DQVA": {
+      "channelId": "D08A5D3DQVA",
+      "channelName": "DM-UDSHMEWSG",
+      "lastSyncedTs": "1767650979.420859",
+      "messageCount": 47,
+      "lastSyncTime": "2026-01-06T20:48:13.865Z"
+    },
+    "D089170NL59": {
+      "channelId": "D089170NL59",
+      "channelName": "DM-UN60TQMFU",
+      "lastSyncedTs": "1767623437.370159",
+      "messageCount": 174,
+      "lastSyncTime": "2026-01-06T20:48:17.767Z"
+    },
+    "D08744QLVRC": {
+      "channelId": "D08744QLVRC",
+      "channelName": "DM-U034VB6F886",
+      "lastSyncedTs": "1761954168.248079",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:48:18.343Z"
+    },
+    "D086NKHH533": {
+      "channelId": "D086NKHH533",
+      "channelName": "DM-U086A8QACQ1",
+      "lastSyncedTs": "1744994996.389379",
+      "messageCount": 12,
+      "lastSyncTime": "2026-01-06T20:48:18.911Z"
+    },
+    "D0866E65DPA": {
+      "channelId": "D0866E65DPA",
+      "channelName": "DM-U0749TWRX6F",
+      "lastSyncedTs": "1763559715.597939",
+      "messageCount": 29,
+      "lastSyncTime": "2026-01-06T20:48:19.508Z"
+    },
+    "D085WAMRS65": {
+      "channelId": "D085WAMRS65",
+      "channelName": "DM-U02SRPY7N2V",
+      "lastSyncedTs": "1766078105.880289",
+      "messageCount": 54,
+      "lastSyncTime": "2026-01-06T20:48:20.672Z"
+    },
+    "D085HU5JYM8": {
+      "channelId": "D085HU5JYM8",
+      "channelName": "DM-U013F8WT18X",
+      "lastSyncedTs": "1767729904.039829",
+      "messageCount": 498,
+      "lastSyncTime": "2026-01-06T20:48:33.642Z"
+    },
+    "D0853E5BSKZ": {
+      "channelId": "D0853E5BSKZ",
+      "channelName": "DM-U037U3V1HGT",
+      "lastSyncedTs": "1767729871.121239",
+      "messageCount": 320,
+      "lastSyncTime": "2026-01-06T20:48:41.405Z"
+    },
+    "D0834DCH1U0": {
+      "channelId": "D0834DCH1U0",
+      "channelName": "DM-U070MJBACPN",
+      "lastSyncedTs": "1744668953.215679",
+      "messageCount": 40,
+      "lastSyncTime": "2026-01-06T20:48:43.432Z"
+    },
+    "D074B6QLRAA": {
+      "channelId": "D074B6QLRAA",
+      "channelName": "DM-U021G7V41D1",
+      "lastSyncedTs": "1763153622.900239",
+      "messageCount": 68,
+      "lastSyncTime": "2026-01-06T20:48:45.502Z"
+    },
+    "D04JTH5TYKS": {
+      "channelId": "D04JTH5TYKS",
+      "channelName": "DM-U044VJZ4U8Y",
+      "lastSyncedTs": "1673294211.603639",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:48:45.992Z"
+    },
+    "D03S47ZMZGV": {
+      "channelId": "D03S47ZMZGV",
+      "channelName": "DM-U03FMPE850A",
+      "lastSyncedTs": "1767116439.910069",
+      "messageCount": 31,
+      "lastSyncTime": "2026-01-06T20:48:46.744Z"
+    },
+    "D03M19DMU8M": {
+      "channelId": "D03M19DMU8M",
+      "channelName": "DM-UMSMMGL22",
+      "lastSyncedTs": "1767724849.554089",
+      "messageCount": 106,
+      "lastSyncTime": "2026-01-06T20:48:49.362Z"
+    },
+    "D03LNMKDBJL": {
+      "channelId": "D03LNMKDBJL",
+      "channelName": "DM-U012GPBL8N7",
+      "lastSyncedTs": "1655481591.933809",
+      "messageCount": 24,
+      "lastSyncTime": "2026-01-06T20:48:49.955Z"
+    },
+    "D03K23H8R0B": {
+      "channelId": "D03K23H8R0B",
+      "channelName": "DM-U01ERBYFHMJ",
+      "lastSyncedTs": "1763132651.760539",
+      "messageCount": 37,
+      "lastSyncTime": "2026-01-06T20:48:50.904Z"
+    },
+    "D03H1FPC468": {
+      "channelId": "D03H1FPC468",
+      "channelName": "DM-U02K9TJT0R4",
+      "lastSyncedTs": "1762971992.192259",
+      "messageCount": 38,
+      "lastSyncTime": "2026-01-06T20:48:52.367Z"
+    },
+    "D03FEAW8WTH": {
+      "channelId": "D03FEAW8WTH",
+      "channelName": "DM-U01MU841U8J",
+      "lastSyncedTs": "1739309872.164249",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-06T20:48:53.244Z"
+    },
+    "D036E8XTP3N": {
+      "channelId": "D036E8XTP3N",
+      "channelName": "DM-U02TEDD4P8U",
+      "lastSyncedTs": "1654532357.298539",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:48:53.536Z"
+    },
+    "D02EWDY45FE": {
+      "channelId": "D02EWDY45FE",
+      "channelName": "DM-U01NS0UJ802",
+      "lastSyncedTs": "1767721578.468419",
+      "messageCount": 579,
+      "lastSyncTime": "2026-01-06T20:49:09.485Z"
+    },
+    "D02CE7JADFF": {
+      "channelId": "D02CE7JADFF",
+      "channelName": "DM-U01MA8RGTLG",
+      "lastSyncedTs": "1630009561.002200",
+      "messageCount": 3,
+      "lastSyncTime": "2026-01-06T20:49:09.869Z"
+    },
+    "D029NHRB6JF": {
+      "channelId": "D029NHRB6JF",
+      "channelName": "DM-U011CPHRPMH",
+      "lastSyncedTs": "1767626064.937939",
+      "messageCount": 319,
+      "lastSyncTime": "2026-01-06T20:49:17.492Z"
+    },
+    "D029JRMETJM": {
+      "channelId": "D029JRMETJM",
+      "channelName": "DM-U1H9YEATC",
+      "lastSyncedTs": "1762911944.680879",
+      "messageCount": 62,
+      "lastSyncTime": "2026-01-06T20:49:19.189Z"
+    },
+    "D022TAWLVMX": {
+      "channelId": "D022TAWLVMX",
+      "channelName": "DM-U01N7G9DSLC",
+      "lastSyncedTs": "1758137000.734149",
+      "messageCount": 377,
+      "lastSyncTime": "2026-01-06T20:49:27.731Z"
+    },
+    "D022S9JGNL9": {
+      "channelId": "D022S9JGNL9",
+      "channelName": "DM-U07P61DHV",
+      "lastSyncedTs": "1767725841.064949",
+      "messageCount": 2000,
+      "lastSyncTime": "2026-01-06T20:50:20.205Z"
+    },
+    "D022QN74MP1": {
+      "channelId": "D022QN74MP1",
+      "channelName": "DM-U088ZMSCA",
+      "lastSyncedTs": "1767211884.410849",
+      "messageCount": 313,
+      "lastSyncTime": "2026-01-06T20:50:28.051Z"
+    },
+    "D022C216JKF": {
+      "channelId": "D022C216JKF",
+      "channelName": "DM-UV34HC53N",
+      "lastSyncedTs": "1621453408.002100",
+      "messageCount": 3,
+      "lastSyncTime": "2026-01-06T20:50:28.978Z"
+    },
+    "D022BNECB18": {
+      "channelId": "D022BNECB18",
+      "channelName": "DM-U022BUNHE1Z",
+      "lastSyncedTs": "1762185124.146419",
+      "messageCount": 10,
+      "lastSyncTime": "2026-01-06T20:50:29.865Z"
+    },
+    "D0224UZ4T3Q": {
+      "channelId": "D0224UZ4T3Q",
+      "channelName": "DM-USLACKBOT",
+      "lastSyncedTs": "1766161205.671159",
+      "messageCount": 9,
+      "lastSyncTime": "2026-01-06T20:50:30.342Z"
+    },
+    "C0233SPRG6L": {
+      "channelId": "C0233SPRG6L",
+      "channelName": "mpdm-jason--jack--sethfinley--ric-1",
+      "lastSyncedTs": "1667270845.905709",
+      "messageCount": 64,
+      "lastSyncTime": "2026-01-06T20:50:31.797Z"
+    },
+    "C024BM9TAUR": {
+      "channelId": "C024BM9TAUR",
+      "channelName": "mpdm-jason--ric--jack-1",
+      "lastSyncedTs": "1672896820.663059",
+      "messageCount": 50,
+      "lastSyncTime": "2026-01-06T20:50:32.683Z"
+    },
+    "C024R13CW4F": {
+      "channelId": "C024R13CW4F",
+      "channelName": "mpdm-carolyn--jason--jack-1",
+      "lastSyncedTs": "1623798843.000500",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:50:33.542Z"
+    },
+    "C0282ACJARL": {
+      "channelId": "C0282ACJARL",
+      "channelName": "mpdm-jason--jack--ric--ellen-1",
+      "lastSyncedTs": "1626455773.002700",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:50:33.977Z"
+    },
+    "C0297DDCZM1": {
+      "channelId": "C0297DDCZM1",
+      "channelName": "mpdm-ric--caleyapowell--jack-1",
+      "lastSyncedTs": "1627320673.001500",
+      "messageCount": 4,
+      "lastSyncTime": "2026-01-06T20:50:34.538Z"
+    },
+    "C029YB35E7M": {
+      "channelId": "C029YB35E7M",
+      "channelName": "mpdm-ric--carolyn--matthew--jack--jesse.sitzman-1",
+      "lastSyncedTs": "1630877003.009700",
+      "messageCount": 70,
+      "lastSyncTime": "2026-01-06T20:50:35.993Z"
+    },
+    "C02BWFQ85RC": {
+      "channelId": "C02BWFQ85RC",
+      "channelName": "mpdm-matthew--pete--jason--jack-1",
+      "lastSyncedTs": "1629757451.006400",
+      "messageCount": 14,
+      "lastSyncTime": "2026-01-06T20:50:36.469Z"
+    },
+    "C02CXQDLP16": {
+      "channelId": "C02CXQDLP16",
+      "channelName": "mpdm-ellen--jack--jason-1",
+      "lastSyncedTs": "1679348731.562369",
+      "messageCount": 37,
+      "lastSyncTime": "2026-01-06T20:50:37.230Z"
+    },
+    "C02GF9MV19S": {
+      "channelId": "C02GF9MV19S",
+      "channelName": "mpdm-carolyn--jack--jesse.sitzman--ryan--matthew-1",
+      "lastSyncedTs": "1633729022.000900",
+      "messageCount": 4,
+      "lastSyncTime": "2026-01-06T20:50:37.649Z"
+    },
+    "C02LCTRTLAF": {
+      "channelId": "C02LCTRTLAF",
+      "channelName": "mpdm-carolyn--jack--matthew--jason-1",
+      "lastSyncedTs": "1638903347.005600",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-06T20:50:38.334Z"
+    },
+    "C02LPT40RPE": {
+      "channelId": "C02LPT40RPE",
+      "channelName": "mpdm-jason--carolyn--mike--matthew--jack-1",
+      "lastSyncedTs": "1636462296.017600",
+      "messageCount": 15,
+      "lastSyncTime": "2026-01-06T20:50:39.178Z"
+    },
+    "C03FZN8JTHC": {
+      "channelId": "C03FZN8JTHC",
+      "channelName": "mpdm-jason--ric--jack--sethfinley--henry--justin-1",
+      "lastSyncedTs": "1657060909.716529",
+      "messageCount": 122,
+      "lastSyncTime": "2026-01-06T20:50:41.549Z"
+    },
+    "C03G81JDVFW": {
+      "channelId": "C03G81JDVFW",
+      "channelName": "mpdm-sethfinley--jason--jack-1",
+      "lastSyncedTs": "1745942345.880459",
+      "messageCount": 8,
+      "lastSyncTime": "2026-01-06T20:50:42.079Z"
+    },
+    "C03HHDQ015E": {
+      "channelId": "C03HHDQ015E",
+      "channelName": "mpdm-jason--matthew--jack--agustin-1",
+      "lastSyncedTs": "1653587827.381389",
+      "messageCount": 13,
+      "lastSyncTime": "2026-01-06T20:50:42.672Z"
+    },
+    "C03JUJWKG3U": {
+      "channelId": "C03JUJWKG3U",
+      "channelName": "mpdm-jason--payton--jack-1",
+      "lastSyncedTs": "1746194702.322799",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:50:43.094Z"
+    },
+    "C03JX14C1C4": {
+      "channelId": "C03JX14C1C4",
+      "channelName": "mpdm-jason--payton--jack--ellen-1",
+      "lastSyncedTs": "1667256609.003409",
+      "messageCount": 106,
+      "lastSyncTime": "2026-01-06T20:50:45.302Z"
+    },
+    "C03S70QBLNM": {
+      "channelId": "C03S70QBLNM",
+      "channelName": "mpdm-ric--sethfinley--jack-1",
+      "lastSyncedTs": "1659650974.485629",
+      "messageCount": 58,
+      "lastSyncTime": "2026-01-06T20:50:46.553Z"
+    },
+    "C045PT6F9DX": {
+      "channelId": "C045PT6F9DX",
+      "channelName": "mpdm-jason--jack--ric--jahan.zafar-1",
+      "lastSyncedTs": "1673040796.797909",
+      "messageCount": 30,
+      "lastSyncTime": "2026-01-06T20:50:47.418Z"
+    },
+    "C0523BGLH7H": {
+      "channelId": "C0523BGLH7H",
+      "channelName": "mpdm-jason--jack--lucas-1",
+      "lastSyncedTs": "1681142707.417809",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:50:47.790Z"
+    },
+    "C0849USNGJK": {
+      "channelId": "C0849USNGJK",
+      "channelName": "mpdm-sethfinley--matthew--jack-1",
+      "lastSyncedTs": "1733958358.496829",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:50:48.150Z"
+    },
+    "C084TPEHDQU": {
+      "channelId": "C084TPEHDQU",
+      "channelName": "mpdm-matthew--jason--jack-1",
+      "lastSyncedTs": "1735334970.880389",
+      "messageCount": 91,
+      "lastSyncTime": "2026-01-06T20:50:49.946Z"
+    },
+    "C0858JL4GCV": {
+      "channelId": "C0858JL4GCV",
+      "channelName": "mpdm-jason--jack--ric--matthew-1",
+      "lastSyncedTs": "1734468205.499299",
+      "messageCount": 18,
+      "lastSyncTime": "2026-01-06T20:50:50.624Z"
+    },
+    "C085976ECQ7": {
+      "channelId": "C085976ECQ7",
+      "channelName": "mpdm-matthew--carolyn--jack-1",
+      "lastSyncedTs": "1761147700.671039",
+      "messageCount": 17,
+      "lastSyncTime": "2026-01-06T20:50:51.311Z"
+    },
+    "C0861V0TH32": {
+      "channelId": "C0861V0TH32",
+      "channelName": "mpdm-jason--judy--jack-1",
+      "lastSyncedTs": "1734394580.136939",
+      "messageCount": 17,
+      "lastSyncTime": "2026-01-06T20:50:52.183Z"
+    },
+    "C0896LBDUHY": {
+      "channelId": "C0896LBDUHY",
+      "channelName": "mpdm-nicole--matthew--jack-1",
+      "lastSyncedTs": "1750943903.894209",
+      "messageCount": 24,
+      "lastSyncTime": "2026-01-06T20:50:52.867Z"
+    },
+    "C08F47N7D0D": {
+      "channelId": "C08F47N7D0D",
+      "channelName": "mpdm-sethfinley--manish--bilal--itsmunyrhere--andrei.lisouski--john--jack-1",
+      "lastSyncedTs": "1740586895.027439",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:50:53.632Z"
+    },
+    "C08FDHYC3CK": {
+      "channelId": "C08FDHYC3CK",
+      "channelName": "mpdm-sethfinley--haseeb1399--jack-1",
+      "lastSyncedTs": "1743435474.962609",
+      "messageCount": 14,
+      "lastSyncTime": "2026-01-06T20:50:55.186Z"
+    },
+    "C08FHD4DLA3": {
+      "channelId": "C08FHD4DLA3",
+      "channelName": "mpdm-anna--haseeb1399--jack--sethfinley-1",
+      "lastSyncedTs": "1744645436.523929",
+      "messageCount": 22,
+      "lastSyncTime": "2026-01-06T20:50:55.959Z"
+    },
+    "C08FYE30HUJ": {
+      "channelId": "C08FYE30HUJ",
+      "channelName": "mpdm-jack--matthew--madison-1",
+      "lastSyncedTs": "1763681258.839599",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-06T20:50:57.323Z"
+    },
+    "C08GASGNGLX": {
+      "channelId": "C08GASGNGLX",
+      "channelName": "mpdm-jack--carolyn--ric--matthew--mike--agustin--neal--james.emeric-1",
+      "lastSyncedTs": "1741378674.717629",
+      "messageCount": 10,
+      "lastSyncTime": "2026-01-06T20:50:57.813Z"
+    },
+    "C08GPS0DREH": {
+      "channelId": "C08GPS0DREH",
+      "channelName": "mpdm-jack--mike--neal-1",
+      "lastSyncedTs": "1755534889.910759",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:50:58.044Z"
+    },
+    "C08GVT4GU0L": {
+      "channelId": "C08GVT4GU0L",
+      "channelName": "mpdm-jack--sethfinley--matthew--haseeb1399-1",
+      "lastSyncedTs": "1741391380.548729",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:50:58.581Z"
+    },
+    "C08HE1U83U0": {
+      "channelId": "C08HE1U83U0",
+      "channelName": "mpdm-jack--mike--james.emeric--neal-1",
+      "lastSyncedTs": "1767707314.612409",
+      "messageCount": 324,
+      "lastSyncTime": "2026-01-06T20:51:06.921Z"
+    },
+    "C08J69UHDT6": {
+      "channelId": "C08J69UHDT6",
+      "channelName": "mpdm-jack--anna--sethfinley--ric-1",
+      "lastSyncedTs": "1742307826.928749",
+      "messageCount": 9,
+      "lastSyncTime": "2026-01-06T20:51:07.855Z"
+    },
+    "C08J7RVTAKX": {
+      "channelId": "C08J7RVTAKX",
+      "channelName": "mpdm-anna--john--jack--kellen.evans-1",
+      "lastSyncedTs": "1757094215.508299",
+      "messageCount": 27,
+      "lastSyncTime": "2026-01-06T20:51:08.569Z"
+    },
+    "C08JPMXC5SL": {
+      "channelId": "C08JPMXC5SL",
+      "channelName": "mpdm-anna--jack--sethfinley-1",
+      "lastSyncedTs": "1767711520.329849",
+      "messageCount": 98,
+      "lastSyncTime": "2026-01-06T20:51:12.101Z"
+    },
+    "C08JRHLS1QB": {
+      "channelId": "C08JRHLS1QB",
+      "channelName": "mpdm-haseeb1399--nicole--anna--jack-1",
+      "lastSyncedTs": "1745259646.831839",
+      "messageCount": 42,
+      "lastSyncTime": "2026-01-06T20:51:13.027Z"
+    },
+    "C08L1GXHYHK": {
+      "channelId": "C08L1GXHYHK",
+      "channelName": "mpdm-anna--haseeb1399--jack-1",
+      "lastSyncedTs": "1751931302.843599",
+      "messageCount": 77,
+      "lastSyncTime": "2026-01-06T20:51:14.656Z"
+    },
+    "C08L9LS3EER": {
+      "channelId": "C08L9LS3EER",
+      "channelName": "mpdm-ric--anna--jack--jahan.zafar-1",
+      "lastSyncedTs": "1743700100.769679",
+      "messageCount": 6,
+      "lastSyncTime": "2026-01-06T20:51:15.264Z"
+    },
+    "C08LFDFERF1": {
+      "channelId": "C08LFDFERF1",
+      "channelName": "mpdm-jack--matthew--ric-1",
+      "lastSyncedTs": "1746626240.783259",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:51:15.684Z"
+    },
+    "C08LS6MA805": {
+      "channelId": "C08LS6MA805",
+      "channelName": "mpdm-matthew--jack--nicole--mike-1",
+      "lastSyncedTs": "1744987769.167829",
+      "messageCount": 13,
+      "lastSyncTime": "2026-01-06T20:51:16.331Z"
+    },
+    "C08LXCG6VD2": {
+      "channelId": "C08LXCG6VD2",
+      "channelName": "mpdm-jack--matthew--ric--mike--james.emeric--neal-1",
+      "lastSyncedTs": "1765550939.119429",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-06T20:51:17.016Z"
+    },
+    "C08M727FS79": {
+      "channelId": "C08M727FS79",
+      "channelName": "mpdm-matthew--anna--sethfinley--jack-1",
+      "lastSyncedTs": "1756135300.060309",
+      "messageCount": 39,
+      "lastSyncTime": "2026-01-06T20:51:17.793Z"
+    },
+    "C08MHM2L4KA": {
+      "channelId": "C08MHM2L4KA",
+      "channelName": "mpdm-jack--matthew--ric--mike-1",
+      "lastSyncedTs": "1745851544.370759",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:51:18.166Z"
+    },
+    "C08MKNZ1WEM": {
+      "channelId": "C08MKNZ1WEM",
+      "channelName": "mpdm-haseeb1399--nicole--jack--agustin-1",
+      "lastSyncedTs": "1745353174.273099",
+      "messageCount": 42,
+      "lastSyncTime": "2026-01-06T20:51:19.063Z"
+    },
+    "C08MXR3N1NG": {
+      "channelId": "C08MXR3N1NG",
+      "channelName": "mpdm-sethfinley--jack--manish-1",
+      "lastSyncedTs": "1745252285.272899",
+      "messageCount": 15,
+      "lastSyncTime": "2026-01-06T20:51:19.570Z"
+    },
+    "C08N735BVHA": {
+      "channelId": "C08N735BVHA",
+      "channelName": "mpdm-anna--nicole--jack-1",
+      "lastSyncedTs": "1767716457.625269",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:51:20.234Z"
+    },
+    "C08NJ3FS9A7": {
+      "channelId": "C08NJ3FS9A7",
+      "channelName": "mpdm-anna--jack--jahan.zafar-1",
+      "lastSyncedTs": "1752675154.244849",
+      "messageCount": 22,
+      "lastSyncTime": "2026-01-06T20:51:20.994Z"
+    },
+    "C08NK3U8SMV": {
+      "channelId": "C08NK3U8SMV",
+      "channelName": "mpdm-manish--itsmunyrhere--jack-1",
+      "lastSyncedTs": "1746223321.459719",
+      "messageCount": 133,
+      "lastSyncTime": "2026-01-06T20:51:23.226Z"
+    },
+    "C08NKJ9PDH8": {
+      "channelId": "C08NKJ9PDH8",
+      "channelName": "mpdm-jahan.zafar--ric--jack-1",
+      "lastSyncedTs": "1745276699.177429",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:51:23.525Z"
+    },
+    "C08NP42HMEF": {
+      "channelId": "C08NP42HMEF",
+      "channelName": "mpdm-jahan.zafar--agustin--jack-1",
+      "lastSyncedTs": "1744891623.105189",
+      "messageCount": 4,
+      "lastSyncTime": "2026-01-06T20:51:24.230Z"
+    },
+    "C08NTCN7BQQ": {
+      "channelId": "C08NTCN7BQQ",
+      "channelName": "mpdm-jack--mike--nicole-1",
+      "lastSyncedTs": "1744734031.212699",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:51:24.785Z"
+    },
+    "C08NY9ZRVSL": {
+      "channelId": "C08NY9ZRVSL",
+      "channelName": "mpdm-nicole--matthew--mike--agustin--jack-1",
+      "lastSyncedTs": "1752684935.763439",
+      "messageCount": 28,
+      "lastSyncTime": "2026-01-06T20:51:25.873Z"
+    },
+    "C08PR815ANM": {
+      "channelId": "C08PR815ANM",
+      "channelName": "mpdm-mike--agustin--jack-1",
+      "lastSyncedTs": "1758551157.880019",
+      "messageCount": 4,
+      "lastSyncTime": "2026-01-06T20:51:26.853Z"
+    },
+    "C08Q2EY2NPK": {
+      "channelId": "C08Q2EY2NPK",
+      "channelName": "mpdm-nicole--matthew--jack--tracy.kamin--shomari.bomani-1",
+      "lastSyncedTs": "1745843868.803899",
+      "messageCount": 10,
+      "lastSyncTime": "2026-01-06T20:51:27.326Z"
+    },
+    "C08Q605L9LN": {
+      "channelId": "C08Q605L9LN",
+      "channelName": "mpdm-mike--matthew--jack-1",
+      "lastSyncedTs": "1746035686.797739",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:51:27.612Z"
+    },
+    "C08QN2XDPFX": {
+      "channelId": "C08QN2XDPFX",
+      "channelName": "mpdm-manish--sethfinley--jack--itsmunyrhere-1",
+      "lastSyncedTs": "1753205209.296309",
+      "messageCount": 19,
+      "lastSyncTime": "2026-01-06T20:51:28.309Z"
+    },
+    "C08QN4AB5K4": {
+      "channelId": "C08QN4AB5K4",
+      "channelName": "mpdm-sethfinley--jack--itsmunyrhere-1",
+      "lastSyncedTs": "1762375538.521339",
+      "messageCount": 81,
+      "lastSyncTime": "2026-01-06T20:51:31.188Z"
+    },
+    "C08QWU67YTA": {
+      "channelId": "C08QWU67YTA",
+      "channelName": "mpdm-sophiejalowsky--jack--matthew-1",
+      "lastSyncedTs": "1745958897.113169",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:51:31.474Z"
+    },
+    "C08QZ5YRP9C": {
+      "channelId": "C08QZ5YRP9C",
+      "channelName": "mpdm-sophiejalowsky--jack--william.meilinger-1",
+      "lastSyncedTs": "1746563844.852939",
+      "messageCount": 3,
+      "lastSyncTime": "2026-01-06T20:51:32.579Z"
+    },
+    "C090NKUEU8J": {
+      "channelId": "C090NKUEU8J",
+      "channelName": "mpdm-jack--sethfinley--anna--matthew--ric-1",
+      "lastSyncedTs": "1749503071.601449",
+      "messageCount": 8,
+      "lastSyncTime": "2026-01-06T20:51:33.235Z"
+    },
+    "C090QMBAD36": {
+      "channelId": "C090QMBAD36",
+      "channelName": "mpdm-anna--manish--sethfinley--jack-1",
+      "lastSyncedTs": "1766591280.228459",
+      "messageCount": 18,
+      "lastSyncTime": "2026-01-06T20:51:33.865Z"
+    },
+    "C09109ZBYHG": {
+      "channelId": "C09109ZBYHG",
+      "channelName": "mpdm-tracy.kamin--jack--shomari.bomani-1",
+      "lastSyncedTs": "1759495553.011139",
+      "messageCount": 14,
+      "lastSyncTime": "2026-01-06T20:51:34.500Z"
+    },
+    "C091XU56MDJ": {
+      "channelId": "C091XU56MDJ",
+      "channelName": "mpdm-jahan.zafar--anna--jack--manish--bilal-1",
+      "lastSyncedTs": "1751364906.190279",
+      "messageCount": 33,
+      "lastSyncTime": "2026-01-06T20:51:35.301Z"
+    },
+    "C09219TJTD1": {
+      "channelId": "C09219TJTD1",
+      "channelName": "mpdm-bilal--jack--sethfinley--parish.shrestha-1",
+      "lastSyncedTs": "1751569756.480079",
+      "messageCount": 21,
+      "lastSyncTime": "2026-01-06T20:51:36.048Z"
+    },
+    "C092P4CRA72": {
+      "channelId": "C092P4CRA72",
+      "channelName": "mpdm-anna--jack--haseeb1399--jahan.zafar-1",
+      "lastSyncedTs": "1751300163.216449",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:51:36.491Z"
+    },
+    "C093QCFF2MB": {
+      "channelId": "C093QCFF2MB",
+      "channelName": "mpdm-anna--caleynh--jack-1",
+      "lastSyncedTs": "1767716503.665939",
+      "messageCount": 16,
+      "lastSyncTime": "2026-01-06T20:51:37.160Z"
+    },
+    "C095FT785PB": {
+      "channelId": "C095FT785PB",
+      "channelName": "mpdm-anna--john--manish--bilal--kellen.evans--jack-1",
+      "lastSyncedTs": "1752098705.249649",
+      "messageCount": 9,
+      "lastSyncTime": "2026-01-06T20:51:37.857Z"
+    },
+    "C095YM8GDH9": {
+      "channelId": "C095YM8GDH9",
+      "channelName": "mpdm-nicole--matthew--jack--mike--agustin--neal-1",
+      "lastSyncedTs": "1765565175.519919",
+      "messageCount": 234,
+      "lastSyncTime": "2026-01-06T20:51:44.664Z"
+    },
+    "C096UJ7GKRS": {
+      "channelId": "C096UJ7GKRS",
+      "channelName": "mpdm-anna--bilal--jack-1",
+      "lastSyncedTs": "1753196636.493409",
+      "messageCount": 5,
+      "lastSyncTime": "2026-01-06T20:51:45.233Z"
+    },
+    "C096WNBUM7T": {
+      "channelId": "C096WNBUM7T",
+      "channelName": "mpdm-nicole--sethfinley--jack--aimashahid10--haseeb1399-1",
+      "lastSyncedTs": "1752861346.646549",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:51:45.711Z"
+    },
+    "C098AP6A0UE": {
+      "channelId": "C098AP6A0UE",
+      "channelName": "mpdm-anna--ronald--jack-1",
+      "lastSyncedTs": "1754342403.297879",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-06T20:51:46.219Z"
+    },
+    "C0996CQN0LQ": {
+      "channelId": "C0996CQN0LQ",
+      "channelName": "mpdm-kelleymax--mike--neal--james.emeric--jack-1",
+      "lastSyncedTs": "1754315259.298979",
+      "messageCount": 16,
+      "lastSyncTime": "2026-01-06T20:51:46.883Z"
+    },
+    "C099JFG52K1": {
+      "channelId": "C099JFG52K1",
+      "channelName": "mpdm-matthew--agustin--ric--jack--mike--neal--jahan.zafar--james.emeric-1",
+      "lastSyncedTs": "1757437536.959319",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-06T20:51:47.433Z"
+    },
+    "C09ACVD4NP5": {
+      "channelId": "C09ACVD4NP5",
+      "channelName": "mpdm-erly--jack--ric-1",
+      "lastSyncedTs": "1764692438.718759",
+      "messageCount": 12,
+      "lastSyncTime": "2026-01-06T20:51:48.448Z"
+    },
+    "C09AKJWRKHA": {
+      "channelId": "C09AKJWRKHA",
+      "channelName": "mpdm-mike--jack--carolyn--neal--james.emeric-1",
+      "lastSyncedTs": "1755203085.575799",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:51:49.007Z"
+    },
+    "C09B51BKHM1": {
+      "channelId": "C09B51BKHM1",
+      "channelName": "mpdm-mike--jack--neal--matthew--james.emeric-1",
+      "lastSyncedTs": "1767469052.398209",
+      "messageCount": 18,
+      "lastSyncTime": "2026-01-06T20:51:49.781Z"
+    },
+    "C09BBQR7SDN": {
+      "channelId": "C09BBQR7SDN",
+      "channelName": "mpdm-jack--neal--james.emeric--ric--matthew--erly--mike--jahan.zafar-1",
+      "lastSyncedTs": "1755291133.165109",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:51:50.183Z"
+    },
+    "C09C8BETE05": {
+      "channelId": "C09C8BETE05",
+      "channelName": "mpdm-mike--agustin--jack--ric--neal--matthew-1",
+      "lastSyncedTs": "1756310022.464179",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:51:50.570Z"
+    },
+    "C09CG85HS93": {
+      "channelId": "C09CG85HS93",
+      "channelName": "mpdm-anna--carolyn--jack-1",
+      "lastSyncedTs": "1758146488.124609",
+      "messageCount": 33,
+      "lastSyncTime": "2026-01-06T20:51:53.295Z"
+    },
+    "C09CK8DGNNP": {
+      "channelId": "C09CK8DGNNP",
+      "channelName": "mpdm-anna--matthew--criston.sloan--jack-1",
+      "lastSyncedTs": "1757000289.163619",
+      "messageCount": 19,
+      "lastSyncTime": "2026-01-06T20:51:54.241Z"
+    },
+    "C09DWDHNJJY": {
+      "channelId": "C09DWDHNJJY",
+      "channelName": "mpdm-anna--jack--john-1",
+      "lastSyncedTs": "1757090320.645539",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:51:54.723Z"
+    },
+    "C09FEDSF97T": {
+      "channelId": "C09FEDSF97T",
+      "channelName": "mpdm-jack--beth--christine--clare--matthew-1",
+      "lastSyncedTs": "1767631338.585659",
+      "messageCount": 26,
+      "lastSyncTime": "2026-01-06T20:51:55.612Z"
+    },
+    "C09HA9U9PA4": {
+      "channelId": "C09HA9U9PA4",
+      "channelName": "mpdm-jack--ric--matthew--erly--mike--neal--clare--james.emeric-1",
+      "lastSyncedTs": "1758567799.245609",
+      "messageCount": 10,
+      "lastSyncTime": "2026-01-06T20:51:56.088Z"
+    },
+    "C09HPNAG98Q": {
+      "channelId": "C09HPNAG98Q",
+      "channelName": "mpdm-jack--hannah--madison-1",
+      "lastSyncedTs": "1758745335.900429",
+      "messageCount": 4,
+      "lastSyncTime": "2026-01-06T20:51:56.410Z"
+    },
+    "C09JL79TL94": {
+      "channelId": "C09JL79TL94",
+      "channelName": "mpdm-carolyn--matthew--jack--criston.sloan-1",
+      "lastSyncedTs": "1764702555.007549",
+      "messageCount": 80,
+      "lastSyncTime": "2026-01-06T20:51:58.029Z"
+    },
+    "C09JUJ93DPB": {
+      "channelId": "C09JUJ93DPB",
+      "channelName": "mpdm-anna--sethfinley--aimashahid10--jack-1",
+      "lastSyncedTs": "1759433702.804699",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:51:58.321Z"
+    },
+    "C09JZLL0MNJ": {
+      "channelId": "C09JZLL0MNJ",
+      "channelName": "mpdm-jack--sethfinley--matthew--criston.sloan-1",
+      "lastSyncedTs": "1759784342.199419",
+      "messageCount": 4,
+      "lastSyncTime": "2026-01-06T20:51:58.708Z"
+    },
+    "C09KTL811SB": {
+      "channelId": "C09KTL811SB",
+      "channelName": "mpdm-caleynh--jack--carolyn-1",
+      "lastSyncedTs": "1761923517.230699",
+      "messageCount": 17,
+      "lastSyncTime": "2026-01-06T20:51:59.297Z"
+    },
+    "C09MX2G91HB": {
+      "channelId": "C09MX2G91HB",
+      "channelName": "mpdm-anna--bilal--jack--sethfinley-1",
+      "lastSyncedTs": "1761243647.100679",
+      "messageCount": 16,
+      "lastSyncTime": "2026-01-06T20:51:59.971Z"
+    },
+    "C09Q9FT3QCT": {
+      "channelId": "C09Q9FT3QCT",
+      "channelName": "mpdm-brian.vezzani--jack--carolyn-1",
+      "lastSyncedTs": "1764699365.267409",
+      "messageCount": 21,
+      "lastSyncTime": "2026-01-06T20:52:01.612Z"
+    },
+    "C09QDM4E2BT": {
+      "channelId": "C09QDM4E2BT",
+      "channelName": "mpdm-brian.vezzani--jack--matthew-1",
+      "lastSyncedTs": "1761932818.727959",
+      "messageCount": 3,
+      "lastSyncTime": "2026-01-06T20:52:02.168Z"
+    },
+    "C09QF4V7H3K": {
+      "channelId": "C09QF4V7H3K",
+      "channelName": "mpdm-clare--jack--brian.vezzani-1",
+      "lastSyncedTs": "1761947337.028229",
+      "messageCount": 7,
+      "lastSyncTime": "2026-01-06T20:52:02.587Z"
+    },
+    "C09RTL5UW0G": {
+      "channelId": "C09RTL5UW0G",
+      "channelName": "mpdm-jack--ric--erly--jayson.eder--jahan.zafar-1",
+      "lastSyncedTs": "1762377999.099249",
+      "messageCount": 10,
+      "lastSyncTime": "2026-01-06T20:52:02.987Z"
+    },
+    "C09S14CMDD1": {
+      "channelId": "C09S14CMDD1",
+      "channelName": "mpdm-mike--jack--neal--james.emeric--nicole-1",
+      "lastSyncedTs": "1766159666.820259",
+      "messageCount": 8,
+      "lastSyncTime": "2026-01-06T20:52:03.424Z"
+    },
+    "C09S408C4BX": {
+      "channelId": "C09S408C4BX",
+      "channelName": "mpdm-mike--carolyn--neal--james.emeric--clare--kelleymax--matthew--jack-1",
+      "lastSyncedTs": "1762872644.777379",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:52:03.908Z"
+    },
+    "C09SMSR68VA": {
+      "channelId": "C09SMSR68VA",
+      "channelName": "mpdm-mike--ric--matthew--jack--neal-1",
+      "lastSyncedTs": "1762976664.953349",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:52:04.490Z"
+    },
+    "C0A2EDX39QQ": {
+      "channelId": "C0A2EDX39QQ",
+      "channelName": "mpdm-anna--jack--parish.shrestha-1",
+      "lastSyncedTs": "1764998198.608969",
+      "messageCount": 14,
+      "lastSyncTime": "2026-01-06T20:52:05.080Z"
+    },
+    "C0A37LN65GV": {
+      "channelId": "C0A37LN65GV",
+      "channelName": "mpdm-mike--matthew--agustin--neal--james.emeric--jack-1",
+      "lastSyncedTs": "1765834873.164539",
+      "messageCount": 2,
+      "lastSyncTime": "2026-01-06T20:52:05.519Z"
+    },
+    "C0A3PR7ERA5": {
+      "channelId": "C0A3PR7ERA5",
+      "channelName": "mpdm-mike--matthew--ric--agustin--neal--james.emeric--jack-1",
+      "lastSyncedTs": "1767637054.029149",
+      "messageCount": 24,
+      "lastSyncTime": "2026-01-06T20:52:06.069Z"
+    },
+    "C0A3V0K3ZDJ": {
+      "channelId": "C0A3V0K3ZDJ",
+      "channelName": "mpdm-jason--jack--keekskiefer-1",
+      "lastSyncedTs": "1765828636.267599",
+      "messageCount": 9,
+      "lastSyncTime": "2026-01-06T20:52:06.616Z"
+    },
+    "C0A3VMCNJKE": {
+      "channelId": "C0A3VMCNJKE",
+      "channelName": "mpdm-matthew--jack--mike--agustin--neal--james.emeric--nicole-1",
+      "lastSyncedTs": "1767649655.878199",
+      "messageCount": 35,
+      "lastSyncTime": "2026-01-06T20:52:07.621Z"
+    },
+    "C0A57BEGSSJ": {
+      "channelId": "C0A57BEGSSJ",
+      "channelName": "mpdm-mike--agustin--ric--jack--matthew-1",
+      "lastSyncedTs": "1766509748.401339",
+      "messageCount": 9,
+      "lastSyncTime": "2026-01-06T20:52:08.525Z"
+    },
+    "C0A5MCJCC0N": {
+      "channelId": "C0A5MCJCC0N",
+      "channelName": "mpdm-sophiejalowsky--jason--leslielyon22--sethfinley--anna--matthew--jack--clare-1",
+      "lastSyncedTs": "1767384168.412409",
+      "messageCount": 76,
+      "lastSyncTime": "2026-01-06T20:52:09.854Z"
+    },
+    "C0A5P2LFTLK": {
+      "channelId": "C0A5P2LFTLK",
+      "channelName": "mpdm-matthew--criston.sloan--jack-1",
+      "lastSyncedTs": "1766955038.952089",
+      "messageCount": 20,
+      "lastSyncTime": "2026-01-06T20:52:10.526Z"
+    },
+    "C0A5VKSH1M3": {
+      "channelId": "C0A5VKSH1M3",
+      "channelName": "mpdm-agustin--ric--matthew--jack--mike--neal--clare--james.emeric-1",
+      "lastSyncedTs": "1767030785.560719",
+      "messageCount": 24,
+      "lastSyncTime": "2026-01-06T20:52:11.013Z"
+    },
+    "C0A68GNBJES": {
+      "channelId": "C0A68GNBJES",
+      "channelName": "mpdm-jack--sethfinley--itsmunyrhere--ibrahim.mohammed-1",
+      "lastSyncedTs": "1767216008.679239",
+      "messageCount": 9,
+      "lastSyncTime": "2026-01-06T20:52:11.476Z"
+    },
+    "C0A6X1XJSD8": {
+      "channelId": "C0A6X1XJSD8",
+      "channelName": "mpdm-melissa--jason--leslielyon22--evezzani--sethfinley--jack--joel.nosker--ric--lasilverpr-1",
+      "lastSyncedTs": "1767640464.501159",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:52:11.874Z"
+    },
+    "C0A71MS6J3W": {
+      "channelId": "C0A71MS6J3W",
+      "channelName": "mpdm-shomari.bomani--jack--matthew-1",
+      "lastSyncedTs": "1767651888.740539",
+      "messageCount": 1,
+      "lastSyncTime": "2026-01-06T20:52:12.157Z"
+    }
+  },
+  "lastFullSync": "2026-01-06T20:52:12.194Z",
+  "totalMessages": 38184
+}

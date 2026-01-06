@@ -1,0 +1,366 @@
+{
+  "name": "Disable Unreserved Products",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "* * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -12380,
+        200
+      ],
+      "id": "a36fdbf7-dd44-41ee-a773-30daee88cec4",
+      "name": "Every 1 Minute"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "  -- Corrected query using stock_move_line for actual reservations                 \n  WITH move_reservations AS (           \n      SELECT                            \n          sml.move_id,                  \n          SUM(sml.product_qty) as reserved_qty     \n      FROM stock_move_line sml                     \n      JOIN stock_move sm ON sml.move_id = sm.id     \n      WHERE sm.state NOT IN ('done', 'cancel')       \n      GROUP BY sml.move_id              \n  ),                                    \n  unreserved_orders AS (                \n      SELECT                            \n          sm.product_id,                \n          SUM(sm.product_uom_qty - COALESCE(mr.reserved_qty, 0)) as unreserved_demand  \n      FROM stock_move sm                 \n      JOIN stock_location sl_dest ON sm.location_dest_id = sl_dest.id     \n      LEFT JOIN move_reservations mr ON sm.id = mr.move_id    \n      WHERE sm.state IN ('confirmed', 'waiting', 'partially_available', 'assigned')  \n      AND sl_dest.usage = 'customer'    \n      GROUP BY sm.product_id            \n  ),                                    \n  current_inventory AS (                \n      SELECT                           \n          sq.product_id,             \n          SUM(sq.quantity) as on_hand,  \n          SUM(sq.reserved_quantity) as reserved_in_odoo  \n      FROM stock_quant sq               \n      JOIN stock_location sl ON sq.location_id = sl.id      \n      WHERE sl.usage = 'internal'        \n      AND sl.sugarwish_id IS NOT NULL   \n      AND sl.sugarwish_id >= 1          \n      GROUP BY sq.product_id            \n  )                                     \n  SELECT                                      \n      pt.sugarwish_id as sugarwish_product_id,  \n      ci.product_id as odoo_product_id,      \n      pp.default_code as sku,           \n      pt.name as product_name,          \n      ci.on_hand,                       \n      ci.reserved_in_odoo,                                     \n      COALESCE(uo.unreserved_demand, 0) as unreserved_demand,       \n      (ci.on_hand - ci.reserved_in_odoo) as odoo_says_available,    \n      (ci.on_hand - ci.reserved_in_odoo - COALESCE(uo.unreserved_demand, 0)) as actually_available                               \n  FROM current_inventory ci             \n  LEFT JOIN unreserved_orders uo ON ci.product_id = uo.product_id  \n  JOIN product_product pp ON ci.product_id = pp.id      \n  JOIN product_template pt ON pp.product_tmpl_id = pt.id    \n  WHERE COALESCE(uo.unreserved_demand, 0) > 0  \n  AND pp.default_code IS NOT NULL       \n  AND pp.active = true                  \n  AND pt.sugarwish_id > 0              \n  AND pt.sugarwish_id < 800000                  \n  AND (pp.default_code LIKE 'FG-%' OR pp.default_code LIKE 'SA-%' OR pp.default_code LIKE 'L-B02%')                              \n  ORDER BY COALESCE(uo.unreserved_demand, 0) DESC;   ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -12140,
+        140
+      ],
+      "id": "b129809a-10a0-4e9d-8a8e-6e4edd92f082",
+      "name": "1. Query Odoo Inventory",
+      "credentials": {
+        "postgres": {
+          "id": "Cj4x3zqOHw9ecZst",
+          "name": "Odoo_read"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH active_reservations AS (\n    SELECT product_id, SUM(quantity) as total_reserved\n    FROM inventory_reservations\n    WHERE status = 'active'\n    GROUP BY product_id\n)\nSELECT \n    rp.product_id,\n    rp.sku,\n    rp.name,\n    rp.drop_level,\n    COALESCE(rp.drop_level, fa.default_drop_level) AS effective_drop_level,\n    COALESCE(ar.total_reserved, 0) AS total_reserved\nFROM receiver_products rp\nCROSS JOIN (SELECT attribute_value AS default_drop_level FROM feature_attributes WHERE id = 1) fa\nLEFT JOIN active_reservations ar ON rp.product_id = ar.product_id\nWHERE rp.archive = 0\n    AND rp.status = 'enabled'\n    AND rp.inventory_link IS NULL\n    AND rp.deleted_at IS NULL\n    AND (ISNULL(rp.end_date) OR rp.end_date > rp.created_at)\n    AND (ISNULL(rp.start_date) OR rp.start_date < rp.created_at);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -12140,
+        360
+      ],
+      "id": "c94ec93c-5d7c-4e48-a21e-cf061f2bae06",
+      "name": "2. Get MySQL Products + Reservations",
+      "executeOnce": true,
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get data from both inputs\nconst odooData = $('1. Query Odoo Inventory').all();\nconst mysqlData = $('2. Get MySQL Products + Reservations').all();\n\n// Create a map of Odoo inventory by sugarwish_product_id\nconst odooMap = new Map();\nfor (const item of odooData) {\n  const id = item.json.sugarwish_product_id;\n  odooMap.set(Number(id), item.json);\n}\n\n// Find products to disable\nconst productsToDisable = [];\n\nfor (const item of mysqlData) {\n  const mysql = item.json;\n  const productId = Number(mysql.product_id);\n  \n  // Find matching Odoo record\n  const odoo = odooMap.get(productId);\n  \n  if (!odoo) {\n    // No Odoo inventory found - skip or handle as needed\n    continue;\n  }\n  \n  // Get actually_available from Odoo\n  const actuallyAvailable = Number(odoo.actually_available) || 0;\n  \n  // Get unreserved_demand from Odoo\n  const unreservedDemand = Number(odoo.unreserved_demand) || 0;\n  \n  // Get total_reserved from inventory_reservations (MySQL)\n  const totalReserved = Number(mysql.total_reserved) || 0;\n  \n  // Calculate final available: actually_available - reservations\n  const finalAvailable = actuallyAvailable - totalReserved;\n  \n  // Get the effective drop level\n  const effectiveDropLevel = Number(mysql.effective_drop_level) || 0;\n  \n  // Compare: if final available < drop level, mark for disable\n  if (finalAvailable < effectiveDropLevel) {\n    productsToDisable.push({\n      product_id: mysql.product_id,\n      sku: mysql.sku || odoo.sku,\n      name: mysql.name || odoo.product_name,\n      actually_available: actuallyAvailable,\n      unreserved_demand: unreservedDemand,\n      total_reserved: totalReserved,\n      final_available: finalAvailable,\n      drop_level: mysql.drop_level,\n      effective_drop_level: effectiveDropLevel\n    });\n  }\n}\n\nif (productsToDisable.length === 0) {\n  return [{ json: { no_products: true } }];\n}\n\nreturn productsToDisable.map(p => ({ json: p }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11860,
+        260
+      ],
+      "id": "dc950276-8105-4c50-886c-fb560efa25e3",
+      "name": "3. Join & Filter Below Drop Level"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-products-check",
+              "leftValue": "={{ $json.product_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -11620,
+        260
+      ],
+      "id": "dd53764d-3ced-4b02-b1f0-8cd45f55819f",
+      "name": "4. Has Products to Disable?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE receiver_products SET status = 'disabled' WHERE product_id = {{ $json.product_id }}; SELECT {{ $json.product_id }} as product_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -11380,
+        160
+      ],
+      "id": "035f0be3-3c28-4039-9aa3-ecb341bd4539",
+      "name": "5. Disable Parent Product",
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT product_id, sku, name, {{ $json.product_id }} as parent_product_id FROM receiver_products WHERE inventory_link = {{ $json.product_id }} AND status = 'enabled'; UPDATE receiver_products SET status = 'disabled' WHERE inventory_link = {{ $json.product_id }} AND status = 'enabled';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -11140,
+        160
+      ],
+      "id": "70c422b1-5d8a-4406-aabb-642a4071ede8",
+      "name": "6. Disable Child SKUs",
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build compact Slack notification for disabled products\nconst disabledProducts = $('3. Join & Filter Below Drop Level').all();\nconst childSkuResults = $('6. Disable Child SKUs').all();\n\n// Group child SKUs by parent_product_id\nconst childSkuMap = new Map();\nfor (const item of childSkuResults) {\n  const parentId = Number(item.json.parent_product_id);\n  if (!childSkuMap.has(parentId)) {\n    childSkuMap.set(parentId, []);\n  }\n  if (item.json.sku) {\n    childSkuMap.get(parentId).push(item.json.sku);\n  }\n}\n\n// Build product list with child SKUs\nconst productList = disabledProducts.map(p => {\n  const j = p.json;\n  const childSkus = childSkuMap.get(Number(j.product_id)) || [];\n  let lines = [`• \\`${j.sku}\\` (${j.product_id}) ${j.name}`];\n  if (childSkus.length > 0) {\n    childSkus.forEach(sku => lines.push(`   ↳ \\`${sku}\\``));\n  }\n  lines.push(`   Actually Available: ${j.actually_available} | Odoo Unreserved: ${j.unreserved_demand} | SW Reserved: ${j.total_reserved} | Drop: ${j.effective_drop_level}`);\n  return lines.join('\\n');\n}).join('\\n');\n\nconst blocks = [\n  {\n    type: \"header\",\n    text: {\n      type: \"plain_text\",\n      text: \"🚨 ALERT!! Receiver Product(s) Disabled Due to Unreserved Inventory\",\n      emoji: true\n    }\n  },\n  {\n    type: \"section\",\n    text: {\n      type: \"mrkdwn\",\n      text: \"The following receiver products have unreserved inventory in Odoo. Their available inventory - inventory reservations take them below their drop level. They have been Disabled (as well as any child skus) so they are not available for selection on the website.\\n\\n*For Ops to do:* Add more inventory and then use the reservation wizard to resolve unreserved products\"\n    }\n  },\n  {\n    type: \"divider\"\n  },\n  {\n    type: \"section\",\n    text: {\n      type: \"mrkdwn\",\n      text: productList\n    }\n  },\n  {\n    type: \"context\",\n    elements: [{\n      type: \"mrkdwn\",\n      text: `${new Date().toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} MT`\n    }]\n  }\n];\n\nreturn [{ json: { blocks } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10900,
+        160
+      ],
+      "id": "6a663087-5438-486a-a84f-c3b0809510c1",
+      "name": "7. Build Slack Message"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "ops-and-tech",
+          "mode": "name"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ $json }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -10420,
+        80
+      ],
+      "id": "268e8a15-eabe-4b84-8bed-262bc2472490",
+      "name": "9. Slack Notification",
+      "webhookId": "oversell-notify",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Error handling\nconst errorItems = $input.all();\n\nconst blocks = [\n  {\n    type: \"header\",\n    text: {\n      type: \"plain_text\",\n      text: \"❌ Error in Auto-Disable Workflow\",\n      emoji: true\n    }\n  },\n  {\n    type: \"section\",\n    text: {\n      type: \"mrkdwn\",\n      text: `Errors occurred:\\n\\n${errorItems.map(e => `• ${JSON.stringify(e.json)}`).join('\\n')}`\n    }\n  }\n];\n\nreturn [{ json: { blocks } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11140,
+        380
+      ],
+      "id": "1eeef5a5-affd-4a04-b152-936cb3b2c196",
+      "name": "Build Error Message"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "jack-test",
+          "mode": "name"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ $json }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -10900,
+        380
+      ],
+      "id": "345656dd-fd00-4fa2-88e9-49af6aa18151",
+      "name": "Slack Error",
+      "webhookId": "f669a9e9-3624-4492-9871-8d1ff00653ba",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 1 Minute": {
+      "main": [
+        [
+          {
+            "node": "1. Query Odoo Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Query Odoo Inventory": {
+      "main": [
+        [
+          {
+            "node": "2. Get MySQL Products + Reservations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Get MySQL Products + Reservations": {
+      "main": [
+        [
+          {
+            "node": "3. Join & Filter Below Drop Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Join & Filter Below Drop Level": {
+      "main": [
+        [
+          {
+            "node": "4. Has Products to Disable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Has Products to Disable?": {
+      "main": [
+        [
+          {
+            "node": "5. Disable Parent Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Disable Parent Product": {
+      "main": [
+        [
+          {
+            "node": "6. Disable Child SKUs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Disable Child SKUs": {
+      "main": [
+        [
+          {
+            "node": "7. Build Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Build Slack Message": {
+      "main": [
+        [
+          {
+            "node": "9. Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error Message": {
+      "main": [
+        [
+          {
+            "node": "Slack Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a881a2a4-242e-459a-a32a-fb8993dc6f77",
+  "meta": {
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "z3gsFEZ9Z0853Gj1",
+  "tags": []
+}

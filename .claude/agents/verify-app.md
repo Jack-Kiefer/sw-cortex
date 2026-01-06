@@ -1,13 +1,12 @@
+---
+name: verify-app
+description: End-to-end application verification - tests, type checks, lint, manual verification
+allowed-tools: Bash, Read, Grep, Glob
+---
+
 # Subagent: verify-app
 
 Tests the application end-to-end after changes. Runs comprehensive verification and documents results.
-
----
-
-description: End-to-end application verification - tests, type checks, lint, manual verification
-allowed-tools: Bash, Read, Grep, Glob
-
----
 
 ## Purpose
 

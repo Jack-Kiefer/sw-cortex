@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '\\a' && (notify-send 'Claude Code' 'Task completed' 2>/dev/null || true)"
+            "command": "/home/jackk/.local/bin/claude-notify.sh 'Claude Code' 'Task completed'"
           }
         ]
       }
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '\\a' && (notify-send 'Claude Code' 'Needs your input' 2>/dev/null || true)"
+            "command": "/home/jackk/.local/bin/claude-notify.sh 'Claude Code' 'Needs your input'"
           }
         ]
       }

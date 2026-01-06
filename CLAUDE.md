@@ -44,6 +44,7 @@ sw-cortex/
 │   │   ├── db/            # Database access
 │   │   └── github/        # GitHub access
 │   ├── services/          # Shared backend services
+│   ├── qdrant/            # Qdrant vector DB module
 │   ├── db/                # Local database schema (Drizzle)
 │   └── types/             # TypeScript types
 ├── tasks/                 # Task data (SQLite)
@@ -71,6 +72,10 @@ npm run db:generate      # Generate migration from schema changes
 npm run db:migrate       # Apply pending migrations
 npm run db:push          # Push schema directly (dev only)
 npm run db:studio        # Open Drizzle Studio GUI
+
+# Qdrant Vector Database
+npm run qdrant:init      # Initialize all registered collections
+npm run qdrant:status    # Show collection status
 
 # Testing
 npm run test             # Run all tests
@@ -123,6 +128,59 @@ npm run db:push  # Directly syncs schema (may lose data)
 ```
 
 **Note:** Use migrations in production, `db:push` only for local dev.
+
+## Testing
+
+The project uses Vitest with React Testing Library for comprehensive testing.
+
+### Test Infrastructure
+
+- **Framework**: Vitest (fast, Vite-native)
+- **Component Testing**: @testing-library/react + @testing-library/user-event
+- **Environment**: jsdom for DOM simulation
+- **Config**: `vitest.config.ts`
+
+### Test Files
+
+| File                                      | Tests | Coverage                                              |
+| ----------------------------------------- | ----- | ----------------------------------------------------- |
+| `src/services/date-parser.test.ts`        | 34    | Natural language date parsing, formatting, recurrence |
+| `src/web/components/TaskItem.test.tsx`    | 17    | Task rendering, priority colors, checkbox, hover menu |
+| `src/web/components/QuickAdd.test.tsx`    | 9     | Quick add form, date/priority/project pickers         |
+| `src/web/components/ProjectForm.test.tsx` | 10    | Project creation form, validation, color picker       |
+
+### Running Tests
+
+```bash
+npm run test           # Watch mode (re-runs on file changes)
+npm run test -- --run  # Single run (CI mode)
+```
+
+### Test Utilities
+
+Mock factories are available in `src/test/utils.tsx`:
+
+```typescript
+import { render, screen, userEvent, createMockTask, createMockProject } from '../../test/utils';
+
+// Create mock data
+const task = createMockTask({ title: 'Test', priority: 4 });
+const project = createMockProject({ name: 'My Project', color: '#ff0000' });
+
+// Render with providers
+render(<MyComponent task={task} />);
+
+// User interactions
+const user = userEvent.setup();
+await user.click(screen.getByText('Submit'));
+```
+
+### Writing New Tests
+
+1. Create test file next to component: `ComponentName.test.tsx`
+2. Import test utilities from `src/test/utils`
+3. Use `describe`/`it` blocks for organization
+4. Mock external dependencies in `src/test/setup.ts`
 
 ## Slash Commands
 
@@ -200,6 +258,70 @@ mcp__db__query_database {
 # Describe a table
 mcp__db__describe_table { database: "sugarwish", table: "orders" }
 ```
+
+## Qdrant Vector Database
+
+Qdrant is used for semantic search over Slack messages and other text content.
+
+### Configuration
+
+Environment variables:
+
+```
+QDRANT_URL=https://your-instance.cloud.qdrant.io
+QDRANT_API_KEY=your-api-key
+```
+
+### Collections
+
+Collections are defined in `src/qdrant/schemas/` with TypeScript types and Zod validation.
+
+| Collection       | Alias                    | Vector Size | Purpose              |
+| ---------------- | ------------------------ | ----------- | -------------------- |
+| `slack_messages` | `slack_messages_current` | 1536        | Slack message search |
+
+### Usage
+
+```typescript
+import { getQdrantClient, SlackMessagePayloadSchema } from './qdrant';
+
+// Get client
+const client = getQdrantClient();
+
+// Search (always use alias for production)
+const results = await client.search('slack_messages_current', {
+  vector: queryEmbedding,
+  limit: 10,
+});
+
+// Validate payload before insertion
+const payload = SlackMessagePayloadSchema.parse({
+  messageId: '1234567890.123456',
+  channelId: 'C123ABC',
+  userId: 'U456DEF',
+  text: 'Hello world',
+  timestamp: Date.now(),
+  version: 1,
+});
+```
+
+### Adding New Collections
+
+1. Create schema in `src/qdrant/schemas/my-collection.ts`
+2. Export from `src/qdrant/schemas/index.ts`
+3. Register in `src/qdrant/collections.ts`
+4. Run `npm run qdrant:init`
+
+See `src/qdrant/README.md` for detailed documentation.
+
+### Migration Strategy
+
+Qdrant has no built-in migrations. Use **collection aliases** for zero-downtime changes:
+
+1. Create new collection with updated schema
+2. Migrate data in background
+3. Swap alias atomically
+4. Delete old collection
 
 ## Integrations
 
@@ -335,7 +457,7 @@ SLACK_BOT_TOKEN=
 SLACK_SIGNING_SECRET=
 
 # Qdrant
-QDRANT_HOST=
+QDRANT_URL=
 QDRANT_API_KEY=
 
 # n8n
@@ -387,6 +509,39 @@ GITHUB_TOKEN=
 | List PRs       | `mcp__github__list_pull_requests { repo, state? }`   |
 | Get PR details | `mcp__github__get_pull_request { repo, pr_number }`  |
 
+### Slack Search (mcp**task-manager**\*)
+
+Semantic search across Jack's Slack history. **Use this when:**
+
+- Looking for past discussions about a topic
+- Finding who said something or when
+- Searching for decisions, context, or background info
+- User asks "what did we discuss about X" or "find that Slack message about Y"
+
+| Tool                    | Purpose                           |
+| ----------------------- | --------------------------------- |
+| `search_slack_messages` | Semantic search by topic          |
+| `get_slack_context`     | Get conversation around a message |
+
+**Workflow**: Search first, then get context for interesting results:
+
+```
+# 1. Search for topic
+mcp__task-manager__search_slack_messages { query: "purchase order approval" }
+
+# 2. Get surrounding conversation (use channelId + timestamp from results)
+mcp__task-manager__get_slack_context { channelId: "C123", timestamp: 1704067200, windowMinutes: 60 }
+```
+
+| Parameter       | Description                             |
+| --------------- | --------------------------------------- |
+| `query`         | Natural language search (required)      |
+| `limit`         | Max results (default 10)                |
+| `channelId`     | Filter to specific channel              |
+| `minScore`      | Similarity threshold 0-1 (default 0.3)  |
+| `timestamp`     | Unix timestamp to center context around |
+| `windowMinutes` | Time window +/- minutes (default 30)    |
+
 ### Slash Commands
 
 | Need to...       | Do this                           |
@@ -408,6 +563,12 @@ GITHUB_TOKEN=
 - Error messages you don't recognize
 - Best practices for unfamiliar tools
 - How something works in production systems
+
+**Use Slack search for past conversations:**
+
+- "What did we discuss about X?" → `mcp__task-manager__search_slack_messages`
+- Historical context on decisions
+- Finding who said something
 
 Don't guess - search first, then act with confidence.
 

@@ -1,13 +1,12 @@
+---
+name: code-simplifier
+description: Simplify code after feature completion - reduce complexity, improve readability
+allowed-tools: Read, Edit, Grep, Glob, Bash
+---
+
 # Subagent: code-simplifier
 
 Simplifies and cleans up code after a feature is complete. Reduces complexity without changing functionality.
-
----
-
-description: Simplify code after feature completion - reduce complexity, improve readability
-allowed-tools: Read, Edit, Grep, Glob, Bash
-
----
 
 ## Purpose
 

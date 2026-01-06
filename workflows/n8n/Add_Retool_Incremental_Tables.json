@@ -1,0 +1,671 @@
+{
+  "name": "Add Retool Incremental Tables",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "5ec8d73a-13d3-4b60-b991-508ae1f4e70f",
+      "name": "Daily Midnight Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        9620,
+        2740
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a267a648-3483-4537-8320-139a0e7385ad",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        9620,
+        2940
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT\n    rp.sku,\n    pt.name as product_type\nFROM receiver_products rp\nJOIN product_type pt ON rp.product_type = pt.id\nWHERE rp.sku IS NOT NULL\n  AND rp.sku != ''\n  AND pt.name IS NOT NULL\n  AND rp.archive = 0\n  AND rp.deleted_at IS NULL\n  AND (rp.end_date IS NULL OR rp.end_date > rp.created_at)\n  AND (rp.start_date IS NULL OR rp.start_date < rp.created_at)",
+        "options": {}
+      },
+      "id": "0a744ceb-f778-41fa-855b-3d88215cf6b6",
+      "name": "Fetch All SKUs from Live DB",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        10020,
+        2740
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    rp.sku,\n    bp.sku as size_sku,\n    pt.name as product_type\nFROM receiver_product_size rps\nJOIN receiver_products rp ON rps.receiver_product_id = rp.product_id\nJOIN buyer_products bp ON rps.size_id = bp.id\nJOIN product_type pt ON rp.product_type = pt.id\nWHERE rp.sku IS NOT NULL\n  AND rp.sku != ''\n  AND bp.sku IS NOT NULL\n  AND bp.sku != ''\n  AND pt.name IS NOT NULL\n  AND rp.archive = 0\n  AND rp.deleted_at IS NULL\n  AND (rp.end_date IS NULL OR rp.end_date > rp.created_at)\n  AND (rp.start_date IS NULL OR rp.start_date < rp.created_at)",
+        "options": {}
+      },
+      "id": "5c4e4eed-bbf6-4fae-856e-19c99dbb43de",
+      "name": "Fetch SKU Size Mappings",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        10020,
+        2940
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT\n    bp.sku as size_sku,\n    bp.name as size_name,\n    pt.name as product_type\nFROM buyer_products bp\nJOIN product_type pt ON bp.product_type = pt.id\nWHERE bp.sku IS NOT NULL\n  AND bp.sku != ''\n  AND pt.name IS NOT NULL",
+        "options": {}
+      },
+      "id": "313049cd-69b1-4f53-958f-2ff469999b6d",
+      "name": "Fetch All Sizes from Live DB",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        10020,
+        3140
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name, product_type, size_rule_type, size_rule_values\nFROM size_groups\nWHERE size_rule_type IS NOT NULL\n  AND size_rule_values IS NOT NULL",
+        "options": {}
+      },
+      "id": "33998e87-a65b-40cd-b3c6-c458593bcfc7",
+      "name": "Fetch Size Groups from Retool",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        10020,
+        3340
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "0a800cee-ac27-4808-bd1b-40f7dd29a23e",
+      "name": "Merge SKUs and Size Mappings",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        10320,
+        2840
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "784159e6-5827-4539-97b2-96bbe504ed64",
+      "name": "Merge Sizes and Groups",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        10320,
+        3240
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "2109724a-6747-420a-887f-9b56940dc325",
+      "name": "Merge All Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        10620,
+        3040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sync SKU Size Mappings - Main Processing Logic\n// This replicates the Python script: sync_sku_size_mappings.py\n\n// Legacy size name mappings\nconst LEGACY_SIZE_NAME_MAPPINGS = {\n  \"Medium Wine (Legacy)\": \"Medium Wine\",\n  \"Grand Wine (Legacy)\": \"Grand Wine\",\n  \"Large Wine (Legacy)\": \"Large Wine\",\n  \"Deluxe Wine (Legacy)\": \"Deluxe Wine\",\n  \"X-Large Wine (Legacy)\": \"X-Large Wine\",\n};\n\nfunction normalizeSizeName(sizeName) {\n  return LEGACY_SIZE_NAME_MAPPINGS[sizeName] || sizeName;\n}\n\nfunction determineSizeGroup(skuSizes, sizeGroups, productType) {\n  // Filter size groups for this product type\n  const ptGroups = sizeGroups.filter(sg => sg.product_type === productType);\n  \n  for (const sg of ptGroups) {\n    const ruleType = sg.size_rule_type;\n    const ruleValues = new Set(sg.size_rule_values.split(',').map(v => v.trim()));\n    \n    if (ruleType === 'include') {\n      // SKU must have at least one of the included sizes\n      const hasMatch = [...skuSizes].some(s => ruleValues.has(s));\n      if (hasMatch) {\n        return { sizeGroupName: sg.name, productTypeKey: `${productType}|${sg.name}` };\n      }\n    } else if (ruleType === 'exclude') {\n      // SKU must NOT have any of the excluded sizes\n      const hasExcluded = [...skuSizes].some(s => ruleValues.has(s));\n      if (!hasExcluded) {\n        return { sizeGroupName: sg.name, productTypeKey: `${productType}|${sg.name}` };\n      }\n    }\n  }\n  \n  // No size group match - use just product_type\n  return { sizeGroupName: null, productTypeKey: productType };\n}\n\n// Get input data from previous nodes\nconst allItems = $input.all();\n\n// Parse the different data sources from merged input\nlet allSkus = [];\nlet skuSizeMappings = [];\nlet allSizes = [];\nlet sizeGroups = [];\n\n// Items come appended together - identify by unique fields\nfor (const item of allItems) {\n  const data = item.json;\n  \n  // Identify source by checking for unique fields\n  if (data.size_rule_type !== undefined) {\n    // Size groups from Retool\n    sizeGroups.push(data);\n  } else if (data.size_sku !== undefined && data.sku !== undefined) {\n    // SKU -> size mappings\n    skuSizeMappings.push(data);\n  } else if (data.size_sku !== undefined && data.size_name !== undefined) {\n    // All sizes\n    allSizes.push(data);\n  } else if (data.sku !== undefined && data.product_type !== undefined) {\n    // All SKUs\n    allSkus.push(data);\n  }\n}\n\nconsole.log(`Parsed: ${allSkus.length} SKUs, ${skuSizeMappings.length} size mappings, ${allSizes.length} sizes, ${sizeGroups.length} size groups`);\n\n// Build SKU to product_type map\nconst skuToProductType = {};\nfor (const row of allSkus) {\n  skuToProductType[row.sku] = row.product_type;\n}\n\n// Build SKU to sizes map\nconst skuToSizes = {};\nfor (const row of skuSizeMappings) {\n  if (!skuToSizes[row.sku]) {\n    skuToSizes[row.sku] = new Set();\n  }\n  skuToSizes[row.sku].add(row.size_sku);\n}\n\n// Build product_type to sizes map\nconst productTypeSizes = {};\nfor (const row of allSizes) {\n  if (!productTypeSizes[row.product_type]) {\n    productTypeSizes[row.product_type] = [];\n  }\n  productTypeSizes[row.product_type].push({\n    size_sku: row.size_sku,\n    size_name: normalizeSizeName(row.size_name || '')\n  });\n}\n\n// ============================================\n// Build Table 1: sku_product_type_key mappings\n// ============================================\nconst skuProductTypeKeyMappings = [];\n\nfor (const [sku, productType] of Object.entries(skuToProductType)) {\n  const skuSizes = skuToSizes[sku] || new Set();\n  \n  let sizeGroupName, productTypeKey;\n  if (skuSizes.size > 0) {\n    const result = determineSizeGroup(skuSizes, sizeGroups, productType);\n    sizeGroupName = result.sizeGroupName;\n    productTypeKey = result.productTypeKey;\n  } else {\n    sizeGroupName = null;\n    productTypeKey = productType;\n  }\n  \n  skuProductTypeKeyMappings.push({\n    sku,\n    product_type: productType,\n    size_group_name: sizeGroupName,\n    product_type_key: productTypeKey\n  });\n}\n\n// ================================================\n// Build Table 2: product_type_key_sizes mappings\n// ================================================\nconst productTypeKeySizesMappings = [];\n\nfor (const [productType, sizes] of Object.entries(productTypeSizes)) {\n  const ptGroups = sizeGroups.filter(sg => sg.product_type === productType);\n  \n  if (ptGroups.length > 0) {\n    // This product type HAS size groups - only create size group entries\n    for (const sg of ptGroups) {\n      const ruleType = sg.size_rule_type;\n      const ruleValues = new Set(sg.size_rule_values.split(',').map(v => v.trim()));\n      const productTypeKey = `${productType}|${sg.name}`;\n      \n      for (const size of sizes) {\n        let includeSize = false;\n        if (ruleType === 'include') {\n          includeSize = ruleValues.has(size.size_sku);\n        } else if (ruleType === 'exclude') {\n          includeSize = !ruleValues.has(size.size_sku);\n        }\n        \n        if (includeSize) {\n          productTypeKeySizesMappings.push({\n            product_type_key: productTypeKey,\n            product_type: productType,\n            size_group_name: sg.name,\n            size_sku: size.size_sku,\n            size_name: size.size_name\n          });\n        }\n      }\n    }\n  } else {\n    // This product type has NO size groups - create base entry with all sizes\n    for (const size of sizes) {\n      productTypeKeySizesMappings.push({\n        product_type_key: productType,\n        product_type: productType,\n        size_group_name: null,\n        size_sku: size.size_sku,\n        size_name: size.size_name\n      });\n    }\n  }\n}\n\n// Return both mapping sets for downstream nodes\nreturn [\n  {\n    json: {\n      skuProductTypeKeyMappings,\n      productTypeKeySizesMappings,\n      stats: {\n        totalSkus: Object.keys(skuToProductType).length,\n        skusWithSizeMappings: Object.keys(skuToSizes).length,\n        sizeGroups: sizeGroups.length,\n        skuProductTypeKeyRows: skuProductTypeKeyMappings.length,\n        productTypeKeySizesRows: productTypeKeySizesMappings.length\n      }\n    }\n  }\n];"
+      },
+      "id": "a304b865-b162-47a2-a717-bc865c7dedfc",
+      "name": "Process SKU Mappings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10920,
+        3040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM sku_product_type_key",
+        "options": {}
+      },
+      "id": "81700b64-525c-4a9a-bd60-e1bca03c238c",
+      "name": "Clear sku_product_type_key Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        11220,
+        2940
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM product_type_key_sizes",
+        "options": {}
+      },
+      "id": "e4f2a34f-8779-45dc-865b-c68b314d7fcb",
+      "name": "Clear product_type_key_sizes Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        11220,
+        3140
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build INSERT query for ALL sku_product_type_key mappings in one statement\n// Use node reference to get data from Process SKU Mappings (input comes from Clear table node)\nconst processedData = $('Process SKU Mappings').first().json;\nconst mappings = processedData.skuProductTypeKeyMappings;\n\nconst escape = (str) => {\n  if (str === null || str === undefined) return 'NULL';\n  return \"'\" + String(str).replace(/'/g, \"''\") + \"'\";\n};\n\nconst valuesParts = mappings.map(m => {\n  const sku = escape(m.sku);\n  const productType = escape(m.product_type);\n  const sizeGroupName = m.size_group_name ? escape(m.size_group_name) : 'NULL';\n  const productTypeKey = escape(m.product_type_key);\n  return `(${sku}, ${productType}, ${sizeGroupName}, ${productTypeKey})`;\n});\n\nconst sql = `INSERT INTO sku_product_type_key (sku, product_type, size_group_name, product_type_key) VALUES ${valuesParts.join(', ')} ON CONFLICT (sku, product_type_key) DO UPDATE SET product_type = EXCLUDED.product_type, size_group_name = EXCLUDED.size_group_name, updated_at = NOW()`;\n\nreturn [{ json: { sql, rowCount: mappings.length } }];"
+      },
+      "id": "e79f7544-aec6-4b07-ba73-59fdb28a265a",
+      "name": "Batch SKU Mappings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11520,
+        2940
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build INSERT query for ALL product_type_key_sizes mappings in one statement\n// Use node reference to get data from Process SKU Mappings (input comes from Clear table node)\nconst processedData = $('Process SKU Mappings').first().json;\nconst mappings = processedData.productTypeKeySizesMappings;\n\nconst escape = (str) => {\n  if (str === null || str === undefined) return 'NULL';\n  return \"'\" + String(str).replace(/'/g, \"''\") + \"'\";\n};\n\nconst valuesParts = mappings.map(m => {\n  const productTypeKey = escape(m.product_type_key);\n  const productType = escape(m.product_type);\n  const sizeGroupName = m.size_group_name ? escape(m.size_group_name) : 'NULL';\n  const sizeSku = escape(m.size_sku);\n  const sizeName = m.size_name ? escape(m.size_name) : 'NULL';\n  return `(${productTypeKey}, ${productType}, ${sizeGroupName}, ${sizeSku}, ${sizeName})`;\n});\n\nconst sql = `INSERT INTO product_type_key_sizes (product_type_key, product_type, size_group_name, size_sku, size_name) VALUES ${valuesParts.join(', ')} ON CONFLICT (product_type_key, size_sku) DO UPDATE SET product_type = EXCLUDED.product_type, size_group_name = EXCLUDED.size_group_name, size_name = EXCLUDED.size_name, updated_at = NOW()`;\n\nreturn [{ json: { sql, rowCount: mappings.length } }];"
+      },
+      "id": "7f5a9f7e-f672-4cb8-a064-3f515a2790d0",
+      "name": "Batch Size Mappings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11520,
+        3140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build INSERT query for sku_product_type_key batch\nconst batch = $input.item.json.batch;\n\nconst escape = (str) => {\n  if (str === null || str === undefined) return 'NULL';\n  return \"'\" + String(str).replace(/'/g, \"''\") + \"'\";\n};\n\nconst valuesParts = batch.map(m => {\n  const sku = escape(m.sku);\n  const productType = escape(m.product_type);\n  const sizeGroupName = m.size_group_name ? escape(m.size_group_name) : 'NULL';\n  const productTypeKey = escape(m.product_type_key);\n  return `(${sku}, ${productType}, ${sizeGroupName}, ${productTypeKey})`;\n});\n\nconst sql = `\nINSERT INTO sku_product_type_key (sku, product_type, size_group_name, product_type_key)\nVALUES ${valuesParts.join(',\\n')}\nON CONFLICT (sku, product_type_key) DO UPDATE\nSET product_type = EXCLUDED.product_type,\n    size_group_name = EXCLUDED.size_group_name,\n    updated_at = NOW()\n`;\n\nreturn [{ json: { sql, rowCount: batch.length } }];"
+      },
+      "id": "06cfde83-f51f-4ef1-ae33-47961066f1bb",
+      "name": "Build SKU Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11820,
+        2940
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build INSERT query for product_type_key_sizes batch\nconst batch = $input.item.json.batch;\n\nconst escape = (str) => {\n  if (str === null || str === undefined) return 'NULL';\n  return \"'\" + String(str).replace(/'/g, \"''\") + \"'\";\n};\n\nconst valuesParts = batch.map(m => {\n  const productTypeKey = escape(m.product_type_key);\n  const productType = escape(m.product_type);\n  const sizeGroupName = m.size_group_name ? escape(m.size_group_name) : 'NULL';\n  const sizeSku = escape(m.size_sku);\n  const sizeName = m.size_name ? escape(m.size_name) : 'NULL';\n  return `(${productTypeKey}, ${productType}, ${sizeGroupName}, ${sizeSku}, ${sizeName})`;\n});\n\nconst sql = `\nINSERT INTO product_type_key_sizes (product_type_key, product_type, size_group_name, size_sku, size_name)\nVALUES ${valuesParts.join(',\\n')}\nON CONFLICT (product_type_key, size_sku) DO UPDATE\nSET product_type = EXCLUDED.product_type,\n    size_group_name = EXCLUDED.size_group_name,\n    size_name = EXCLUDED.size_name,\n    updated_at = NOW()\n`;\n\nreturn [{ json: { sql, rowCount: batch.length } }];"
+      },
+      "id": "a896871a-c9fb-44e1-a83b-4f22a5932812",
+      "name": "Build Sizes Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11820,
+        3140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "5546e0e7-c4c2-4eac-9e84-0fe281a0b969",
+      "name": "Insert SKU Batch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        12120,
+        2940
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "2ab94e4d-149a-4f4f-a466-4aa60d16a3ae",
+      "name": "Insert Sizes Batch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        12120,
+        3140
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    COUNT(*) as total_rows,\n    COUNT(DISTINCT sku) as unique_skus,\n    COUNT(DISTINCT product_type) as unique_product_types,\n    COUNT(DISTINCT product_type_key) as unique_product_type_keys\nFROM sku_product_type_key",
+        "options": {}
+      },
+      "id": "49191e18-8cc6-4595-ae0e-8b5d27195504",
+      "name": "Get SKU Table Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        12420,
+        2940
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    COUNT(*) as total_rows,\n    COUNT(DISTINCT product_type_key) as unique_product_type_keys,\n    COUNT(DISTINCT size_sku) as unique_sizes\nFROM product_type_key_sizes",
+        "options": {}
+      },
+      "id": "8e21ad89-99c5-46ec-a23a-b8eb98b6be9a",
+      "name": "Get Sizes Table Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        12420,
+        3140
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "ec045040-6b85-444f-b54b-b49d4c45220f",
+      "name": "Merge Stats",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        12720,
+        3040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate final summary report\nconst items = $input.all();\n\nconst skuStats = items[0]?.json || {};\nconst sizesStats = items[1]?.json || {};\n\nconst summary = {\n  timestamp: new Date().toISOString(),\n  status: 'success',\n  sku_product_type_key: {\n    total_rows: skuStats.total_rows || 0,\n    unique_skus: skuStats.unique_skus || 0,\n    unique_product_types: skuStats.unique_product_types || 0,\n    unique_product_type_keys: skuStats.unique_product_type_keys || 0\n  },\n  product_type_key_sizes: {\n    total_rows: sizesStats.total_rows || 0,\n    unique_product_type_keys: sizesStats.unique_product_type_keys || 0,\n    unique_sizes: sizesStats.unique_sizes || 0\n  }\n};\n\nreturn [{ json: summary }];"
+      },
+      "id": "18fad837-3439-470a-9ff7-69294eeb52c3",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        13020,
+        3040
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "jack-test",
+          "mode": "name"
+        },
+        "text": "=:white_check_mark: *SKU Size Mappings Sync Complete*\n\n*Timestamp:* {{ $json.timestamp }}\n*Status:* {{ $json.status }}\n\n*sku_product_type_key table:*\n• Total rows: {{ $json.sku_product_type_key.total_rows }}\n• Unique SKUs: {{ $json.sku_product_type_key.unique_skus }}\n• Product types: {{ $json.sku_product_type_key.unique_product_types }}\n• Product type keys: {{ $json.sku_product_type_key.unique_product_type_keys }}\n\n*product_type_key_sizes table:*\n• Total rows: {{ $json.product_type_key_sizes.total_rows }}\n• Product type keys: {{ $json.product_type_key_sizes.unique_product_type_keys }}\n• Unique sizes: {{ $json.product_type_key_sizes.unique_sizes }}",
+        "otherOptions": {}
+      },
+      "id": "5e45d0c5-689e-4ab0-a572-fd0d2207f548",
+      "name": "Send Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        13320,
+        3040
+      ],
+      "webhookId": "1554fea4-5f97-49ee-9aea-2a3e4f6df400",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Midnight Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch All SKUs from Live DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch SKU Size Mappings",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch All Sizes from Live DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Size Groups from Retool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch All SKUs from Live DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch SKU Size Mappings",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch All Sizes from Live DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Size Groups from Retool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All SKUs from Live DB": {
+      "main": [
+        [
+          {
+            "node": "Merge SKUs and Size Mappings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch SKU Size Mappings": {
+      "main": [
+        [
+          {
+            "node": "Merge SKUs and Size Mappings",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Fetch All Sizes from Live DB": {
+      "main": [
+        [
+          {
+            "node": "Merge Sizes and Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Size Groups from Retool": {
+      "main": [
+        [
+          {
+            "node": "Merge Sizes and Groups",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge SKUs and Size Mappings": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Sizes and Groups": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Data": {
+      "main": [
+        [
+          {
+            "node": "Process SKU Mappings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process SKU Mappings": {
+      "main": [
+        [
+          {
+            "node": "Clear sku_product_type_key Table",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Clear product_type_key_sizes Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear sku_product_type_key Table": {
+      "main": [
+        [
+          {
+            "node": "Batch SKU Mappings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear product_type_key_sizes Table": {
+      "main": [
+        [
+          {
+            "node": "Batch Size Mappings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch SKU Mappings": {
+      "main": [
+        [
+          {
+            "node": "Insert SKU Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Size Mappings": {
+      "main": [
+        [
+          {
+            "node": "Insert Sizes Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert SKU Batch": {
+      "main": [
+        [
+          {
+            "node": "Get SKU Table Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Sizes Batch": {
+      "main": [
+        [
+          {
+            "node": "Get Sizes Table Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get SKU Table Stats": {
+      "main": [
+        [
+          {
+            "node": "Merge Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sizes Table Stats": {
+      "main": [
+        [
+          {
+            "node": "Merge Stats",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Stats": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c83633d1-5d25-48ac-ab7e-38cc5b74cf7d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "givRuaU8E7jawAGD",
+  "tags": [
+    {
+      "createdAt": "2025-12-08T19:42:04.171Z",
+      "updatedAt": "2025-12-08T19:42:04.171Z",
+      "id": "lEzklHffkgE3bRKm",
+      "name": "jack"
+    }
+  ]
+}

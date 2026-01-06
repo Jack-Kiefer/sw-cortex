@@ -3,8 +3,11 @@
 /* Enable class-based dark mode for Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Base styles */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Light mode (default) */
@@ -17,4 +20,138 @@ body {
 .dark body {
   background-color: #0f172a;
   color: #e2e8f0;
+}
+
+/* Priority flag colors */
+.priority-flag-urgent {
+  color: #dc2626;
+}
+.priority-flag-high {
+  color: #f59e0b;
+}
+.priority-flag-medium {
+  color: #3b82f6;
+}
+.priority-flag-low {
+  color: #9ca3af;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Task checkbox styling */
+.task-checkbox {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.task-checkbox:hover {
+  border-color: #4772fa;
+  background-color: #eff6ff;
+}
+
+.task-checkbox:checked {
+  background-color: #4772fa;
+  border-color: #4772fa;
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.dark .task-checkbox {
+  border-color: #475569;
+}
+
+.dark .task-checkbox:hover {
+  border-color: #4772fa;
+  background-color: #1e3a5f;
+}
+
+/* Quick add input focus ring */
+.quick-add-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #4772fa33;
+}
+
+/* Habit streak fire animation */
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.habit-streak-fire {
+  animation: flicker 1.5s ease-in-out infinite;
+}
+
+/* Eisenhower matrix quadrant colors */
+.matrix-do-first {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
+.dark .matrix-do-first {
+  background-color: #450a0a;
+  border-color: #7f1d1d;
+}
+
+.matrix-schedule {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+}
+.dark .matrix-schedule {
+  background-color: #172554;
+  border-color: #1e40af;
+}
+
+.matrix-delegate {
+  background-color: #fefce8;
+  border-color: #fef08a;
+}
+.dark .matrix-delegate {
+  background-color: #422006;
+  border-color: #854d0e;
+}
+
+.matrix-eliminate {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+}
+.dark .matrix-eliminate {
+  background-color: #1e293b;
+  border-color: #334155;
 }

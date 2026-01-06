@@ -1,63 +1,81 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Layout from './components/Layout';
 import TaskList from './components/TaskList';
 import TaskDetail from './components/TaskDetail';
-import AddTask from './components/AddTask';
+import QuickAdd from './components/QuickAdd';
+import ProjectForm from './components/ProjectForm';
 import type { TaskResponse, ProjectResponse } from '../types/index.js';
 
-type FilterType = 'all' | 'pending' | 'in_progress' | 'completed' | 'with_notifications';
+// Smart list view types
+type ViewType =
+  | 'today'
+  | 'tomorrow'
+  | 'week'
+  | 'inbox'
+  | 'all'
+  | 'overdue'
+  | 'completed'
+  | 'matrix'
+  | 'habits'
+  | string; // For project views like 'project-1'
 
-function useDarkMode(): [boolean, () => void] {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('darkMode');
-      if (stored !== null) return stored === 'true';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return true;
-  });
+interface TaskCounts {
+  today: number;
+  tomorrow: number;
+  week: number;
+  overdue: number;
+  inbox: number;
+  all: number;
+}
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('darkMode', String(isDark));
-  }, [isDark]);
+// Helper to check if a date is today
+function isToday(date: Date): boolean {
+  const today = new Date();
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+}
 
-  const toggle = () => setIsDark((prev) => !prev);
-  return [isDark, toggle];
+// Helper to check if a date is tomorrow
+function isTomorrow(date: Date): boolean {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return (
+    date.getDate() === tomorrow.getDate() &&
+    date.getMonth() === tomorrow.getMonth() &&
+    date.getFullYear() === tomorrow.getFullYear()
+  );
+}
+
+// Helper to check if a date is within the next 7 days
+function isThisWeek(date: Date): boolean {
+  const today = new Date();
+  const weekFromNow = new Date();
+  weekFromNow.setDate(today.getDate() + 7);
+  return date >= today && date <= weekFromNow;
+}
+
+// Helper to check if a date is overdue
+function isOverdue(date: Date): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
 }
 
 export default function App() {
-  const [isDark, toggleDarkMode] = useDarkMode();
-  const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [allTasks, setAllTasks] = useState<TaskResponse[]>([]);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
-  const [filter, setFilter] = useState<FilterType>('pending');
-  const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [currentView, setCurrentView] = useState<ViewType>('today');
   const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
 
-  const fetchTasks = async () => {
-    const status = filter === 'with_notifications' ? 'all' : filter;
-    const res = await fetch(`/api/tasks?status=${status === 'all' ? '' : status}`);
-    let data: TaskResponse[] = await res.json();
-
-    // Client-side filter for notifications
-    if (filter === 'with_notifications') {
-      data = data.filter((t) => t.notifyAt && !t.notificationSent);
-    }
-
-    // Project filter
-    if (projectFilter !== 'all') {
-      const project = projects.find((p) => p.name === projectFilter);
-      if (project) {
-        data = data.filter((t) => t.projectId === project.id);
-      }
-    }
-
-    setTasks(data);
-  };
+  // Fetch all tasks (we filter client-side for smart lists)
+  const fetchTasks = useCallback(async () => {
+    const res = await fetch('/api/tasks?status=');
+    const data: TaskResponse[] = await res.json();
+    setAllTasks(data);
+  }, []);
 
   const fetchProjects = async () => {
     const res = await fetch('/api/projects');
@@ -67,12 +85,65 @@ export default function App() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
-
-  useEffect(() => {
     fetchTasks();
-  }, [filter, projectFilter, projects]);
+  }, [fetchTasks]);
 
+  // Calculate task counts for sidebar
+  const taskCounts: TaskCounts = {
+    today: allTasks.filter(
+      (t) => t.status !== 'completed' && t.dueDate && isToday(new Date(t.dueDate))
+    ).length,
+    tomorrow: allTasks.filter(
+      (t) => t.status !== 'completed' && t.dueDate && isTomorrow(new Date(t.dueDate))
+    ).length,
+    week: allTasks.filter(
+      (t) => t.status !== 'completed' && t.dueDate && isThisWeek(new Date(t.dueDate))
+    ).length,
+    overdue: allTasks.filter(
+      (t) => t.status !== 'completed' && t.dueDate && isOverdue(new Date(t.dueDate))
+    ).length,
+    inbox: allTasks.filter((t) => t.status !== 'completed' && !t.projectId && !t.dueDate).length,
+    all: allTasks.filter((t) => t.status !== 'completed').length,
+  };
+
+  // Filter tasks based on current view
+  const getFilteredTasks = (): TaskResponse[] => {
+    switch (currentView) {
+      case 'today':
+        return allTasks.filter(
+          (t) => t.status !== 'completed' && t.dueDate && isToday(new Date(t.dueDate))
+        );
+      case 'tomorrow':
+        return allTasks.filter(
+          (t) => t.status !== 'completed' && t.dueDate && isTomorrow(new Date(t.dueDate))
+        );
+      case 'week':
+        return allTasks.filter(
+          (t) => t.status !== 'completed' && t.dueDate && isThisWeek(new Date(t.dueDate))
+        );
+      case 'overdue':
+        return allTasks.filter(
+          (t) => t.status !== 'completed' && t.dueDate && isOverdue(new Date(t.dueDate))
+        );
+      case 'inbox':
+        return allTasks.filter((t) => t.status !== 'completed' && !t.projectId && !t.dueDate);
+      case 'completed':
+        return allTasks.filter((t) => t.status === 'completed');
+      case 'all':
+        return allTasks.filter((t) => t.status !== 'completed');
+      default:
+        // Project view (e.g., 'project-1')
+        if (currentView.startsWith('project-')) {
+          const projectId = parseInt(currentView.replace('project-', ''), 10);
+          return allTasks.filter((t) => t.status !== 'completed' && t.projectId === projectId);
+        }
+        return allTasks;
+    }
+  };
+
+  const filteredTasks = getFilteredTasks();
+
+  // Task actions
   const handleReorder = async (taskIds: number[]) => {
     await fetch('/api/tasks/reorder', {
       method: 'POST',
@@ -85,6 +156,9 @@ export default function App() {
   const handleComplete = async (id: number) => {
     await fetch(`/api/tasks/${id}/complete`, { method: 'POST' });
     fetchTasks();
+    if (selectedTask?.id === id) {
+      setSelectedTask(null);
+    }
   };
 
   const handleSnooze = async (id: number, duration: string) => {
@@ -99,9 +173,17 @@ export default function App() {
   const handleDelete = async (id: number) => {
     await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
     fetchTasks();
+    if (selectedTask?.id === id) {
+      setSelectedTask(null);
+    }
   };
 
-  const handleAddTask = async (data: { title: string; project?: string; notifyAt?: string }) => {
+  const handleAddTask = async (data: {
+    title: string;
+    project?: string;
+    dueDate?: string;
+    priority?: number;
+  }) => {
     await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,123 +206,80 @@ export default function App() {
     fetchTasks();
   };
 
-  // Count tasks with pending notifications
-  const notificationCount = tasks.filter((t) => t.notifyAt && !t.notificationSent).length;
+  const handleCreateProject = async (data: {
+    name: string;
+    description?: string;
+    color?: string;
+  }) => {
+    await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    await fetchProjects();
+    setCurrentView('all');
+  };
+
+  // Detail panel content
+  const detailPanel = selectedTask ? (
+    <TaskDetail
+      task={selectedTask}
+      project={projects.find((p) => p.id === selectedTask.projectId) ?? null}
+      onClose={() => setSelectedTask(null)}
+      onComplete={handleComplete}
+      onSnooze={handleSnooze}
+      onDelete={handleDelete}
+      onSnoozeNotification={handleSnoozeNotification}
+      onClearNotification={handleClearNotification}
+    />
+  ) : undefined;
 
   return (
-    <div className="min-h-screen p-8 bg-slate-50 dark:bg-slate-900 transition-colors">
-      <div className="max-w-4xl mx-auto">
-        <header className="mb-8 flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">sw-cortex</h1>
-            <p className="text-slate-500 dark:text-slate-400">
-              Unified Task & Notification Management
-            </p>
-          </div>
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-            aria-label="Toggle dark mode"
-          >
-            {isDark ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                />
-              </svg>
-            )}
-          </button>
-        </header>
+    <Layout
+      currentView={currentView}
+      onNavigate={setCurrentView}
+      taskCounts={taskCounts}
+      detailPanel={detailPanel}
+      projects={projects}
+    >
+      {/* New Project Form */}
+      {currentView === 'new-project' ? (
+        <ProjectForm onSubmit={handleCreateProject} onCancel={() => setCurrentView('all')} />
+      ) : (
+        <>
+          {/* Quick Add */}
+          <QuickAdd onAdd={handleAddTask} projects={projects} currentView={currentView} />
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {/* Status filters */}
-          <div className="flex gap-2">
-            {(
-              [
-                { key: 'pending', label: 'Pending' },
-                { key: 'in_progress', label: 'In Progress' },
-                { key: 'with_notifications', label: `🔔 Notifications` },
-                { key: 'completed', label: 'Completed' },
-                { key: 'all', label: 'All' },
-              ] as const
-            ).map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`px-3 py-1 rounded text-sm transition ${
-                  filter === f.key
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'
-                }`}
-              >
-                {f.label}
-                {f.key === 'with_notifications' && notificationCount > 0 && (
-                  <span className="ml-1 bg-yellow-500 text-black px-1.5 rounded-full text-xs">
-                    {notificationCount}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Project filter */}
-          {projects.length > 0 && (
-            <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-3 py-1 rounded text-sm bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
-            >
-              <option value="all">All Projects</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <AddTask onAdd={handleAddTask} projects={projects} />
-
-        <TaskList
-          tasks={tasks}
-          projects={projects}
-          onReorder={handleReorder}
-          onSelectTask={setSelectedTask}
-          onComplete={handleComplete}
-          onSnooze={handleSnooze}
-          onDelete={handleDelete}
-          onSnoozeNotification={handleSnoozeNotification}
-          onClearNotification={handleClearNotification}
-        />
-
-        {/* Task Detail Modal */}
-        {selectedTask && (
-          <TaskDetail
-            task={selectedTask}
-            project={projects.find((p) => p.id === selectedTask.projectId) ?? null}
-            onClose={() => setSelectedTask(null)}
+          {/* Task List */}
+          <TaskList
+            tasks={filteredTasks}
+            projects={projects}
+            onReorder={handleReorder}
+            onSelectTask={setSelectedTask}
             onComplete={handleComplete}
             onSnooze={handleSnooze}
             onDelete={handleDelete}
             onSnoozeNotification={handleSnoozeNotification}
             onClearNotification={handleClearNotification}
           />
-        )}
-      </div>
-    </div>
+
+          {/* Empty state */}
+          {filteredTasks.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-slate-400 dark:text-slate-500 text-lg mb-2">
+                {currentView === 'completed' ? 'No completed tasks yet' : 'No tasks here'}
+              </div>
+              <p className="text-slate-400 dark:text-slate-600 text-sm">
+                {currentView === 'inbox'
+                  ? 'Tasks without a project or due date appear here'
+                  : currentView === 'today'
+                    ? "Add a task with today's due date to see it here"
+                    : 'Add tasks to get started'}
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </Layout>
   );
 }

@@ -75,7 +75,26 @@ Analyze the existing codebase:
 - Find similar implementations that could serve as templates
 - Map dependencies and integration points
 
-### 1.3 Data Structure Analysis (if applicable)
+### 1.3 Slack & Discoveries Search
+
+Search for institutional knowledge related to this task:
+
+**Slack Messages** (use `mcp__task-manager__search_slack_messages`):
+
+- Search for past discussions about this topic or similar features
+- Look for context on why things were built a certain way
+- Find any decisions or requirements discussed previously
+- Identify stakeholders who have been involved in related work
+
+**Discoveries** (use `mcp__task-manager__search_discoveries`):
+
+- Search for any documented database insights related to this task
+- Look for patterns, relationships, or gotchas previously captured
+- Check for table-specific notes if database work is involved
+
+Example queries based on task: "$ARGUMENTS"
+
+### 1.4 Data Structure Analysis (if applicable)
 
 If the task involves database operations:
 
@@ -83,6 +102,7 @@ If the task involves database operations:
 - Then DESCRIBE relevant tables to understand schema
 - Document field names, relationships, and constraints
 - Identify any migration requirements
+- **Check `mcp__task-manager__get_table_notes`** for any existing documentation on relevant tables
 
 ## Phase 2: Synthesis & Analysis
 
@@ -144,6 +164,14 @@ Present your analysis in this conversation. Do not create any files.
 - **Related Files**: [list of affected files/modules]
 - **Existing Patterns**: [patterns to follow]
 - **Integration Points**: [systems to connect with]
+
+#### Slack/Institutional Knowledge
+- **Past Discussions**: [relevant Slack conversations found]
+- **Key Stakeholders**: [people who have worked on related things]
+- **Historical Context**: [why things are the way they are]
+
+#### Discoveries Found
+- [Any relevant discoveries from the knowledge base]
 
 #### Data Considerations
 - [Schema impacts, if any]

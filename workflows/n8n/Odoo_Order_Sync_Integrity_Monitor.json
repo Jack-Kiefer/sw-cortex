@@ -1,0 +1,668 @@
+{
+  "name": "Odoo Order Sync Integrity Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  CAST(order_id AS CHAR) AS sw_id,\n  created_at,\n  CAST(customer_email AS CHAR) AS customer_email,\n  CAST(CONCAT(shipping_firstname, ' ', shipping_lastname) AS CHAR) AS customer_name\nFROM ec_order\nWHERE oddo_synchronized = 1\n  AND created_at >= (NOW() - INTERVAL 1 DAY)\n  AND created_at <= (NOW() - INTERVAL 2 HOUR)\n  AND order_id IS NOT NULL\n\nUNION ALL\n\nSELECT\n  CAST(id AS CHAR) AS sw_id,\n  created_at,\n  CAST(receiver_email AS CHAR) AS customer_email,\n  CAST(CONCAT(receiver_firstname, ' ', receiver_lastname) AS CHAR) AS customer_name\nFROM preselect_orders\nWHERE oddo_synchronized = 1\n  AND created_at >= (NOW() - INTERVAL 1 DAY)\n  AND created_at <= (NOW() - INTERVAL 2 HOUR);",
+        "options": {}
+      },
+      "id": "7dd36ca3-2ff7-4939-b9e2-278f525bbbf4",
+      "name": "Fetch Orders (24 hours)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -3620,
+        60
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $input.all();\nif (orders.length === 0) {\n  return [{ json: { status: 'no_orders', sw_ids: [] } }];\n}\nconst swIds = orders.map(o => o.json.sw_id);\nreturn [{ json: { status: 'check_odoo', sw_ids: swIds, orders: orders.map(o => o.json) } }];"
+      },
+      "id": "eba8452e-5689-4f67-9c25-110ea92722d7",
+      "name": "Process Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3400,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT sw_id \nFROM sale_order \nWHERE sw_id IN ({{ $json.sw_ids.join(', ') }}) \n  AND sw_id IS NOT NULL \n  AND sw_datetime >= (CURRENT_DATE - INTERVAL '2 days')",
+        "options": {}
+      },
+      "id": "bb048b26-b5e2-4bf9-afcf-611dccd9c378",
+      "name": "Check Odoo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2940,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Cj4x3zqOHw9ecZst",
+          "name": "Odoo_read"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "  const processData = $('Process Orders').first().json;\n  const odooResults = $input.all();\n\n  if (processData.status === 'no_orders') {\n    return [{ json: {\n      status: 'no_orders',\n      notification_type: 'success',\n      found_orders: [],\n      missing_orders: [],\n      missing_count: 0,\n      found_count: 0,\n      total_checked: 0\n    } }];\n  }\n\n  // Convert both to strings for consistent comparison\n  const odooSwIds = new Set(odooResults.map(r => String(r.json.sw_id)));\n\n  // Split orders into two groups\n  const missingOrders = processData.orders.filter(o => !odooSwIds.has(String(o.sw_id)));\n  const foundOrders = processData.orders.filter(o => odooSwIds.has(String(o.sw_id)));\n\n  return [{ json: {\n    status: missingOrders.length > 0 ? 'missing_found' : 'all_found',\n    total_checked: processData.orders.length,\n    missing_count: missingOrders.length,\n    found_count: foundOrders.length,\n    missing_orders: missingOrders,\n    found_orders: foundOrders,\n    notification_type: missingOrders.length > 0 ? 'warning' : 'success'\n  } }];"
+      },
+      "id": "b1eae074-889f-4e6d-bab7-207654179bad",
+      "name": "Find Missing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "api-autofix",
+          "mode": "name"
+        },
+        "text": "=:wrench: *Odoo Sync Issue Detected*\n• Missing orders found: {{ $('Find Missing').first().json.missing_count }}\n• Total checked: {{ $('Find Missing').first().json.total_checked }}\n• Missing rate: {{ Math.round(($('Find Missing').first().json.missing_count / $('Find Missing').first().json.total_checked) * 100) }}%\n\n  *Rows Reset:*\n• Items: {{ $('Reset Items').first().json.affectedRows || 0 }}\n• ec_order: {{ $('Reset ec_order').first().json.affectedRows || 0 }}\n• preselect_orders: {{ $('Reset preselect_orders').first().json.affectedRows || 0 }}\n• Total: {{ ($('Reset Items').first().json.affectedRows || 0) + ($('Reset ec_order').first().json.affectedRows || 0) + ($('Reset preselect_orders').first().json.affectedRows || 0) }}",
+        "otherOptions": {}
+      },
+      "id": "19f24dbc-53c8-4720-8e6e-9258d96ae78c",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        -1140,
+        -100
+      ],
+      "webhookId": "5206c377-f91f-4cc9-bab9-ef7105d5cf0f",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3a020e9a-9b65-4789-b19d-eb6240dbe014",
+              "leftValue": "={{ $json.missing_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2340,
+        -20
+      ],
+      "id": "aa2ab55f-812a-4542-953b-4dde31648c34",
+      "name": "Has Missing Orders?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "24f2e6d3-688c-4ae4-a4b0-0d1dd628bf86",
+              "leftValue": "={{ $json.found_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2340,
+        200
+      ],
+      "id": "70ecd0e0-13aa-4e35-812f-9bdb1636bcdd",
+      "name": "Has Found Orders?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "  SELECT i.id, i.order_id, i.odoo_sync\n  FROM items i\n  WHERE i.order_id IN ({{ $('Find Missing').first().json.found_orders.map(o => o.sw_id).join(', ') }})\n    AND i.odoo_sync != 2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -2060,
+        180
+      ],
+      "id": "70bb1b89-5c65-43c5-922f-b1e2a378a30f",
+      "name": "Check Items odoo_sync",
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "036c6df9-8e3c-473e-8d75-13dcd14ed453",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1820,
+        180
+      ],
+      "id": "a80703d1-eca6-4b96-af0a-a3a202e86917",
+      "name": "Has Items to Fix?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "  UPDATE items\n  SET odoo_sync = 2\n  WHERE order_id IN ({{ $('Find Missing').first().json.found_orders.map(o => o.sw_id).join(', ') }})\n    AND odoo_sync != 2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -1600,
+        160
+      ],
+      "id": "92eb624d-1378-416d-bd5a-0747698da729",
+      "name": "Fix Items odoo_sync",
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "71af865d-ac9d-47ba-8137-006656624830",
+              "leftValue": "={{ $json.sw_ids.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3200,
+        60
+      ],
+      "id": "482cc8b3-dce7-4ff3-89da-9f86ed656f1d",
+      "name": "Has Orders to Check?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE items SET odoo_sync = 0 WHERE order_id IN ({{ $('Find Missing').first().json.missing_orders.map(o => o.sw_id).join(', ') }}) AND odoo_sync >= 1; ",
+        "options": {}
+      },
+      "id": "6afa1272-f94b-4548-9b02-686c6c7ccfe9",
+      "name": "Reset Items",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -2080,
+        -60
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ec_order SET oddo_synchronized = 0, component_imported = 0 WHERE order_id IN ({{ $('Find Missing').first().json.missing_orders.map(o => o.sw_id).join(', ') }}) AND oddo_synchronized = 1; ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -1840,
+        -60
+      ],
+      "id": "b08d38cb-8b43-479f-8d07-d2f3abc4f802",
+      "name": "Reset ec_order",
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": " UPDATE preselect_orders SET oddo_synchronized = 0, component_imported = 0 WHERE id IN ({{ $('Find Missing').first().json.missing_orders.map(o => o.sw_id).join(', ') }}) AND oddo_synchronized = 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -1620,
+        -60
+      ],
+      "id": "531ebe68-e077-4e86-9ffe-2ac566d47826",
+      "name": "Reset preselect_orders",
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "api-autofix",
+          "mode": "name"
+        },
+        "text": "=:wrench: *Items odoo_sync Fixed*\n• Orders in Odoo checked: {{ $('Find Missing').first().json.found_count }}\n• Items updated (odoo_sync → 2): {{ $('Fix Items odoo_sync').first().json.affectedRows || 0 }}",
+        "otherOptions": {}
+      },
+      "id": "25143254-8a7e-4f34-b4f2-4ed7422dd9cc",
+      "name": "Send Alert1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        -1080,
+        140
+      ],
+      "webhookId": "5206c377-f91f-4cc9-bab9-ef7105d5cf0f",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9b9c8335-4b51-4396-81ed-cbb7c685e219",
+              "leftValue": "={{ $json.affectedRows }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1340,
+        160
+      ],
+      "id": "9b7e86a1-494d-4927-a2e0-0dc881e86864",
+      "name": "Items Were Fixed?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition_warning",
+              "leftValue": "={{ $('Find Missing').first().json.notification_type }}",
+              "rightValue": "warning",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bb3750b5-6d82-4738-8bee-97f574a15a58",
+      "name": "Fixes Were Made?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1380,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtMinute": 20
+            }
+          ]
+        }
+      },
+      "id": "fd752f8d-3e63-4255-b209-4975d42bd6d8",
+      "name": "Hourly at minute 20",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3840,
+        60
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Process Orders": {
+      "main": [
+        [
+          {
+            "node": "Has Orders to Check?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Missing": {
+      "main": [
+        [
+          {
+            "node": "Has Missing Orders?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Has Found Orders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Orders (24 hours)": {
+      "main": [
+        [
+          {
+            "node": "Process Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Odoo": {
+      "main": [
+        [
+          {
+            "node": "Find Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Missing Orders?": {
+      "main": [
+        [
+          {
+            "node": "Reset Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Has Found Orders?": {
+      "main": [
+        [
+          {
+            "node": "Check Items odoo_sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Items odoo_sync": {
+      "main": [
+        [
+          {
+            "node": "Has Items to Fix?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Items to Fix?": {
+      "main": [
+        [
+          {
+            "node": "Fix Items odoo_sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Orders to Check?": {
+      "main": [
+        [
+          {
+            "node": "Check Odoo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset Items": {
+      "main": [
+        [
+          {
+            "node": "Reset ec_order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset ec_order": {
+      "main": [
+        [
+          {
+            "node": "Reset preselect_orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset preselect_orders": {
+      "main": [
+        [
+          {
+            "node": "Fixes Were Made?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix Items odoo_sync": {
+      "main": [
+        [
+          {
+            "node": "Items Were Fixed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Items Were Fixed?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fixes Were Made?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hourly at minute 20": {
+      "main": [
+        [
+          {
+            "node": "Fetch Orders (24 hours)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "6UFLDPu9MwwP9Yn5"
+  },
+  "versionId": "43a5bcd1-91c0-45ee-9fa0-7de7594e4eb4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "6iiMjS1arjKpoWmz",
+  "tags": [
+    {
+      "createdAt": "2025-12-23T21:28:27.198Z",
+      "updatedAt": "2025-12-23T21:28:27.198Z",
+      "id": "IZRXqaruLsGmcIWO",
+      "name": "odoo"
+    },
+    {
+      "createdAt": "2025-12-23T21:28:27.207Z",
+      "updatedAt": "2025-12-23T21:28:27.207Z",
+      "id": "MDHYoCakcTN2rNNs",
+      "name": "integrity"
+    },
+    {
+      "createdAt": "2025-12-08T15:53:39.848Z",
+      "updatedAt": "2025-12-08T15:53:39.848Z",
+      "id": "zCYEVS6OeeZ7mA7W",
+      "name": "sync"
+    }
+  ]
+}
