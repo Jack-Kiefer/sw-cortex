@@ -11,10 +11,7 @@
       "name": "Fetch Orders (24 hours)",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -3620,
-        60
-      ],
+      "position": [-3620, 60],
       "credentials": {
         "mySql": {
           "id": "IUf07KHTTBdglTB2",
@@ -30,10 +27,7 @@
       "name": "Process Orders",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -3400,
-        60
-      ]
+      "position": [-3400, 60]
     },
     {
       "parameters": {
@@ -45,10 +39,7 @@
       "name": "Check Odoo",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        -2940,
-        0
-      ],
+      "position": [-2940, 0],
       "credentials": {
         "postgres": {
           "id": "Cj4x3zqOHw9ecZst",
@@ -64,10 +55,7 @@
       "name": "Find Missing",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -2720,
-        0
-      ]
+      "position": [-2720, 0]
     },
     {
       "parameters": {
@@ -84,10 +72,7 @@
       "name": "Send Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [
-        -1140,
-        -100
-      ],
+      "position": [-1140, -100],
       "webhookId": "5206c377-f91f-4cc9-bab9-ef7105d5cf0f",
       "credentials": {
         "slackApi": {
@@ -122,10 +107,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        -2340,
-        -20
-      ],
+      "position": [-2340, -20],
       "id": "aa2ab55f-812a-4542-953b-4dde31648c34",
       "name": "Has Missing Orders?"
     },
@@ -155,10 +137,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        -2340,
-        200
-      ],
+      "position": [-2340, 200],
       "id": "70ecd0e0-13aa-4e35-812f-9bdb1636bcdd",
       "name": "Has Found Orders?"
     },
@@ -170,10 +149,7 @@
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -2060,
-        180
-      ],
+      "position": [-2060, 180],
       "id": "70bb1b89-5c65-43c5-922f-b1e2a378a30f",
       "name": "Check Items odoo_sync",
       "credentials": {
@@ -209,10 +185,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        -1820,
-        180
-      ],
+      "position": [-1820, 180],
       "id": "a80703d1-eca6-4b96-af0a-a3a202e86917",
       "name": "Has Items to Fix?"
     },
@@ -224,10 +197,7 @@
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -1600,
-        160
-      ],
+      "position": [-1600, 160],
       "id": "92eb624d-1378-416d-bd5a-0747698da729",
       "name": "Fix Items odoo_sync",
       "credentials": {
@@ -264,10 +234,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        -3200,
-        60
-      ],
+      "position": [-3200, 60],
       "id": "482cc8b3-dce7-4ff3-89da-9f86ed656f1d",
       "name": "Has Orders to Check?"
     },
@@ -281,10 +248,7 @@
       "name": "Reset Items",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -2080,
-        -60
-      ],
+      "position": [-2080, -60],
       "credentials": {
         "mySql": {
           "id": "IUf07KHTTBdglTB2",
@@ -300,10 +264,7 @@
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -1840,
-        -60
-      ],
+      "position": [-1840, -60],
       "id": "b08d38cb-8b43-479f-8d07-d2f3abc4f802",
       "name": "Reset ec_order",
       "credentials": {
@@ -321,10 +282,7 @@
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -1620,
-        -60
-      ],
+      "position": [-1620, -60],
       "id": "531ebe68-e077-4e86-9ffe-2ac566d47826",
       "name": "Reset preselect_orders",
       "credentials": {
@@ -349,10 +307,7 @@
       "name": "Send Alert1",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [
-        -1080,
-        140
-      ],
+      "position": [-1080, 140],
       "webhookId": "5206c377-f91f-4cc9-bab9-ef7105d5cf0f",
       "credentials": {
         "slackApi": {
@@ -387,10 +342,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        -1340,
-        160
-      ],
+      "position": [-1340, 160],
       "id": "9b7e86a1-494d-4927-a2e0-0dc881e86864",
       "name": "Items Were Fixed?"
     },
@@ -422,10 +374,7 @@
       "name": "Fixes Were Made?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        -1380,
-        -80
-      ]
+      "position": [-1380, -80]
     },
     {
       "parameters": {
@@ -442,10 +391,7 @@
       "name": "Hourly at minute 20",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        -3840,
-        60
-      ]
+      "position": [-3840, 60]
     }
   ],
   "pinData": {},

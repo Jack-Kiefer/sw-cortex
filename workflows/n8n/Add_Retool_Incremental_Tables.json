@@ -16,10 +16,7 @@
       "name": "Daily Midnight Schedule",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        9620,
-        2740
-      ]
+      "position": [9620, 2740]
     },
     {
       "parameters": {},
@@ -27,10 +24,7 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        9620,
-        2940
-      ]
+      "position": [9620, 2940]
     },
     {
       "parameters": {
@@ -42,10 +36,7 @@
       "name": "Fetch All SKUs from Live DB",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        10020,
-        2740
-      ],
+      "position": [10020, 2740],
       "credentials": {
         "mySql": {
           "id": "IUf07KHTTBdglTB2",
@@ -63,10 +54,7 @@
       "name": "Fetch SKU Size Mappings",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        10020,
-        2940
-      ],
+      "position": [10020, 2940],
       "credentials": {
         "mySql": {
           "id": "IUf07KHTTBdglTB2",
@@ -84,10 +72,7 @@
       "name": "Fetch All Sizes from Live DB",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        10020,
-        3140
-      ],
+      "position": [10020, 3140],
       "credentials": {
         "mySql": {
           "id": "IUf07KHTTBdglTB2",
@@ -105,10 +90,7 @@
       "name": "Fetch Size Groups from Retool",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        10020,
-        3340
-      ],
+      "position": [10020, 3340],
       "credentials": {
         "postgres": {
           "id": "CSslwJXmoUQ1dbIi",
@@ -122,10 +104,7 @@
       "name": "Merge SKUs and Size Mappings",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [
-        10320,
-        2840
-      ]
+      "position": [10320, 2840]
     },
     {
       "parameters": {},
@@ -133,10 +112,7 @@
       "name": "Merge Sizes and Groups",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [
-        10320,
-        3240
-      ]
+      "position": [10320, 3240]
     },
     {
       "parameters": {},
@@ -144,10 +120,7 @@
       "name": "Merge All Data",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [
-        10620,
-        3040
-      ]
+      "position": [10620, 3040]
     },
     {
       "parameters": {
@@ -157,10 +130,7 @@
       "name": "Process SKU Mappings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        10920,
-        3040
-      ]
+      "position": [10920, 3040]
     },
     {
       "parameters": {
@@ -172,10 +142,7 @@
       "name": "Clear sku_product_type_key Table",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        11220,
-        2940
-      ],
+      "position": [11220, 2940],
       "credentials": {
         "postgres": {
           "id": "CSslwJXmoUQ1dbIi",
@@ -193,10 +160,7 @@
       "name": "Clear product_type_key_sizes Table",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        11220,
-        3140
-      ],
+      "position": [11220, 3140],
       "credentials": {
         "postgres": {
           "id": "CSslwJXmoUQ1dbIi",
@@ -212,10 +176,7 @@
       "name": "Batch SKU Mappings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        11520,
-        2940
-      ]
+      "position": [11520, 2940]
     },
     {
       "parameters": {
@@ -225,10 +186,7 @@
       "name": "Batch Size Mappings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        11520,
-        3140
-      ]
+      "position": [11520, 3140]
     },
     {
       "parameters": {
@@ -238,10 +196,7 @@
       "name": "Build SKU Insert SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        11820,
-        2940
-      ]
+      "position": [11820, 2940]
     },
     {
       "parameters": {
@@ -251,10 +206,7 @@
       "name": "Build Sizes Insert SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        11820,
-        3140
-      ]
+      "position": [11820, 3140]
     },
     {
       "parameters": {
@@ -266,10 +218,7 @@
       "name": "Insert SKU Batch",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        12120,
-        2940
-      ],
+      "position": [12120, 2940],
       "credentials": {
         "postgres": {
           "id": "CSslwJXmoUQ1dbIi",
@@ -287,10 +236,7 @@
       "name": "Insert Sizes Batch",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        12120,
-        3140
-      ],
+      "position": [12120, 3140],
       "credentials": {
         "postgres": {
           "id": "CSslwJXmoUQ1dbIi",
@@ -308,10 +254,7 @@
       "name": "Get SKU Table Stats",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        12420,
-        2940
-      ],
+      "position": [12420, 2940],
       "credentials": {
         "postgres": {
           "id": "CSslwJXmoUQ1dbIi",
@@ -329,10 +272,7 @@
       "name": "Get Sizes Table Stats",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        12420,
-        3140
-      ],
+      "position": [12420, 3140],
       "credentials": {
         "postgres": {
           "id": "CSslwJXmoUQ1dbIi",
@@ -346,10 +286,7 @@
       "name": "Merge Stats",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [
-        12720,
-        3040
-      ]
+      "position": [12720, 3040]
     },
     {
       "parameters": {
@@ -359,10 +296,7 @@
       "name": "Generate Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        13020,
-        3040
-      ]
+      "position": [13020, 3040]
     },
     {
       "parameters": {
@@ -379,10 +313,7 @@
       "name": "Send Slack Notification",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [
-        13320,
-        3040
-      ],
+      "position": [13320, 3040],
       "webhookId": "1554fea4-5f97-49ee-9aea-2a3e4f6df400",
       "credentials": {
         "slackApi": {

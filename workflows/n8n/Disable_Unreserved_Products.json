@@ -14,10 +14,7 @@
       },
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        -12380,
-        200
-      ],
+      "position": [-12380, 200],
       "id": "a36fdbf7-dd44-41ee-a773-30daee88cec4",
       "name": "Every 1 Minute"
     },
@@ -29,10 +26,7 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        -12140,
-        140
-      ],
+      "position": [-12140, 140],
       "id": "b129809a-10a0-4e9d-8a8e-6e4edd92f082",
       "name": "1. Query Odoo Inventory",
       "credentials": {
@@ -50,10 +44,7 @@
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -12140,
-        360
-      ],
+      "position": [-12140, 360],
       "id": "c94ec93c-5d7c-4e48-a21e-cf061f2bae06",
       "name": "2. Get MySQL Products + Reservations",
       "executeOnce": true,
@@ -70,10 +61,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -11860,
-        260
-      ],
+      "position": [-11860, 260],
       "id": "dc950276-8105-4c50-886c-fb560efa25e3",
       "name": "3. Join & Filter Below Drop Level"
     },
@@ -103,10 +91,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        -11620,
-        260
-      ],
+      "position": [-11620, 260],
       "id": "dd53764d-3ced-4b02-b1f0-8cd45f55819f",
       "name": "4. Has Products to Disable?"
     },
@@ -118,10 +103,7 @@
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -11380,
-        160
-      ],
+      "position": [-11380, 160],
       "id": "035f0be3-3c28-4039-9aa3-ecb341bd4539",
       "name": "5. Disable Parent Product",
       "credentials": {
@@ -140,10 +122,7 @@
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [
-        -11140,
-        160
-      ],
+      "position": [-11140, 160],
       "id": "70c422b1-5d8a-4406-aabb-642a4071ede8",
       "name": "6. Disable Child SKUs",
       "credentials": {
@@ -160,10 +139,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -10900,
-        160
-      ],
+      "position": [-10900, 160],
       "id": "6a663087-5438-486a-a84f-c3b0809510c1",
       "name": "7. Build Slack Message"
     },
@@ -181,10 +157,7 @@
       },
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
-      "position": [
-        -10420,
-        80
-      ],
+      "position": [-10420, 80],
       "id": "268e8a15-eabe-4b84-8bed-262bc2472490",
       "name": "9. Slack Notification",
       "webhookId": "oversell-notify",
@@ -201,10 +174,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -11140,
-        380
-      ],
+      "position": [-11140, 380],
       "id": "1eeef5a5-affd-4a04-b152-936cb3b2c196",
       "name": "Build Error Message"
     },
@@ -222,10 +192,7 @@
       },
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
-      "position": [
-        -10900,
-        380
-      ],
+      "position": [-10900, 380],
       "id": "345656dd-fd00-4fa2-88e9-49af6aa18151",
       "name": "Slack Error",
       "webhookId": "f669a9e9-3624-4492-9871-8d1ff00653ba",

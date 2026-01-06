@@ -60,19 +60,6 @@ mcp__task-manager__add_discovery({
 
 ---
 
-## Retrieving Existing Knowledge
-
-Before querying a table, check if we already have notes:
-
-```
-mcp__task-manager__get_table_notes({
-  database: "sugarwish",
-  table: "ec_order"
-})
-```
-
----
-
 ## Examples
 
 ### After describing a table:
