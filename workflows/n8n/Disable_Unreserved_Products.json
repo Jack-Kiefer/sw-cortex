@@ -57,7 +57,26 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get data from both inputs\nconst odooData = $('1. Query Odoo Inventory').all();\nconst mysqlData = $('2. Get MySQL Products + Reservations').all();\n\n// Create a map of Odoo inventory by sugarwish_product_id\nconst odooMap = new Map();\nfor (const item of odooData) {\n  const id = item.json.sugarwish_product_id;\n  odooMap.set(Number(id), item.json);\n}\n\n// Find products to disable\nconst productsToDisable = [];\n\nfor (const item of mysqlData) {\n  const mysql = item.json;\n  const productId = Number(mysql.product_id);\n  \n  // Find matching Odoo record\n  const odoo = odooMap.get(productId);\n  \n  if (!odoo) {\n    // No Odoo inventory found - skip or handle as needed\n    continue;\n  }\n  \n  // Get actually_available from Odoo\n  const actuallyAvailable = Number(odoo.actually_available) || 0;\n  \n  // Get unreserved_demand from Odoo\n  const unreservedDemand = Number(odoo.unreserved_demand) || 0;\n  \n  // Get total_reserved from inventory_reservations (MySQL)\n  const totalReserved = Number(mysql.total_reserved) || 0;\n  \n  // Calculate final available: actually_available - reservations\n  const finalAvailable = actuallyAvailable - totalReserved;\n  \n  // Get the effective drop level\n  const effectiveDropLevel = Number(mysql.effective_drop_level) || 0;\n  \n  // Compare: if final available < drop level, mark for disable\n  if (finalAvailable < effectiveDropLevel) {\n    productsToDisable.push({\n      product_id: mysql.product_id,\n      sku: mysql.sku || odoo.sku,\n      name: mysql.name || odoo.product_name,\n      actually_available: actuallyAvailable,\n      unreserved_demand: unreservedDemand,\n      total_reserved: totalReserved,\n      final_available: finalAvailable,\n      drop_level: mysql.drop_level,\n      effective_drop_level: effectiveDropLevel\n    });\n  }\n}\n\nif (productsToDisable.length === 0) {\n  return [{ json: { no_products: true } }];\n}\n\nreturn productsToDisable.map(p => ({ json: p }));"
+        "operation": "executeQuery",
+        "query": "SELECT \n    product_id,\n    SUM(qty_ordered) as orders_not_imported\nFROM items\nWHERE odoo_sync IN (0, 1)\n    AND deleted_at IS NULL\n    AND product_id IS NOT NULL\nGROUP BY product_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [-12000, 500],
+      "id": "d8f2a1b3-4c5e-6f7a-8b9c-0d1e2f3a4b5c",
+      "name": "2b. Get Orders Not Imported",
+      "executeOnce": true,
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get data from all inputs\nconst odooData = $('1. Query Odoo Inventory').all();\nconst mysqlData = $('2. Get MySQL Products + Reservations').all();\nconst ordersNotImportedData = $('2b. Get Orders Not Imported').all();\n\n// Create a map of Odoo inventory by sugarwish_product_id\nconst odooMap = new Map();\nfor (const item of odooData) {\n  const id = item.json.sugarwish_product_id;\n  odooMap.set(Number(id), item.json);\n}\n\n// Create a map of orders not imported by product_id\nconst ordersNotImportedMap = new Map();\nfor (const item of ordersNotImportedData) {\n  const id = item.json.product_id;\n  ordersNotImportedMap.set(Number(id), Number(item.json.orders_not_imported) || 0);\n}\n\n// Find products to disable\nconst productsToDisable = [];\n\nfor (const item of mysqlData) {\n  const mysql = item.json;\n  const productId = Number(mysql.product_id);\n  \n  // Find matching Odoo record\n  const odoo = odooMap.get(productId);\n  \n  if (!odoo) {\n    // No Odoo inventory found - skip or handle as needed\n    continue;\n  }\n  \n  // Get actually_available from Odoo\n  const actuallyAvailable = Number(odoo.actually_available) || 0;\n  \n  // Get unreserved_demand from Odoo\n  const unreservedDemand = Number(odoo.unreserved_demand) || 0;\n  \n  // Get total_reserved from inventory_reservations (MySQL)\n  const totalReserved = Number(mysql.total_reserved) || 0;\n  \n  // Get orders not imported (items with odoo_sync IN (0,1))\n  const ordersNotImported = ordersNotImportedMap.get(productId) || 0;\n  \n  // Calculate final available: actually_available - reservations - orders not imported\n  const finalAvailable = actuallyAvailable - totalReserved - ordersNotImported;\n  \n  // Get the effective drop level\n  const effectiveDropLevel = Number(mysql.effective_drop_level) || 0;\n  \n  // Compare: if final available < drop level, mark for disable\n  if (finalAvailable < effectiveDropLevel) {\n    productsToDisable.push({\n      product_id: mysql.product_id,\n      sku: mysql.sku || odoo.sku,\n      name: mysql.name || odoo.product_name,\n      actually_available: actuallyAvailable,\n      unreserved_demand: unreservedDemand,\n      total_reserved: totalReserved,\n      orders_not_imported: ordersNotImported,\n      final_available: finalAvailable,\n      drop_level: mysql.drop_level,\n      effective_drop_level: effectiveDropLevel\n    });\n  }\n}\n\nif (productsToDisable.length === 0) {\n  return [{ json: { no_products: true } }];\n}\n\nreturn productsToDisable.map(p => ({ json: p }));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -135,7 +154,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build compact Slack notification for disabled products\nconst disabledProducts = $('3. Join & Filter Below Drop Level').all();\nconst childSkuResults = $('6. Disable Child SKUs').all();\n\n// Group child SKUs by parent_product_id\nconst childSkuMap = new Map();\nfor (const item of childSkuResults) {\n  const parentId = Number(item.json.parent_product_id);\n  if (!childSkuMap.has(parentId)) {\n    childSkuMap.set(parentId, []);\n  }\n  if (item.json.sku) {\n    childSkuMap.get(parentId).push(item.json.sku);\n  }\n}\n\n// Build product list with child SKUs\nconst productList = disabledProducts.map(p => {\n  const j = p.json;\n  const childSkus = childSkuMap.get(Number(j.product_id)) || [];\n  let lines = [`• \\`${j.sku}\\` (${j.product_id}) ${j.name}`];\n  if (childSkus.length > 0) {\n    childSkus.forEach(sku => lines.push(`   ↳ \\`${sku}\\``));\n  }\n  lines.push(`   Actually Available: ${j.actually_available} | Odoo Unreserved: ${j.unreserved_demand} | SW Reserved: ${j.total_reserved} | Drop: ${j.effective_drop_level}`);\n  return lines.join('\\n');\n}).join('\\n');\n\nconst blocks = [\n  {\n    type: \"header\",\n    text: {\n      type: \"plain_text\",\n      text: \"🚨 ALERT!! Receiver Product(s) Disabled Due to Unreserved Inventory\",\n      emoji: true\n    }\n  },\n  {\n    type: \"section\",\n    text: {\n      type: \"mrkdwn\",\n      text: \"The following receiver products have unreserved inventory in Odoo. Their available inventory - inventory reservations take them below their drop level. They have been Disabled (as well as any child skus) so they are not available for selection on the website.\\n\\n*For Ops to do:* Add more inventory and then use the reservation wizard to resolve unreserved products\"\n    }\n  },\n  {\n    type: \"divider\"\n  },\n  {\n    type: \"section\",\n    text: {\n      type: \"mrkdwn\",\n      text: productList\n    }\n  },\n  {\n    type: \"context\",\n    elements: [{\n      type: \"mrkdwn\",\n      text: `${new Date().toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} MT`\n    }]\n  }\n];\n\nreturn [{ json: { blocks } }];"
+        "jsCode": "// Build compact Slack notification for disabled products\nconst disabledProducts = $('3. Join & Filter Below Drop Level').all();\nconst childSkuResults = $('6. Disable Child SKUs').all();\n\n// Group child SKUs by parent_product_id\nconst childSkuMap = new Map();\nfor (const item of childSkuResults) {\n  const parentId = Number(item.json.parent_product_id);\n  if (!childSkuMap.has(parentId)) {\n    childSkuMap.set(parentId, []);\n  }\n  if (item.json.sku) {\n    childSkuMap.get(parentId).push(item.json.sku);\n  }\n}\n\n// Build product list with child SKUs\nconst productList = disabledProducts.map(p => {\n  const j = p.json;\n  const childSkus = childSkuMap.get(Number(j.product_id)) || [];\n  let lines = [`• \\`${j.sku}\\` (${j.product_id}) ${j.name}`];\n  if (childSkus.length > 0) {\n    childSkus.forEach(sku => lines.push(`   ↳ \\`${sku}\\``));\n  }\n  lines.push(`   Actually Available: ${j.actually_available} | Odoo Unreserved: ${j.unreserved_demand} | SW Reserved: ${j.total_reserved} | Orders Not Imported: ${j.orders_not_imported} | Drop: ${j.effective_drop_level}`);\n  return lines.join('\\n');\n}).join('\\n');\n\nconst blocks = [\n  {\n    type: \"header\",\n    text: {\n      type: \"plain_text\",\n      text: \"🚨 ALERT!! Receiver Product(s) Disabled Due to Unreserved Inventory\",\n      emoji: true\n    }\n  },\n  {\n    type: \"section\",\n    text: {\n      type: \"mrkdwn\",\n      text: \"The following receiver products have unreserved inventory in Odoo. Their available inventory - inventory reservations take them below their drop level. They have been Disabled (as well as any child skus) so they are not available for selection on the website.\\n\\n*For Ops to do:* Add more inventory and then use the reservation wizard to resolve unreserved products\"\n    }\n  },\n  {\n    type: \"divider\"\n  },\n  {\n    type: \"section\",\n    text: {\n      type: \"mrkdwn\",\n      text: productList\n    }\n  },\n  {\n    type: \"context\",\n    elements: [{\n      type: \"mrkdwn\",\n      text: `${new Date().toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} MT`\n    }]\n  }\n];\n\nreturn [{ json: { blocks } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -229,6 +248,17 @@
       ]
     },
     "2. Get MySQL Products + Reservations": {
+      "main": [
+        [
+          {
+            "node": "2b. Get Orders Not Imported",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2b. Get Orders Not Imported": {
       "main": [
         [
           {
