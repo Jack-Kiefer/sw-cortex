@@ -44,6 +44,7 @@ Parse the arguments to determine the action:
 **If "query [database] [sql]"**: Use `mcp__db__query_database` to run the query.
 
 IMPORTANT:
+
 - All queries are READ-ONLY
 - Always include LIMIT if not present
 - Never run INSERT, UPDATE, DELETE, DROP, etc.

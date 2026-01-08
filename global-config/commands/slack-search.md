@@ -25,6 +25,7 @@ Search Jack's Slack message history semantically.
 # Slack Search: $ARGUMENTS
 
 Parse the arguments to extract:
+
 - The search query (required)
 - Optional date filters: "after [date]", "before [date]", "between [date1] and [date2]"
 

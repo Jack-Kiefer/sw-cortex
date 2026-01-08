@@ -2,23 +2,58 @@
 
 These tools and commands are available in every project.
 
+## IMPORTANT: Log Discoveries Frequently
+
+Whenever you learn something useful, **save it as a discovery** so future sessions can benefit:
+
+```
+mcp__task-manager__add_discovery {
+  title: "Brief description",
+  source: "database_query|exploration|code_review|manual",
+  description: "What you learned and why it matters",
+  type: "fact|relationship|pattern|insight|anomaly",
+  sourceDatabase: "...",  # if database-related
+  tableName: "...",       # if table-specific
+  tags: ["..."]           # optional categorization
+}
+```
+
+**Save discoveries about:**
+
+- Database schemas, relationships, business logic
+- Codebase architecture, patterns, conventions
+- How systems integrate (Odoo, Slack, n8n, etc.)
+- Gotchas, edge cases, things that surprised you
+- Solutions that worked for tricky problems
+- Business rules and workflows
+- API behaviors, undocumented features
+- Anything Jack might need to know again
+
+**Search before asking:**
+
+```
+mcp__task-manager__search_discoveries { query: "topic" }
+```
+
+This builds institutional knowledge across all sessions.
+
 ## Global Slash Commands
 
-| Command | Description |
-|---------|-------------|
-| `/task add [title]` | Add a new task |
-| `/task list` | List pending tasks |
-| `/task done [id]` | Complete a task |
-| `/remind [msg] in [duration]` | Set Slack reminder |
-| `/slack-search [query]` | Search Slack messages |
-| `/db query [database] [sql]` | Query databases |
-| `/global-analyze [description]` | Deep pre-implementation analysis |
-| `/global-quick-analyze [description]` | Quick codebase assessment |
+| Command                               | Description                      |
+| ------------------------------------- | -------------------------------- |
+| `/task add [title]`                   | Add a new task                   |
+| `/task list`                          | List pending tasks               |
+| `/task done [id]`                     | Complete a task                  |
+| `/remind [msg] in [duration]`         | Set Slack reminder               |
+| `/slack-search [query]`               | Search Slack messages            |
+| `/db query [database] [sql]`          | Query databases                  |
+| `/global-analyze [description]`       | Deep pre-implementation analysis |
+| `/global-quick-analyze [description]` | Quick codebase assessment        |
 
 ## Global Skills
 
-| Skill | Trigger |
-|-------|---------|
+| Skill          | Trigger                                        |
+| -------------- | ---------------------------------------------- |
 | `n8n-workflow` | When asked to create n8n workflows/automations |
 
 ## Global MCP Tools (via `~/.mcp.json`)
@@ -96,6 +131,7 @@ mcp__github__list_pull_requests { repo, state? }
 ```
 
 **Branch conventions:**
+
 - SERP: `main` (prod), `dev` (development)
 - SWAC: `live` (prod), `development`, `staging`
 - sugarwish-odoo: `main` (prod), `staging_new`
@@ -123,6 +159,7 @@ mcp__task-manager__get_table_notes { database, table }
 ## PM2 Services
 
 Running on this machine:
+
 - `api` - sw-cortex API on port 4000 (watches src/ for changes)
 - `slack-sync` - Hourly Slack message sync
 
