@@ -3,23 +3,23 @@
     "C07P673EF": {
       "channelId": "C07P673EF",
       "channelName": "general",
-      "lastSyncedTs": "1767720604.394909",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:30:17.902Z"
+      "lastSyncedTs": "1767892468.772639",
+      "messageCount": 2005,
+      "lastSyncTime": "2026-01-08T18:00:10.549Z"
     },
     "C07P69VHB": {
       "channelId": "C07P69VHB",
       "channelName": "random",
-      "lastSyncedTs": "1767374609.144079",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:31:22.209Z"
+      "lastSyncedTs": "1767805500.178469",
+      "messageCount": 2001,
+      "lastSyncTime": "2026-01-08T14:02:04.565Z"
     },
     "C4086K801": {
       "channelId": "C4086K801",
       "channelName": "billing",
-      "lastSyncedTs": "1767635187.563819",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:34:43.042Z"
+      "lastSyncedTs": "1767819108.476239",
+      "messageCount": 2001,
+      "lastSyncTime": "2026-01-08T14:02:05.096Z"
     },
     "C014ESG8FS6": {
       "channelId": "C014ESG8FS6",
@@ -38,9 +38,9 @@
     "C025KEUDK99": {
       "channelId": "C025KEUDK99",
       "channelName": "ops-and-tech",
-      "lastSyncedTs": "1767731703.344299",
-      "messageCount": 1235,
-      "lastSyncTime": "2026-01-06T20:36:21.021Z"
+      "lastSyncedTs": "1767893706.160539",
+      "messageCount": 1247,
+      "lastSyncTime": "2026-01-08T18:00:14.675Z"
     },
     "C028YQP7MMY": {
       "channelId": "C028YQP7MMY",
@@ -52,9 +52,9 @@
     "C02AL6W5ZC7": {
       "channelId": "C02AL6W5ZC7",
       "channelName": "ops-and-newproducts",
-      "lastSyncedTs": "1767723382.829789",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:38:09.712Z"
+      "lastSyncedTs": "1767805299.468859",
+      "messageCount": 2007,
+      "lastSyncTime": "2026-01-08T14:02:16.833Z"
     },
     "C02BXMKTS3U": {
       "channelId": "C02BXMKTS3U",
@@ -73,9 +73,9 @@
     "C03FN6F8QMR": {
       "channelId": "C03FN6F8QMR",
       "channelName": "devs-only",
-      "lastSyncedTs": "1767376842.054279",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:39:36.748Z"
+      "lastSyncedTs": "1767887093.619839",
+      "messageCount": 2026,
+      "lastSyncTime": "2026-01-08T15:59:00.654Z"
     },
     "C03NU72Q4EP": {
       "channelId": "C03NU72Q4EP",
@@ -94,9 +94,9 @@
     "C042YT940KS": {
       "channelId": "C042YT940KS",
       "channelName": "wellnesswednesday",
-      "lastSyncedTs": "1765986621.778089",
-      "messageCount": 268,
-      "lastSyncTime": "2026-01-06T20:40:03.940Z"
+      "lastSyncedTs": "1767802226.098539",
+      "messageCount": 269,
+      "lastSyncTime": "2026-01-08T14:02:38.587Z"
     },
     "C065WT71JSD": {
       "channelId": "C065WT71JSD",
@@ -108,9 +108,9 @@
     "C06UUSFS39T": {
       "channelId": "C06UUSFS39T",
       "channelName": "avalara-alert",
-      "lastSyncedTs": "1767683012.075589",
-      "messageCount": 881,
-      "lastSyncTime": "2026-01-06T20:41:14.740Z"
+      "lastSyncedTs": "1767855621.418419",
+      "messageCount": 883,
+      "lastSyncTime": "2026-01-08T14:02:57.075Z"
     },
     "C070F9C4TPY": {
       "channelId": "C070F9C4TPY",
@@ -129,9 +129,9 @@
     "C076Q906HK3": {
       "channelId": "C076Q906HK3",
       "channelName": "merch-platform-sync",
-      "lastSyncedTs": "1765933364.234719",
-      "messageCount": 316,
-      "lastSyncTime": "2026-01-06T20:41:28.315Z"
+      "lastSyncedTs": "1767796920.901819",
+      "messageCount": 317,
+      "lastSyncTime": "2026-01-08T14:02:59.133Z"
     },
     "C07GY977AEM": {
       "channelId": "C07GY977AEM",
@@ -150,30 +150,30 @@
     "C07R56LB0AC": {
       "channelId": "C07R56LB0AC",
       "channelName": "address-error",
-      "lastSyncedTs": "1767730008.949069",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:43:13.534Z"
+      "lastSyncedTs": "1767891469.290809",
+      "messageCount": 2003,
+      "lastSyncTime": "2026-01-08T17:01:04.885Z"
     },
     "C083M27KU8L": {
       "channelId": "C083M27KU8L",
       "channelName": "jack-test",
-      "lastSyncedTs": "1767715296.104119",
-      "messageCount": 220,
-      "lastSyncTime": "2026-01-06T20:43:21.077Z"
+      "lastSyncedTs": "1767888306.154439",
+      "messageCount": 226,
+      "lastSyncTime": "2026-01-08T17:01:06.966Z"
     },
     "C084Z9EKDSL": {
       "channelId": "C084Z9EKDSL",
       "channelName": "live-product-warnings",
-      "lastSyncedTs": "1767732084.316659",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:44:10.433Z"
+      "lastSyncedTs": "1767888306.330819",
+      "messageCount": 2006,
+      "lastSyncTime": "2026-01-08T17:01:07.695Z"
     },
     "C088M68FD47": {
       "channelId": "C088M68FD47",
       "channelName": "api-autofix",
-      "lastSyncedTs": "1767697200.538579",
-      "messageCount": 1479,
-      "lastSyncTime": "2026-01-06T20:44:53.055Z"
+      "lastSyncedTs": "1767882600.438089",
+      "messageCount": 1486,
+      "lastSyncTime": "2026-01-08T14:57:17.667Z"
     },
     "C08DGBM7B52": {
       "channelId": "C08DGBM7B52",
@@ -192,9 +192,9 @@
     "C08GUB56F27": {
       "channelId": "C08GUB56F27",
       "channelName": "cs_wishdesk",
-      "lastSyncedTs": "1766790431.809929",
-      "messageCount": 211,
-      "lastSyncTime": "2026-01-06T20:45:01.793Z"
+      "lastSyncedTs": "1767801323.207959",
+      "messageCount": 212,
+      "lastSyncTime": "2026-01-08T14:03:11.244Z"
     },
     "C08JXDKLJH1": {
       "channelId": "C08JXDKLJH1",
@@ -227,16 +227,16 @@
     "C08S04GTTNZ": {
       "channelId": "C08S04GTTNZ",
       "channelName": "wishdesk_notifications",
-      "lastSyncedTs": "1767731742.408279",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:45:57.991Z"
+      "lastSyncedTs": "1767895262.341999",
+      "messageCount": 2081,
+      "lastSyncTime": "2026-01-08T18:01:18.135Z"
     },
     "C08TDS7DRK2": {
       "channelId": "C08TDS7DRK2",
       "channelName": "devgroup_wishdesk",
-      "lastSyncedTs": "1767726462.205829",
-      "messageCount": 1089,
-      "lastSyncTime": "2026-01-06T20:46:28.369Z"
+      "lastSyncedTs": "1767893744.472819",
+      "messageCount": 1100,
+      "lastSyncTime": "2026-01-08T18:01:19.135Z"
     },
     "C091G8ZEG78": {
       "channelId": "C091G8ZEG78",
@@ -248,9 +248,9 @@
     "C091RAT8NNQ": {
       "channelId": "C091RAT8NNQ",
       "channelName": "idea",
-      "lastSyncedTs": "1764865438.717429",
-      "messageCount": 58,
-      "lastSyncTime": "2026-01-06T20:46:31.700Z"
+      "lastSyncedTs": "1767890940.482569",
+      "messageCount": 59,
+      "lastSyncTime": "2026-01-08T17:01:16.786Z"
     },
     "C094N5L8P7Z": {
       "channelId": "C094N5L8P7Z",
@@ -269,9 +269,9 @@
     "C095WQ8AAR0": {
       "channelId": "C095WQ8AAR0",
       "channelName": "custom-mug-and-treats-fulfillment",
-      "lastSyncedTs": "1767725627.638829",
-      "messageCount": 88,
-      "lastSyncTime": "2026-01-06T20:46:35.369Z"
+      "lastSyncedTs": "1767891097.350029",
+      "messageCount": 90,
+      "lastSyncTime": "2026-01-08T17:01:17.422Z"
     },
     "C0986P364BC": {
       "channelId": "C0986P364BC",
@@ -290,9 +290,9 @@
     "C09NMDKUAU8": {
       "channelId": "C09NMDKUAU8",
       "channelName": "placeholder-orders",
-      "lastSyncedTs": "1767645124.183149",
-      "messageCount": 104,
-      "lastSyncTime": "2026-01-06T20:46:41.585Z"
+      "lastSyncedTs": "1767887408.551979",
+      "messageCount": 107,
+      "lastSyncTime": "2026-01-08T15:59:47.432Z"
     },
     "C09SAUZ6Y65": {
       "channelId": "C09SAUZ6Y65",
@@ -325,9 +325,9 @@
     "G01LS8CAD43": {
       "channelId": "G01LS8CAD43",
       "channelName": "ops-management",
-      "lastSyncedTs": "1767709369.140999",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:47:55.373Z"
+      "lastSyncedTs": "1767887626.156849",
+      "messageCount": 2001,
+      "lastSyncTime": "2026-01-08T15:59:51.964Z"
     },
     "D0A4BK9MCAX": {
       "channelId": "D0A4BK9MCAX",
@@ -388,9 +388,9 @@
     "D0971JEF2A2": {
       "channelId": "D0971JEF2A2",
       "channelName": "DM-U096P936NQ7",
-      "lastSyncedTs": "1767728268.887399",
-      "messageCount": 95,
-      "lastSyncTime": "2026-01-06T20:48:00.802Z"
+      "lastSyncedTs": "1767814677.411149",
+      "messageCount": 98,
+      "lastSyncTime": "2026-01-08T14:03:26.187Z"
     },
     "D0965M9MDBL": {
       "channelId": "D0965M9MDBL",
@@ -493,9 +493,9 @@
     "D089170NL59": {
       "channelId": "D089170NL59",
       "channelName": "DM-UN60TQMFU",
-      "lastSyncedTs": "1767623437.370159",
-      "messageCount": 174,
-      "lastSyncTime": "2026-01-06T20:48:17.767Z"
+      "lastSyncedTs": "1767875430.833189",
+      "messageCount": 176,
+      "lastSyncTime": "2026-01-08T14:03:27.784Z"
     },
     "D08744QLVRC": {
       "channelId": "D08744QLVRC",
@@ -528,9 +528,9 @@
     "D085HU5JYM8": {
       "channelId": "D085HU5JYM8",
       "channelName": "DM-U013F8WT18X",
-      "lastSyncedTs": "1767729904.039829",
-      "messageCount": 498,
-      "lastSyncTime": "2026-01-06T20:48:33.642Z"
+      "lastSyncedTs": "1767891853.979479",
+      "messageCount": 521,
+      "lastSyncTime": "2026-01-08T18:01:29.009Z"
     },
     "D0853E5BSKZ": {
       "channelId": "D0853E5BSKZ",
@@ -612,9 +612,9 @@
     "D02EWDY45FE": {
       "channelId": "D02EWDY45FE",
       "channelName": "DM-U01NS0UJ802",
-      "lastSyncedTs": "1767721578.468419",
-      "messageCount": 579,
-      "lastSyncTime": "2026-01-06T20:49:09.485Z"
+      "lastSyncedTs": "1767838933.705279",
+      "messageCount": 596,
+      "lastSyncTime": "2026-01-08T14:03:30.082Z"
     },
     "D02CE7JADFF": {
       "channelId": "D02CE7JADFF",
@@ -626,9 +626,9 @@
     "D029NHRB6JF": {
       "channelId": "D029NHRB6JF",
       "channelName": "DM-U011CPHRPMH",
-      "lastSyncedTs": "1767626064.937939",
-      "messageCount": 319,
-      "lastSyncTime": "2026-01-06T20:49:17.492Z"
+      "lastSyncedTs": "1767738376.784479",
+      "messageCount": 321,
+      "lastSyncTime": "2026-01-08T14:03:30.491Z"
     },
     "D029JRMETJM": {
       "channelId": "D029JRMETJM",
@@ -647,9 +647,9 @@
     "D022S9JGNL9": {
       "channelId": "D022S9JGNL9",
       "channelName": "DM-U07P61DHV",
-      "lastSyncedTs": "1767725841.064949",
-      "messageCount": 2000,
-      "lastSyncTime": "2026-01-06T20:50:20.205Z"
+      "lastSyncedTs": "1767889370.159919",
+      "messageCount": 2010,
+      "lastSyncTime": "2026-01-08T17:01:27.933Z"
     },
     "D022QN74MP1": {
       "channelId": "D022QN74MP1",
@@ -927,9 +927,9 @@
     "C08JPMXC5SL": {
       "channelId": "C08JPMXC5SL",
       "channelName": "mpdm-anna--jack--sethfinley-1",
-      "lastSyncedTs": "1767711520.329849",
-      "messageCount": 98,
-      "lastSyncTime": "2026-01-06T20:51:12.101Z"
+      "lastSyncedTs": "1767810771.638789",
+      "messageCount": 102,
+      "lastSyncTime": "2026-01-08T14:03:33.742Z"
     },
     "C08JRHLS1QB": {
       "channelId": "C08JRHLS1QB",
@@ -1389,9 +1389,9 @@
     "C0A3VMCNJKE": {
       "channelId": "C0A3VMCNJKE",
       "channelName": "mpdm-matthew--jack--mike--agustin--neal--james.emeric--nicole-1",
-      "lastSyncedTs": "1767649655.878199",
-      "messageCount": 35,
-      "lastSyncTime": "2026-01-06T20:52:07.621Z"
+      "lastSyncedTs": "1767803916.773329",
+      "messageCount": 39,
+      "lastSyncTime": "2026-01-08T14:03:40.428Z"
     },
     "C0A57BEGSSJ": {
       "channelId": "C0A57BEGSSJ",
@@ -1443,6 +1443,6 @@
       "lastSyncTime": "2026-01-06T20:52:12.157Z"
     }
   },
-  "lastFullSync": "2026-01-06T20:52:12.194Z",
-  "totalMessages": 38184
+  "lastFullSync": "2026-01-08T18:02:23.225Z",
+  "totalMessages": 38427
 }

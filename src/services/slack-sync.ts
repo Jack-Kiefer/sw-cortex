@@ -263,6 +263,8 @@ export async function searchSlackMessages(
     limit?: number;
     channelId?: string;
     minScore?: number;
+    afterDate?: string; // ISO date or natural language like "2025-12-18"
+    beforeDate?: string; // ISO date or natural language like "2025-12-31"
   } = {}
 ): Promise<
   Array<{
@@ -276,12 +278,37 @@ export async function searchSlackMessages(
   // Generate query embedding
   const queryEmbedding = await generateEmbedding(query);
 
-  // Build filter
-  const filter = options.channelId
-    ? {
-        must: [{ key: 'channelId', match: { value: options.channelId } }],
-      }
-    : undefined;
+  // Build filter conditions
+  const mustConditions: Array<Record<string, unknown>> = [];
+
+  // Channel filter
+  if (options.channelId) {
+    mustConditions.push({ key: 'channelId', match: { value: options.channelId } });
+  }
+
+  // Date range filter (timestamp is Unix seconds)
+  const rangeFilter: { gte?: number; lte?: number } = {};
+
+  if (options.afterDate) {
+    const afterTs = new Date(options.afterDate).getTime() / 1000;
+    if (!isNaN(afterTs)) {
+      rangeFilter.gte = afterTs;
+    }
+  }
+
+  if (options.beforeDate) {
+    const beforeTs = new Date(options.beforeDate).getTime() / 1000;
+    if (!isNaN(beforeTs)) {
+      rangeFilter.lte = beforeTs;
+    }
+  }
+
+  if (rangeFilter.gte !== undefined || rangeFilter.lte !== undefined) {
+    mustConditions.push({ key: 'timestamp', range: rangeFilter });
+  }
+
+  // Build final filter
+  const filter = mustConditions.length > 0 ? { must: mustConditions } : undefined;
 
   // Search Qdrant
   const results = await client.search('slack_messages', {

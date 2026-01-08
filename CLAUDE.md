@@ -333,15 +333,52 @@ Qdrant has no built-in migrations. Use **collection aliases** for zero-downtime 
 
 ### GitHub (Read-Only)
 
-- Repos: SERP, SWAC, sugarwish-odoo, sugarwish-laravel
-- MCP Tools:
-  - `mcp__github__list_repos` - List configured repos
-  - `mcp__github__search_code` - Search code across repos
-  - `mcp__github__get_file` - Get file contents
-  - `mcp__github__list_files` - List directory contents
-  - `mcp__github__list_commits` - List recent commits
-  - `mcp__github__list_pull_requests` - List PRs
-  - `mcp__github__get_pull_request` - Get PR details
+#### Repositories & Branches
+
+| Repo                  | Production | Development      | Staging       | Workflow                           |
+| --------------------- | ---------- | ---------------- | ------------- | ---------------------------------- |
+| **SERP**              | `main`     | `dev`            | -             | dev → main → auto-deploy (Jenkins) |
+| **SWAC**              | `live`     | `development`    | `staging`     | dev → staging → live               |
+| **sugarwish-odoo**    | `main`     | -                | `staging_new` | staging_new → main                 |
+| **sugarwish-laravel** | `blue`     | feature branches | -             | SUG-\* branches → blue             |
+
+**Environments**:
+
+- SWAC: `desk.sugarwish.com` (live), `desk2.sugarwish.com` (dev), `desk3.sugarwish.com` (staging)
+- SERP: Auto-deploys from `main` via Jenkins CI/CD
+
+**IMPORTANT - Always specify the correct branch**:
+
+- When exploring current/active work, use the **Development** or **Staging** branch
+- When checking production code, use the **Production** branch
+- If unsure which branch, **ask the user** or use `list_branches` to see options
+- **Never assume `main` is correct** - check the table above
+
+Use `ref` parameter to specify branch/tag/commit:
+
+```
+# Get file from specific branch
+mcp__github__get_file { repo: "sugarwish-odoo", path: "file.py", ref: "development" }
+
+# List files from staging
+mcp__github__list_files { repo: "sugarwish-odoo", path: "models", ref: "staging" }
+
+# Get commits from dev branch
+mcp__github__list_commits { repo: "SERP", branch: "dev" }
+```
+
+Without `ref`, tools default to the repo's default branch (usually `main`).
+
+#### MCP Tools
+
+- `mcp__github__list_repos` - List configured repos
+- `mcp__github__search_code` - Search code across repos
+- `mcp__github__get_file` - Get file contents (supports `ref`)
+- `mcp__github__list_files` - List directory contents (supports `ref`)
+- `mcp__github__list_branches` - List all branches in a repo
+- `mcp__github__list_commits` - List recent commits (supports `branch`)
+- `mcp__github__list_pull_requests` - List PRs
+- `mcp__github__get_pull_request` - Get PR details
 
 ### n8n
 

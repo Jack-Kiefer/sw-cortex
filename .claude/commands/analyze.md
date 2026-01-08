@@ -207,72 +207,14 @@ Present your analysis in this conversation. Do not create any files.
 
 ### 📝 Ready to Implement?
 
-**Option 1: Manual** - Say "implement" or "go ahead" and I will begin.
-
-**Option 2: Autonomous (Ralph Loop)** - Copy and run this command:
-```
-
-/ralph-loop "[IMPLEMENTATION_PROMPT]" --completion-promise "COMPLETE" --max-iterations [ITERATIONS]
-
-```
-
-```
-
----
-
-## Phase 4: Generate Ralph Loop Command
-
-After completing the analysis, generate a ready-to-use `/ralph-loop` command.
-
-**Create the IMPLEMENTATION_PROMPT by:**
-
-1. Summarizing the task in 1-2 sentences
-2. Listing the key implementation steps from your plan
-3. Specifying verification steps (typecheck, lint, test)
-4. Including the completion signal
-
-**Set ITERATIONS based on complexity:**
-
-- Low complexity: 10-15 iterations
-- Medium complexity: 20-30 iterations
-- High complexity: 40-50 iterations
-
-**Output format:**
-
-```
-### 🤖 Ralph Loop Command
-
-Copy and run this to implement autonomously:
-
-\`\`\`
-/ralph-loop "Implement: [task summary]
-
-Steps:
-1. [step 1]
-2. [step 2]
-3. [step 3]
-...
-
-Verification:
-- Run npm run typecheck
-- Run npm run lint
-- Run npm run test (if applicable)
-- Manually verify the feature works
-
-When all steps complete and verification passes, output: <promise>COMPLETE</promise>
-
-If stuck after 10+ attempts, output: <promise>BLOCKED</promise> with explanation." --completion-promise "COMPLETE" --max-iterations [N]
-\`\`\`
+Say "implement" or "go ahead" and I will begin.
 ```
 
 ---
 
 ## ⛔ FINAL REMINDER
 
-This analysis is complete when you have:
-
-1. OUTPUT TEXT describing the plan
-2. Generated a ready-to-use `/ralph-loop` command
+This analysis is complete when you have OUTPUT TEXT describing the plan.
 
 **DO NOT:**
 

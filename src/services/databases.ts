@@ -100,6 +100,16 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       database: process.env.RETOOL_DB_NAME || '',
       ssh: process.env.RETOOL_USE_SSH === 'true' ? sshConfig : undefined,
     },
+    odoo_staging: {
+      name: 'odoo_staging',
+      type: 'postgres',
+      host: process.env.ODOO_STAGING_DB_HOST || 'localhost',
+      port: parseInt(process.env.ODOO_STAGING_DB_PORT || '5432', 10),
+      user: process.env.ODOO_STAGING_DB_USER || '',
+      password: process.env.ODOO_STAGING_DB_PASSWORD || '',
+      database: process.env.ODOO_STAGING_DB_NAME || '',
+      ssh: process.env.ODOO_STAGING_USE_SSH === 'true' ? sshConfig : undefined,
+    },
   };
 }
 

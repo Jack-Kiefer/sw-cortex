@@ -739,6 +739,14 @@ const tools: Tool[] = [
           type: 'number',
           description: 'Minimum similarity score 0-1 (default 0.3)',
         },
+        afterDate: {
+          type: 'string',
+          description: 'Only include messages after this date (ISO format: "2025-12-18")',
+        },
+        beforeDate: {
+          type: 'string',
+          description: 'Only include messages before this date (ISO format: "2025-12-31")',
+        },
       },
       required: ['query'],
     },
@@ -1025,6 +1033,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           limit: (args as { limit?: number }).limit,
           channelId: (args as { channelId?: string }).channelId,
           minScore: (args as { minScore?: number }).minScore,
+          afterDate: (args as { afterDate?: string }).afterDate,
+          beforeDate: (args as { beforeDate?: string }).beforeDate,
         });
         break;
       case 'get_slack_context':
