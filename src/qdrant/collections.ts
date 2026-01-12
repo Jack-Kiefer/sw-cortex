@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DistanceMetric } from './config';
 import { SlackMessagesCollection } from './schemas/slack-messages';
+import { SlackMessagesEncryptedCollection } from './schemas/slack-messages-encrypted';
 import { DiscoveriesCollection } from './schemas/discoveries';
 
 // Generic collection definition type
@@ -31,6 +32,7 @@ export interface CollectionDefinition<T extends z.ZodType = z.ZodType> {
 // Central registry of all collections
 export const COLLECTIONS = {
   slackMessages: SlackMessagesCollection,
+  slackMessagesEncrypted: SlackMessagesEncryptedCollection,
   discoveries: DiscoveriesCollection,
 } as const;
 

@@ -32,6 +32,76 @@ If YES → Call `mcp__task-manager__add_discovery()` IMMEDIATELY, before respond
 
 ---
 
+## Maintaining Discoveries (Update or Delete)
+
+Discoveries can become outdated or contain errors. **Always check existing discoveries before adding new ones** to avoid duplicates and keep the knowledge base accurate.
+
+### Before Adding: Search First
+
+```
+mcp__task-manager__search_discoveries({ query: "topic you're about to document" })
+```
+
+If relevant discoveries exist, decide: **update** or **delete and recreate**.
+
+### When to UPDATE an Existing Discovery
+
+Use `update_discovery` when:
+
+- **Minor corrections** - Typos, clarifications, small additions
+- **Same topic, better understanding** - You learned more about the same thing
+- **Wrong details but right context** - The table/database is correct but description was wrong
+- **Priority/type change** - Reclassifying importance or category
+
+```
+mcp__task-manager__update_discovery({
+  id: "discovery-uuid-here",
+  description: "Corrected description with accurate info",
+  priority: 3  // Upgraded importance
+})
+```
+
+### When to DELETE and Recreate
+
+Use `delete_discovery` + `add_discovery` when:
+
+- **Completely wrong** - Discovery is about the wrong table/database entirely
+- **Superseded** - New discovery replaces it with fundamentally different info
+- **Consolidating** - Merging multiple discoveries into one comprehensive one
+
+```
+mcp__task-manager__delete_discovery({ id: "wrong-discovery-uuid" })
+mcp__task-manager__add_discovery({ ... correct info ... })
+```
+
+### Updating All Fields
+
+All discovery fields are now updatable:
+
+| Field            | When to Update                         |
+| ---------------- | -------------------------------------- |
+| `title`          | Better summary of the insight          |
+| `description`    | More accurate/complete explanation     |
+| `type`           | Reclassify (fact → relationship, etc.) |
+| `priority`       | Change importance (1-4)                |
+| `tags`           | Add/remove categorization              |
+| `source`         | Correct the source type                |
+| `sourceDatabase` | Fix if wrong database was recorded     |
+| `sourceQuery`    | Update with better/correct SQL         |
+| `tableName`      | Fix if wrong table was recorded        |
+| `columnName`     | Fix if wrong column was recorded       |
+
+### Periodic Review
+
+When exploring a table you've documented before:
+
+1. Search for existing discoveries about that table
+2. Verify they're still accurate
+3. Update outdated info or delete obsolete discoveries
+4. Add new discoveries for anything not yet documented
+
+---
+
 ## How to Save Discoveries
 
 ```

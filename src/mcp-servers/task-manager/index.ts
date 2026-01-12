@@ -30,7 +30,7 @@ import * as taskService from '../../services/tasks.js';
 import * as habitService from '../../services/habits.js';
 import * as logReader from '../../services/log-reader.js';
 import * as discoveriesService from '../../services/discoveries.js';
-import * as slackSync from '../../services/slack-sync.js';
+import * as slackSync from '../../services/slack-sync-encrypted.js';
 
 // Initialize task database
 initDb();
@@ -560,18 +560,44 @@ const tools: Tool[] = [
   },
   {
     name: 'update_discovery',
-    description: 'Update a discovery',
+    description:
+      'Update a discovery. Use this to correct outdated or wrong information. All fields are now updatable.',
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'string', description: 'Discovery ID (UUID)' },
-        title: { type: 'string' },
-        description: { type: 'string' },
-        type: { type: 'string' },
-        priority: { type: 'number' },
-        tags: { type: 'array', items: { type: 'string' } },
-        relatedTaskId: { type: 'number' },
-        relatedProjectId: { type: 'number' },
+        title: { type: 'string', description: 'Updated title' },
+        description: { type: 'string', description: 'Updated description' },
+        type: {
+          type: 'string',
+          description:
+            'Discovery type: pattern, anomaly, optimization, fact, relationship, insight',
+        },
+        priority: { type: 'number', description: 'Priority 1-4 (1=low, 4=critical)' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Updated tags' },
+        relatedTaskId: { type: 'number', description: 'Link to a task ID (null to unlink)' },
+        relatedProjectId: { type: 'number', description: 'Link to a project ID (null to unlink)' },
+        // Source fields - now updatable for corrections
+        source: {
+          type: 'string',
+          description: 'Source type: database_query, manual, code_review, exploration',
+        },
+        sourceDatabase: {
+          type: 'string',
+          description: 'Database name: wishdesk, sugarwish, odoo, retool (null to clear)',
+        },
+        sourceQuery: {
+          type: 'string',
+          description: 'SQL query that led to this discovery (null to clear)',
+        },
+        tableName: {
+          type: 'string',
+          description: 'Table name this discovery is about (null to clear)',
+        },
+        columnName: {
+          type: 'string',
+          description: 'Column name this discovery is about (null to clear)',
+        },
       },
       required: ['id'],
     },
@@ -718,7 +744,7 @@ const tools: Tool[] = [
   {
     name: 'search_slack_messages',
     description:
-      'Search Slack messages semantically using vector embeddings. Returns messages similar to your query.',
+      'Search Slack messages semantically using vector embeddings. Messages are stored encrypted and decrypted on retrieval.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -779,8 +805,31 @@ const tools: Tool[] = [
     },
   },
   {
+    name: 'get_slack_thread',
+    description:
+      'Get all messages in a Slack thread. Use the threadTs from search results to fetch the full conversation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channelId: {
+          type: 'string',
+          description: 'Channel ID (from search results)',
+        },
+        threadTs: {
+          type: 'string',
+          description: 'Thread timestamp (from search results, e.g. "1704067200.123456")',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max messages to return (default 100)',
+        },
+      },
+      required: ['channelId', 'threadTs'],
+    },
+  },
+  {
     name: 'get_slack_sync_status',
-    description: 'Get the current status of Slack message indexing',
+    description: 'Get the current status of Slack message indexing (encrypted collection)',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -1027,9 +1076,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = logReader.getLogStats();
         break;
 
-      // Slack Search Tools
+      // Slack Search Tools (uses encrypted collection by default)
       case 'search_slack_messages':
-        result = await slackSync.searchSlackMessages((args as { query: string }).query, {
+        result = await slackSync.searchSlackMessagesEncrypted((args as { query: string }).query, {
           limit: (args as { limit?: number }).limit,
           channelId: (args as { channelId?: string }).channelId,
           minScore: (args as { minScore?: number }).minScore,
@@ -1038,7 +1087,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
         break;
       case 'get_slack_context':
-        result = await slackSync.getSlackContext(
+        result = await slackSync.getSlackContextEncrypted(
           (args as { channelId: string }).channelId,
           (args as { timestamp: number }).timestamp,
           {
@@ -1047,8 +1096,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         );
         break;
+      case 'get_slack_thread':
+        result = await slackSync.getSlackThreadEncrypted(
+          (args as { channelId: string }).channelId,
+          (args as { threadTs: string }).threadTs,
+          {
+            limit: (args as { limit?: number }).limit,
+          }
+        );
+        break;
       case 'get_slack_sync_status':
-        result = slackSync.getSyncStatus();
+        result = slackSync.getEncryptedSyncStatus();
         break;
 
       default:

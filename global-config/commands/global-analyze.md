@@ -64,6 +64,10 @@ Launch these subagents **in parallel** using the Task tool in a single message.
 ```
 Search Slack for discussions about: [topic]
 
+TOOLS TO USE (call these directly as tools, NOT via Bash):
+- mcp__task-manager__search_slack_messages - semantic search with query parameter
+- mcp__task-manager__get_slack_context - get surrounding messages using channelId and timestamp from search results
+
 LIMITS:
 - Max 10 tool calls total
 - Return results after limits reached
@@ -71,14 +75,16 @@ LIMITS:
 REPORT FORMAT:
 1. What you found (summarize key messages/decisions)
 2. If you hit limits and there's more: "MORE_TO_EXPLORE: [specific queries to try next]"
-
-Use mcp__task-manager__search_slack_messages, get_slack_context
 ```
 
 ### 1.2 Discoveries Search (subagent_type: general-purpose, model: haiku)
 
 ```
 Search existing discoveries for: [topic]
+
+TOOLS TO USE (call these directly as tools, NOT via Bash):
+- mcp__task-manager__search_discoveries - semantic search with query parameter
+- mcp__task-manager__get_table_notes - get notes for specific database/table
 
 LIMITS:
 - Max 10 tool calls total
@@ -88,8 +94,6 @@ REPORT FORMAT:
 1. Relevant discoveries found (summarize each)
 2. Table notes found (summarize key insights)
 3. If you hit limits: "MORE_TO_EXPLORE: [specific areas to search next]"
-
-Use mcp__task-manager__search_discoveries, get_table_notes
 ```
 
 ### 1.3 Codebase Exploration (subagent_type: general-purpose, model: haiku)
@@ -136,17 +140,21 @@ Use WebSearch, WebFetch
 ```
 Analyze database structures for: [topic]
 
+TOOLS TO USE (call these directly as tools, NOT via Bash):
+- mcp__db__list_tables - list tables in a database (pass database: "wishdesk|sugarwish|odoo|retool")
+- mcp__db__describe_table - get table schema (pass database and table)
+- mcp__db__query_database - run SELECT queries (pass database, query, and limit)
+
 LIMITS:
 - Max 10 tool calls total
 - Focus on schema understanding, not data analysis
+- Always include LIMIT in queries
 
 REPORT FORMAT:
 1. Tables involved (name + purpose)
 2. Key relationships
 3. Important columns
 4. If you hit limits: "MORE_TO_EXPLORE: [specific tables/relationships to investigate]"
-
-Use mcp__db__list_tables, mcp__db__describe_table, mcp__db__query_database
 ```
 
 **Launch all relevant agents in ONE message for parallel execution.**
@@ -229,35 +237,38 @@ Launch the discovery subagent **in the background** while you present output.
 ```
 Save discoveries from this research session.
 
+CRITICAL: Call MCP tools DIRECTLY as tools. Do NOT run them as Bash commands.
+
 FINDINGS TO LOG:
 [Paste your key findings here - architecture, patterns, relationships, gotchas]
 
+TOOLS TO USE (call directly, NOT via Bash):
+- mcp__task-manager__search_discoveries - search with query parameter
+- mcp__task-manager__add_discovery - add new discovery
+- mcp__task-manager__update_discovery - update existing discovery by id
+- mcp__task-manager__delete_discovery - delete discovery by id
+
 STEP 1: SEARCH FOR EXISTING DISCOVERIES FIRST
-Before adding anything, search for existing discoveries on these topics:
-mcp__task-manager__search_discoveries { query: "[topic]" }
+Call the mcp__task-manager__search_discoveries tool with a query parameter to find existing discoveries on the topic.
 
 STEP 2: UPDATE OR ADD
-For each significant finding:
+For each significant finding, call the appropriate tool:
 
-IF existing discovery exists and is outdated/wrong:
-mcp__task-manager__update_discovery {
-  id: "existing-discovery-uuid",
-  description: "Corrected/updated info",
-  // Update any fields that need fixing: title, type, priority, sourceDatabase, tableName, etc.
-}
+- If existing discovery is outdated: call mcp__task-manager__update_discovery with id and updated fields
+- If new knowledge: call mcp__task-manager__add_discovery with title, source, description, type, tags
+- If discovery is wrong: call mcp__task-manager__delete_discovery, then add_discovery
 
-IF no existing discovery or need to add new knowledge:
-mcp__task-manager__add_discovery {
-  title: "Concise title",
-  source: "exploration",
-  description: "What was learned and why it matters",
-  type: "fact|relationship|pattern|insight|anomaly",
-  tags: ["relevant", "tags"]
-}
+Required fields for add_discovery:
+- title: "Concise title"
+- source: "exploration"
+- description: "What was learned and why it matters"
+- type: one of "fact", "relationship", "pattern", "insight", "anomaly"
 
-IF existing discovery is completely wrong:
-mcp__task-manager__delete_discovery { id: "wrong-uuid" }
-Then add the correct one.
+Optional fields:
+- sourceDatabase: "wishdesk", "sugarwish", "odoo", or "retool"
+- tableName: specific table name
+- tags: array of strings
+- priority: 1-4 (4 is critical)
 
 WHAT TO SAVE/UPDATE:
 - Architecture and system design found

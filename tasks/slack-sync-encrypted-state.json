@@ -1,0 +1,76 @@
+{
+  "channels": {
+    "C07P673EF": {
+      "channelId": "C07P673EF",
+      "channelName": "general",
+      "lastSyncedTs": "1767994775.411639",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T14:59:47.501Z"
+    },
+    "C07P69VHB": {
+      "channelId": "C07P69VHB",
+      "channelName": "random",
+      "lastSyncedTs": "1768000469.744459",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T15:10:35.778Z"
+    },
+    "C4086K801": {
+      "channelId": "C4086K801",
+      "channelName": "billing",
+      "lastSyncedTs": "1767819108.476239",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T15:24:28.652Z"
+    },
+    "C014ESG8FS6": {
+      "channelId": "C014ESG8FS6",
+      "channelName": "glitches",
+      "lastSyncedTs": "1767387097.002289",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T15:36:21.066Z"
+    },
+    "C01PFETJ5B9": {
+      "channelId": "C01PFETJ5B9",
+      "channelName": "enterprise",
+      "lastSyncedTs": "1767129498.704249",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T15:48:41.955Z"
+    },
+    "C025KEUDK99": {
+      "channelId": "C025KEUDK99",
+      "channelName": "ops-and-tech",
+      "lastSyncedTs": "1768106946.333559",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T15:55:40.475Z"
+    },
+    "C028YQP7MMY": {
+      "channelId": "C028YQP7MMY",
+      "channelName": "low-nps-scores",
+      "lastSyncedTs": "1759410460.276079",
+      "messageCount": 208,
+      "lastSyncTime": "2026-01-12T15:55:52.196Z"
+    },
+    "C02AL6W5ZC7": {
+      "channelId": "C02AL6W5ZC7",
+      "channelName": "ops-and-newproducts",
+      "lastSyncedTs": "1767985469.236859",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T16:03:37.724Z"
+    },
+    "C02BXMKTS3U": {
+      "channelId": "C02BXMKTS3U",
+      "channelName": "ops-automation",
+      "lastSyncedTs": "1744379334.436819",
+      "messageCount": 11,
+      "lastSyncTime": "2026-01-12T16:03:38.119Z"
+    },
+    "C036RHDJEPM": {
+      "channelId": "C036RHDJEPM",
+      "channelName": "gratitudefriday",
+      "lastSyncedTs": "1767962820.241349",
+      "messageCount": 500,
+      "lastSyncTime": "2026-01-12T16:10:13.518Z"
+    }
+  },
+  "lastFullSync": null,
+  "totalMessages": 0
+}

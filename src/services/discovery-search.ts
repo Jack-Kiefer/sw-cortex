@@ -269,6 +269,12 @@ export async function updateDiscovery(
     tags?: string[];
     relatedTaskId?: number | null;
     relatedProjectId?: number | null;
+    // Previously immutable fields - now updatable for corrections
+    source?: string;
+    sourceDatabase?: string | null;
+    sourceQuery?: string | null;
+    tableName?: string | null;
+    columnName?: string | null;
   }
 ): Promise<Discovery | null> {
   const client = getQdrantClient();
@@ -279,7 +285,7 @@ export async function updateDiscovery(
     return null;
   }
 
-  // Merge updates
+  // Merge updates (all fields now updatable for corrections)
   const updatedPayload = DiscoveryPayloadSchema.parse({
     ...existing,
     title: data.title ?? existing.title,
@@ -290,14 +296,19 @@ export async function updateDiscovery(
     relatedTaskId: data.relatedTaskId !== undefined ? data.relatedTaskId : existing.relatedTaskId,
     relatedProjectId:
       data.relatedProjectId !== undefined ? data.relatedProjectId : existing.relatedProjectId,
+    // Source fields (previously immutable)
+    source: data.source ?? existing.source,
+    sourceDatabase:
+      data.sourceDatabase !== undefined ? data.sourceDatabase : existing.sourceDatabase,
+    sourceQuery: data.sourceQuery !== undefined ? data.sourceQuery : existing.sourceQuery,
+    tableName: data.tableName !== undefined ? data.tableName : existing.tableName,
+    columnName: data.columnName !== undefined ? data.columnName : existing.columnName,
     updatedAt: Date.now(),
   });
 
-  // Re-generate embedding if text content changed
+  // Re-generate embedding if text content changed (title, description, or sourceQuery)
   const textChanged =
-    data.title !== undefined ||
-    data.description !== undefined ||
-    (existing.sourceQuery !== undefined && existing.sourceQuery !== null);
+    data.title !== undefined || data.description !== undefined || data.sourceQuery !== undefined;
 
   let embedding: number[] | undefined;
   if (textChanged) {

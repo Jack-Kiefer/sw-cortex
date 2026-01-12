@@ -56,6 +56,40 @@ sw-cortex/
 └── scripts/               # Utility scripts
 ```
 
+## Global Config Management
+
+The `global-config/` directory contains commands, skills, and settings that sync to `~/.claude` for use across all projects.
+
+**IMPORTANT: Always sync before and after editing global config files.**
+
+### Editing Global Config
+
+1. **Pull first** to get any external changes:
+
+   ```bash
+   bash scripts/sync-global-config.sh pull
+   ```
+
+2. **Make your edits** to files in `global-config/`
+
+3. **Push after** to deploy changes:
+   ```bash
+   bash scripts/sync-global-config.sh push
+   ```
+
+Or use the slash command: `/add-global sync push`
+
+### Files Synced
+
+| Source                    | Destination           |
+| ------------------------- | --------------------- |
+| `global-config/commands/` | `~/.claude/commands/` |
+| `global-config/skills/`   | `~/.claude/skills/`   |
+| `global-config/CLAUDE.md` | `~/CLAUDE.md`         |
+| `global-config/mcp.json`  | `~/.mcp.json`         |
+
+**Restart Claude Code after pushing to pick up changes.**
+
 ## DX Commands
 
 ```bash

@@ -39,16 +39,17 @@ This builds institutional knowledge across all sessions.
 
 ## Global Slash Commands
 
-| Command                               | Description                      |
-| ------------------------------------- | -------------------------------- |
-| `/task add [title]`                   | Add a new task                   |
-| `/task list`                          | List pending tasks               |
-| `/task done [id]`                     | Complete a task                  |
-| `/remind [msg] in [duration]`         | Set Slack reminder               |
-| `/slack-search [query]`               | Search Slack messages            |
-| `/db query [database] [sql]`          | Query databases                  |
-| `/global-analyze [description]`       | Deep pre-implementation analysis |
-| `/global-quick-analyze [description]` | Quick codebase assessment        |
+| Command                               | Description                       |
+| ------------------------------------- | --------------------------------- |
+| `/task add [title]`                   | Add a new task                    |
+| `/task list`                          | List pending tasks                |
+| `/task done [id]`                     | Complete a task                   |
+| `/remind [msg] in [duration]`         | Set Slack reminder                |
+| `/slack-search [query]`               | Search Slack messages             |
+| `/db query [database] [sql]`          | Query databases                   |
+| `/global-analyze [description]`       | Deep pre-implementation analysis  |
+| `/global-quick-analyze [description]` | Quick codebase assessment         |
+| `/compact-global`                     | Save context, clear, resume fresh |
 
 ## Global Skills
 

@@ -16,6 +16,11 @@ export type { CollectionDefinition, CollectionName } from './collections';
 export { SlackMessagesCollection, SlackMessagePayloadSchema } from './schemas/slack-messages';
 export type { SlackMessagePayload } from './schemas/slack-messages';
 export {
+  SlackMessagesEncryptedCollection,
+  SlackMessageEncryptedPayloadSchema,
+} from './schemas/slack-messages-encrypted';
+export type { SlackMessageEncryptedPayload } from './schemas/slack-messages-encrypted';
+export {
   DiscoveriesCollection,
   DiscoveryPayloadSchema,
   DISCOVERY_TYPE,

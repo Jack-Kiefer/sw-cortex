@@ -38,6 +38,10 @@ push_config() {
     cp "$GLOBAL_CONFIG/CLAUDE.md" ~/CLAUDE.md
     echo "  ✓ CLAUDE.md synced"
 
+    # Copy settings.json
+    cp "$GLOBAL_CONFIG/settings.json" ~/.claude/settings.json
+    echo "  ✓ settings.json synced"
+
     echo ""
     echo "Done! Restart Claude Code to pick up changes."
 }
@@ -61,6 +65,10 @@ pull_config() {
     cp ~/CLAUDE.md "$GLOBAL_CONFIG/CLAUDE.md" 2>/dev/null || true
     echo "  ✓ CLAUDE.md backed up"
 
+    # Copy settings.json
+    cp ~/.claude/settings.json "$GLOBAL_CONFIG/settings.json" 2>/dev/null || true
+    echo "  ✓ settings.json backed up"
+
     echo ""
     echo "Done! Don't forget to commit changes."
 }
@@ -83,6 +91,10 @@ show_status() {
     echo ""
     echo "=== CLAUDE.md ==="
     diff -q "$GLOBAL_CONFIG/CLAUDE.md" ~/CLAUDE.md 2>/dev/null || echo "(differences found)"
+
+    echo ""
+    echo "=== settings.json ==="
+    diff -q "$GLOBAL_CONFIG/settings.json" ~/.claude/settings.json 2>/dev/null || echo "(differences found)"
 }
 
 case "${1:-}" in
