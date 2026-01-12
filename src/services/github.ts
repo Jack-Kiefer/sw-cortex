@@ -2,20 +2,26 @@
  * GitHub Service - Read-Only Access
  *
  * Provides read-only access to configured GitHub repositories.
+ * Repositories are configured via the GITHUB_REPOS environment variable.
  * NO write operations allowed.
  */
 
 import { Octokit } from '@octokit/rest';
+import { getGithubRepos, type RepoConfig } from '../config/app.js';
 
-// Configured repositories (read-only access)
-const REPOS = [
-  { owner: 'Jack-Kiefer', repo: 'SERP', description: 'SERP application' },
-  { owner: 'jasonbkiefer', repo: 'SWAC', description: 'SWAC application' },
-  { owner: 'sethfinley', repo: 'sugarwish-odoo', description: 'Odoo customizations' },
-  { owner: 'sethfinley', repo: 'sugarwish-laravel', description: 'Laravel application' },
-] as const;
-
-type RepoConfig = (typeof REPOS)[number];
+/**
+ * Get configured repositories
+ * Loaded from GITHUB_REPOS environment variable
+ */
+function getRepos(): RepoConfig[] {
+  const repos = getGithubRepos();
+  if (repos.length === 0) {
+    console.warn(
+      '[github] No repositories configured. Set GITHUB_REPOS in .env or run `npm run setup`.'
+    );
+  }
+  return repos;
+}
 
 let octokit: Octokit | null = null;
 
@@ -32,14 +38,14 @@ function getClient(): Octokit {
 }
 
 function findRepo(name: string): RepoConfig {
+  const repos = getRepos();
   const lower = name.toLowerCase();
-  const repo = REPOS.find(
+  const repo = repos.find(
     (r) => r.repo.toLowerCase() === lower || `${r.owner}/${r.repo}`.toLowerCase() === lower
   );
   if (!repo) {
-    throw new Error(
-      `Unknown repository: ${name}. Available: ${REPOS.map((r) => r.repo).join(', ')}`
-    );
+    const available = repos.length > 0 ? repos.map((r) => r.repo).join(', ') : 'none configured';
+    throw new Error(`Unknown repository: ${name}. Available: ${available}`);
   }
   return repo;
 }
@@ -47,8 +53,8 @@ function findRepo(name: string): RepoConfig {
 /**
  * List configured repositories
  */
-export function listRepos(): typeof REPOS {
-  return REPOS;
+export function listRepos(): RepoConfig[] {
+  return getRepos();
 }
 
 /**
@@ -76,7 +82,13 @@ export async function searchCode(
     fullQuery = `${query} repo:${repoConfig.owner}/${repoConfig.repo}`;
   } else {
     // Search all configured repos
-    const repoQueries = REPOS.map((r) => `repo:${r.owner}/${r.repo}`).join(' ');
+    const repos = getRepos();
+    if (repos.length === 0) {
+      throw new Error(
+        'No repositories configured. Set GITHUB_REPOS in .env or run `npm run setup`.'
+      );
+    }
+    const repoQueries = repos.map((r) => `repo:${r.owner}/${r.repo}`).join(' ');
     fullQuery = `${query} (${repoQueries})`;
   }
 

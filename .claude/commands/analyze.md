@@ -79,14 +79,14 @@ Analyze the existing codebase:
 
 Search for institutional knowledge related to this task:
 
-**Slack Messages** (use `mcp__task-manager__search_slack_messages`):
+**Slack Messages** (use `mcp__slack-search__search_slack_messages`):
 
 - Search for past discussions about this topic or similar features
 - Look for context on why things were built a certain way
 - Find any decisions or requirements discussed previously
 - Identify stakeholders who have been involved in related work
 
-**Discoveries** (use `mcp__task-manager__search_discoveries`):
+**Discoveries** (use `mcp__discoveries__search_discoveries`):
 
 - Search for any documented database insights related to this task
 - Look for patterns, relationships, or gotchas previously captured
@@ -102,7 +102,7 @@ If the task involves database operations:
 - Then DESCRIBE relevant tables to understand schema
 - Document field names, relationships, and constraints
 - Identify any migration requirements
-- **Check `mcp__task-manager__get_table_notes`** for any existing documentation on relevant tables
+- **Check `mcp__discoveries__get_table_notes`** for any existing documentation on relevant tables
 
 ## Phase 2: Synthesis & Analysis
 

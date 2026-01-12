@@ -6,7 +6,7 @@
 
 > "Did I learn something new about this database or table?"
 
-If YES → Call `mcp__task-manager__add_discovery()` IMMEDIATELY, before responding to the user.
+If YES → Call `mcp__discoveries__add_discovery()` IMMEDIATELY, before responding to the user.
 
 **This is not optional.** Every piece of knowledge gained should be saved for future sessions.
 
@@ -39,7 +39,7 @@ Discoveries can become outdated or contain errors. **Always check existing disco
 ### Before Adding: Search First
 
 ```
-mcp__task-manager__search_discoveries({ query: "topic you're about to document" })
+mcp__discoveries__search_discoveries({ query: "topic you're about to document" })
 ```
 
 If relevant discoveries exist, decide: **update** or **delete and recreate**.
@@ -54,7 +54,7 @@ Use `update_discovery` when:
 - **Priority/type change** - Reclassifying importance or category
 
 ```
-mcp__task-manager__update_discovery({
+mcp__discoveries__update_discovery({
   id: "discovery-uuid-here",
   description: "Corrected description with accurate info",
   priority: 3  // Upgraded importance
@@ -70,8 +70,8 @@ Use `delete_discovery` + `add_discovery` when:
 - **Consolidating** - Merging multiple discoveries into one comprehensive one
 
 ```
-mcp__task-manager__delete_discovery({ id: "wrong-discovery-uuid" })
-mcp__task-manager__add_discovery({ ... correct info ... })
+mcp__discoveries__delete_discovery({ id: "wrong-discovery-uuid" })
+mcp__discoveries__add_discovery({ ... correct info ... })
 ```
 
 ### Updating All Fields
@@ -105,7 +105,7 @@ When exploring a table you've documented before:
 ## How to Save Discoveries
 
 ```
-mcp__task-manager__add_discovery({
+mcp__discoveries__add_discovery({
   title: "Brief descriptive title",
   source: "database_query",
   sourceDatabase: "wishdesk|sugarwish|odoo|retool",
@@ -135,7 +135,7 @@ mcp__task-manager__add_discovery({
 ### After describing a table:
 
 ```
-mcp__task-manager__add_discovery({
+mcp__discoveries__add_discovery({
   title: "ec_order table - ecard fulfillment",
   source: "database_query",
   sourceDatabase: "sugarwish",
@@ -150,7 +150,7 @@ mcp__task-manager__add_discovery({
 ### After discovering a relationship:
 
 ```
-mcp__task-manager__add_discovery({
+mcp__discoveries__add_discovery({
   title: "ec_order links to giftcards table",
   source: "database_query",
   sourceDatabase: "sugarwish",
@@ -166,7 +166,7 @@ mcp__task-manager__add_discovery({
 ### After finding a pattern:
 
 ```
-mcp__task-manager__add_discovery({
+mcp__discoveries__add_discovery({
   title: "WishDesk Gmail integration tables",
   source: "database_query",
   sourceDatabase: "wishdesk",

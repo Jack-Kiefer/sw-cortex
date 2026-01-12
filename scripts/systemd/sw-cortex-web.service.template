@@ -1,0 +1,19 @@
+[Unit]
+Description=sw-cortex Web UI
+After=network.target
+
+[Service]
+Type=simple
+User={{USER}}
+WorkingDirectory={{PROJECT_ROOT}}
+Environment="PATH={{NODE_BIN_PATH}}:/usr/bin"
+ExecStart={{NODE_BIN_PATH}}/npx tsx --watch src/api/server.ts
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -5,6 +5,12 @@
  * View logs: pm2 logs
  * Stop all: pm2 stop all
  */
+const path = require('path');
+
+// Project root - prefer env var, fallback to this file's directory
+const PROJECT_ROOT = process.env.SW_CORTEX_ROOT || __dirname;
+const LOGS_DIR = process.env.SW_CORTEX_LOGS || path.join(PROJECT_ROOT, 'logs');
+
 module.exports = {
   apps: [
     // API Server (always running)
@@ -12,7 +18,7 @@ module.exports = {
       name: 'api',
       script: 'npx',
       args: 'tsx src/api/server.ts',
-      cwd: '/home/jackk/sw-cortex',
+      cwd: PROJECT_ROOT,
       autorestart: true,
       watch: ['src'],
       ignore_watch: ['node_modules', 'logs', 'tasks', 'dist', '*.test.ts'],
@@ -23,8 +29,8 @@ module.exports = {
       },
       // Logging
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      error_file: '/home/jackk/sw-cortex/logs/api-error.log',
-      out_file: '/home/jackk/sw-cortex/logs/api-out.log',
+      error_file: path.join(LOGS_DIR, 'api-error.log'),
+      out_file: path.join(LOGS_DIR, 'api-out.log'),
       merge_logs: true,
       max_memory_restart: '500M',
     },
@@ -33,7 +39,7 @@ module.exports = {
       name: 'slack-sync',
       script: 'npm',
       args: 'run slack:sync',
-      cwd: '/home/jackk/sw-cortex',
+      cwd: PROJECT_ROOT,
       cron_restart: '0 * * * *', // Run every hour at :00
       autorestart: false, // Don't restart after sync completes
       watch: false,
@@ -42,8 +48,8 @@ module.exports = {
       },
       // Logging
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      error_file: '/home/jackk/sw-cortex/logs/slack-sync-error.log',
-      out_file: '/home/jackk/sw-cortex/logs/slack-sync-out.log',
+      error_file: path.join(LOGS_DIR, 'slack-sync-error.log'),
+      out_file: path.join(LOGS_DIR, 'slack-sync-out.log'),
       merge_logs: true,
       max_memory_restart: '500M',
     },

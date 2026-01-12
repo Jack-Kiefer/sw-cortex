@@ -17,33 +17,15 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/jackk/.local/bin/claude-notify.sh 'Claude Code' 'Task completed'"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/jackk/.local/bin/claude-notify.sh 'Claude Code' 'Needs your input'"
-          }
-        ]
-      }
-    ]
+    "Stop": [],
+    "Notification": []
   },
   "permissions": {
     "defaultMode": "acceptEdits",
     "allow": [
-      "mcp__task-manager",
+      "mcp__discoveries",
+      "mcp__slack-search",
+      "mcp__logs",
       "mcp__db",
       "mcp__github",
       "mcp__slack",

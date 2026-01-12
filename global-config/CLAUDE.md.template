@@ -1,4 +1,4 @@
-# Jack's Global Claude Config
+# {{USER_NAME}}'s Global Claude Config
 
 These tools and commands are available in every project.
 
@@ -22,12 +22,12 @@ mcp__discoveries__add_discovery {
 
 - Database schemas, relationships, business logic
 - Codebase architecture, patterns, conventions
-- How systems integrate (Odoo, Slack, n8n, etc.)
+- How systems integrate
 - Gotchas, edge cases, things that surprised you
 - Solutions that worked for tricky problems
 - Business rules and workflows
 - API behaviors, undocumented features
-- Anything Jack might need to know again
+- Anything you might need to know again
 
 **Search before asking:**
 
@@ -57,7 +57,7 @@ This builds institutional knowledge across all sessions.
 
 ### Slack Search (`mcp__slack-search__*`)
 
-Search Jack's Slack message history semantically.
+Search your Slack message history semantically.
 
 ```
 # Search messages (with optional date filter)
@@ -83,11 +83,11 @@ Slack syncs hourly via PM2. Manual sync: `npm run slack:sync` in sw-cortex.
 
 ### Database Access (`mcp__db__*`)
 
-Read-only access to production databases.
+Read-only access to configured databases.
 
 ```
 mcp__db__list_databases
-mcp__db__list_tables { database: "wishdesk|sugarwish|odoo|retool" }
+mcp__db__list_tables { database: "database_name" }
 mcp__db__describe_table { database, table }
 mcp__db__query_database { database, query, limit? }
 ```
@@ -96,7 +96,7 @@ mcp__db__query_database { database, query, limit? }
 
 ### GitHub Access (`mcp__github__*`)
 
-Read-only access to configured repos: SERP, SWAC, sugarwish-odoo, sugarwish-laravel.
+Read-only access to configured repos. Configure repos via `GITHUB_REPOS` env var.
 
 ```
 mcp__github__list_repos
@@ -108,12 +108,6 @@ mcp__github__list_commits { repo, branch? }
 mcp__github__list_pull_requests { repo, state? }
 ```
 
-**Branch conventions:**
-
-- SERP: `main` (prod), `dev` (development)
-- SWAC: `live` (prod), `development`, `staging`
-- sugarwish-odoo: `main` (prod), `staging_new`
-
 ### Discoveries (`mcp__discoveries__*`)
 
 Save and search database/codebase insights.
@@ -123,14 +117,14 @@ Save and search database/codebase insights.
 mcp__discoveries__add_discovery {
   title: "Table purpose",
   source: "database_query",
-  sourceDatabase: "sugarwish",
-  tableName: "ec_order",
+  sourceDatabase: "database_name",
+  tableName: "table_name",
   description: "What I learned...",
   type: "fact|relationship|pattern|insight"
 }
 
 # Search discoveries
-mcp__discoveries__search_discoveries { query: "order fulfillment" }
+mcp__discoveries__search_discoveries { query: "topic" }
 mcp__discoveries__get_table_notes { database, table }
 ```
 

@@ -1,0 +1,44 @@
+{
+  "mcpServers": {
+    "db": {
+      "command": "npx",
+      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/db/index.ts"],
+      "cwd": "{{PROJECT_ROOT}}",
+      "env": {
+        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/github/index.ts"],
+      "cwd": "{{PROJECT_ROOT}}",
+      "env": {
+        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+      }
+    },
+    "discoveries": {
+      "command": "npx",
+      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/discoveries/index.ts"],
+      "cwd": "{{PROJECT_ROOT}}",
+      "env": {
+        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+      }
+    },
+    "slack-search": {
+      "command": "npx",
+      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/slack-search/index.ts"],
+      "cwd": "{{PROJECT_ROOT}}",
+      "env": {
+        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+      }
+    },
+    "logs": {
+      "command": "npx",
+      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/logs/index.ts"],
+      "cwd": "{{PROJECT_ROOT}}",
+      "env": {
+        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+      }
+    }
+  }
+}

@@ -1,32 +1,28 @@
 # sw-cortex
 
-Personal work intelligence platform for Jack. Answers questions, manages tasks, accesses databases, monitors Slack, and automates daily workflows.
+Personal work intelligence platform for Jack. Answers questions, accesses databases, monitors Slack, searches knowledge base, and automates daily workflows.
 
 ## Tech Stack
 
 - **Frontend**: React + TypeScript, Tailwind CSS, Vite
 - **Backend**: Express.js + TypeScript, Drizzle ORM
 - **Databases**: MySQL (WishDesk, Live SugarWish), PostgreSQL (Odoo, Retool)
-- **Vector DB**: Qdrant (Slack message search)
+- **Vector DB**: Qdrant (Slack message search, discoveries)
 - **Process Mgmt**: PM2
 - **Automation**: n8n (self-hosted)
 - **Notifications**: Slack
 
 ## MCP Servers
 
-This workspace has 3 MCP servers that provide tools for Claude to use:
+This workspace has 5 MCP servers that provide tools for Claude to use:
 
-| Server           | Purpose                        | Tools    |
-| ---------------- | ------------------------------ | -------- |
-| **task-manager** | Tasks, reminders, projects     | 13 tools |
-| **db**           | Database queries (read-only)   | 4 tools  |
-| **github**       | GitHub repo access (read-only) | 9 tools  |
-
-**IMPORTANT**: When working on multi-step problems, use the task-manager tools to track progress:
-
-1. Create tasks for each step with `mcp__task-manager__add_task`
-2. Update status as you work with `mcp__task-manager__update_task`
-3. Mark complete when done with `mcp__task-manager__complete_task`
+| Server           | Purpose                             | Tools   |
+| ---------------- | ----------------------------------- | ------- |
+| **discoveries**  | Knowledge base for insights         | 8 tools |
+| **slack-search** | Semantic search over Slack messages | 4 tools |
+| **logs**         | System log search and analysis      | 4 tools |
+| **db**           | Database queries (read-only)        | 4 tools |
+| **github**       | GitHub repo access (read-only)      | 9 tools |
 
 ## Project Structure
 
@@ -34,20 +30,21 @@ This workspace has 3 MCP servers that provide tools for Claude to use:
 sw-cortex/
 ├── CLAUDE.md              # You are here
 ├── .claude/               # Claude Code configuration
-│   ├── commands/          # Slash commands (/task, /remind, etc.)
+│   ├── commands/          # Slash commands (/analyze, etc.)
 │   ├── rules/             # Modular memory (auto-loaded)
 │   └── agents/            # Subagents (code-simplifier, verify-app)
-├── .mcp.json              # MCP server config (github, task-manager, db)
+├── .mcp.json              # MCP server config
 ├── src/                   # Application source code
 │   ├── mcp-servers/       # Custom MCP servers
-│   │   ├── task-manager/  # Task/reminder management
+│   │   ├── discoveries/   # Knowledge base management
+│   │   ├── slack-search/  # Slack message search
+│   │   ├── logs/          # Log analysis
 │   │   ├── db/            # Database access
 │   │   └── github/        # GitHub access
 │   ├── services/          # Shared backend services
 │   ├── qdrant/            # Qdrant vector DB module
 │   ├── db/                # Local database schema (Drizzle)
 │   └── types/             # TypeScript types
-├── tasks/                 # Task data (SQLite)
 ├── workflows/             # Automation configs
 │   ├── n8n/               # n8n workflow exports
 │   └── retool/            # Retool configurations
@@ -98,9 +95,6 @@ npm run dev              # Start dev server
 npm run build            # Build for production
 npm run typecheck        # Run TypeScript checks
 
-# Task Management
-npm run task:serve       # Start task MCP server (auto-creates DB)
-
 # Database Migrations (SQLite)
 npm run db:generate      # Generate migration from schema changes
 npm run db:migrate       # Apply pending migrations
@@ -120,111 +114,12 @@ npm run format           # Prettier format all
 npm run lint             # ESLint check
 ```
 
-## SQLite Database Migrations
-
-The local task database uses Drizzle ORM with migrations stored in `drizzle/`.
-
-### Schema Location
-
-- Schema: `src/db/schema.ts`
-- Migrations: `drizzle/*.sql`
-- Config: `drizzle.config.ts`
-
-### Making Schema Changes
-
-1. Edit `src/db/schema.ts` to add/modify tables or columns
-2. Generate migration: `npm run db:generate`
-3. Apply migration: `npm run db:migrate`
-
-### Example: Adding a Column
-
-```typescript
-// In src/db/schema.ts
-export const reminders = sqliteTable('reminders', {
-  // ... existing columns
-  newColumn: text('new_column'), // Add new column
-});
-```
-
-Then run:
-
-```bash
-npm run db:generate  # Creates drizzle/0001_xxx.sql
-npm run db:migrate   # Applies the migration
-```
-
-### Quick Development (No Migration)
-
-For rapid iteration, use `db:push` to sync schema directly:
-
-```bash
-npm run db:push  # Directly syncs schema (may lose data)
-```
-
-**Note:** Use migrations in production, `db:push` only for local dev.
-
-## Testing
-
-The project uses Vitest with React Testing Library for comprehensive testing.
-
-### Test Infrastructure
-
-- **Framework**: Vitest (fast, Vite-native)
-- **Component Testing**: @testing-library/react + @testing-library/user-event
-- **Environment**: jsdom for DOM simulation
-- **Config**: `vitest.config.ts`
-
-### Test Files
-
-| File                                      | Tests | Coverage                                              |
-| ----------------------------------------- | ----- | ----------------------------------------------------- |
-| `src/services/date-parser.test.ts`        | 34    | Natural language date parsing, formatting, recurrence |
-| `src/web/components/TaskItem.test.tsx`    | 17    | Task rendering, priority colors, checkbox, hover menu |
-| `src/web/components/QuickAdd.test.tsx`    | 9     | Quick add form, date/priority/project pickers         |
-| `src/web/components/ProjectForm.test.tsx` | 10    | Project creation form, validation, color picker       |
-
-### Running Tests
-
-```bash
-npm run test           # Watch mode (re-runs on file changes)
-npm run test -- --run  # Single run (CI mode)
-```
-
-### Test Utilities
-
-Mock factories are available in `src/test/utils.tsx`:
-
-```typescript
-import { render, screen, userEvent, createMockTask, createMockProject } from '../../test/utils';
-
-// Create mock data
-const task = createMockTask({ title: 'Test', priority: 4 });
-const project = createMockProject({ name: 'My Project', color: '#ff0000' });
-
-// Render with providers
-render(<MyComponent task={task} />);
-
-// User interactions
-const user = userEvent.setup();
-await user.click(screen.getByText('Submit'));
-```
-
-### Writing New Tests
-
-1. Create test file next to component: `ComponentName.test.tsx`
-2. Import test utilities from `src/test/utils`
-3. Use `describe`/`it` blocks for organization
-4. Mock external dependencies in `src/test/setup.ts`
-
 ## Slash Commands
 
-- `/task add [title]` - Add a new task
-- `/task list` - List pending tasks
-- `/task done [id]` - Mark task complete
-- `/remind [message] in [duration]` - Set a reminder
 - `/commit-push-pr` - Commit, push, and create PR
 - `/analyze [description]` - Deep pre-implementation analysis
 - `/quick-analyze [description]` - Quick codebase assessment
+- `/slack-search [query]` - Search Slack messages
 
 ## Workflow
 
@@ -234,13 +129,6 @@ await user.click(screen.getByText('Submit'));
 2. Review the plan with Claude until satisfied
 3. Switch to auto-accept mode for implementation
 4. Use `/commit-push-pr` when done
-
-### Task Management
-
-1. Use `/task add` for new work items
-2. Link tasks to projects when relevant
-3. Use `/remind` for time-sensitive items
-4. Reminders delivered via Slack DM
 
 ### Verification
 
@@ -295,7 +183,7 @@ mcp__db__describe_table { database: "sugarwish", table: "orders" }
 
 ## Qdrant Vector Database
 
-Qdrant is used for semantic search over Slack messages and other text content.
+Qdrant is used for semantic search over Slack messages and discoveries.
 
 ### Configuration
 
@@ -313,31 +201,7 @@ Collections are defined in `src/qdrant/schemas/` with TypeScript types and Zod v
 | Collection       | Alias                    | Vector Size | Purpose              |
 | ---------------- | ------------------------ | ----------- | -------------------- |
 | `slack_messages` | `slack_messages_current` | 1536        | Slack message search |
-
-### Usage
-
-```typescript
-import { getQdrantClient, SlackMessagePayloadSchema } from './qdrant';
-
-// Get client
-const client = getQdrantClient();
-
-// Search (always use alias for production)
-const results = await client.search('slack_messages_current', {
-  vector: queryEmbedding,
-  limit: 10,
-});
-
-// Validate payload before insertion
-const payload = SlackMessagePayloadSchema.parse({
-  messageId: '1234567890.123456',
-  channelId: 'C123ABC',
-  userId: 'U456DEF',
-  text: 'Hello world',
-  timestamp: Date.now(),
-  version: 1,
-});
-```
+| `discoveries`    | `discoveries_current`    | 1536        | Knowledge base       |
 
 ### Adding New Collections
 
@@ -348,22 +212,12 @@ const payload = SlackMessagePayloadSchema.parse({
 
 See `src/qdrant/README.md` for detailed documentation.
 
-### Migration Strategy
-
-Qdrant has no built-in migrations. Use **collection aliases** for zero-downtime changes:
-
-1. Create new collection with updated schema
-2. Migrate data in background
-3. Swap alias atomically
-4. Delete old collection
-
 ## Integrations
 
 ### Slack
 
 - Bot token configured for messaging
 - Vector search via Qdrant for message history
-- Reminders delivered as DMs
 
 ### GitHub (Read-Only)
 
@@ -541,22 +395,57 @@ GITHUB_TOKEN=
 
 ## Quick Reference
 
-### Task Management (mcp**task-manager**\*)
+### Discoveries (mcp**discoveries**\*)
 
-| Need to...      | Do this                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| Add a task      | `mcp__task-manager__add_task { title, description?, project?, priority? }` |
-| List tasks      | `mcp__task-manager__list_tasks { status?, project? }`                      |
-| Update a task   | `mcp__task-manager__update_task { id, status?, title?, priority? }`        |
-| Complete a task | `mcp__task-manager__complete_task { id }`                                  |
-| Snooze a task   | `mcp__task-manager__snooze_task { id, duration }` (e.g., "2h", "1d")       |
-| Move to project | `mcp__task-manager__move_task { id, project }`                             |
-| Delete a task   | `mcp__task-manager__delete_task { id }`                                    |
-| Set reminder    | `mcp__task-manager__add_reminder { message, remindAt }`                    |
-| List reminders  | `mcp__task-manager__list_reminders { status? }`                            |
-| Cancel reminder | `mcp__task-manager__cancel_reminder { id }`                                |
-| List projects   | `mcp__task-manager__list_projects`                                         |
-| Create project  | `mcp__task-manager__create_project { name, description?, githubRepo? }`    |
+Save and search database/codebase insights.
+
+| Need to...         | Do this                                                  |
+| ------------------ | -------------------------------------------------------- |
+| Save a discovery   | `mcp__discoveries__add_discovery { title, source, ... }` |
+| Search discoveries | `mcp__discoveries__search_discoveries { query }`         |
+| List discoveries   | `mcp__discoveries__list_discoveries { source?, type? }`  |
+| Get discovery      | `mcp__discoveries__get_discovery { id }`                 |
+| Update discovery   | `mcp__discoveries__update_discovery { id, ... }`         |
+| Delete discovery   | `mcp__discoveries__delete_discovery { id }`              |
+| Export discoveries | `mcp__discoveries__export_discoveries { format? }`       |
+| Get table notes    | `mcp__discoveries__get_table_notes { database, table }`  |
+
+### Slack Search (mcp**slack-search**\*)
+
+Semantic search across Jack's Slack history. **Use this when:**
+
+- Looking for past discussions about a topic
+- Finding who said something or when
+- Searching for decisions, context, or background info
+- User asks "what did we discuss about X" or "find that Slack message about Y"
+
+| Need to...        | Do this                                                                  |
+| ----------------- | ------------------------------------------------------------------------ |
+| Search messages   | `mcp__slack-search__search_slack_messages { query, afterDate?, limit? }` |
+| Get context       | `mcp__slack-search__get_slack_context { channelId, timestamp }`          |
+| Get thread        | `mcp__slack-search__get_slack_thread { channelId, threadTs }`            |
+| Check sync status | `mcp__slack-search__get_slack_sync_status`                               |
+
+**Workflow**: Search first, then get context for interesting results:
+
+```
+# 1. Search for topic
+mcp__slack-search__search_slack_messages { query: "purchase order approval" }
+
+# 2. Get surrounding conversation (use channelId + timestamp from results)
+mcp__slack-search__get_slack_context { channelId: "C123", timestamp: 1704067200 }
+```
+
+### Logs (mcp**logs**\*)
+
+Search and analyze sw-cortex service logs.
+
+| Need to...     | Do this                                                        |
+| -------------- | -------------------------------------------------------------- |
+| Search logs    | `mcp__logs__search_logs { service?, level?, search?, since? }` |
+| Recent logs    | `mcp__logs__get_recent_logs { limit? }`                        |
+| Recent errors  | `mcp__logs__get_recent_errors { limit? }`                      |
+| Log statistics | `mcp__logs__get_log_stats`                                     |
 
 ### Database Access (mcp**db**\*)
 
@@ -580,49 +469,6 @@ GITHUB_TOKEN=
 | List PRs       | `mcp__github__list_pull_requests { repo, state? }`   |
 | Get PR details | `mcp__github__get_pull_request { repo, pr_number }`  |
 
-### Slack Search (mcp**task-manager**\*)
-
-Semantic search across Jack's Slack history. **Use this when:**
-
-- Looking for past discussions about a topic
-- Finding who said something or when
-- Searching for decisions, context, or background info
-- User asks "what did we discuss about X" or "find that Slack message about Y"
-
-| Tool                    | Purpose                           |
-| ----------------------- | --------------------------------- |
-| `search_slack_messages` | Semantic search by topic          |
-| `get_slack_context`     | Get conversation around a message |
-
-**Workflow**: Search first, then get context for interesting results:
-
-```
-# 1. Search for topic
-mcp__task-manager__search_slack_messages { query: "purchase order approval" }
-
-# 2. Get surrounding conversation (use channelId + timestamp from results)
-mcp__task-manager__get_slack_context { channelId: "C123", timestamp: 1704067200, windowMinutes: 60 }
-```
-
-| Parameter       | Description                             |
-| --------------- | --------------------------------------- |
-| `query`         | Natural language search (required)      |
-| `limit`         | Max results (default 10)                |
-| `channelId`     | Filter to specific channel              |
-| `minScore`      | Similarity threshold 0-1 (default 0.3)  |
-| `timestamp`     | Unix timestamp to center context around |
-| `windowMinutes` | Time window +/- minutes (default 30)    |
-
-### Slash Commands
-
-| Need to...       | Do this                           |
-| ---------------- | --------------------------------- |
-| Add task quickly | `/task add [title]`               |
-| List tasks       | `/task list`                      |
-| Set reminder     | `/remind [message] in [duration]` |
-| Create PR        | `/commit-push-pr`                 |
-| Deep analysis    | `/analyze [description]`          |
-
 ---
 
 ## When in Doubt, Search
@@ -637,52 +483,11 @@ mcp__task-manager__get_slack_context { channelId: "C123", timestamp: 1704067200,
 
 **Use Slack search for past conversations:**
 
-- "What did we discuss about X?" → `mcp__task-manager__search_slack_messages`
+- "What did we discuss about X?" → `mcp__slack-search__search_slack_messages`
 - Historical context on decisions
 - Finding who said something
 
 Don't guess - search first, then act with confidence.
-
-## Working on Problems
-
-When solving multi-step problems or bugs:
-
-1. **Create a task** to track the work:
-
-   ```
-   mcp__task-manager__add_task { title: "Fix login bug", project: "SERP" }
-   ```
-
-2. **Break down into subtasks** if complex:
-
-   ```
-   mcp__task-manager__add_task { title: "Investigate auth flow", project: "SERP" }
-   mcp__task-manager__add_task { title: "Fix token validation", project: "SERP" }
-   mcp__task-manager__add_task { title: "Add tests", project: "SERP" }
-   ```
-
-3. **Query databases** to understand data:
-
-   ```
-   mcp__db__query_database { database: "sugarwish", query: "SELECT * FROM users WHERE..." }
-   ```
-
-4. **Search GitHub** for related code:
-
-   ```
-   mcp__github__search_code { query: "validateToken", repo: "SERP" }
-   ```
-
-5. **Mark tasks complete** as you finish:
-
-   ```
-   mcp__task-manager__complete_task { id: 1 }
-   ```
-
-6. **Set reminders** for follow-ups:
-   ```
-   mcp__task-manager__add_reminder { message: "Check if fix deployed", remindAt: "2h" }
-   ```
 
 ---
 

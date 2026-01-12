@@ -1,0 +1,17 @@
+[Unit]
+Description=sw-cortex Reminder Check
+After=network.target
+
+[Service]
+Type=oneshot
+User={{USER}}
+WorkingDirectory={{PROJECT_ROOT}}
+Environment="PATH={{NODE_BIN_PATH}}:/usr/bin"
+ExecStart={{NODE_BIN_PATH}}/npx tsx scripts/check-reminders.ts
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

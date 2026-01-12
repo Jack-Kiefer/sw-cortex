@@ -49,7 +49,7 @@ allowed-tools: Task, WebSearch, WebFetch, Grep, Glob, Read, Bash(read-only)
 
 **MANDATORY: SAVE DISCOVERIES BEFORE PRESENTING OUTPUT**
 
-You MUST call `mcp__task-manager__add_discovery` for each significant insight BEFORE showing your analysis to the user. This is not optional. Do not present output until discoveries are saved.
+You MUST call `mcp__discoveries__add_discovery` for each significant insight BEFORE showing your analysis to the user. This is not optional. Do not present output until discoveries are saved.
 
 ---
 
@@ -65,8 +65,8 @@ Launch these subagents **in parallel** using the Task tool in a single message.
 Search Slack for discussions about: [topic]
 
 TOOLS TO USE (call these directly as tools, NOT via Bash):
-- mcp__task-manager__search_slack_messages - semantic search with query parameter
-- mcp__task-manager__get_slack_context - get surrounding messages using channelId and timestamp from search results
+- mcp__slack-search__search_slack_messages - semantic search with query parameter
+- mcp__slack-search__get_slack_context - get surrounding messages using channelId and timestamp from search results
 
 LIMITS:
 - Max 10 tool calls total
@@ -83,8 +83,8 @@ REPORT FORMAT:
 Search existing discoveries for: [topic]
 
 TOOLS TO USE (call these directly as tools, NOT via Bash):
-- mcp__task-manager__search_discoveries - semantic search with query parameter
-- mcp__task-manager__get_table_notes - get notes for specific database/table
+- mcp__discoveries__search_discoveries - semantic search with query parameter
+- mcp__discoveries__get_table_notes - get notes for specific database/table
 
 LIMITS:
 - Max 10 tool calls total
@@ -243,20 +243,20 @@ FINDINGS TO LOG:
 [Paste your key findings here - architecture, patterns, relationships, gotchas]
 
 TOOLS TO USE (call directly, NOT via Bash):
-- mcp__task-manager__search_discoveries - search with query parameter
-- mcp__task-manager__add_discovery - add new discovery
-- mcp__task-manager__update_discovery - update existing discovery by id
-- mcp__task-manager__delete_discovery - delete discovery by id
+- mcp__discoveries__search_discoveries - search with query parameter
+- mcp__discoveries__add_discovery - add new discovery
+- mcp__discoveries__update_discovery - update existing discovery by id
+- mcp__discoveries__delete_discovery - delete discovery by id
 
 STEP 1: SEARCH FOR EXISTING DISCOVERIES FIRST
-Call the mcp__task-manager__search_discoveries tool with a query parameter to find existing discoveries on the topic.
+Call the mcp__discoveries__search_discoveries tool with a query parameter to find existing discoveries on the topic.
 
 STEP 2: UPDATE OR ADD
 For each significant finding, call the appropriate tool:
 
-- If existing discovery is outdated: call mcp__task-manager__update_discovery with id and updated fields
-- If new knowledge: call mcp__task-manager__add_discovery with title, source, description, type, tags
-- If discovery is wrong: call mcp__task-manager__delete_discovery, then add_discovery
+- If existing discovery is outdated: call mcp__discoveries__update_discovery with id and updated fields
+- If new knowledge: call mcp__discoveries__add_discovery with title, source, description, type, tags
+- If discovery is wrong: call mcp__discoveries__delete_discovery, then add_discovery
 
 Required fields for add_discovery:
 - title: "Concise title"

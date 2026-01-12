@@ -60,8 +60,6 @@ export interface AddDiscoveryInput {
   type?: DiscoveryType;
   priority?: number;
   tags?: string[];
-  relatedTaskId?: number;
-  relatedProjectId?: number;
 }
 
 // Full discovery with ID and timestamps
@@ -96,8 +94,6 @@ export async function addDiscovery(data: AddDiscoveryInput): Promise<Discovery> 
     type: data.type || 'insight',
     priority: data.priority || 2,
     tags: data.tags || [],
-    relatedTaskId: data.relatedTaskId || null,
-    relatedProjectId: data.relatedProjectId || null,
     createdAt: now,
     updatedAt: now,
     version: 1,
@@ -131,7 +127,6 @@ export async function searchDiscoveries(
     tableName?: string;
     type?: string;
     source?: string;
-    projectId?: number;
     minScore?: number;
   } = {}
 ): Promise<Array<{ score: number; discovery: Discovery }>> {
@@ -154,9 +149,6 @@ export async function searchDiscoveries(
   }
   if (options.source) {
     must.push({ key: 'source', match: { value: options.source } });
-  }
-  if (options.projectId) {
-    must.push({ key: 'relatedProjectId', match: { value: options.projectId } });
   }
 
   const filter = must.length > 0 ? { must } : undefined;
@@ -201,7 +193,6 @@ export async function listDiscoveries(filters?: {
   source?: string;
   sourceDatabase?: string;
   type?: string;
-  projectId?: number;
   limit?: number;
 }): Promise<Discovery[]> {
   const client = getQdrantClient();
@@ -217,9 +208,6 @@ export async function listDiscoveries(filters?: {
   }
   if (filters?.type) {
     must.push({ key: 'type', match: { value: filters.type } });
-  }
-  if (filters?.projectId) {
-    must.push({ key: 'relatedProjectId', match: { value: filters.projectId } });
   }
 
   const filter = must.length > 0 ? { must } : undefined;
@@ -267,8 +255,6 @@ export async function updateDiscovery(
     type?: string;
     priority?: number;
     tags?: string[];
-    relatedTaskId?: number | null;
-    relatedProjectId?: number | null;
     // Previously immutable fields - now updatable for corrections
     source?: string;
     sourceDatabase?: string | null;
@@ -293,9 +279,6 @@ export async function updateDiscovery(
     type: data.type ?? existing.type,
     priority: data.priority ?? existing.priority,
     tags: data.tags ?? existing.tags,
-    relatedTaskId: data.relatedTaskId !== undefined ? data.relatedTaskId : existing.relatedTaskId,
-    relatedProjectId:
-      data.relatedProjectId !== undefined ? data.relatedProjectId : existing.relatedProjectId,
     // Source fields (previously immutable)
     source: data.source ?? existing.source,
     sourceDatabase:
@@ -360,34 +343,24 @@ export async function deleteDiscovery(id: string): Promise<boolean> {
   }
 }
 
-// Get discovery details with related task and project info
-// Note: Since Qdrant doesn't have JOINs, we return IDs only
-// The MCP layer can hydrate from SQLite if needed
+// Get discovery details
 export async function getDiscoveryDetails(id: string): Promise<{
   discovery: Discovery;
-  relatedTaskId: number | null;
-  relatedProjectId: number | null;
 } | null> {
   const discovery = await getDiscovery(id);
   if (!discovery) return null;
 
-  return {
-    discovery,
-    relatedTaskId: discovery.relatedTaskId,
-    relatedProjectId: discovery.relatedProjectId,
-  };
+  return { discovery };
 }
 
 // Export discoveries to JSON or Markdown format
 export async function exportDiscoveries(options?: {
   format?: 'json' | 'markdown';
   sourceDatabase?: string;
-  projectId?: number;
 }): Promise<string> {
   const format = options?.format || 'markdown';
   const items = await listDiscoveries({
     sourceDatabase: options?.sourceDatabase,
-    projectId: options?.projectId,
     limit: 1000, // Higher limit for exports
   });
 

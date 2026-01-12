@@ -1,14 +1,5 @@
 {
   "mcpServers": {
-    "task-manager": {
-      "command": "npx",
-      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/task-manager/index.ts"],
-      "cwd": "/home/jackk/sw-cortex",
-      "env": {
-        "TASK_DB_PATH": "/home/jackk/sw-cortex/tasks/tasks.db",
-        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
-      }
-    },
     "db": {
       "command": "npx",
       "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/db/index.ts"],
@@ -20,6 +11,30 @@
     "github": {
       "command": "npx",
       "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/github/index.ts"],
+      "cwd": "/home/jackk/sw-cortex",
+      "env": {
+        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+      }
+    },
+    "discoveries": {
+      "command": "npx",
+      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/discoveries/index.ts"],
+      "cwd": "/home/jackk/sw-cortex",
+      "env": {
+        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+      }
+    },
+    "slack-search": {
+      "command": "npx",
+      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/slack-search/index.ts"],
+      "cwd": "/home/jackk/sw-cortex",
+      "env": {
+        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+      }
+    },
+    "logs": {
+      "command": "npx",
+      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/logs/index.ts"],
       "cwd": "/home/jackk/sw-cortex",
       "env": {
         "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"

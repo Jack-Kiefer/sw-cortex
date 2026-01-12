@@ -10,7 +10,7 @@ Save a discovery summarizing what you did and the context, then stop.
 
 ### Step 1: Save a Discovery
 
-Call `mcp__task-manager__add_discovery` with:
+Call `mcp__discoveries__add_discovery` with:
 
 ```
 {
@@ -50,7 +50,7 @@ Call `mcp__task-manager__add_discovery` with:
 
 **Discovery ID**: [id]
 
-To find later: `mcp__task-manager__search_discoveries { query: "[keywords]" }`
+To find later: `mcp__discoveries__search_discoveries { query: "[keywords]" }`
 ```
 
 ### Step 3: Stop

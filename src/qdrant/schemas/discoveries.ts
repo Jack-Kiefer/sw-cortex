@@ -43,8 +43,6 @@ export const DiscoveryPayloadSchema = z.object({
 
   // Organization
   tags: z.array(z.string()).default([]).describe('Tags for categorization'),
-  relatedTaskId: z.number().nullable().describe('Related task ID (for filtering)'),
-  relatedProjectId: z.number().nullable().describe('Related project ID (for filtering)'),
 
   // Timestamps (stored as Unix milliseconds for Qdrant datetime filtering)
   createdAt: z.number().describe('Unix timestamp when created'),
@@ -96,8 +94,6 @@ export const DiscoveriesCollection = {
     { field: 'type', type: 'keyword' as const },
     { field: 'source', type: 'keyword' as const },
     { field: 'priority', type: 'integer' as const },
-    { field: 'relatedProjectId', type: 'integer' as const },
-    { field: 'relatedTaskId', type: 'integer' as const },
     { field: 'createdAt', type: 'integer' as const },
   ],
 } as const;

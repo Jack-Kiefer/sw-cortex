@@ -31,13 +31,13 @@ Parse the arguments to extract:
 
 Use these MCP tools:
 
-1. `mcp__task-manager__search_slack_messages` - Search with query and date filters
+1. `mcp__slack-search__search_slack_messages` - Search with query and date filters
    - `query`: The search terms
    - `afterDate`: ISO date like "2025-12-18" (optional)
    - `beforeDate`: ISO date like "2026-01-08" (optional)
    - `limit`: Number of results (default 10)
 
-2. `mcp__task-manager__get_slack_context` - Get conversation around a message
+2. `mcp__slack-search__get_slack_context` - Get conversation around a message
    - Use this to show more context for interesting results
 
 Format output as:

@@ -1,11 +1,9 @@
 /**
- * Barrel export for web components
- * Enables cleaner imports: import { TaskList, TaskItem } from './components'
+ * Web components barrel export
+ *
+ * The web UI is currently a placeholder.
+ * Primary interface is via Claude Code MCP tools.
  */
 
-export { default as TaskList } from './TaskList.js';
-export { default as TaskItem } from './TaskItem.js';
-export { default as TaskDetail } from './TaskDetail.js';
-export { default as AddTask } from './AddTask.js';
-export { default as AddReminder } from './AddReminder.js';
-export { default as ReminderList } from './ReminderList.js';
+// No components exported - UI is placeholder
+export {};
