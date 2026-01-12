@@ -4,6 +4,16 @@ import { SlackMessagesCollection } from './schemas/slack-messages';
 import { SlackMessagesEncryptedCollection } from './schemas/slack-messages-encrypted';
 import { DiscoveriesCollection } from './schemas/discoveries';
 
+// Payload index types supported by Qdrant
+export type PayloadIndexType =
+  | 'keyword'
+  | 'integer'
+  | 'float'
+  | 'bool'
+  | 'geo'
+  | 'datetime'
+  | 'text';
+
 // Generic collection definition type
 export interface CollectionDefinition<T extends z.ZodType = z.ZodType> {
   readonly name: string;
@@ -27,6 +37,11 @@ export interface CollectionDefinition<T extends z.ZodType = z.ZodType> {
       readonly ef_construct?: number;
     };
   };
+  // Payload indexes for filtering (required when strict_mode is enabled)
+  readonly payloadIndexes?: ReadonlyArray<{
+    readonly field: string;
+    readonly type: PayloadIndexType;
+  }>;
 }
 
 // Central registry of all collections

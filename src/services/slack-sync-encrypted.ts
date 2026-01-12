@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import pLimit from 'p-limit';
 import {
   streamChannels,
   fetchChannelMessages,
@@ -248,9 +249,9 @@ export async function syncSlackMessagesEncrypted(
   }
 
   // Estimate time:
-  // - ~2s per thread (1.5s delay + API time)
+  // - ~0.5s per thread (parallel fetching with SDK rate limit handling)
   // - ~0.5s per message batch of 50 (embedding + upsert)
-  const SECONDS_PER_THREAD = 2;
+  const SECONDS_PER_THREAD = 0.5;
   const SECONDS_PER_BATCH = 0.5;
   const BATCH_SIZE = 50;
 
@@ -294,8 +295,6 @@ export async function syncSlackMessagesEncrypted(
   // PHASE 2: Fetch threads and index
   // ========================================
   console.log('Phase 2: Fetching threads and indexing...\n');
-  const syncStartTime = Date.now();
-  let processedThreads = 0;
 
   for (let chIdx = 0; chIdx < channelsToSync.length; chIdx++) {
     const channelData = channelsToSync[chIdx];
@@ -304,55 +303,69 @@ export async function syncSlackMessagesEncrypted(
     try {
       process.stdout.write(`[${chIdx + 1}/${channelsWithUpdates}] ${channelLabel}... `);
 
-      let allMessages = [...channelData.messages];
+      const allMessages = [...channelData.messages];
 
       // Fetch thread replies if enabled
       if (options.includeThreads && channelData.threadParents.length > 0) {
         const threadCount = channelData.threadParents.length;
-        console.log(`fetching ${threadCount} threads...`);
+        console.log(`fetching ${threadCount} threads (parallel)...`);
         let threadReplyCount = 0;
+        let completedThreads = 0;
         const threadStartTime = Date.now();
 
-        // Rate limit: ~50 req/min for conversations.replies (Tier 3)
-        const THREAD_DELAY_MS = 1500;
+        // Parallel fetching with concurrency limit
+        // SDK handles rate limits automatically - 5 concurrent is safe
+        const THREAD_CONCURRENCY = 5;
+        const limit = pLimit(THREAD_CONCURRENCY);
 
-        for (let i = 0; i < channelData.threadParents.length; i++) {
-          const parent = channelData.threadParents[i];
-          try {
-            if (i > 0) {
-              await new Promise((resolve) => setTimeout(resolve, THREAD_DELAY_MS));
-            }
+        const threadResults = await Promise.all(
+          channelData.threadParents.map((parent) =>
+            limit(async () => {
+              try {
+                const replies = await fetchThreadReplies(
+                  channelData.id,
+                  channelData.name,
+                  parent.ts
+                );
+                completedThreads++;
+                threadReplyCount += replies.length;
+                result.threadsFetched++;
 
-            const replies = await fetchThreadReplies(channelData.id, channelData.name, parent.ts);
-            allMessages.push(...replies);
-            threadReplyCount += replies.length;
-            result.threadsFetched++;
-            processedThreads++;
+                // Update progress
+                const elapsed = (Date.now() - threadStartTime) / 1000;
+                const avgPerThread = elapsed / completedThreads;
+                const remainingThisChannel = Math.ceil(
+                  avgPerThread * (threadCount - completedThreads)
+                );
 
-            // Calculate ETA based on actual elapsed time
-            const elapsed = (Date.now() - threadStartTime) / 1000;
-            const avgPerThread = elapsed / (i + 1);
-            const remainingThisChannel = Math.ceil(avgPerThread * (threadCount - i - 1));
+                const remainingThreadsOtherChannels = channelsToSync
+                  .slice(chIdx + 1)
+                  .reduce((sum, ch) => sum + ch.threadParents.length, 0);
+                const remainingOther = Math.ceil(remainingThreadsOtherChannels * avgPerThread);
+                const totalRemaining = remainingThisChannel + remainingOther;
 
-            // Also estimate remaining for other channels
-            const remainingThreadsOtherChannels = channelsToSync
-              .slice(chIdx + 1)
-              .reduce((sum, ch) => sum + ch.threadParents.length, 0);
-            const remainingOther = remainingThreadsOtherChannels * SECONDS_PER_THREAD;
-            const totalRemaining = remainingThisChannel + remainingOther;
+                const etaStr = formatDuration(Math.ceil(totalRemaining));
+                const progress = `    Threads: ${completedThreads}/${threadCount} (${threadReplyCount} replies) | ETA: ${etaStr}`;
+                process.stdout.write(`\r${progress.padEnd(75)}`);
 
-            const etaStr = formatDuration(Math.ceil(totalRemaining));
-            const progress = `    Threads: ${i + 1}/${threadCount} (${threadReplyCount} replies) | Overall ETA: ${etaStr}`;
-            process.stdout.write(`\r${progress.padEnd(75)}`);
+                if (options.verbose) {
+                  console.log(` - Thread ${parent.ts}: ${replies.length} replies`);
+                }
 
-            if (options.verbose) {
-              console.log(` - Thread ${parent.ts}: ${replies.length} replies`);
-            }
-          } catch (error) {
-            if (options.verbose) {
-              console.error(`\n    Failed to fetch thread ${parent.ts}: ${error}`);
-            }
-          }
+                return replies;
+              } catch (error) {
+                if (options.verbose) {
+                  console.error(`\n    Failed to fetch thread ${parent.ts}: ${error}`);
+                }
+                return [];
+              }
+            })
+          )
+        );
+
+        // Collect all replies
+        for (const replies of threadResults) {
+          allMessages.push(...replies);
         }
 
         const totalTime = Math.ceil((Date.now() - threadStartTime) / 1000);

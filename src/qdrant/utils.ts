@@ -48,6 +48,17 @@ export async function ensureCollection(
     ],
   });
 
+  // Create payload indexes if defined (required for filtering with strict_mode)
+  if (definition.payloadIndexes && definition.payloadIndexes.length > 0) {
+    for (const index of definition.payloadIndexes) {
+      await client.createPayloadIndex(definition.name, {
+        field_name: index.field,
+        field_schema: index.type,
+        wait: true,
+      });
+    }
+  }
+
   return { created: true, name: definition.name };
 }
 

@@ -89,8 +89,8 @@ export const DiscoveriesCollection = {
     },
   },
 
-  // Payload indexes for efficient filtering
-  indexes: [
+  // Payload indexes for efficient filtering (required with strict_mode)
+  payloadIndexes: [
     { field: 'sourceDatabase', type: 'keyword' as const },
     { field: 'tableName', type: 'keyword' as const },
     { field: 'type', type: 'keyword' as const },

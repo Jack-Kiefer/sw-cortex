@@ -476,23 +476,6 @@ export async function initializeDiscoveriesCollection(): Promise<void> {
   const client = getQdrantClient();
   const { ensureCollection } = await import('../qdrant/utils');
 
-  // Create collection if it doesn't exist
+  // Create collection if it doesn't exist (also creates payload indexes)
   await ensureCollection(client, DiscoveriesCollection);
-
-  // Create payload indexes for efficient filtering
-  const indexes = DiscoveriesCollection.indexes || [];
-  for (const { field, type } of indexes) {
-    try {
-      await client.createPayloadIndex(COLLECTION, {
-        field_name: field,
-        field_schema: type,
-        wait: true,
-      });
-    } catch (error) {
-      // Index may already exist, that's okay
-      if (error instanceof Error && !error.message.includes('already exists')) {
-        console.warn(`Failed to create index for ${field}:`, error.message);
-      }
-    }
-  }
 }

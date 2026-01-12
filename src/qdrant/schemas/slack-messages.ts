@@ -47,6 +47,15 @@ export const SlackMessagesCollection = {
       ef_construct: 100,
     },
   },
+
+  // Payload indexes for filtering (required with strict_mode enabled)
+  payloadIndexes: [
+    { field: 'channelId', type: 'keyword' as const },
+    { field: 'userId', type: 'keyword' as const },
+    { field: 'messageId', type: 'keyword' as const },
+    { field: 'threadTs', type: 'keyword' as const },
+    { field: 'timestamp', type: 'float' as const },
+  ],
 } as const;
 
 // Type for the collection definition
