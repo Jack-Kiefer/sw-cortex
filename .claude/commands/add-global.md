@@ -7,9 +7,9 @@ Add a new global command or skill that will be available in all projects.
 ```
 /add-global command [name]    # Create a new global slash command
 /add-global skill [name]      # Create a new global skill
-/add-global sync push         # Push local changes to ~/.claude
-/add-global sync pull         # Pull ~/.claude changes to repo
-/add-global sync status       # Show diff between repo and global
+/add-global sync push         # Merge local changes into ~/.claude
+/add-global sync pull         # Merge ~/.claude changes into repo
+/add-global sync status       # Show what's in repo vs global
 ```
 
 ## Examples
@@ -20,18 +20,28 @@ Add a new global command or skill that will be available in all projects.
 /add-global sync push
 ```
 
+## Notes
+
+- **Sync merges, not overwrites** - Existing commands/skills/MCP servers in ~/.claude are preserved
+- MCP servers from both sources are combined
+- Settings permissions are merged and deduplicated
+- Only CLAUDE.md is fully replaced (it's the canonical source)
+
 ---
 
-## description: Create or sync global Claude commands and skills
+description: Create or sync global Claude commands and skills
+
+---
 
 # Add Global: $ARGUMENTS
 
-Parse the arguments:
+Parse the arguments to determine action:
 
 **If "command [name]"**:
 
-1. Create a new command file at `/home/jackk/sw-cortex/global-config/commands/[name].md`
-2. Use this template:
+1. Find the sw-cortex project root (look for global-config/ directory)
+2. Create a new command file at `global-config/commands/[name].md`
+3. Use this template:
 
 ```markdown
 # Command: [name]
@@ -52,20 +62,23 @@ Parse the arguments:
 
 ---
 
-## description: [Short description for command list]
+description: [Short description for command list]
+
+---
 
 # [Name] Command: $ARGUMENTS
 
 [Instructions for Claude on how to handle this command]
 ```
 
-3. Ask user what the command should do
-4. After creating, remind them to run `/add-global sync push` to deploy
+4. Ask user what the command should do
+5. After creating, remind them to run `/add-global sync push` to deploy
 
 **If "skill [name]"**:
 
-1. Create directory `/home/jackk/sw-cortex/global-config/skills/[name]/`
-2. Create `SKILL.md` with this template:
+1. Find the sw-cortex project root
+2. Create directory `global-config/skills/[name]/`
+3. Create `SKILL.md` with this template:
 
 ```markdown
 ---
@@ -78,14 +91,41 @@ description: [When to use this skill]
 [Detailed instructions for the skill]
 ```
 
-3. Ask user what the skill should do
-4. After creating, remind them to run `/add-global sync push` to deploy
+4. Ask user what the skill should do
+5. After creating, remind them to run `/add-global sync push` to deploy
 
 **If "sync push"**:
-Run: `bash /home/jackk/sw-cortex/scripts/sync-global-config.sh push`
+
+Run the sync script from the sw-cortex directory:
+
+```bash
+bash scripts/sync-global-config.sh push
+```
+
+This will:
+
+- Add new commands to ~/.claude/commands/ (preserves existing)
+- Add new skills to ~/.claude/skills/ (preserves existing)
+- Merge MCP servers into ~/.mcp.json (preserves existing servers)
+- Merge settings permissions (deduplicates)
+- Update ~/CLAUDE.md
 
 **If "sync pull"**:
-Run: `bash /home/jackk/sw-cortex/scripts/sync-global-config.sh pull`
+
+Run:
+
+```bash
+bash scripts/sync-global-config.sh pull
+```
+
+This pulls any commands/skills/settings from ~/.claude back into the repo for version control.
 
 **If "sync status"**:
-Run: `bash /home/jackk/sw-cortex/scripts/sync-global-config.sh status`
+
+Run:
+
+```bash
+bash scripts/sync-global-config.sh status
+```
+
+Shows what's in the repo vs what's in ~/.claude globally.
