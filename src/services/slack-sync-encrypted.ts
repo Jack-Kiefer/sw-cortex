@@ -93,6 +93,7 @@ export function decryptPayload(payload: SlackMessageEncryptedPayload): {
   userName?: string;
   text: string;
   timestamp: number;
+  date: string;
   threadTs?: string;
   permalink?: string;
 } {
@@ -104,6 +105,7 @@ export function decryptPayload(payload: SlackMessageEncryptedPayload): {
     userName: decryptField(payload.userName),
     text: decrypt(payload.text),
     timestamp: payload.timestamp,
+    date: new Date(payload.timestamp * 1000).toISOString(),
     threadTs: payload.threadTs,
     permalink: payload.permalink,
   };
