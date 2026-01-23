@@ -23,6 +23,7 @@ CLAUDE.local.md
 *.sqlite
 *.sqlite3
 tasks/*.db
+tasks/slack-sync-encrypted-state.json
 
 # Vector DB data
 knowledge/slack/*.bin
