@@ -1,0 +1,448 @@
+{
+  "name": "Operations Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 20
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Every 20 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-12400, 200]
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-12400, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH active_reservations AS (\n    SELECT product_id, SUM(quantity) as total_reserved\n    FROM inventory_reservations\n    WHERE status = 'active'\n    GROUP BY product_id\n)\nSELECT\n    rp.product_type,\n    c.name AS product_category,\n    c.sort_key AS sort,\n    rp.category AS category_num,\n    pt.name,\n    SUM(\n        CASE\n            WHEN rp.archive != 1\n            AND rp.status = 'enabled'\n            AND rp.deleted_at IS NULL\n            AND (ISNULL(rp.end_date) OR rp.end_date > rp.created_at)\n            AND (ISNULL(rp.start_date) OR rp.start_date < rp.created_at)\n            AND (COALESCE(rp2.inventory_qty, 0) - COALESCE(ar.total_reserved, 0)) > COALESCE(rp.drop_level, fa.default_drop_level)\n            THEN 1\n            ELSE 0\n        END\n    ) AS live_choices_count,\n    SUM(\n        CASE\n            WHEN rp.archive != 1\n            AND rp.deleted_at IS NULL\n            AND (ISNULL(rp.end_date) OR rp.end_date > rp.created_at)\n            AND (ISNULL(rp.start_date) OR rp.start_date < rp.created_at)\n            THEN 1\n            ELSE 0\n        END\n    ) AS available_skus_count,\n    SUM(\n        CASE\n            WHEN rp.archive != 1\n            AND rp.deleted_at IS NULL\n            AND (ISNULL(rp.end_date) OR rp.end_date > rp.created_at)\n            AND (ISNULL(rp.start_date) OR rp.start_date < rp.created_at)\n            AND NOT(rp.status = 'enabled')\n            THEN 1\n            ELSE 0\n        END\n    ) AS disabled_skus_count\nFROM receiver_products rp\nCROSS JOIN (SELECT attribute_value AS default_drop_level FROM feature_attributes WHERE id = 1) fa\nLEFT JOIN product_type pt ON rp.product_type = pt.id\nLEFT JOIN category c ON rp.category = c.id\nLEFT JOIN active_reservations ar ON rp.product_id = ar.product_id\nLEFT JOIN (\n    SELECT * FROM receiver_products\n    WHERE archive != 1\n      AND deleted_at IS NULL\n      AND (ISNULL(end_date) OR end_date > created_at)\n      AND (ISNULL(start_date) OR start_date < created_at)\n) rp2 ON IF(LEFT(rp.sku, 2) = 'SA', LEFT(rp.sku, 11), rp.sku) = rp2.SKU\nWHERE rp.sweet_shoppe = 0\n  AND rp.product_type NOT IN (15, 4, 7, 9, 11, 12, 13, 17, 19, 20, 22, 23, 24,\n                              26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 41, 43, 44,\n                              101, 102, 103, 104, 105, 561, 553, 551, 555)\n  AND c.name IS NOT NULL\n  AND c.name != ''\nGROUP BY rp.product_type, pt.name, c.name\nHAVING live_choices_count > 0\nORDER BY rp.product_type;",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "1a. Query Categories",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [-12100, 100],
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM operation_levels",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "1b. Query Levels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-12100, 300],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "2. Merge Categories and Levels",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-11800, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine categories and levels data, calculate current level, filter to changed rows\nconst allItems = $input.all();\n\n// Separate categories (first input) and levels (second input)\nconst categoriesData = [];\nconst levelsData = [];\n\n// Items are merged - identify by unique fields\nfor (const item of allItems) {\n  const d = item.json;\n  if (d.critical_level !== undefined || d.minimum !== undefined || d.goal !== undefined) {\n    levelsData.push(d);\n  } else if (d.product_category !== undefined || d.live_choices_count !== undefined) {\n    categoriesData.push(d);\n  }\n}\n\n// Build levels lookup map by category\nconst levelsMap = new Map();\nfor (const level of levelsData) {\n  if (level.category) {\n    levelsMap.set(level.category, level);\n  }\n}\n\n// Process categories and merge with levels\nconst results = [];\n\nfor (const cat of categoriesData) {\n  // Create category key: product_category|product_type\n  const categoryKey = `${cat.product_category}|${cat.product_type}`;\n  \n  // Get matching level data\n  const levelData = levelsMap.get(categoryKey) || {};\n  \n  // Calculate current level\n  let level = null;\n  const liveCount = Number(cat.live_choices_count) || 0;\n  const criticalLevel = levelData.critical_level;\n  const minimum = levelData.minimum;\n  const goal = levelData.goal;\n  const previousLevel = levelData.previous_level;\n  \n  if (criticalLevel != null && minimum != null && goal != null) {\n    if (liveCount < criticalLevel) {\n      level = 0;\n    } else if (liveCount < minimum) {\n      level = 1;\n    } else if (liveCount < goal) {\n      level = 2;\n    } else {\n      level = 3;\n    }\n  }\n  \n  // Check if level changed\n  const isDifferent = level !== null && previousLevel !== level;\n  \n  if (isDifferent) {\n    results.push({\n      product_category: cat.product_category,\n      product_type: cat.product_type,\n      name: cat.name,\n      category: categoryKey,\n      live_choices_count: liveCount,\n      level: level,\n      previous_level: previousLevel,\n      critical_level: criticalLevel,\n      minimum: minimum,\n      goal: goal\n    });\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { no_changes: true } }];\n}\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "name": "3. Calculate Levels & Filter Changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-11500, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-has-changes",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000007",
+      "name": "4. Has Level Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-11200, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preprocess data for database update - add timestamps\nconst items = $input.all();\nconst currentTime = new Date().toISOString();\n\nconst results = items.map(item => {\n  const row = item.json;\n  const result = {\n    category: row.category,\n    previous_level: row.level  // Update previous_level to current level\n  };\n  \n  // Add timestamp if level dropped to that threshold\n  if (row.level < row.previous_level) {\n    if (row.level === 0) {\n      result.time_turned_red = currentTime;\n    }\n    if (row.level <= 1 && row.previous_level > 1) {\n      result.time_turned_orange = currentTime;\n    }\n    if (row.level <= 2 && row.previous_level > 2) {\n      result.time_turned_yellow = currentTime;\n    }\n  }\n  \n  return result;\n});\n\n// Build SQL for bulk upsert\nconst escape = (str) => {\n  if (str === null || str === undefined) return 'NULL';\n  return \"'\" + String(str).replace(/'/g, \"''\") + \"'\";\n};\n\nconst updates = results.map(r => {\n  const setClauses = [`previous_level = ${r.previous_level}`];\n  if (r.time_turned_red) setClauses.push(`time_turned_red = ${escape(r.time_turned_red)}`);\n  if (r.time_turned_orange) setClauses.push(`time_turned_orange = ${escape(r.time_turned_orange)}`);\n  if (r.time_turned_yellow) setClauses.push(`time_turned_yellow = ${escape(r.time_turned_yellow)}`);\n  \n  return `UPDATE operation_levels SET ${setClauses.join(', ')} WHERE category = ${escape(r.category)}`;\n});\n\nconst sql = updates.join(';\\n');\n\nreturn [{ json: { sql, updateCount: results.length, items: items.map(i => i.json) } }];"
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000008",
+      "name": "5a. Preprocess for DB Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-10900, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0009-4000-8000-000000000009",
+      "name": "5b. Update operation_levels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-10600, 0],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Slack alert messages with emojis and user tags\n// Read directly from Calculate Levels node (runs in parallel with DB update path)\nconst items = $('3. Calculate Levels & Filter Changes').all().map(i => i.json).filter(i => i.category);\n\n// Slack user IDs for tagging\nconst SLACK_IDS = {\n  sophie: 'U01JMCHDX0F',\n  nora: 'U06PC310WU9',\n  carolyn: 'U011CPHRPMH',\n  shomari: 'U0749TWRX6F',\n  neal: 'U02SRPY7N2V',\n  will: 'U05PPBBJ4H4',\n  judy: 'U039NBR69DE',\n  tracy: 'U066CLB2R8Q',\n  brian_vinebox: 'U08KVEQD3FU'\n};\n\n// Tag mapping by product category name\nconst TAG_MAPPING = {\n  // Englewood Products: Sophie + Will\n  'Candy': [SLACK_IDS.sophie, SLACK_IDS.will],\n  'Snacks': [SLACK_IDS.sophie, SLACK_IDS.will],\n  'Candy & Snacks': [SLACK_IDS.sophie, SLACK_IDS.will],\n  'Dog S-Wag': [SLACK_IDS.sophie, SLACK_IDS.will],\n  'Candles': [SLACK_IDS.sophie, SLACK_IDS.will],\n  'Gourmet Pantry': [SLACK_IDS.sophie, SLACK_IDS.will],\n  'Spa': [SLACK_IDS.sophie, SLACK_IDS.will],\n  \n  // Taylor Products: Sophie + Shomari + Tracy\n  'Cookies': [SLACK_IDS.sophie, SLACK_IDS.shomari, SLACK_IDS.tracy],\n  'Coffee & Tea': [SLACK_IDS.sophie, SLACK_IDS.shomari, SLACK_IDS.tracy],\n  'Cocoa': [SLACK_IDS.sophie, SLACK_IDS.shomari, SLACK_IDS.tracy],\n  'Brownies': [SLACK_IDS.sophie, SLACK_IDS.shomari, SLACK_IDS.tracy],\n  'Bakery & Cafe': [SLACK_IDS.sophie, SLACK_IDS.shomari, SLACK_IDS.tracy],\n  \n  // Wine: Neal + Brian-Vinebox\n  'Wine': [SLACK_IDS.neal, SLACK_IDS.brian_vinebox],\n  'Wine Tastings': [SLACK_IDS.neal, SLACK_IDS.brian_vinebox],\n  \n  // External fill: Carolyn\n  'Popcorn': [SLACK_IDS.carolyn],\n  'Cocktail / Mocktail Mixers': [SLACK_IDS.carolyn],\n  'Cocktails': [SLACK_IDS.carolyn],\n  'Jewelry': [SLACK_IDS.carolyn]\n};\n\nfunction generateAlertMessage(row) {\n  // Only alert if level dropped\n  if (row.level >= row.previous_level) return '';\n  \n  // Get tag message for category\n  const slackIds = TAG_MAPPING[row.name] || [];\n  const tagMessage = slackIds.length > 0 \n    ? ' ' + slackIds.map(id => `<@${id}>`).join(' ')\n    : '';\n  \n  // Generate message based on level\n  if (row.level === 0) {\n    return `🔴 ${row.name} - ${row.product_category} Live Choices drop below CRITICAL LEVEL 🔴${tagMessage}`;\n  } else if (row.level === 1) {\n    return `🟠 ${row.name} - ${row.product_category} Live Choices drop below Minimum 🟠${tagMessage}`;\n  } else if (row.level === 2) {\n    return `🟡 ${row.name} - ${row.product_category} Live Choices drop below Goal 🟡${tagMessage}`;\n  }\n  return '';\n}\n\n// Generate all alert messages\nconst messages = items\n  .map(generateAlertMessage)\n  .filter(msg => msg.length > 0);\n\nif (messages.length === 0) {\n  return [{ json: { no_alerts: true, text: '' } }];\n}\n\nconst text = messages.join('\\n');\n\nreturn [{ json: { text, alertCount: messages.length } }];"
+      },
+      "id": "a1b2c3d4-0010-4000-8000-000000000010",
+      "name": "6. Format Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-10900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-has-alerts",
+              "leftValue": "={{ $json.alertCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0011-4000-8000-000000000011",
+      "name": "7. Has Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-10600, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C084Z9EKDSL",
+          "mode": "id"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "id": "a1b2c3d4-0012-4000-8000-000000000012",
+      "name": "8. Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [-10300, 300],
+      "webhookId": "ops-slack-level-alerts",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  rp.sku AS sku,\n  rp.status,\n  rp.name\nFROM receiver_products rp\nLEFT JOIN product_type pt ON rp.product_type = pt.id\nLEFT JOIN category cat ON rp.category = cat.id\nWHERE rp.sweet_shoppe = 0\n  AND rp.sku LIKE 'SA%'\n  AND CHAR_LENGTH(rp.sku) <= 11\n  AND rp.product_type NOT IN (4, 7, 9, 11, 12, 13, 19, 20, 22, 23, 24,\n                              26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 41, 43, 44,\n                              101, 102, 103, 104, 105, 561, 553, 551, 555)\n  AND rp.archive = 0\n  AND rp.deleted_at IS NULL\n  AND (ISNULL(rp.end_date) OR rp.end_date > rp.created_at)\n  AND (ISNULL(rp.start_date) OR rp.start_date < rp.created_at);",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000013",
+      "name": "1c. Query Receiver Products",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [-12100, 600],
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM receiver_product_status ORDER BY sku",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000014",
+      "name": "1d. Query Receiver Product Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-12100, 800],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000015",
+      "name": "9. Merge Product Status",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-11800, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Find status changes between MySQL (current) and Retool DB (previous)\nconst allItems = $input.all();\n\n// Separate current products and previous status\nconst currentProducts = [];\nconst previousStatus = [];\n\nfor (const item of allItems) {\n  const d = item.json;\n  // receiver_product_status has 'sku' and 'status' columns\n  // receiver_products query also has 'sku', 'status', 'name'\n  if (d.name !== undefined) {\n    // This is from MySQL (has name field)\n    currentProducts.push(d);\n  } else {\n    // This is from Retool DB (receiver_product_status)\n    previousStatus.push(d);\n  }\n}\n\n// Build previous status lookup map\nconst statusMap = new Map();\nfor (const prev of previousStatus) {\n  if (prev.sku) {\n    statusMap.set(prev.sku, prev.status);\n  }\n}\n\n// Find products where status changed or is new\nconst changes = [];\n\nfor (const product of currentProducts) {\n  const previousStatusVal = statusMap.get(product.sku);\n  \n  // Status changed or product is new (not in previous)\n  if (product.status !== previousStatusVal) {\n    changes.push({\n      sku: product.sku,\n      new_status: product.status,\n      previous_status: previousStatusVal || null,\n      name: product.name\n    });\n  }\n}\n\nif (changes.length === 0) {\n  return [{ json: { no_changes: true } }];\n}\n\nreturn changes.map(c => ({ json: c }));"
+      },
+      "id": "a1b2c3d4-0016-4000-8000-000000000016",
+      "name": "10. Find Status Changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-11500, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-has-status-changes",
+              "leftValue": "={{ $json.sku }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0017-4000-8000-000000000017",
+      "name": "11. Has Status Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-11200, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build INSERT SQL for receiver_product_change_log (logs the changes)\nconst items = $input.all();\n\nconst escape = (str) => {\n  if (str === null || str === undefined) return 'NULL';\n  return \"'\" + String(str).replace(/'/g, \"''\") + \"'\";\n};\n\n// Build VALUES for bulk insert into change log\nconst values = items.map(item => {\n  const d = item.json;\n  return `(${escape(d.sku)}, ${escape(d.new_status)})`;\n});\n\n// PostgreSQL INSERT syntax for change log\nconst sql = `\nINSERT INTO receiver_product_change_log (sku, status)\nVALUES ${values.join(',\\n')}\n`;\n\nreturn [{ json: { sql, insertCount: items.length } }];"
+      },
+      "id": "a1b2c3d4-0018-4000-8000-000000000018",
+      "name": "12a. Build Change Log Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-10900, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0019-4000-8000-000000000019",
+      "name": "12b. Insert Change Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-10600, 600],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build UPSERT SQL for receiver_product_status using ALL data from query2 (1c)\n// This updates the full status table, not just changes\nconst items = $('1c. Query Receiver Products').all();\n\nconst escape = (str) => {\n  if (str === null || str === undefined) return 'NULL';\n  return \"'\" + String(str).replace(/'/g, \"''\") + \"'\";\n};\n\n// Build VALUES for bulk upsert\nconst values = items.map(item => {\n  const d = item.json;\n  return `(${escape(d.sku)}, ${escape(d.status)})`;\n});\n\n// PostgreSQL UPSERT syntax\nconst sql = `\nINSERT INTO receiver_product_status (sku, status)\nVALUES ${values.join(',\\n')}\nON CONFLICT (sku) DO UPDATE SET\n  status = EXCLUDED.status,\n  updated_at = NOW()\n`;\n\nreturn [{ json: { sql, upsertCount: items.length } }];"
+      },
+      "id": "a1b2c3d4-0020-4000-8000-000000000020",
+      "name": "13a. Build Status Upsert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-10300, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0021-4000-8000-000000000021",
+      "name": "13b. Upsert All Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-10000, 600],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 20 Minutes": {
+      "main": [
+        [
+          { "node": "1a. Query Categories", "type": "main", "index": 0 },
+          { "node": "1b. Query Levels", "type": "main", "index": 0 },
+          { "node": "1c. Query Receiver Products", "type": "main", "index": 0 },
+          { "node": "1d. Query Receiver Product Status", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          { "node": "1a. Query Categories", "type": "main", "index": 0 },
+          { "node": "1b. Query Levels", "type": "main", "index": 0 },
+          { "node": "1c. Query Receiver Products", "type": "main", "index": 0 },
+          { "node": "1d. Query Receiver Product Status", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "1a. Query Categories": {
+      "main": [[{ "node": "2. Merge Categories and Levels", "type": "main", "index": 0 }]]
+    },
+    "1b. Query Levels": {
+      "main": [[{ "node": "2. Merge Categories and Levels", "type": "main", "index": 1 }]]
+    },
+    "2. Merge Categories and Levels": {
+      "main": [[{ "node": "3. Calculate Levels & Filter Changes", "type": "main", "index": 0 }]]
+    },
+    "3. Calculate Levels & Filter Changes": {
+      "main": [[{ "node": "4. Has Level Changes?", "type": "main", "index": 0 }]]
+    },
+    "4. Has Level Changes?": {
+      "main": [
+        [
+          { "node": "5a. Preprocess for DB Update", "type": "main", "index": 0 },
+          { "node": "6. Format Slack Message", "type": "main", "index": 0 }
+        ],
+        []
+      ]
+    },
+    "5a. Preprocess for DB Update": {
+      "main": [[{ "node": "5b. Update operation_levels", "type": "main", "index": 0 }]]
+    },
+    "6. Format Slack Message": {
+      "main": [[{ "node": "7. Has Alerts?", "type": "main", "index": 0 }]]
+    },
+    "7. Has Alerts?": {
+      "main": [[{ "node": "8. Send Slack Alert", "type": "main", "index": 0 }], []]
+    },
+    "1c. Query Receiver Products": {
+      "main": [[{ "node": "9. Merge Product Status", "type": "main", "index": 0 }]]
+    },
+    "1d. Query Receiver Product Status": {
+      "main": [[{ "node": "9. Merge Product Status", "type": "main", "index": 1 }]]
+    },
+    "9. Merge Product Status": {
+      "main": [[{ "node": "10. Find Status Changes", "type": "main", "index": 0 }]]
+    },
+    "10. Find Status Changes": {
+      "main": [[{ "node": "11. Has Status Changes?", "type": "main", "index": 0 }]]
+    },
+    "11. Has Status Changes?": {
+      "main": [[{ "node": "12a. Build Change Log Insert SQL", "type": "main", "index": 0 }], []]
+    },
+    "12a. Build Change Log Insert SQL": {
+      "main": [[{ "node": "12b. Insert Change Log", "type": "main", "index": 0 }]]
+    },
+    "12b. Insert Change Log": {
+      "main": [[{ "node": "13a. Build Status Upsert SQL", "type": "main", "index": 0 }]]
+    },
+    "13a. Build Status Upsert SQL": {
+      "main": [[{ "node": "13b. Upsert All Status", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f8c3c51c-0001-4000-8000-000000000001",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "opsSlackWorkflow01",
+  "tags": [
+    {
+      "name": "operations"
+    },
+    {
+      "name": "slack"
+    },
+    {
+      "name": "inventory"
+    }
+  ]
+}

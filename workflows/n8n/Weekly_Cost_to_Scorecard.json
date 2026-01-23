@@ -1,0 +1,170 @@
+{
+  "name": "Weekly Cost to Scorecard",
+  "nodes": [
+    {
+      "id": "trigger-001",
+      "name": "Every Sunday at 9 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-12400, 200],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "http-001",
+      "name": "1. Get Last Week Average",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-12160, 200],
+      "parameters": {
+        "method": "GET",
+        "url": "https://serp.sugarwish.com/api/forecast/cost-tracker/last-week-average",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "Uu0gQjgbu2KmxXowcV5CFrzXNsiDHqSMKrUEvGgqiA0"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-001",
+      "name": "2. Format Cost Value",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-11920, 200],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Parse the average cost - it comes as a string like \"0.07621...\"\nconst rawCost = data.average_cost_per_item;\nlet costValue = 0;\n\nif (rawCost) {\n  // Parse the decimal string and round to 2 decimal places\n  costValue = parseFloat(rawCost);\n  if (isNaN(costValue)) costValue = 0;\n}\n\n// Format as currency string for the spreadsheet (e.g., \"$0.08\")\nconst formattedCost = `$${costValue.toFixed(2)}`;\n\nreturn [{\n  json: {\n    costValue: costValue,\n    formattedCost: formattedCost,\n    periodLabel: data.period_label,\n    totalItems: data.total_items_shipped,\n    startDate: data.start_date,\n    endDate: data.end_date\n  }\n}];"
+      }
+    },
+    {
+      "id": "sheets-001",
+      "name": "3. Update Scorecard F34",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [-11680, 200],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=779026120",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "F": "={{ $json.formattedCost }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "range": "F34"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "slack-001",
+      "name": "4. Confirm in Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [-11440, 200],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "ops-and-tech",
+          "mode": "name"
+        },
+        "messageType": "text",
+        "text": "✅ Weekly cost updated in Scorecard\n• *Period:* {{ $('2. Format Cost Value').item.json.periodLabel }}\n• *Avg Cost/Item:* {{ $('2. Format Cost Value').item.json.formattedCost }}\n• *Items Shipped:* {{ $('2. Format Cost Value').item.json.totalItems.toLocaleString() }}\n• *Cell:* F34",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Sunday at 9 AM": {
+      "main": [
+        [
+          {
+            "node": "1. Get Last Week Average",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Get Last Week Average": {
+      "main": [
+        [
+          {
+            "node": "2. Format Cost Value",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Format Cost Value": {
+      "main": [
+        [
+          {
+            "node": "3. Update Scorecard F34",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Update Scorecard F34": {
+      "main": [
+        [
+          {
+            "node": "4. Confirm in Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "weekly-cost-scorecard-v1",
+  "meta": {
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "WeeklyCostScorecard",
+  "tags": ["cost-tracker", "weekly", "scorecard"]
+}

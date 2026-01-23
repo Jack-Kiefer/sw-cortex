@@ -45,7 +45,6 @@ This builds institutional knowledge across all sessions.
 | `/db query [database] [sql]`          | Query databases                   |
 | `/global-analyze [description]`       | Deep pre-implementation analysis  |
 | `/global-quick-analyze [description]` | Quick codebase assessment         |
-| `/compact-global`                     | Save context, clear, resume fresh |
 
 ## Global Skills
 

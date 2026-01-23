@@ -1,0 +1,404 @@
+{
+  "name": "Daily Operations Message",
+  "nodes": [
+    {
+      "id": "trigger-schedule",
+      "name": "Daily at 8 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-12400, 400],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-12400, 600]
+    },
+    {
+      "id": "query-levels",
+      "name": "1a. Query Levels (Retool)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-12000, 200],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM operation_levels ORDER BY category",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "id": "query-live-categories",
+      "name": "1b. Query Live Categories (SW)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [-12000, 400],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH active_reservations AS (\n    SELECT product_id, SUM(quantity) as total_reserved\n    FROM inventory_reservations\n    WHERE status = 'active'\n    GROUP BY product_id\n)\nSELECT \n  CONCAT(c.name, '|', rp.product_type) AS category, pt.name\nFROM receiver_products rp\nCROSS JOIN (SELECT attribute_value AS default_drop_level FROM feature_attributes WHERE id = 1) fa\nLEFT JOIN product_type pt ON rp.product_type = pt.id\nLEFT JOIN category c ON rp.category = c.id\nLEFT JOIN active_reservations ar ON rp.product_id = ar.product_id\nWHERE rp.sweet_shoppe = 0 \n  AND rp.product_type NOT IN (4, 7, 9, 11, 12, 13, 19, 20, 22, 23, 24, \n                              26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, \n                              37, 38, 41, 43, 44, 101, 102, 103, 104, 105, 561, 553, 551, 555)\n  AND c.name IS NOT NULL \n  AND c.name != ''\nGROUP BY \n  rp.product_type, c.name\nHAVING \n  SUM(\n    CASE \n      WHEN rp.archive != 1 \n           AND rp.status = \"enabled\"\n           AND rp.deleted_at IS NULL \n           AND (ISNULL(rp.end_date) OR rp.end_date > rp.created_at)\n           AND (ISNULL(rp.start_date) OR rp.start_date < rp.created_at)\n           AND (rp.odoo_inventory - COALESCE(ar.total_reserved, 0)) > COALESCE(rp.drop_level, fa.default_drop_level)\n      THEN 1\n      ELSE 0\n    END\n  ) > 0\nORDER BY \n  rp.product_type;",
+        "options": {}
+      },
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "id": "query-inventory-issues",
+      "name": "1c. Query Inventory Issues (SW)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [-12000, 600],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH active_reservations AS (\n    SELECT product_id, SUM(quantity) as total_reserved\n    FROM inventory_reservations\n    WHERE status = 'active'\n    GROUP BY product_id\n)\nSELECT \n    rp.sku,\n    rp.name,\n    rp.odoo_inventory as inventory,\n    COALESCE(ar.total_reserved, 0) as reserved,\n    CASE \n        WHEN rp.odoo_inventory < 0 THEN 'NEGATIVE'\n        WHEN rp.odoo_inventory - COALESCE(ar.total_reserved, 0) <= COALESCE(rp.drop_level, fa.default_drop_level) THEN 'RESERVED_HIDDEN'\n    END as issue_type\nFROM receiver_products rp\nCROSS JOIN (SELECT attribute_value AS default_drop_level FROM feature_attributes WHERE id = 1) fa\nLEFT JOIN active_reservations ar ON rp.product_id = ar.product_id\nWHERE rp.status = 'enabled'\n  AND (\n    rp.odoo_inventory < 0 \n    OR (rp.odoo_inventory - COALESCE(ar.total_reserved, 0) <= COALESCE(rp.drop_level, fa.default_drop_level)\n        AND COALESCE(ar.total_reserved, 0) > 0)\n  )",
+        "options": {}
+      },
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "id": "query-child-mismatches",
+      "name": "1d. Query Child-Parent Mismatches (SW)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [-12000, 800],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH filtered AS (\n  SELECT\n      rp.sku,\n      rp.notes,\n      LEFT(rp.sku, 11)           AS base_sku,\n      (CHAR_LENGTH(rp.sku) = 11) AS is_parent,\n      LOWER(rp.status)           AS status_lc\n  FROM receiver_products rp\n  LEFT JOIN product_type pt ON rp.product_type = pt.id\n  LEFT JOIN category     cat ON rp.category = cat.id\n  WHERE rp.sweet_shoppe = 0\n    AND rp.product_type NOT IN (4, 7, 9, 11, 12, 13, 19, 20, 22, 23, 24,\n                                26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,\n                                37, 38, 41, 43, 44, 101, 102, 103, 104, 105, 561, 553, 551, 555)\n    AND cat.name IS NOT NULL\n    AND cat.name != ''\n    AND rp.archive != 1\n    AND rp.deleted_at IS NULL\n    AND (ISNULL(rp.end_date)   OR rp.end_date   > rp.created_at)\n    AND (ISNULL(rp.start_date) OR rp.start_date < rp.created_at)\n),\nproducts AS (\n  SELECT\n      sku,\n      base_sku,\n      is_parent,\n      notes,\n      CASE WHEN status_lc = 'enabled' THEN 1 ELSE 0 END AS is_active\n  FROM filtered\n)\nSELECT\n  c.sku AS child_sku,\n  p.sku AS parent_sku,\n  COALESCE(c.notes, p.notes) AS notes,\n  CASE\n    WHEN c.is_active = 0 AND p.is_active = 1 THEN 'CHILD_DISABLED_PARENT_ENABLED'\n    WHEN c.is_active = 1 AND p.is_active = 0 THEN 'CHILD_ENABLED_PARENT_DISABLED'\n  END AS mismatch_type\nFROM products c\nJOIN products p\n  ON p.base_sku = c.base_sku\n AND p.is_parent = 1\nWHERE c.is_parent = 0\n  AND (\n        (c.is_active = 0 AND p.is_active = 1)\n     OR (c.is_active = 1 AND p.is_active = 0)\n  )\n  AND c.notes != 'USE THIS IF BELOW GOAL. DISABLE WHEN MAIN SKUS ARE BACK'\nORDER BY mismatch_type, parent_sku, child_sku",
+        "options": {}
+      },
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "id": "merge-1",
+      "name": "2a. Merge Levels + Categories",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-11600, 300],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "merge-2",
+      "name": "2b. Merge + Issues",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-11300, 400],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "merge-3",
+      "name": "2c. Merge + Mismatches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-11000, 500],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "code-daily-report",
+      "name": "3. Generate Daily Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-10700, 500],
+      "parameters": {
+        "jsCode": "// Get all merged items and separate by source\nconst allItems = $input.all().map(i => i.json);\n\n// Separate data by identifying fields unique to each query\nconst levelsData = allItems.filter(item => item.critical_level !== undefined || item.minimum !== undefined);\nconst liveCategoriesData = allItems.filter(item => item.category !== undefined && item.name !== undefined && item.critical_level === undefined);\nconst inventoryIssuesData = allItems.filter(item => item.issue_type !== undefined);\nconst childMismatchesData = allItems.filter(item => item.mismatch_type !== undefined);\n\n// Build levels lookup map by category\nconst levelsMap = new Map();\nfor (const level of levelsData) {\n  if (level.category) {\n    levelsMap.set(level.category, level);\n  }\n}\n\n// Left join live categories onto levels to include all categories\nconst df = liveCategoriesData.map(cat => {\n  const levelData = levelsMap.get(cat.category) || {};\n  return {\n    ...cat,\n    critical_level: levelData.critical_level,\n    minimum: levelData.minimum,\n    goal: levelData.goal,\n    previous_level: levelData.previous_level,\n    time_turned_red: levelData.time_turned_red,\n    time_turned_orange: levelData.time_turned_orange,\n    time_turned_yellow: levelData.time_turned_yellow\n  };\n});\n\n// Sort by previous_level and group by category (keep lowest previous_level)\nconst grouped = {};\nfor (const row of df) {\n  const cat = row.category;\n  if (!grouped[cat] || (row.previous_level != null && (grouped[cat].previous_level == null || row.previous_level < grouped[cat].previous_level))) {\n    grouped[cat] = row;\n  }\n}\nconst processedDf = Object.values(grouped);\n\n// Helper function to calculate days since timestamp\nfunction calculateDaysSince(timestamp) {\n  if (!timestamp) return 'N/A';\n  const date = new Date(timestamp.replace ? timestamp.replace('Z', '') : timestamp);\n  const now = new Date();\n  return Math.floor((now - date) / (1000 * 60 * 60 * 24));\n}\n\n// Generate messages\nconst goalMissing = [];\nconst redAlerts = [];\nconst orangeAlerts = [];\nconst belowGoal = [];\nconst negativeInventory = [];\nconst reservedHidden = [];\nconst childDisabledParentEnabled = [];\nconst childEnabledParentDisabled = [];\n\nfor (const row of processedDf) {\n  const category = row.category ? row.category.split('|')[0] : '';\n  const name = row.name || '';\n  const criticalLevel = row.critical_level;\n  const minimum = row.minimum;\n  const goal = row.goal;\n  const previousLevel = row.previous_level;\n  const timeTurnedRed = row.time_turned_red;\n  const timeTurnedOrange = row.time_turned_orange;\n  const timeTurnedYellow = row.time_turned_yellow;\n\n  // Handle rows where all inventory data is missing\n  if (criticalLevel == null || minimum == null || goal == null) {\n    goalMissing.push(`- ${category} (${name})`);\n    continue;\n  }\n\n  // Check for red-level alert\n  if (previousLevel === 0) {\n    const daysBelow = calculateDaysSince(timeTurnedRed);\n    redAlerts.push(`- ${category} (${name}): ${daysBelow} days`);\n  }\n  // Check for orange-level alert\n  else if (previousLevel === 1) {\n    const daysBelow = calculateDaysSince(timeTurnedOrange);\n    orangeAlerts.push(`- ${category} (${name}): ${daysBelow} days`);\n  }\n  // Below Goal (level=2)\n  else if (previousLevel === 2) {\n    const daysBelow = calculateDaysSince(timeTurnedYellow);\n    belowGoal.push(`- ${category} (${name}): ${daysBelow} days`);\n  }\n}\n\n// Process inventory issues - split by issue type\nfor (const row of inventoryIssuesData) {\n  const issueType = row.issue_type || '';\n  const sku = row.sku || '';\n  \n  if (issueType === 'NEGATIVE') {\n    negativeInventory.push(`- ${sku}`);\n  } else if (issueType === 'RESERVED_HIDDEN') {\n    const skuName = row.name || '';\n    const reserved = row.reserved || 0;\n    const inventory = row.inventory || 0;\n    reservedHidden.push(`- ${sku} (${skuName}) | Inventory: ${inventory}, Reserved: ${reserved}`);\n  }\n}\n\n// Process mismatched child-parent SKUs with notes\nfor (const row of childMismatchesData) {\n  const childSku = row.child_sku || '';\n  const parentSku = row.parent_sku || '';\n  const mismatchType = row.mismatch_type || '';\n  const notes = row.notes || '';\n  \n  let entry;\n  if (notes) {\n    entry = `- Child: ${childSku} | Parent: ${parentSku} | Notes: ${notes}`;\n  } else {\n    entry = `- Child: ${childSku} | Parent: ${parentSku}`;\n  }\n  \n  if (mismatchType === 'CHILD_DISABLED_PARENT_ENABLED') {\n    childDisabledParentEnabled.push(entry);\n  } else if (mismatchType === 'CHILD_ENABLED_PARENT_DISABLED') {\n    childEnabledParentDisabled.push(entry);\n  }\n}\n\n// Build the report text\nconst report = [];\nreport.push('🔔 Daily Inventory Status Report 🔔\\n');\nreport.push('Status Summary:');\nreport.push('----------------------------');\n\nif (goalMissing.length > 0) {\n  report.push('\\n📝 Missing Goals:');\n  report.push(...goalMissing);\n}\n\nif (redAlerts.length > 0) {\n  report.push('\\n🔴 Critical Level Alerts:');\n  report.push(...redAlerts);\n}\n\nif (orangeAlerts.length > 0) {\n  report.push('\\n🟠 Minimum Level Alerts:');\n  report.push(...orangeAlerts);\n}\n\nif (belowGoal.length > 0) {\n  report.push('\\n🟡 Below Goal Alerts:');\n  report.push(...belowGoal);\n}\n\nif (reservedHidden.length > 0) {\n  report.push('\\n⏸️ Enabled but Hidden (reserved inventory):');\n  report.push(...reservedHidden);\n}\n\nif (childDisabledParentEnabled.length > 0) {\n  report.push('\\n⚠️ Child Disabled but Parent Enabled:');\n  report.push(...childDisabledParentEnabled);\n}\n\nif (childEnabledParentDisabled.length > 0) {\n  report.push('\\n⚠️ Child Enabled but Parent Disabled:');\n  report.push(...childEnabledParentDisabled);\n}\n\n// If no alerts are present, add the celebratory message\nif (goalMissing.length === 0 && redAlerts.length === 0 && orangeAlerts.length === 0 && \n    belowGoal.length === 0 && negativeInventory.length === 0 && reservedHidden.length === 0 && \n    childDisabledParentEnabled.length === 0 && childEnabledParentDisabled.length === 0) {\n  const congratsMessages = [\n    '✅ Awesome job, every product category is over its goal!',\n    '✅ Great work, all product categories are exceeding the live product target!',\n    '✅ Fantastic! Every category has enough live products to soar past the goal!',\n    '✅ Hooray, every product category is thriving with live products!',\n    '✅ Bravo, live product goals have been met across all categories!',\n    '✅ Cheers to everyone – all product categories are doing great!',\n    '✅ Excellent, every category is rocking its live product count!',\n    '✅ Way to go, every product category is live and exceeding expectations!',\n    '✅ Yippee, live product counts are at the goal in every category!',\n    '✅ Hip hip hooray, every live product category has hit its target!'\n  ];\n  report.push('\\n' + congratsMessages[Math.floor(Math.random() * congratsMessages.length)]);\n}\n\nreport.push('\\n----------------------------\\nEnd of Report');\n\nreturn [{ json: { text: report.join('\\n') } }];"
+      }
+    },
+    {
+      "id": "slack-daily-report",
+      "name": "4. Send Daily Report to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [-10400, 500],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C084Z9EKDSL",
+          "mode": "id"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      },
+      "webhookId": "daily-ops-inventory-report"
+    },
+    {
+      "id": "query-promo-alerts",
+      "name": "5a. Query Promo Alerts (Retool)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-12000, 1100],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM promo_code_alerts WHERE active",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "id": "query-coupon-usage",
+      "name": "5b. Query Coupon Usage (SW)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [-12000, 1300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH buyer_coupon_usage AS (\n  SELECT\n    CAST(bbd.coupon_code AS CHAR) AS coupon_code,\n    DATE(b.created_at)              AS created_date,\n    b.company_id\n  FROM buyer_orders b\n  JOIN buyer_order_billing_details bbd\n    ON b.order_id = bbd.order_id\n  WHERE bbd.coupon_code IS NOT NULL\n    AND TRIM(bbd.coupon_code) <> ''\n    AND b.store_id <> 2\n    AND b.created_at >= DATE_SUB(CURDATE(), INTERVAL 10 WEEK)\n),\npre_coupon_usage AS (\n  SELECT\n    CAST(coupon_code AS CHAR) AS coupon_code,\n    DATE(created_at)           AS created_date,\n    company_id\n  FROM preselect_orders\n  WHERE coupon_code IS NOT NULL\n    AND TRIM(coupon_code) <> ''\n    AND created_at >= DATE_SUB(CURDATE(), INTERVAL 10 WEEK)\n),\nall_usage AS (\n  SELECT * FROM buyer_coupon_usage\n  UNION ALL\n  SELECT * FROM pre_coupon_usage\n)\nSELECT\n  u.coupon_code,\n  u.created_date,\n  DATEDIFF(CURDATE(), u.created_date) AS days_ago,\n  COUNT(*)                         AS usage_count\nFROM all_usage u\nJOIN company c\n  ON u.company_id = c.id\n  AND c.test_account = 0\nGROUP BY\n  u.coupon_code,\n  u.created_date\nORDER BY\n  u.created_date,\n  u.coupon_code;",
+        "options": {}
+      },
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "id": "merge-promo",
+      "name": "6. Merge Promo Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-11600, 1200],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "code-promo-threshold",
+      "name": "7. Calculate Promo Thresholds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-11200, 1200],
+      "parameters": {
+        "jsCode": "// Get all merged items and separate by source\nconst allItems = $input.all().map(i => i.json);\n\n// Separate promo alerts (have promo_code and alert_threshold) from usage (have coupon_code and days_ago)\nconst promoAlerts = allItems.filter(item => item.alert_threshold !== undefined);\nconst couponUsage = allItems.filter(item => item.days_ago !== undefined);\n\n// SQL Transform equivalent: find codes exceeding thresholds\nconst alertResults = [];\n\nfor (const alert of promoAlerts) {\n  const promoCode = alert.promo_code;\n  const alertThreshold = alert.alert_threshold || 0;\n  const alertPeriodDays = alert.alert_period_days || 0;\n  \n  // Sum usage within the alert period\n  let alertPeriodUsage = 0;\n  for (const usage of couponUsage) {\n    if (usage.coupon_code === promoCode && usage.days_ago <= alertPeriodDays) {\n      alertPeriodUsage += (usage.usage_count || 0);\n    }\n  }\n  \n  // Only include if exceeds threshold\n  if (alertPeriodUsage > alertThreshold) {\n    alertResults.push({\n      promo_code: promoCode,\n      alert_threshold: alertThreshold,\n      alert_period_days: alertPeriodDays,\n      alert_period_usage: alertPeriodUsage\n    });\n  }\n}\n\nif (alertResults.length === 0) {\n  return [{ json: { no_alerts: true, count: 0 } }];\n}\n\nreturn [{ json: { alerts: alertResults, count: alertResults.length } }];"
+      }
+    },
+    {
+      "id": "if-promo-alerts",
+      "name": "8. Has Promo Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-10800, 1200],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-has-promo-alerts",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-promo-message",
+      "name": "9. Format Promo Alert Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-10400, 1100],
+      "parameters": {
+        "jsCode": "// Slack user IDs to ping\nconst userIds = ['UMSMMGL22', 'U016PP8V8EN'];\nconst mention = userIds.map(uid => `<@${uid}>`).join(' ');\n\nconst alerts = $json.alerts || [];\nconst messages = [];\n\nfor (const item of alerts) {\n  const promo = item.promo_code || 'UNKNOWN';\n  const threshold = item.alert_threshold || 0;\n  const days = item.alert_period_days || 0;\n  const usage = item.alert_period_usage || 0;\n  \n  if (usage >= threshold) {\n    messages.push(\n      `${mention} :warning: Promo Code *${promo}* has reached its threshold of ${threshold} uses in the last ${days} days (actual: ${usage}).`\n    );\n  } else {\n    messages.push(\n      `:white_check_mark: Promo *${promo}* is still below threshold: ${usage}/${threshold} uses in ${days} days.`\n    );\n  }\n}\n\nreturn [{ json: { text: messages.join('\\n') } }];"
+      }
+    },
+    {
+      "id": "slack-promo-alert",
+      "name": "10. Send Promo Alert to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [-10000, 1100],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C4086K801",
+          "mode": "id"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      },
+      "webhookId": "daily-ops-promo-alert"
+    },
+    {
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [-10000, 1500],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C07GY977AEM",
+          "mode": "id"
+        },
+        "text": "Daily Operations Message workflow failed to run. <@U022BUNHE1Z>",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      },
+      "webhookId": "daily-ops-error-handler"
+    },
+    {
+      "id": "error-trigger",
+      "name": "On Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-10400, 1500],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Daily at 8 AM": {
+      "main": [
+        [
+          { "node": "1a. Query Levels (Retool)", "type": "main", "index": 0 },
+          { "node": "1b. Query Live Categories (SW)", "type": "main", "index": 0 },
+          { "node": "1c. Query Inventory Issues (SW)", "type": "main", "index": 0 },
+          { "node": "1d. Query Child-Parent Mismatches (SW)", "type": "main", "index": 0 },
+          { "node": "5a. Query Promo Alerts (Retool)", "type": "main", "index": 0 },
+          { "node": "5b. Query Coupon Usage (SW)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          { "node": "1a. Query Levels (Retool)", "type": "main", "index": 0 },
+          { "node": "1b. Query Live Categories (SW)", "type": "main", "index": 0 },
+          { "node": "1c. Query Inventory Issues (SW)", "type": "main", "index": 0 },
+          { "node": "1d. Query Child-Parent Mismatches (SW)", "type": "main", "index": 0 },
+          { "node": "5a. Query Promo Alerts (Retool)", "type": "main", "index": 0 },
+          { "node": "5b. Query Coupon Usage (SW)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "1a. Query Levels (Retool)": {
+      "main": [[{ "node": "2a. Merge Levels + Categories", "type": "main", "index": 0 }]]
+    },
+    "1b. Query Live Categories (SW)": {
+      "main": [[{ "node": "2a. Merge Levels + Categories", "type": "main", "index": 1 }]]
+    },
+    "2a. Merge Levels + Categories": {
+      "main": [[{ "node": "2b. Merge + Issues", "type": "main", "index": 0 }]]
+    },
+    "1c. Query Inventory Issues (SW)": {
+      "main": [[{ "node": "2b. Merge + Issues", "type": "main", "index": 1 }]]
+    },
+    "2b. Merge + Issues": {
+      "main": [[{ "node": "2c. Merge + Mismatches", "type": "main", "index": 0 }]]
+    },
+    "1d. Query Child-Parent Mismatches (SW)": {
+      "main": [[{ "node": "2c. Merge + Mismatches", "type": "main", "index": 1 }]]
+    },
+    "2c. Merge + Mismatches": {
+      "main": [[{ "node": "3. Generate Daily Report", "type": "main", "index": 0 }]]
+    },
+    "3. Generate Daily Report": {
+      "main": [[{ "node": "4. Send Daily Report to Slack", "type": "main", "index": 0 }]]
+    },
+    "5a. Query Promo Alerts (Retool)": {
+      "main": [[{ "node": "6. Merge Promo Data", "type": "main", "index": 0 }]]
+    },
+    "5b. Query Coupon Usage (SW)": {
+      "main": [[{ "node": "6. Merge Promo Data", "type": "main", "index": 1 }]]
+    },
+    "6. Merge Promo Data": {
+      "main": [[{ "node": "7. Calculate Promo Thresholds", "type": "main", "index": 0 }]]
+    },
+    "7. Calculate Promo Thresholds": {
+      "main": [[{ "node": "8. Has Promo Alerts?", "type": "main", "index": 0 }]]
+    },
+    "8. Has Promo Alerts?": {
+      "main": [[{ "node": "9. Format Promo Alert Message", "type": "main", "index": 0 }], []]
+    },
+    "9. Format Promo Alert Message": {
+      "main": [[{ "node": "10. Send Promo Alert to Slack", "type": "main", "index": 0 }]]
+    },
+    "On Error": {
+      "main": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8b",
+  "meta": {
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "dailyOpsMsg01",
+  "tags": [
+    { "name": "operations" },
+    { "name": "daily" },
+    { "name": "slack" },
+    { "name": "inventory" }
+  ]
+}

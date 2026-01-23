@@ -1,0 +1,701 @@
+{
+  "name": "Sheets Export",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Capture current state before sync for comparison\nWITH mix_summary AS (\n  SELECT \n    COUNT(*) as total_rows,\n    COUNT(DISTINCT product_type) as product_types,\n    AVG(mix_percent) as avg_mix\n  FROM mix_predictions\n),\nvolume_summary AS (\n  SELECT \n    COUNT(*) as total_rows,\n    AVG(order_qty) as avg_orders,\n    MAX(order_qty) as max_orders\n  FROM week_settings\n),\nsize_summary AS (\n  SELECT \n    COUNT(*) as total_rows,\n    COUNT(DISTINCT size_name) as size_names,\n    AVG(projection) as avg_projection\n  FROM size_projections_copy\n)\nSELECT \n  (SELECT row_to_json(mix_summary) FROM mix_summary) as mix,\n  (SELECT row_to_json(volume_summary) FROM volume_summary) as volume,\n  (SELECT row_to_json(size_summary) FROM size_summary) as size",
+        "options": {}
+      },
+      "id": "capture-previous-state",
+      "name": "1b. Capture Previous State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1540, 820],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Mix Prediction",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "8f8c8365-bd82-4dd0-851d-9bdba1f36122",
+      "name": "2a. Get Mix Prediction Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1700, 620],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Volume26JackExport",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "c5d5a0a5-ec3d-4e91-a18a-2571875313a9",
+      "name": "2c. Get Volume26JackExport Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1700, 1020],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform Mix Prediction sheet data\n// Sheet structure:\n//   Row 0: Relative week numbers (-8, -7, ... 0, 1, 2...)\n//   Row 1: Year-week values (\"2025-47\", \"2026-04\", etc.)\n//   Row 2: Labels (\"Actual\", \"Predicted\", \"Product Orders\")\n//   Row 3+: Product data (name in \"Week\" column, mix % in data columns)\n\nconst data = $input.all().map(i => i.json);\n\nif (!data || data.length < 4) {\n  return [{ json: { error: 'Not enough rows', rowCount: data.length } }];\n}\n\nconst allColumns = Object.keys(data[0]);\n\n// Row 1 contains the year-week mapping (e.g., col_3: \"2025-47\", col_4: \"2025-48\")\nconst yearWeekRow = data[1];\n\n// Build mapping of column name to year-week\nconst colToYearWeek = {};\nallColumns.forEach(col => {\n  const val = yearWeekRow[col];\n  if (val && typeof val === 'string' && /^\\d{4}-\\d{1,2}$/.test(val)) {\n    colToYearWeek[col] = val;\n  }\n});\n\nconst weekColumns = Object.keys(colToYearWeek);\n\nif (weekColumns.length === 0) {\n  return [{ json: { error: 'No year-week columns found in row 1', row1Sample: yearWeekRow } }];\n}\n\nconst transformedData = [];\n\n// Product data starts at row 3 (index 3)\nconst productRows = data.slice(3);\n\nproductRows.forEach(row => {\n  // Product name is in the \"Week\" column\n  let productName = row.Week || row.week;\n  \n  if (!productName || productName === '' || productName === 'Product Orders') return;\n  \n  // Replace \"Cocktail Mixers\" with \"Cocktail/Mocktail Mixers\"\n  if (productName === 'Cocktail Mixers') {\n    productName = 'Cocktail/Mocktail Mixers';\n  }\n  \n  weekColumns.forEach(col => {\n    const yearWeek = colToYearWeek[col];\n    const parts = yearWeek.split('-');\n    const year = parseInt(parts[0]);\n    const week = parseInt(parts[1]);\n    \n    const mixValue = row[col];\n    // Value is already a decimal (e.g., 0.072), not a percentage string\n    const mixPercent = typeof mixValue === 'number' ? mixValue : \n      (mixValue ? parseFloat(String(mixValue).replace('%', '')) / 100 : 0);\n    \n    const key = `${year}-${week.toString().padStart(2, '0')}-${productName}`;\n    \n    transformedData.push({\n      json: {\n        key: key,\n        product_type: productName,\n        year: year,\n        week: week,\n        mix_percent: mixPercent\n      }\n    });\n  });\n});\n\nreturn transformedData;"
+      },
+      "id": "52616f5a-5b2f-4e4e-bfc9-f19c94be212d",
+      "name": "4a. Parse Mix Prediction Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 620]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform Volume26JackExport (Size Mix) sheet data\n// Sheet has proper headers: size_name, product_type, 2025-1, 2025-2, etc.\n// Converts to size_name/product_type/year/week/projection format\n// NOTE: Skips 'Total Orders' row - that's handled by 4d node\n\nconst data = $input.all().map(i => i.json);\n\nif (!data || data.length === 0) {\n  return [{ json: { error: 'No data received' } }];\n}\n\nconst allColumns = Object.keys(data[0]);\n\n// Find year-week columns (format: 2025-1, 2025-10, etc.)\nconst weekColumns = allColumns.filter(col => /^\\d{4}-\\d{1,2}$/.test(col));\n\nif (!allColumns.includes('size_name') || !allColumns.includes('product_type')) {\n  return [{ json: { \n    error: 'Required columns not found',\n    hasSize: allColumns.includes('size_name'),\n    hasProduct: allColumns.includes('product_type'),\n    sampleColumns: allColumns.slice(0, 20)\n  }}];\n}\n\nif (weekColumns.length === 0) {\n  return [{ json: { error: 'No year-week columns found', sampleColumns: allColumns.slice(0, 30) } }];\n}\n\nconst transformedData = [];\nconst now = new Date().toISOString();\n\ndata.forEach(row => {\n  const productType = row.product_type;\n  const sizeName = row.size_name;\n  \n  // Skip Total Orders row (handled by 4d node) and empty rows\n  if (!sizeName || sizeName === '' || sizeName === 'Total Orders') return;\n  if (!productType || productType === '') return;\n  \n  weekColumns.forEach(col => {\n    const parts = col.split('-');\n    const year = parseInt(parts[0]);\n    const week = parseInt(parts[1]);\n    \n    if (isNaN(year) || isNaN(week)) return;\n    \n    const mixValue = row[col];\n    // Value is already a decimal (e.g., 0.04), not a percentage\n    const projection = typeof mixValue === 'number' ? mixValue :\n      (mixValue ? parseFloat(String(mixValue).replace('%', '')) / 100 : 0);\n    \n    transformedData.push({\n      json: {\n        created_at: now,\n        projection: projection,\n        size_name: sizeName,\n        product_type: productType,\n        year: year,\n        week: week\n      }\n    });\n  });\n});\n\nreturn transformedData;"
+      },
+      "id": "bacc4d3e-8ff0-47fe-97dd-0960de6377f7",
+      "name": "4c. Parse Size Mix Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 1020]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Total Orders row from Volume26JackExport sheet\n// Row format: size_name = 'Total Orders', values in year-week columns\n// Output format matches 4b (Volume25) for merging into week_settings\n\nconst data = $input.all().map(i => i.json);\n\nif (!data || data.length === 0) {\n  return [];\n}\n\n// Find the Total Orders row\nconst totalOrdersRow = data.find(row => \n  row.size_name === 'Total Orders' || \n  row.size_name === 'Total orders');\n\nif (!totalOrdersRow) {\n  return []; // No total orders row found\n}\n\nconst allColumns = Object.keys(totalOrdersRow);\n\n// Find year-week columns (format: 2025-1, 2025-10, etc.)\nconst weekColumns = allColumns.filter(col => /^\\d{4}-\\d{1,2}$/.test(col));\n\nif (weekColumns.length === 0) {\n  return [];\n}\n\nconst results = [];\n\nweekColumns.forEach(col => {\n  const parts = col.split('-');\n  const year = parseInt(parts[0]);\n  const week = parseInt(parts[1]);\n  \n  if (isNaN(year) || isNaN(week)) return;\n  \n  const value = totalOrdersRow[col];\n  const orderQty = typeof value === 'number' ? Math.round(value) : \n    (value ? parseInt(String(value).replace(/,/g, '')) : 0);\n  \n  if (orderQty > 0) {\n    const yearweek = `${year}|${week}`;\n    results.push({\n      json: {\n        year: year,\n        week: week,\n        yearweek: yearweek,\n        order_qty: orderQty\n      }\n    });\n  }\n});\n\nreturn results;"
+      },
+      "id": "d4e5f6a7-8b9c-4d0e-1f2a-3b4c5d6e7f80",
+      "name": "4d. Parse Total Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 1160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-mix-data",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "08f6e165-cd95-4315-8027-670dbde277f6",
+      "name": "5a. Has Mix Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2200, 580]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-size-data",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "88d85737-f1af-4ff0-9cec-c6f66c0791a9",
+      "name": "5c. Has Size Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2200, 1020]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM mix_predictions",
+        "options": {}
+      },
+      "id": "5883d119-0dcb-4bc2-b009-b63ce5f14048",
+      "name": "6a. Delete Mix Predictions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2440, 520],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL for INSERT to mix_predictions table\nconst items = $('4a. Parse Mix Prediction Data').all();\n\nif (items.length === 0) {\n  return [{ json: { sql: '', count: 0 } }];\n}\n\nconst values = items.map(item => {\n  const d = item.json;\n  const key = d.key.replace(/'/g, \"''\");\n  const product_type = d.product_type.replace(/'/g, \"''\");\n  return `('${key}', '${product_type}', ${d.year}, ${d.week}, ${d.mix_percent})`;\n}).join(',\\n  ');\n\nconst sql = `\nINSERT INTO mix_predictions (key, product_type, year, week, mix_percent)\nVALUES\n  ${values}\n`;\n\nreturn [{ json: { sql, count: items.length, type: 'mix_predictions' } }];"
+      },
+      "id": "86ed4a83-9ccd-4a4a-bc0c-9caba64aaadd",
+      "name": "6a2. Build Mix Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 520]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "d0849a0b-11b7-4b91-9af9-d63108b5d896",
+      "name": "7a. Insert Mix Predictions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2940, 520],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL for UPSERT to week_settings table\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [{ json: { sql: '', count: 0 } }];\n}\n\nconst values = items.map(item => {\n  const d = item.json;\n  return `('${d.yearweek}', ${d.year}, ${d.week}, ${d.order_qty})`;\n}).join(',\\n  ');\n\nconst sql = `\nINSERT INTO week_settings (yearweek, year, week, order_qty)\nVALUES\n  ${values}\nON CONFLICT (yearweek) DO UPDATE SET\n  year = EXCLUDED.year,\n  week = EXCLUDED.week,\n  order_qty = EXCLUDED.order_qty\n`;\n\nreturn [{ json: { sql, count: items.length, type: 'week_settings' } }];"
+      },
+      "id": "0aca75ac-565d-445e-8950-d8416d196e51",
+      "name": "6b. Build Volume Upsert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 820]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "8d6dad15-0168-4075-acd8-9d17add60d27",
+      "name": "7b. Upsert Week Settings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2440, 820],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM size_projections_copy",
+        "options": {}
+      },
+      "id": "5e7974e5-74a1-41c4-b661-f17f466c47e0",
+      "name": "6c. Delete Size Projections",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2440, 980],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL for bulk INSERT to size_projections_copy table\nconst items = $('4c. Parse Size Mix Data').all();\n\nif (items.length === 0) {\n  return [{ json: { sql: '', count: 0 } }];\n}\n\nconst values = items.map(item => {\n  const d = item.json;\n  const sizeName = d.size_name.replace(/'/g, \"''\");\n  const productType = d.product_type.replace(/'/g, \"''\");\n  return `('${d.created_at}', ${d.projection}, '${sizeName}', '${productType}', ${d.year}, ${d.week})`;\n}).join(',\\n  ');\n\nconst sql = `\nINSERT INTO size_projections_copy (created_at, projection, size_name, product_type, year, week)\nVALUES\n  ${values}\n`;\n\nreturn [{ json: { sql, count: items.length, type: 'size_projections' } }];"
+      },
+      "id": "d93bd996-2453-4b89-9335-aea52d84b088",
+      "name": "7c. Build Size Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 980]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "0a3c0764-0b69-463b-96ba-2189344c54a9",
+      "name": "8c. Insert Size Projections",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2940, 980],
+      "credentials": {
+        "postgres": {
+          "id": "CSslwJXmoUQ1dbIi",
+          "name": "Retool"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "66f0ae44-3502-435b-bdf8-da2391469680",
+      "name": "8x. Merge Mix+Volume",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3200, 680]
+    },
+    {
+      "parameters": {},
+      "id": "088d5b33-9bda-4cae-afe3-1b34984c2ef5",
+      "name": "8. Wait For All",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3340, 780]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Detect issues by comparing new data to previous state\nconst now = new Date().toISOString();\nconst issues = [];\n\n// Get previous state captured at start of workflow\nlet prevMix = { total_rows: 0 };\nlet prevVolume = { total_rows: 0 };\nlet prevSize = { total_rows: 0 };\n\ntry {\n  const prevState = $('1b. Capture Previous State').all();\n  if (prevState[0]?.json) {\n    prevMix = prevState[0].json.mix || prevMix;\n    prevVolume = prevState[0].json.volume || prevVolume;\n    prevSize = prevState[0].json.size || prevSize;\n  }\n} catch (e) { /* First run or node not found */ }\n\n// Get new counts from upstream nodes\nlet mixCount = 0;\nlet volumeCount = 0;\nlet sizeCount = 0;\n\ntry {\n  const mixData = $('6a2. Build Mix Insert SQL').all();\n  mixCount = mixData[0]?.json?.count || 0;\n} catch (e) { issues.push('Mix Predictions: Failed to get count'); }\n\ntry {\n  const volData = $('6b. Build Volume Upsert SQL').all();\n  volumeCount = volData[0]?.json?.count || 0;\n} catch (e) { issues.push('Week Settings: Failed to get count'); }\n\ntry {\n  const sizeData = $('7c. Build Size Insert SQL').all();\n  sizeCount = sizeData[0]?.json?.count || 0;\n} catch (e) { issues.push('Size Projections: Failed to get count'); }\n\n// Check for zero counts (critical - data source likely broken)\nif (mixCount === 0) issues.push('🔴 Mix Predictions: 0 rows (sheet empty or parse failed)');\nif (volumeCount === 0) issues.push('🔴 Week Settings: 0 rows (Total Orders row missing?)');\nif (sizeCount === 0) issues.push('🔴 Size Projections: 0 rows (sheet empty or parse failed)');\n\n// Check for large changes vs previous (>30% drop is suspicious)\nconst CHANGE_THRESHOLD = 0.30;\n\nconst prevMixRows = prevMix.total_rows || 0;\nconst prevVolRows = prevVolume.total_rows || 0;\nconst prevSizeRows = prevSize.total_rows || 0;\n\nif (prevMixRows > 0 && mixCount > 0) {\n  const mixChange = (mixCount - prevMixRows) / prevMixRows;\n  if (mixChange < -CHANGE_THRESHOLD) {\n    issues.push(`⚠️ Mix Predictions: Dropped ${Math.abs(Math.round(mixChange * 100))}% (${prevMixRows} → ${mixCount})`);\n  }\n}\n\n// Skip drop-check for week_settings - uses UPSERT so old rows accumulate\n// (comparing new upsert count to total table rows isn't meaningful)\n\nif (prevSizeRows > 0 && sizeCount > 0) {\n  const sizeChange = (sizeCount - prevSizeRows) / prevSizeRows;\n  if (sizeChange < -CHANGE_THRESHOLD) {\n    issues.push(`⚠️ Size Projections: Dropped ${Math.abs(Math.round(sizeChange * 100))}% (${prevSizeRows} → ${sizeCount})`);\n  }\n}\n\n// Check for data that went from non-zero to zero\nif (prevMixRows > 0 && mixCount === 0) {\n  issues.push(`🔴 Mix Predictions: Was ${prevMixRows} rows, now EMPTY`);\n}\nif (prevVolRows > 0 && volumeCount === 0) {\n  issues.push(`🔴 Week Settings: Was ${prevVolRows} rows, now EMPTY`);\n}\nif (prevSizeRows > 0 && sizeCount === 0) {\n  issues.push(`🔴 Size Projections: Was ${prevSizeRows} rows, now EMPTY`);\n}\n\nconst hasIssues = issues.length > 0;\n\nlet message = '';\nif (hasIssues) {\n  message = `⚠️ *Sheets Sync Issues Detected*\\n\\n`;\n  message += `*Problems:*\\n`;\n  issues.forEach(issue => {\n    message += `• ${issue}\\n`;\n  });\n  message += `\\n*Current Counts:*\\n`;\n  message += `• Mix: ${mixCount} | Volume: ${volumeCount} | Size: ${sizeCount}\\n`;\n  message += `\\n*Previous Counts:*\\n`;\n  message += `• Mix: ${prevMixRows} | Volume: ${prevVolRows} | Size: ${prevSizeRows}\\n`;\n  message += `\\n🕐 ${now}`;\n}\n\nreturn [{ json: { hasIssues, issues, mixCount, volumeCount, sizeCount, prevMixRows, prevVolRows, prevSizeRows, text: message } }];"
+      },
+      "id": "a612c3e8-2636-4085-a9b4-84dee4e166b6",
+      "name": "9. Detect Issues",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 780]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-has-issues",
+              "leftValue": "={{ $json.hasIssues }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "issue-check-conditional",
+      "name": "9b. Has Issues?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3760, 780]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C083M27KU8L",
+          "mode": "id"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "id": "9360e34f-c839-4f3e-a494-4ba6e7464e38",
+      "name": "10. Slack Issue Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [4000, 720],
+      "webhookId": "b260b67e-d961-4d3f-b167-c62699333339",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build error message from workflow error\nconst error = $input.all()[0]?.json;\nconst errorMessage = error?.message || error?.error || JSON.stringify(error);\nconst nodeName = $execution?.workflow?.name || 'Daily Operations Sheets Sync';\n\nconst message = `❌ *Workflow Error: ${nodeName}*\n\n🔴 *Error:* ${errorMessage}\n\n🕐 Time: ${new Date().toISOString()}`;\n\nreturn [{ json: { text: message } }];"
+      },
+      "id": "6d11bdf5-56b0-432d-be1d-c606514aa5ab",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 1220]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C083M27KU8L",
+          "mode": "id"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "id": "dcad9743-e77e-4c14-90b6-c772dc5e562f",
+      "name": "Slack Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [2200, 1220],
+      "webhookId": "33d9adaf-3f25-492f-a9cb-27ff82bcbcdf",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "64614314-5fd9-4bdb-bed1-cc4d2089301a",
+      "name": "1. Hourly Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [1440, 820]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "2a. Get Mix Prediction Sheet": {
+      "main": [
+        [
+          {
+            "node": "4a. Parse Mix Prediction Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2c. Get Volume26JackExport Sheet": {
+      "main": [
+        [
+          {
+            "node": "4c. Parse Size Mix Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "4d. Parse Total Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4a. Parse Mix Prediction Data": {
+      "main": [
+        [
+          {
+            "node": "5a. Has Mix Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4d. Parse Total Orders": {
+      "main": [
+        [
+          {
+            "node": "6b. Build Volume Upsert SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4c. Parse Size Mix Data": {
+      "main": [
+        [
+          {
+            "node": "5c. Has Size Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5a. Has Mix Data?": {
+      "main": [
+        [
+          {
+            "node": "6a. Delete Mix Predictions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5c. Has Size Data?": {
+      "main": [
+        [
+          {
+            "node": "6c. Delete Size Projections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6a. Delete Mix Predictions": {
+      "main": [
+        [
+          {
+            "node": "6a2. Build Mix Insert SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6a2. Build Mix Insert SQL": {
+      "main": [
+        [
+          {
+            "node": "7a. Insert Mix Predictions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6b. Build Volume Upsert SQL": {
+      "main": [
+        [
+          {
+            "node": "7b. Upsert Week Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6c. Delete Size Projections": {
+      "main": [
+        [
+          {
+            "node": "7c. Build Size Insert SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7a. Insert Mix Predictions": {
+      "main": [
+        [
+          {
+            "node": "8x. Merge Mix+Volume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7b. Upsert Week Settings": {
+      "main": [
+        [
+          {
+            "node": "8x. Merge Mix+Volume",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "7c. Build Size Insert SQL": {
+      "main": [
+        [
+          {
+            "node": "8c. Insert Size Projections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8x. Merge Mix+Volume": {
+      "main": [
+        [
+          {
+            "node": "8. Wait For All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8c. Insert Size Projections": {
+      "main": [
+        [
+          {
+            "node": "8. Wait For All",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "8. Wait For All": {
+      "main": [
+        [
+          {
+            "node": "9. Detect Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Detect Issues": {
+      "main": [
+        [
+          {
+            "node": "9b. Has Issues?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9b. Has Issues?": {
+      "main": [
+        [
+          {
+            "node": "10. Slack Issue Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Slack Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Hourly Trigger": {
+      "main": [
+        [
+          {
+            "node": "1b. Capture Previous State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1b. Capture Previous State": {
+      "main": [
+        [
+          {
+            "node": "2a. Get Mix Prediction Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "2c. Get Volume26JackExport Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fa8e11c7-ede1-44e8-9f38-085c33fc060c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "pLjFlQDc9kEeA8DG",
+  "tags": [
+    {
+      "createdAt": "2025-12-08T19:42:04.171Z",
+      "updatedAt": "2025-12-08T19:42:04.171Z",
+      "id": "lEzklHffkgE3bRKm",
+      "name": "jack"
+    }
+  ]
+}

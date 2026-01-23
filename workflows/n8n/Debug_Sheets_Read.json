@@ -1,0 +1,130 @@
+{
+  "name": "Debug Sheets Read",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Mix Prediction",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "get-mix",
+      "name": "1. Get Mix Prediction Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [250, 100],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Volume26JackExport",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "get-size-mix",
+      "name": "3. Get Volume26JackExport Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [250, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// DEBUG: Analyze Mix Prediction Sheet structure\nconst data = $input.all().map(i => i.json);\n\nif (!data || data.length === 0) {\n  return [{ json: { error: 'No data received from sheet' } }];\n}\n\nconst allColumns = Object.keys(data[0]);\n\n// Analyze column patterns\nconst yearWeekCols = allColumns.filter(col => /^\\d{4}-\\d{1,2}$/.test(col));\nconst colXCols = allColumns.filter(col => /^col_\\d+$/.test(col));\nconst namedCols = allColumns.filter(col => !col.startsWith('col_') && !/^\\d{4}-\\d{1,2}$/.test(col));\n\n// Sample data from first 5 rows\nconst sampleRows = data.slice(0, 5).map((row, idx) => {\n  const sample = {};\n  // Get first 15 columns\n  allColumns.slice(0, 15).forEach(col => {\n    sample[col] = row[col];\n  });\n  // Get a few columns from the middle (around col_16-20)\n  allColumns.slice(15, 25).forEach(col => {\n    sample[col] = row[col];\n  });\n  return { rowIndex: idx, data: sample };\n});\n\nreturn [{\n  json: {\n    sheetName: 'Mix Prediction',\n    totalRows: data.length,\n    totalColumns: allColumns.length,\n    columnAnalysis: {\n      yearWeekFormat: yearWeekCols.length,\n      colXFormat: colXCols.length,\n      namedColumns: namedCols.length\n    },\n    first30Columns: allColumns.slice(0, 30),\n    yearWeekColumns: yearWeekCols.slice(0, 10),\n    namedColumns: namedCols,\n    sampleRows: sampleRows\n  }\n}];"
+      },
+      "id": "debug-mix",
+      "name": "Debug Mix Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// DEBUG: Analyze Volume26JackExport Sheet structure\nconst data = $input.all().map(i => i.json);\n\nif (!data || data.length === 0) {\n  return [{ json: { error: 'No data received from sheet' } }];\n}\n\nconst allColumns = Object.keys(data[0]);\n\n// Check for expected columns\nconst hasProductType = allColumns.includes('product_type');\nconst hasSizeName = allColumns.includes('size_name');\nconst yearWeekCols = allColumns.filter(col => /^\\d{4}-\\d{1,2}$/.test(col));\n\n// Find Total Orders row\nconst totalOrdersRow = data.find(row => \n  row.size_name === 'Total Orders' || \n  row.size_name === 'Total orders');\n\n// Sample first 5 rows\nconst sampleRows = data.slice(0, 5).map((row, idx) => {\n  const sample = {};\n  allColumns.slice(0, 20).forEach(col => {\n    sample[col] = row[col];\n  });\n  return { rowIndex: idx, data: sample };\n});\n\nreturn [{\n  json: {\n    sheetName: 'Volume26JackExport',\n    totalRows: data.length,\n    totalColumns: allColumns.length,\n    expectedColumnsFound: {\n      product_type: hasProductType,\n      size_name: hasSizeName,\n      yearWeekColumns: yearWeekCols.length\n    },\n    totalOrdersRowFound: !!totalOrdersRow,\n    first30Columns: allColumns.slice(0, 30),\n    yearWeekColumnsFound: yearWeekCols.slice(0, 10),\n    sampleRows: sampleRows\n  }\n}];"
+      },
+      "id": "debug-size",
+      "name": "Debug Size Mix Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// DEBUG: Test Total Orders extraction (same logic as 4d. Parse Total Orders)\nconst data = $input.all().map(i => i.json);\n\nif (!data || data.length === 0) {\n  return [{ json: { error: 'No data received', found: false } }];\n}\n\n// Find the Total Orders row\nconst totalOrdersRow = data.find(row => \n  row.size_name === 'Total Orders' || \n  row.size_name === 'Total orders');\n\nif (!totalOrdersRow) {\n  return [{ json: { \n    error: 'Total Orders row not found',\n    found: false,\n    allSizeNames: [...new Set(data.map(r => r.size_name).filter(Boolean))].slice(0, 20)\n  }}];\n}\n\nconst allColumns = Object.keys(totalOrdersRow);\nconst weekColumns = allColumns.filter(col => /^\\d{4}-\\d{1,2}$/.test(col));\n\n// Extract sample of total orders values\nconst sampleOrders = {};\nweekColumns.slice(0, 15).forEach(col => {\n  const value = totalOrdersRow[col];\n  sampleOrders[col] = {\n    raw: value,\n    type: typeof value,\n    parsed: typeof value === 'number' ? Math.round(value) : \n      (value ? parseInt(String(value).replace(/,/g, '')) : 0)\n  };\n});\n\n// Generate parsed output (same format as 4d node)\nconst results = [];\nweekColumns.forEach(col => {\n  const parts = col.split('-');\n  const year = parseInt(parts[0]);\n  const week = parseInt(parts[1]);\n  \n  if (isNaN(year) || isNaN(week)) return;\n  \n  const value = totalOrdersRow[col];\n  const orderQty = typeof value === 'number' ? Math.round(value) : \n    (value ? parseInt(String(value).replace(/,/g, '')) : 0);\n  \n  if (orderQty > 0) {\n    results.push({\n      year,\n      week,\n      yearweek: `${year}|${week}`,\n      order_qty: orderQty\n    });\n  }\n});\n\nreturn [{\n  json: {\n    found: true,\n    totalOrdersRow: {\n      size_name: totalOrdersRow.size_name,\n      product_type: totalOrdersRow.product_type\n    },\n    weekColumnsCount: weekColumns.length,\n    sampleOrderValues: sampleOrders,\n    parsedResultsCount: results.length,\n    parsedResultsSample: results.slice(0, 10)\n  }\n}];"
+      },
+      "id": "debug-total-orders",
+      "name": "Debug Total Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 700]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          { "node": "1. Get Mix Prediction Sheet", "type": "main", "index": 0 },
+          { "node": "3. Get Volume26JackExport Sheet", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "1. Get Mix Prediction Sheet": {
+      "main": [[{ "node": "Debug Mix Data", "type": "main", "index": 0 }]]
+    },
+    "3. Get Volume26JackExport Sheet": {
+      "main": [
+        [
+          { "node": "Debug Size Mix Data", "type": "main", "index": 0 },
+          { "node": "Debug Total Orders", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "debug-sheets-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "DebugSheetsRead001",
+  "tags": [{ "name": "debug" }]
+}

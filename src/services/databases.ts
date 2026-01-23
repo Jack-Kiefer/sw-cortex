@@ -160,7 +160,25 @@ async function createTunnel(config: DatabaseConfig): Promise<number> {
 
       sshClient.on('error', (err) => {
         server.close();
+        activeTunnels.delete(tunnelKey);
+        mysqlPools.delete(tunnelKey);
+        pgPools.delete(tunnelKey);
         reject(new Error(`SSH connection failed: ${err.message}`));
+      });
+
+      // Clean up when tunnel dies so next query creates a fresh one
+      sshClient.on('close', () => {
+        server.close();
+        activeTunnels.delete(tunnelKey);
+        mysqlPools.delete(tunnelKey);
+        pgPools.delete(tunnelKey);
+      });
+
+      sshClient.on('end', () => {
+        server.close();
+        activeTunnels.delete(tunnelKey);
+        mysqlPools.delete(tunnelKey);
+        pgPools.delete(tunnelKey);
       });
 
       sshClient.connect({

@@ -1,0 +1,218 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "25067af7-5a23-4b37-8683-37710145c5b8",
+      "name": "Every Sunday at 9 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [440, -120]
+    },
+    {
+      "parameters": {
+        "url": "https://serp.sugarwish.com/api/forecast/cost-tracker/last-week-average",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "Uu0gQjgbu2KmxXowcV5CFrzXNsiDHqSMKrUEvGgqiA0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "86995e58-cf37-4feb-b69e-536fc437e27c",
+      "name": "1. Get Last Week Average",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, -120]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Parse the average cost - it comes as a string like \"0.07621...\"\nconst rawCost = data.average_cost_per_item;\nlet costValue = 0;\n\nif (rawCost) {\n  // Parse the decimal string and round to 2 decimal places\n  costValue = parseFloat(rawCost);\n  if (isNaN(costValue)) costValue = 0;\n}\n\n// Format as currency string for the spreadsheet (e.g., \"$0.08\")\nconst formattedCost = `$${costValue.toFixed(2)}`;\n\nreturn [{\n  json: {\n    costValue: costValue,\n    formattedCost: formattedCost,\n    periodLabel: data.period_label,\n    totalItems: data.total_items_shipped,\n    startDate: data.start_date,\n    endDate: data.end_date\n  }\n}];"
+      },
+      "id": "a1d7e99c-a145-4e52-904c-f1d6f49ab692",
+      "name": "2. Format Cost Value",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, -120]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Scorecard26",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Weeks:": "={{ $json.periodLabel }}"
+          },
+          "matchingColumns": ["Weeks:"],
+          "schema": [
+            {
+              "id": "                                    ",
+              "displayName": "                                    ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Goal",
+              "displayName": "Goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Weeks:",
+              "displayName": "Weeks:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Goal",
+              "displayName": "Goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d9660fca-cd73-4959-b5ab-d8d441a5732b",
+      "name": "3. Update Scorecard F34",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1160, -120],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "ops-and-tech",
+          "mode": "name"
+        },
+        "text": "✅ Weekly cost updated in Scorecard\n• *Period:* {{ $('2. Format Cost Value').item.json.periodLabel }}\n• *Avg Cost/Item:* {{ $('2. Format Cost Value').item.json.formattedCost }}\n• *Items Shipped:* {{ $('2. Format Cost Value').item.json.totalItems.toLocaleString() }}\n• *Cell:* F34",
+        "otherOptions": {}
+      },
+      "id": "4f77fa08-1e40-43ef-b754-8029dd21f4bd",
+      "name": "4. Confirm in Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [1400, -120],
+      "webhookId": "a510ca31-c74d-4f06-acb9-a91650b19875",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Sunday at 9 AM": {
+      "main": [
+        [
+          {
+            "node": "1. Get Last Week Average",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Get Last Week Average": {
+      "main": [
+        [
+          {
+            "node": "2. Format Cost Value",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Format Cost Value": {
+      "main": [
+        [
+          {
+            "node": "3. Update Scorecard F34",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Update Scorecard F34": {
+      "main": [
+        [
+          {
+            "node": "4. Confirm in Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cc248439-b471-468d-9c98-5a0b42dd0f3c",
+  "meta": {
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "8tETscs44BzY1f3J",
+  "tags": []
+}
