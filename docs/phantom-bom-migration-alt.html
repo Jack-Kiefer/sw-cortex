@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Phantom BOM Migration - Alternative: Odoo Kit Sync Tables</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+        line-height: 1.6;
+        color: #333;
+      }
+      h1 {
+        border-bottom: 3px solid #714b67;
+        padding-bottom: 10px;
+      }
+      h2 {
+        color: #714b67;
+        margin-top: 40px;
+      }
+      h3 {
+        color: #555;
+        margin-top: 25px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background: #f5f5f5;
+      }
+      .owner {
+        color: #27ae60;
+        font-weight: 600;
+      }
+      .copy {
+        color: #888;
+      }
+      .new {
+        color: #714b67;
+        font-weight: 600;
+      }
+      code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+      .flow {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: monospace;
+        white-space: pre;
+        margin: 20px 0;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .highlight {
+        background: #f3e8ff;
+        padding: 15px;
+        border-left: 4px solid #714b67;
+        margin: 20px 0;
+      }
+      .warning {
+        background: #fef2f2;
+        padding: 15px;
+        border-left: 4px solid #e74c3c;
+        margin: 20px 0;
+      }
+      .success {
+        background: #f0fdf4;
+        padding: 15px;
+        border-left: 4px solid #27ae60;
+        margin: 20px 0;
+      }
+      .compare {
+        background: #fffbeb;
+        padding: 15px;
+        border-left: 4px solid #f59e0b;
+        margin: 20px 0;
+      }
+      ul li {
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Alternative: Odoo Kit Sync Tables</h1>
+    <p><strong>Keep Odoo kits separate from Laravel kits</strong></p>
+
+    <div class="highlight">
+      <strong>Key difference:</strong> Instead of copying Odoo kit components INTO Laravel kits,
+      create dedicated tables that sync FROM Odoo and expand at order time.<br /><br />
+      <strong>Why this matters:</strong> No need to duplicate Odoo kit components across seasonal
+      and non-seasonal Laravel kit variants. Odoo kits are linked to the buyer_product, not
+      individual Laravel kits.
+    </div>
+
+    <h2>Why This Approach?</h2>
+    <table>
+      <tr>
+        <th>Problem with Original</th>
+        <th>This Solution</th>
+      </tr>
+      <tr>
+        <td>~4,000 component_kit rows to manage</td>
+        <td>~800 Odoo kit line rows (synced automatically)</td>
+      </tr>
+      <tr>
+        <td>If Odoo kit changes, manually update Laravel kits</td>
+        <td>Sync job keeps Odoo kit tables fresh</td>
+      </tr>
+      <tr>
+        <td>Odoo kits mixed into Laravel kit system</td>
+        <td>Clear separation: Laravel kits vs Odoo kits</td>
+      </tr>
+      <tr>
+        <td>One-time migration</td>
+        <td>Ongoing sync (always current)</td>
+      </tr>
+    </table>
+
+    <h2>New Tables</h2>
+
+    <h3>1. odoo_boms</h3>
+    <p>Mirrors Odoo's <code>mrp.bom</code> table (phantom kits only)</p>
+    <table>
+      <tr>
+        <th>Column</th>
+        <th>Type</th>
+        <th>Purpose</th>
+      </tr>
+      <tr>
+        <td><code>id</code></td>
+        <td>bigint</td>
+        <td>Primary key</td>
+      </tr>
+      <tr>
+        <td><code>odoo_bom_id</code></td>
+        <td>int</td>
+        <td>Odoo mrp.bom ID</td>
+      </tr>
+      <tr>
+        <td><code>product_sku</code></td>
+        <td>varchar(50)</td>
+        <td>Parent product SKU (matches buyer_products)</td>
+      </tr>
+      <tr>
+        <td><code>buyer_product_id</code></td>
+        <td>int FK</td>
+        <td>Links to buyer_products table</td>
+      </tr>
+      <tr>
+        <td><code>type</code></td>
+        <td>varchar(20)</td>
+        <td>'phantom' (always for this use case)</td>
+      </tr>
+      <tr>
+        <td><code>active</code></td>
+        <td>tinyint</td>
+        <td>Is this Odoo kit active?</td>
+      </tr>
+      <tr>
+        <td><code>synced_at</code></td>
+        <td>timestamp</td>
+        <td>Last sync from Odoo</td>
+      </tr>
+    </table>
+
+    <h3>2. odoo_bom_lines</h3>
+    <p>Mirrors Odoo's <code>mrp.bom.line</code> table</p>
+    <table>
+      <tr>
+        <th>Column</th>
+        <th>Type</th>
+        <th>Purpose</th>
+      </tr>
+      <tr>
+        <td><code>id</code></td>
+        <td>bigint</td>
+        <td>Primary key</td>
+      </tr>
+      <tr>
+        <td><code>odoo_bom_id</code></td>
+        <td>int FK</td>
+        <td>Links to odoo_boms</td>
+      </tr>
+      <tr>
+        <td><code>odoo_line_id</code></td>
+        <td>int</td>
+        <td>Odoo mrp.bom.line ID</td>
+      </tr>
+      <tr>
+        <td><code>component_sku</code></td>
+        <td>varchar(50)</td>
+        <td>Component SKU (S-*, P-*, I-*)</td>
+      </tr>
+      <tr>
+        <td><code>component_name</code></td>
+        <td>varchar(100)</td>
+        <td>Component name</td>
+      </tr>
+      <tr>
+        <td><code>odoo_product_id</code></td>
+        <td>int</td>
+        <td>Odoo product.product ID (for sync)</td>
+      </tr>
+      <tr>
+        <td><code>quantity</code></td>
+        <td>decimal(10,2)</td>
+        <td>Quantity per Odoo kit</td>
+      </tr>
+      <tr>
+        <td><code>synced_at</code></td>
+        <td>timestamp</td>
+        <td>Last sync from Odoo</td>
+      </tr>
+    </table>
+
+    <h3>3. component_orders (modified)</h3>
+    <p>Add columns to existing table</p>
+    <table>
+      <tr>
+        <th>New Column</th>
+        <th>Type</th>
+        <th>Purpose</th>
+      </tr>
+      <tr>
+        <td><code>source</code></td>
+        <td>varchar(20)</td>
+        <td>'kit' or 'bom' - where this came from</td>
+      </tr>
+      <tr>
+        <td><code>odoo_bom_id</code></td>
+        <td>int FK nullable</td>
+        <td>If source='bom', links to odoo_boms</td>
+      </tr>
+      <tr>
+        <td><code>odoo_product_id</code></td>
+        <td>int nullable</td>
+        <td>Odoo product ID for sync</td>
+      </tr>
+      <tr>
+        <td><code>odoo_sync</code></td>
+        <td>tinyint</td>
+        <td>0=pending, 1=synced, 2=failed</td>
+      </tr>
+      <tr>
+        <td><code>odoo_synced_at</code></td>
+        <td>timestamp nullable</td>
+        <td>When synced to Odoo</td>
+      </tr>
+    </table>
+
+    <h2>How It Works</h2>
+
+    <h3>Step 1: Order Placed</h3>
+    <table>
+      <tr>
+        <th style="width: 50%">Kit Expansion (existing)</th>
+        <th style="width: 50%">Odoo Kit Expansion (NEW)</th>
+      </tr>
+      <tr>
+        <td>
+          <code>component_orders</code> created with <code>source='kit'</code><br />
+          Contains: Boxes, inserts, mugs, accessories
+        </td>
+        <td>
+          1. Get <code>buyer_product_id</code> from order<br />
+          2. Query <code>odoo_boms</code><br />
+          3. Query <code>odoo_bom_lines</code><br />
+          4. Create <code>component_orders</code> with <code>source='bom'</code><br />
+          Contains: Shippers, production paper, cups
+        </td>
+      </tr>
+    </table>
+
+    <h3>Step 2: Sync Job (every 5 min)</h3>
+    <table>
+      <tr>
+        <th style="background: #fef2f2; color: #e94560">Laravel</th>
+        <th style="width: 60px"></th>
+        <th style="background: #f3e8ff; color: #714b67">Odoo</th>
+      </tr>
+      <tr>
+        <td>Query: <code>WHERE source='bom' AND odoo_sync=0</code></td>
+        <td style="text-align: center">→</td>
+        <td>Decrement <code>stock.quant</code></td>
+      </tr>
+      <tr>
+        <td>Update: <code>odoo_sync = 1</code></td>
+        <td></td>
+        <td>Inventory updated</td>
+      </tr>
+    </table>
+
+    <h2>Data Flow</h2>
+    <table>
+      <tr>
+        <th style="background: #f3e8ff; color: #714b67">Odoo</th>
+        <th style="width: 60px"></th>
+        <th style="background: #fef2f2; color: #e94560">Laravel</th>
+      </tr>
+      <tr>
+        <td>mrp.bom (267 Odoo kits)</td>
+        <td style="text-align: center">→</td>
+        <td>odoo_boms table</td>
+      </tr>
+      <tr>
+        <td>mrp.bom.line (~800 lines)</td>
+        <td style="text-align: center">→</td>
+        <td>odoo_bom_lines table</td>
+      </tr>
+      <tr>
+        <td colspan="3" style="background: #fff3cd; text-align: center">
+          <strong>Order placed</strong>
+        </td>
+      </tr>
+      <tr>
+        <td>-</td>
+        <td></td>
+        <td>component_orders created (source='bom')</td>
+      </tr>
+      <tr>
+        <td>stock.quant decremented</td>
+        <td style="text-align: center">←</td>
+        <td>Sync job pushes decrements</td>
+      </tr>
+    </table>
+
+    <h2>Comparison</h2>
+    <table>
+      <tr>
+        <th>Aspect</th>
+        <th>Original (Modify Kits)</th>
+        <th class="new">This (New Tables)</th>
+      </tr>
+      <tr>
+        <td>Tables created</td>
+        <td>0</td>
+        <td class="new">2</td>
+      </tr>
+      <tr>
+        <td>Tables modified</td>
+        <td>2 (components, component_kits)</td>
+        <td class="new">1 (component_orders)</td>
+      </tr>
+      <tr>
+        <td>Rows to add</td>
+        <td>~4,000 component_kit rows</td>
+        <td class="new">~800 Odoo kit line rows</td>
+      </tr>
+      <tr>
+        <td>Odoo changes</td>
+        <td>Manual kit updates</td>
+        <td class="new">Auto-sync</td>
+      </tr>
+      <tr>
+        <td>Separation</td>
+        <td>Odoo kits mixed into Laravel kits</td>
+        <td class="new">Odoo kits separate</td>
+      </tr>
+      <tr>
+        <td>Code changes</td>
+        <td>1 sync command</td>
+        <td class="new">2 sync commands + service change</td>
+      </tr>
+      <tr>
+        <td>Rollback</td>
+        <td>Delete component_kit rows</td>
+        <td class="new">Set active=0 on Odoo kits</td>
+      </tr>
+    </table>
+
+    <h2>When to Use This Approach</h2>
+
+    <div class="success">
+      <strong>Use this if:</strong>
+      <ul>
+        <li>Odoo kits change frequently</li>
+        <li>You want kits to stay focused on "what's in the box"</li>
+        <li>You want clear visibility into Odoo vs Laravel data</li>
+        <li>You may need to turn off Odoo kit sync without touching Laravel kits</li>
+      </ul>
+    </div>
+
+    <div class="warning">
+      <strong>Use original approach if:</strong>
+      <ul>
+        <li>Odoo kits are stable (rarely change)</li>
+        <li>You want minimal new tables</li>
+        <li>You prefer everything in one component system</li>
+      </ul>
+    </div>
+  </body>
+</html>

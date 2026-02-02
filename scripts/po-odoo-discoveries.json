@@ -1,0 +1,53 @@
+[
+  {
+    "title": "Laravel PO System - Complete Infrastructure Without Odoo Sync",
+    "source": "exploration",
+    "sourceDatabase": "laravel_staging",
+    "tableName": "purchase_orders",
+    "description": "Laravel staging environment has fully implemented purchase order system with multi-stage approval workflow (ops_approved_at, finance_approved_at). Tables include purchase_orders (main), purchase_items (line items with quantity_arrived, arrived_at, bill_id tracking), and suppliers table. Critical finding: No Odoo sync fields currently exist (no odoo_id columns on any tables), indicating this is a standalone system. PO approval flow: created → ops_approved → finance_approved before fulfillment.",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-orders", "laravel", "approval-workflow", "standalone-system"]
+  },
+  {
+    "title": "Odoo Vendor Bill 3-Way Matching Architecture",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "tableName": "account.move",
+    "columnName": "purchase_order_id",
+    "description": "Odoo implements 3-way matching for vendor billing: PO ↔ Receipt ↔ Bill. Vendor bills (account.move with move_type='in_invoice') link to purchase orders via account_move_purchase_order_rel junction table. Bill lines (account_move_line) have purchase_line_id FK to purchase_order_line for line-level matching. This enables reconciliation: PO quantities vs. received inventory vs. billed amounts. Enables validation that received matches billed before payment.",
+    "type": "relationship",
+    "priority": 4,
+    "tags": ["odoo-integration", "billing", "inventory", "3-way-matching"]
+  },
+  {
+    "title": "Odoo Inventory Update API - Constraints and Methods",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "tableName": "stock.quant",
+    "description": "External systems updating Odoo inventory must use stock.quant model with action_apply_inventory() or update inventory_diff_quantity field. Critical constraint: MUST target locations with usage IN ['internal', 'transit'] only. Cannot update 'view' type locations (which are virtual aggregates). Product IDs must match exactly between systems. This is the supported API path for external inventory sync - do not directly manipulate stock.move records.",
+    "type": "insight",
+    "priority": 4,
+    "tags": ["odoo-integration", "inventory", "api-constraints"]
+  },
+  {
+    "title": "Standalone PO to Odoo Integration - Master Data Dependencies",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "description": "Beyond inventory sync, integrating a standalone PO system (like Laravel) with Odoo requires addressing: (1) Product master sync - products must pre-exist in Odoo with matching IDs; (2) Vendor/Partner sync - partners needed for bill creation; (3) Receipt line-level data - required for 3-way matching if billing in Odoo; (4) Cost tracking - landed costs affect inventory valuation and must sync; (5) Backorders/partials - Odoo tracks qty_received vs qty_ordered on purchase_order_line, partial receipts must update this. Cannot simply sync quantities without addressing master data alignment.",
+    "type": "insight",
+    "priority": 4,
+    "tags": ["purchase-orders", "odoo-integration", "master-data", "architecture"]
+  },
+  {
+    "title": "Odoo Purchase Order Line - Quantity Tracking Fields",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order_line",
+    "columnName": "qty_received",
+    "description": "purchase_order_line tracks fulfillment state with qty_ordered (PO quantity) and qty_received (actual received). qty_received is updated by receiving stock moves. External PO systems syncing receipts to Odoo must update this field to maintain inventory accuracy and enable proper backorder handling. Partial receipts supported: qty_received < qty_ordered indicates backorder state.",
+    "type": "fact",
+    "priority": 3,
+    "tags": ["odoo-integration", "purchase-orders", "quantity-tracking"]
+  }
+]

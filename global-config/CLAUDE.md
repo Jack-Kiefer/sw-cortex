@@ -86,7 +86,7 @@ Read-only access to production databases.
 
 ```
 mcp__db__list_databases
-mcp__db__list_tables { database: "wishdesk|sugarwish|odoo|retool" }
+mcp__db__list_tables { database: "wishdesk|sugarwish|odoo|odoo_staging|retool" }
 mcp__db__describe_table { database, table }
 mcp__db__query_database { database, query, limit? }
 ```

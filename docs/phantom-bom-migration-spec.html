@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Odoo Kits to Laravel Kits Migration</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+        line-height: 1.6;
+        color: #333;
+      }
+      h1 {
+        border-bottom: 3px solid #e94560;
+        padding-bottom: 10px;
+      }
+      h2 {
+        color: #e94560;
+        margin-top: 40px;
+      }
+      h3 {
+        color: #555;
+        margin-top: 25px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background: #f5f5f5;
+      }
+      .owner {
+        color: #27ae60;
+        font-weight: 600;
+      }
+      .copy {
+        color: #888;
+      }
+      .skip {
+        color: #e74c3c;
+        font-weight: 600;
+      }
+      code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+      .flow {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: monospace;
+        white-space: pre;
+        margin: 20px 0;
+      }
+      .highlight {
+        background: #fff3cd;
+        padding: 15px;
+        border-left: 4px solid #e94560;
+        margin: 20px 0;
+      }
+      .warning {
+        background: #fef2f2;
+        padding: 15px;
+        border-left: 4px solid #e74c3c;
+        margin: 20px 0;
+      }
+      .success {
+        background: #f0fdf4;
+        padding: 15px;
+        border-left: 4px solid #27ae60;
+        margin: 20px 0;
+      }
+      ul li {
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Odoo Kits to Laravel Kits</h1>
+    <p><strong>Move inventory decrements from Odoo to Laravel</strong></p>
+
+    <h2>Goal</h2>
+    <p>
+      Add Odoo kit components (shippers, production paper, cups) to existing Laravel kits so all
+      inventory decrements happen through Laravel instead of Odoo.
+    </p>
+
+    <h2>Current State</h2>
+    <table>
+      <tr>
+        <th style="background: #fef2f2; color: #e94560">Laravel Kits</th>
+        <th style="background: #f3e8ff; color: #714b67">Odoo Kits</th>
+      </tr>
+      <tr>
+        <td>Boxes, inserts, mugs, accessories</td>
+        <td>Shippers, production paper, cups</td>
+      </tr>
+      <tr>
+        <td>Creates <code>component_orders</code></td>
+        <td>Decrements inventory directly</td>
+      </tr>
+      <tr>
+        <td>~900 existing kits</td>
+        <td>267 Odoo kits</td>
+      </tr>
+    </table>
+    <div class="warning">
+      <strong>Gap:</strong> <code>component_orders</code> has no <code>odoo_sync</code> field, so
+      nothing syncs back to Odoo.
+    </div>
+
+    <h2>What's in Odoo Kits</h2>
+    <table>
+      <tr>
+        <th>Component Type</th>
+        <th>Prefix</th>
+        <th>Count</th>
+        <th>Migrate?</th>
+      </tr>
+      <tr>
+        <td>Shippers</td>
+        <td><code>S-*</code></td>
+        <td>40 SKUs</td>
+        <td class="owner">Yes</td>
+      </tr>
+      <tr>
+        <td>Inserts / Cups</td>
+        <td><code>I-*</code></td>
+        <td>20 SKUs</td>
+        <td class="owner">Yes</td>
+      </tr>
+      <tr>
+        <td>Production Paper</td>
+        <td><code>P-*</code></td>
+        <td>2 SKUs</td>
+        <td class="owner">Yes</td>
+      </tr>
+      <tr>
+        <td>Boxes</td>
+        <td><code>B-*</code></td>
+        <td>8 SKUs</td>
+        <td class="owner">Yes</td>
+      </tr>
+      <tr>
+        <td>Extras (care cards, coasters)</td>
+        <td><code>E-*</code>, <code>SA-*</code></td>
+        <td>11 SKUs</td>
+        <td class="owner">Yes</td>
+      </tr>
+      <tr>
+        <td>Labels</td>
+        <td><code>L-*</code></td>
+        <td>1 SKU</td>
+        <td class="skip">No (qty=0)</td>
+      </tr>
+      <tr>
+        <td>Tape</td>
+        <td><code>T-*</code></td>
+        <td>1 SKU</td>
+        <td class="skip">No (qty=0)</td>
+      </tr>
+      <tr>
+        <td>Test items</td>
+        <td><code>QA-TEST-*</code></td>
+        <td>3 SKUs</td>
+        <td class="skip">No (test data)</td>
+      </tr>
+    </table>
+    <p><strong>Total to migrate:</strong> ~80 unique components</p>
+
+    <h2>How It Will Work</h2>
+    <table style="margin: 20px 0">
+      <tr>
+        <th style="background: #fef2f2; color: #e94560">Laravel</th>
+        <th style="width: 60px"></th>
+        <th style="background: #f3e8ff; color: #714b67">Odoo</th>
+      </tr>
+      <tr>
+        <td>Order placed</td>
+        <td></td>
+        <td style="color: #999">-</td>
+      </tr>
+      <tr>
+        <td>Kit expanded to <code>component_orders</code></td>
+        <td></td>
+        <td style="color: #999">-</td>
+      </tr>
+      <tr>
+        <td>(includes shipper, paper, cups now)</td>
+        <td></td>
+        <td style="color: #999">-</td>
+      </tr>
+      <tr style="background: #fff3cd">
+        <td><strong>Sync job runs</strong></td>
+        <td style="text-align: center">-></td>
+        <td><strong>Inventory decremented</strong></td>
+      </tr>
+      <tr>
+        <td>Mark <code>odoo_sync = 1</code></td>
+        <td></td>
+        <td style="color: #999">-</td>
+      </tr>
+    </table>
+    <p><strong>Key:</strong> Yellow row = data pushed from Laravel to Odoo</p>
+
+    <h2>Multiple Kits Per Product</h2>
+    <p>
+      Most buyer_products have 4-7 kit variants (sizes, seasonal). Odoo kit components should be
+      added to <strong>all</strong> kits for that product.
+    </p>
+
+    <h2>Database Changes</h2>
+    <table>
+      <tr>
+        <th>Table</th>
+        <th>Change</th>
+      </tr>
+      <tr>
+        <td><code>component_orders</code></td>
+        <td>
+          Add <code>odoo_sync TINYINT(1) DEFAULT 0</code><br />
+          Add <code>odoo_synced_at TIMESTAMP NULL</code>
+        </td>
+      </tr>
+      <tr>
+        <td><code>components</code></td>
+        <td>Import ~80 new components from Odoo</td>
+      </tr>
+      <tr>
+        <td><code>component_kits</code></td>
+        <td>Add ~4,000 new rows (267 Odoo kits x 5 Laravel kits x 3 components)</td>
+      </tr>
+    </table>
+
+    <h2>Scale</h2>
+    <ul>
+      <li>267 Odoo kits to migrate</li>
+      <li>~80 components to import</li>
+      <li>~900 existing kits to expand</li>
+      <li>~4,000 new <code>component_kits</code> rows</li>
+      <li>Adds ~3 components per kit (shipper, paper, cup/insert)</li>
+    </ul>
+
+    <h2>Decisions Made</h2>
+    <table>
+      <tr>
+        <th>Question</th>
+        <th>Decision</th>
+      </tr>
+      <tr>
+        <td>Kit variants</td>
+        <td class="owner">Add to ALL kits for each product</td>
+      </tr>
+      <tr>
+        <td>Historical orders</td>
+        <td class="owner">New orders only (no backfill)</td>
+      </tr>
+      <tr>
+        <td>Missing kits</td>
+        <td class="owner">Auto-create default kit</td>
+      </tr>
+      <tr>
+        <td>Receiving</td>
+        <td class="owner">Keep in Odoo</td>
+      </tr>
+    </table>
+
+    <div class="highlight">
+      <strong>Sync cutoff:</strong> Only <code>component_orders</code> created after migration will
+      sync. Add <code>WHERE created_at > '2026-01-28'</code> to sync query.
+    </div>
+  </body>
+</html>

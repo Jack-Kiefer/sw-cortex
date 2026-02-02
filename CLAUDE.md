@@ -154,7 +154,10 @@ All production database access is READ-ONLY. Never run write queries against pro
 - `wishdesk` - WishDesk MySQL
 - `sugarwish` - Live SugarWish MySQL
 - `odoo` - Odoo PostgreSQL
+- `odoo_staging` - Odoo Staging PostgreSQL
 - `retool` - Retool PostgreSQL
+- `laravel_local` - Laravel Local MySQL
+- `laravel_staging` - Laravel Staging MySQL
 
 ### MCP Tools
 

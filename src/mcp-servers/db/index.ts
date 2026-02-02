@@ -5,9 +5,12 @@
  *
  * Read-only access to:
  * - WishDesk (MySQL)
- * - SugarWish Live (MySQL)
+ * - Laravel (MySQL)
  * - Odoo (PostgreSQL)
+ * - Odoo Staging (PostgreSQL)
  * - Retool (PostgreSQL)
+ * - Laravel Local (MySQL)
+ * - Laravel Staging (MySQL)
  */
 
 import dotenv from 'dotenv';
@@ -41,13 +44,14 @@ const tools: Tool[] = [
   {
     name: 'query_database',
     description:
-      'Execute a read-only SQL query against a database (wishdesk, sugarwish, odoo, retool)',
+      'Execute a read-only SQL query against a database (wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_staging)',
     inputSchema: {
       type: 'object',
       properties: {
         database: {
           type: 'string',
-          description: 'Database name: wishdesk, sugarwish, odoo, retool',
+          description:
+            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_staging',
         },
         query: { type: 'string', description: 'SQL query (SELECT only)' },
         limit: { type: 'number', description: 'Max rows to return' },
@@ -63,7 +67,8 @@ const tools: Tool[] = [
       properties: {
         database: {
           type: 'string',
-          description: 'Database name: wishdesk, sugarwish, odoo, retool',
+          description:
+            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_staging',
         },
       },
       required: ['database'],

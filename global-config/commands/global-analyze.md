@@ -141,7 +141,7 @@ Use WebSearch, WebFetch
 Analyze database structures for: [topic]
 
 TOOLS TO USE (call these directly as tools, NOT via Bash):
-- mcp__db__list_tables - list tables in a database (pass database: "wishdesk|sugarwish|odoo|retool")
+- mcp__db__list_tables - list tables in a database (pass database: "wishdesk|sugarwish|odoo|odoo_staging|retool")
 - mcp__db__describe_table - get table schema (pass database and table)
 - mcp__db__query_database - run SELECT queries (pass database, query, and limit)
 
@@ -265,7 +265,7 @@ Required fields for add_discovery:
 - type: one of "fact", "relationship", "pattern", "insight", "anomaly"
 
 Optional fields:
-- sourceDatabase: "wishdesk", "sugarwish", "odoo", or "retool"
+- sourceDatabase: "wishdesk", "sugarwish", "odoo", "odoo_staging", or "retool"
 - tableName: specific table name
 - tags: array of strings
 - priority: 1-4 (4 is critical)

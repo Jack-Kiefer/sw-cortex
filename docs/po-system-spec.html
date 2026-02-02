@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Standalone PO System Specification</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+        line-height: 1.6;
+        color: #333;
+      }
+      h1 {
+        border-bottom: 3px solid #e94560;
+        padding-bottom: 10px;
+      }
+      h2 {
+        color: #e94560;
+        margin-top: 40px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background: #f5f5f5;
+      }
+      .owner {
+        color: #27ae60;
+        font-weight: 600;
+      }
+      .copy {
+        color: #888;
+      }
+      code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+      .flow {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: monospace;
+        white-space: pre;
+        margin: 20px 0;
+      }
+      .highlight {
+        background: #fff3cd;
+        padding: 15px;
+        border-left: 4px solid #e94560;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Standalone PO System</h1>
+    <p><strong>Laravel → Odoo Integration</strong></p>
+
+    <h2>Goal</h2>
+    <ul>
+      <li>Move as little as possible from Odoo to SERP</li>
+      <li>
+        Build an atomic piece that can be built upon for incremental migrations of data and
+        functionality
+      </li>
+      <li>
+        Start by replicating what already exists in Odoo, then later build additional
+        functionalities on top
+      </li>
+      <li>
+        Simplifies sign-off: purchasing team can approve this piece and work together to make it
+        work
+      </li>
+      <li>As more functionalities are added, can work with different teams incrementally</li>
+    </ul>
+
+    <h2>How It Works</h2>
+    <table style="margin: 20px 0">
+      <tr>
+        <th style="background: #fef2f2; color: #e94560">Laravel</th>
+        <th style="width: 60px"></th>
+        <th style="background: #f3e8ff; color: #714b67">Odoo</th>
+      </tr>
+      <tr>
+        <td>Create PO</td>
+        <td></td>
+        <td style="color: #999">—</td>
+      </tr>
+      <tr>
+        <td>Approve (Ops → Finance)</td>
+        <td></td>
+        <td style="color: #999">—</td>
+      </tr>
+      <tr>
+        <td>Order sent to vendor</td>
+        <td></td>
+        <td style="color: #999">—</td>
+      </tr>
+      <tr style="background: #fff3cd">
+        <td><strong>Goods arrive</strong></td>
+        <td style="text-align: center">→</td>
+        <td><strong>PO + Receipt created, inventory updated</strong></td>
+      </tr>
+      <tr style="background: #fff3cd">
+        <td><strong>More goods arrive</strong></td>
+        <td style="text-align: center">→</td>
+        <td><strong>Receipt added, inventory updated</strong></td>
+      </tr>
+      <tr>
+        <td style="color: #999">—</td>
+        <td></td>
+        <td>Accountant creates bill from PO</td>
+      </tr>
+      <tr>
+        <td style="color: #999">—</td>
+        <td></td>
+        <td>Accountant pays vendor</td>
+      </tr>
+    </table>
+    <p><strong>Key:</strong> Yellow rows = data pushed from Laravel to Odoo</p>
+
+    <h2>Which Database Owns What</h2>
+    <table>
+      <tr>
+        <th>Data</th>
+        <th>Laravel</th>
+        <th>Odoo</th>
+      </tr>
+      <tr>
+        <td>Purchase orders</td>
+        <td class="owner">Owner</td>
+        <td class="copy">Copy (on arrival)</td>
+      </tr>
+      <tr>
+        <td>Approvals & backorders</td>
+        <td class="owner">Owner</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Arrivals</td>
+        <td class="owner">Owner</td>
+        <td class="copy">Copy (as receipts)</td>
+      </tr>
+      <tr>
+        <td>Suppliers</td>
+        <td class="owner">Owner</td>
+        <td class="copy">Mapping</td>
+      </tr>
+      <tr>
+        <td>Supplier → Product mappings</td>
+        <td class="owner">Owner</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Raw materials</td>
+        <td>—</td>
+        <td class="owner">Owner</td>
+      </tr>
+      <tr>
+        <td>Components</td>
+        <td>—</td>
+        <td class="owner">Owner</td>
+      </tr>
+      <tr>
+        <td>Shelves / Locations</td>
+        <td>—</td>
+        <td class="owner">Owner</td>
+      </tr>
+      <tr>
+        <td>Inventory, Bills, Payments</td>
+        <td>—</td>
+        <td class="owner">Owner</td>
+      </tr>
+    </table>
+
+    <h2>What Gets Pushed to Odoo</h2>
+    <table>
+      <tr>
+        <th>Event</th>
+        <th>What Odoo Receives</th>
+      </tr>
+      <tr>
+        <td>First arrival</td>
+        <td>PO + Receipt</td>
+      </tr>
+      <tr>
+        <td>More arrivals or edits to arrival amounts</td>
+        <td>Additional receipts</td>
+      </tr>
+    </table>
+    <div class="highlight"><strong>One-way push. No sync back.</strong></div>
+
+    <h2>Billing Unchanged</h2>
+    <ul>
+      <li>Accountants still bill in Odoo</li>
+      <li>PO appears when goods arrive</li>
+      <li>Bill what's been received</li>
+      <li>Partial billing works</li>
+      <li><strong>No workflow change for accounting</strong></li>
+    </ul>
+
+    <h2>Database Changes</h2>
+    <table>
+      <tr>
+        <th>Table</th>
+        <th>Columns to Add</th>
+      </tr>
+      <tr>
+        <td>suppliers</td>
+        <td><code>odoo_partner_id</code></td>
+      </tr>
+      <tr>
+        <td>purchase_orders</td>
+        <td><code>odoo_po_id</code>, <code>odoo_pushed_at</code></td>
+      </tr>
+      <tr>
+        <td>purchase_items</td>
+        <td><code>odoo_po_line_id</code>, <code>odoo_qty_pushed</code></td>
+      </tr>
+      <tr>
+        <td>components</td>
+        <td><code>odoo_product_id</code></td>
+      </tr>
+    </table>
+
+    <h2>Data Migration</h2>
+    <h3>One-time: Odoo → Laravel</h3>
+    <ul>
+      <li>All suppliers (with ID mapping)</li>
+      <li>All POs (historical + open)</li>
+      <li>All PO line items</li>
+      <li>All arrival quantities</li>
+    </ul>
+
+    <h2>Initial Implementation</h2>
+    <p><em>Replicate existing Odoo functionality</em></p>
+    <ul>
+      <li>Draft purchase orders (save without sending)</li>
+      <li>Mark arrivals and push to Odoo</li>
+      <li>Edit purchase orders</li>
+      <li>Edit arrival amounts after arrival (sends another update to Odoo)</li>
+      <li>Generate PDF of purchase orders</li>
+      <li>Activity log (changes, notes, supplier communications, approvals)</li>
+      <li>Backorder tracking</li>
+      <li>Dock receipt vs inventory receipt (only inventory receipt pushes to Odoo)</li>
+    </ul>
+
+    <h2>Non-Odoo Improvements</h2>
+    <p><em>Beyond what exists in Odoo right now</em></p>
+    <ul>
+      <li>Build PO from supplier forecast</li>
+      <li>Send email to suppliers through application</li>
+      <li>Blanket purchase orders</li>
+      <li>Approval workflow (Ops → Finance)</li>
+    </ul>
+
+    <h2>Possible Future Additions</h2>
+    <p><em>After purchase order system is complete</em></p>
+    <ul>
+      <li>
+        <strong>Bills:</strong> Create bills in SERP linked to purchase orders. Would no longer need
+        to send full PO to Odoo—just inventory quantities. (Depends on purchase orders being moved
+        first.)
+      </li>
+      <li>
+        <strong>Raw materials and components:</strong> Move all data from Odoo to Laravel. Create
+        and update in SERP. Inventory counts still managed in Odoo.
+      </li>
+      <li>
+        <strong>Manufacture orders:</strong> Move Bill of Materials ownership to Laravel. Create
+        manufacture orders in SERP and send to Odoo. (Depends on raw materials being moved first.)
+      </li>
+    </ul>
+
+    <h2>Risks & Edge Cases</h2>
+    <ul>
+      <li>
+        <strong>Sync must be transactional:</strong> Only mark as synced after Odoo confirms success
+      </li>
+      <li>
+        <strong>Correction handling:</strong> Define what happens when arrival amounts are edited
+        down
+      </li>
+      <li>
+        <strong>Cancellation handling:</strong> Define what happens if PO cancelled after partial
+        receipt
+      </li>
+    </ul>
+
+    <h2>Next Steps</h2>
+    <ol>
+      <li>Add new columns to Laravel tables</li>
+      <li>Migrate suppliers + PO history from Odoo</li>
+      <li>Update SERP PO app to pull from Odoo (shelves, raw materials, components)</li>
+      <li>Build arrival → Odoo push</li>
+      <li>Test with one vendor</li>
+      <li>Disable PO creation in Odoo</li>
+      <li>Go live</li>
+    </ol>
+  </body>
+</html>

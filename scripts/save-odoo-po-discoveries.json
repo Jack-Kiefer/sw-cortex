@@ -1,0 +1,164 @@
+[
+  {
+    "title": "purchase_order table - Core PO management table",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order",
+    "description": "Main table for purchase orders in Odoo. Key fields:\n- state: workflow state (draft, sent, purchase, cancel)\n- invoice_status: invoicing progress (no, to invoice, invoiced)\n- date_order: when PO was created\n- date_approve: when PO was approved\n- amount_total: total PO value\n- partner_id: vendor/supplier\n- picking_type_id: warehouse operation type\n- group_id: links to procurement group\n- effective_date: actual completion date\n\nWorkflow: draft → sent → purchase (approved) → done/cancel\nInvoicing tracked separately via invoice_status field",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "procurement"]
+  },
+  {
+    "title": "purchase_order.state values - PO workflow states",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order",
+    "columnName": "state",
+    "sourceQuery": "SELECT DISTINCT state, COUNT(*) FROM purchase_order GROUP BY state",
+    "description": "Purchase order state values and distribution:\n- 'purchase' (1696 orders) - Approved/confirmed POs, most common state\n- 'cancel' (90) - Cancelled POs\n- 'draft' (59) - Draft POs not yet confirmed\n- 'sent' (1) - PO sent to vendor but not confirmed\n\nState 'purchase' means PO is approved and active, NOT that goods are purchased yet. That's tracked via invoice_status and qty_received on lines.",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "workflow", "status"]
+  },
+  {
+    "title": "purchase_order.invoice_status values - Billing progress tracking",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order",
+    "columnName": "invoice_status",
+    "sourceQuery": "SELECT DISTINCT invoice_status, COUNT(*) FROM purchase_order GROUP BY invoice_status",
+    "description": "Invoice status tracks billing progress independently of PO state:\n- 'invoiced' (1331) - Fully invoiced\n- 'to invoice' (300) - Received goods, ready to invoice\n- 'no' (215) - Nothing to invoice yet (not received or based on ordered qty)\n\nThis is separate from state. A PO can be state='purchase' but invoice_status='no' if goods haven't arrived yet. invoice_status drives whether 'Create Bill' button appears in Odoo UI.",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "invoicing", "status"]
+  },
+  {
+    "title": "purchase_order_line table - Line items with quantity tracking",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order_line",
+    "description": "PO line items with quantity tracking. Critical fields:\n- order_id: links to purchase_order\n- product_id: what's being ordered\n- product_qty: ordered quantity\n- qty_received: how much has been received (computed from stock_move)\n- qty_invoiced: how much has been billed\n- qty_to_invoice: calculated field for invoicing\n- price_unit: unit cost\n- state: mirrors parent PO state\n\nKey insight: qty_received is automatically updated when stock_picking is validated. qty_invoiced tracks billing separately. A line can be partially received and partially invoiced.",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "procurement", "inventory"]
+  },
+  {
+    "title": "purchase_order_line quantity tracking fields",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order_line",
+    "description": "Three key quantity fields track PO line progress:\n\n1. product_qty (ordered): Original quantity ordered\n2. qty_received (received): Auto-updated when goods received via stock_picking\n3. qty_invoiced (billed): Updated when vendor bill created\n\nqty_received_method determines how receipt is tracked:\n- 'stock_moves': Automatic from validated pickings (most common)\n- 'manual': User manually updates qty_received\n\nqty_to_invoice is computed: qty_received - qty_invoiced (when invoicing on received qtys)\n\nExample from P01906: product_qty=105, qty_received=105, qty_invoiced=105 (fully complete)",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "quantities", "workflow"]
+  },
+  {
+    "title": "stock_picking table - Receipt operations for POs",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "stock_picking",
+    "description": "Stock picking = receipt/transfer operation. Links to PO via origin field.\n\nKey fields:\n- origin: PO name (e.g., 'P01906') - how we link picking to PO\n- state: workflow state (draft, confirmed, assigned, done, cancel)\n- picking_type_id: operation type (receiving, internal, delivery)\n- date_done: when receipt was completed\n- location_id: source location\n- location_dest_id: destination location\n\nWorkflow: When PO is confirmed, Odoo creates stock_picking with origin=PO.name. Validating the picking moves goods and updates PO line qty_received.\n\nExample: P01906 → picking EW/IN/01971 (state=done) → qty_received updated",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "inventory", "receipts"]
+  },
+  {
+    "title": "stock_picking.state values - Receipt workflow states",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "stock_picking",
+    "columnName": "state",
+    "description": "Stock picking states:\n- 'draft': Created but not confirmed\n- 'confirmed': Confirmed, waiting for availability\n- 'assigned': Ready to process (products available/assigned)\n- 'done': Receipt completed, quantities moved to inventory\n- 'cancel': Cancelled\n\nMost PO-related pickings are in 'assigned' state (waiting to receive goods). When goods arrive and picking is validated → state='done' → PO line qty_received updates automatically.\n\nFrom sample data: P01906 picking is 'done' (goods received), P01907 picking is 'assigned' (waiting for goods).",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "inventory", "workflow", "status"]
+  },
+  {
+    "title": "PO to stock_picking relationship - Origin field linkage",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "description": "Purchase orders link to receipts via stock_picking.origin field:\n\nstock_picking.origin = purchase_order.name (e.g., 'P01906')\n\nWhen a PO is confirmed (state → 'purchase'), Odoo automatically creates a stock_picking record with origin set to the PO name. One PO can have multiple pickings (partial deliveries, backorders).\n\nExample:\n- P01906 → picking EW/IN/01971 (done)\n- P01907 → picking TY/IN/01634 (assigned)\n- P01896 → TWO pickings: EW/IN/01966 (cancelled) + TY/IN/01631 (assigned, backorder)\n\nQuery: JOIN stock_picking sp ON sp.origin = po.name",
+    "type": "relationship",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "inventory", "relationships"]
+  },
+  {
+    "title": "stock_move table - Detailed line-level receipt tracking",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "stock_move",
+    "description": "stock_move tracks individual line item movements. Links PO lines to pickings.\n\nKey fields:\n- purchase_line_id: links to purchase_order_line\n- picking_id: links to stock_picking\n- product_id: what's being moved\n- product_uom_qty: ordered quantity to move\n- product_qty: actual quantity (computed, same as product_uom_qty)\n- state: move state (draft, confirmed, assigned, done, cancel)\n- origin: source document (PO name)\n- date: scheduled/actual movement date\n\nEach PO line creates stock_move(s) when picking is created. Validating the picking sets state='done' and updates PO line qty_received.\n\nExample: P01890 line for product 29193 → stock_move 15855805 (state=done, product_uom_qty=418.29)",
+    "type": "fact",
+    "priority": 3,
+    "tags": ["purchase-order", "odoo", "inventory", "stock-moves"]
+  },
+  {
+    "title": "PO line to stock_move relationship - purchase_line_id linkage",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "description": "Purchase order lines link to stock movements:\n\nstock_move.purchase_line_id → purchase_order_line.id\n\nWhen goods are received and picking validated:\n1. stock_move.state → 'done'\n2. stock_move product_qty counts toward purchase_order_line.qty_received\n3. PO invoice_status may change to 'to invoice' if invoicing policy is on received quantities\n\nOne PO line can have multiple stock_moves (partial deliveries, backorders). query:\nSELECT * FROM stock_move WHERE purchase_line_id = [line_id]",
+    "type": "relationship",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "inventory", "relationships"]
+  },
+  {
+    "title": "account_move table - Vendor bills/invoices",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "account_move",
+    "description": "account_move tracks all accounting entries including vendor bills.\n\nKey fields for PO bills:\n- move_type: 'in_invoice' = vendor bill, 'in_refund' = vendor credit note\n- invoice_origin: PO name (e.g., 'P01906') - links bill to PO\n- state: 'draft' (unposted) or 'posted' (confirmed)\n- invoice_date: bill date from vendor\n- amount_total: bill total\n- partner_id: vendor\n- payment_state: 'not_paid', 'in_payment', 'paid'\n\nVendor bills are created from POs when invoice_status = 'to invoice'. Bill lines link to PO lines via account_move_line table.",
+    "type": "fact",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "accounting", "invoicing"]
+  },
+  {
+    "title": "PO to account_move (bill) relationship - invoice_origin linkage",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "description": "Purchase orders link to vendor bills via invoice_origin:\n\naccount_move.invoice_origin = purchase_order.name\n\nWhen 'Create Bill' is clicked in Odoo:\n1. account_move created with move_type='in_invoice', invoice_origin=PO.name\n2. State starts as 'draft' (name = '/')\n3. When posted, gets real number (e.g., 'NV-2998', 'INV0000334335')\n4. PO invoice_status updates based on qty_invoiced\n\nExamples:\n- P01906 → bill 12452828 (draft, '/')\n- P01890 → bill 12466973 (draft, '/')\n- P01860 → bill 12373409 (posted, 'NV-2998')\n\nQuery: WHERE move_type='in_invoice' AND invoice_origin='P01906'",
+    "type": "relationship",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "accounting", "relationships"]
+  },
+  {
+    "title": "Odoo PO workflow - Create → Receive → Bill sequence",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "description": "Complete Odoo purchase order workflow:\n\n1. CREATE PO:\n   - purchase_order created (state='draft')\n   - purchase_order_line added with product_qty\n   \n2. CONFIRM PO:\n   - state → 'purchase', date_approve set\n   - stock_picking created automatically (origin=PO.name)\n   - stock_move records created (purchase_line_id set)\n   - picking state='assigned' (waiting for goods)\n   \n3. RECEIVE GOODS:\n   - Warehouse validates stock_picking\n   - picking state → 'done', date_done set\n   - stock_move state → 'done'\n   - purchase_order_line.qty_received auto-increments\n   - purchase_order.invoice_status may → 'to invoice'\n   \n4. CREATE BILL:\n   - account_move created (move_type='in_invoice', invoice_origin=PO.name)\n   - Bill in 'draft' state initially\n   - When posted: state → 'posted', gets real invoice number\n   - purchase_order_line.qty_invoiced updates\n   - purchase_order.invoice_status → 'invoiced' when fully billed\n\nKey: Receiving and billing are independent. Can receive first (normal), bill first (prepayment), or receive/bill together.",
+    "type": "insight",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "workflow", "process"]
+  },
+  {
+    "title": "Data flow when goods arrive - Receipt updates PO automatically",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "description": "What happens when goods physically arrive:\n\n1. Warehouse user opens stock_picking (state='assigned')\n2. Scans/validates quantities received\n3. Clicks 'Validate' → Odoo processes:\n   a. stock_picking.state → 'done'\n   b. stock_picking.date_done → current timestamp\n   c. stock_move.state → 'done' for all lines\n   d. stock_move triggers inventory update\n   e. purchase_order_line.qty_received += stock_move quantities\n   f. purchase_order.invoice_status recalculated:\n      - If all lines fully received → 'to invoice'\n      - If partially received → 'to invoice' (if invoicing on received)\n      - If nothing to invoice yet → 'no'\n\nNo manual PO update needed - qty_received is automatic computed field based on validated stock_moves.\n\nExample: P01906\n- Before: qty_received=0\n- Picking validated: qty_received=105\n- invoice_status → 'invoiced' (bill already created)",
+    "type": "insight",
+    "priority": 4,
+    "tags": ["purchase-order", "odoo", "workflow", "automation"]
+  },
+  {
+    "title": "purchase_order.picking_type_id - Warehouse operation type",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order",
+    "columnName": "picking_type_id",
+    "description": "picking_type_id defines the warehouse operation type for receipts.\n\nCommon values seen in data:\n- 1: Most common (likely main warehouse receipts 'EW/IN')\n- 10: Alternative warehouse (likely 'TY/IN' for different location)\n- 46: Special operation type (possibly 'WCC/IN' for WCC warehouse)\n\nThis links to stock.picking.type (operation type config) and determines:\n- Source/destination locations\n- Sequence prefix for picking names (EW/IN/01971, TY/IN/01634, etc.)\n- Default settings for receipts\n\nMultiple POs can share same picking_type_id. Type determines where goods go when received.",
+    "type": "fact",
+    "priority": 3,
+    "tags": ["purchase-order", "odoo", "inventory", "warehouse"]
+  },
+  {
+    "title": "purchase_order.group_id - Procurement group for logistics",
+    "source": "database_query",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order",
+    "columnName": "group_id",
+    "description": "group_id links PO to procurement.group - a logistics grouping mechanism.\n\nPurpose:\n- Groups related procurement operations together\n- Links purchase orders to sale orders (drop-shipping)\n- Coordinates moves and pickings for same logical operation\n- Enables traceability across documents\n\nstock_picking inherits group_id from PO. Used to trace 'why this PO exists' - is it for stock replenishment, a specific sale order, or manufacturing order?\n\nCan be null for standalone POs not linked to other operations.",
+    "type": "fact",
+    "priority": 2,
+    "tags": ["purchase-order", "odoo", "procurement", "traceability"]
+  }
+]

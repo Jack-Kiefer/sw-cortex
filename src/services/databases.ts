@@ -18,7 +18,7 @@ export interface DatabaseConfig {
   user: string;
   password: string;
   database: string;
-  // SSH tunnel config (optional)
+  // SSH tunnel config (optional - if present, will try tunnel first then fallback to direct)
   ssh?: {
     host: string;
     port: number;
@@ -26,6 +26,9 @@ export interface DatabaseConfig {
     privateKeyPath: string;
   };
 }
+
+// Track which databases fell back to direct connection
+const directConnectionFallbacks: Set<string> = new Set();
 
 // Active tunnel tracking
 interface TunnelInfo {
@@ -58,6 +61,8 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       }
     : undefined;
 
+  // SSH is now included when config exists - will try tunnel first, fallback to direct
+  // Set *_USE_SSH=false to explicitly disable tunnel attempts for a database
   return {
     wishdesk: {
       name: 'wishdesk',
@@ -67,18 +72,17 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.WISHDESK_DB_USER || '',
       password: process.env.WISHDESK_DB_PASSWORD || '',
       database: process.env.WISHDESK_DB_NAME || '',
-      ssh: process.env.WISHDESK_USE_SSH === 'true' ? sshConfig : undefined,
+      ssh: process.env.WISHDESK_USE_SSH !== 'false' ? sshConfig : undefined,
     },
-    sugarwish: {
-      name: 'sugarwish',
+    laravel: {
+      name: 'laravel',
       type: 'mysql',
       host: process.env.SUGARWISH_DB_HOST || 'localhost',
       port: parseInt(process.env.SUGARWISH_DB_PORT || '3306', 10),
       user: process.env.SUGARWISH_DB_USER || '',
       password: process.env.SUGARWISH_DB_PASSWORD || '',
       database: process.env.SUGARWISH_DB_NAME || '',
-      // Use LIVE_SSH_TUNNEL=true to enable SSH tunnel for sugarwish
-      ssh: process.env.LIVE_SSH_TUNNEL === 'true' ? liveSshConfig : undefined,
+      ssh: process.env.LIVE_SSH_TUNNEL !== 'false' ? liveSshConfig : undefined,
     },
     odoo: {
       name: 'odoo',
@@ -88,7 +92,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.ODOO_DB_USER || '',
       password: process.env.ODOO_DB_PASSWORD || '',
       database: process.env.ODOO_DB_NAME || '',
-      ssh: process.env.ODOO_USE_SSH === 'true' ? sshConfig : undefined,
+      ssh: process.env.ODOO_USE_SSH !== 'false' ? sshConfig : undefined,
     },
     retool: {
       name: 'retool',
@@ -98,7 +102,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.RETOOL_DB_USER || '',
       password: process.env.RETOOL_DB_PASSWORD || '',
       database: process.env.RETOOL_DB_NAME || '',
-      ssh: process.env.RETOOL_USE_SSH === 'true' ? sshConfig : undefined,
+      ssh: process.env.RETOOL_USE_SSH !== 'false' ? sshConfig : undefined,
     },
     odoo_staging: {
       name: 'odoo_staging',
@@ -108,7 +112,27 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.ODOO_STAGING_DB_USER || '',
       password: process.env.ODOO_STAGING_DB_PASSWORD || '',
       database: process.env.ODOO_STAGING_DB_NAME || '',
-      ssh: process.env.ODOO_STAGING_USE_SSH === 'true' ? sshConfig : undefined,
+      ssh: process.env.ODOO_STAGING_USE_SSH !== 'false' ? sshConfig : undefined,
+    },
+    laravel_local: {
+      name: 'laravel_local',
+      type: 'mysql',
+      host: process.env.TEST_DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.TEST_DB_PORT || '3307', 10),
+      user: process.env.TEST_DB_USER || 'root',
+      password: process.env.TEST_DB_PASSWORD || '',
+      database: process.env.TESTING_DB_NAME || 'serp_local',
+      // No SSH for local database
+    },
+    laravel_staging: {
+      name: 'laravel_staging',
+      type: 'mysql',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '3306', 10),
+      user: process.env.DB_USER || '',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.LIVE_DB_NAME || '',
+      // No SSH - direct connection to RDS
     },
   };
 }
@@ -195,15 +219,34 @@ async function createTunnel(config: DatabaseConfig): Promise<number> {
   });
 }
 
-// Get effective connection details (with tunnel if needed)
+// Get effective connection details (try tunnel first, fallback to direct)
 async function getConnectionDetails(
   config: DatabaseConfig
-): Promise<{ host: string; port: number }> {
-  if (config.ssh) {
-    const localPort = await createTunnel(config);
-    return { host: '127.0.0.1', port: localPort };
+): Promise<{ host: string; port: number; viaTunnel: boolean }> {
+  // If already fell back to direct for this database, use direct
+  if (directConnectionFallbacks.has(config.name)) {
+    return { host: config.host, port: config.port, viaTunnel: false };
   }
-  return { host: config.host, port: config.port };
+
+  // Try SSH tunnel first if config exists
+  if (config.ssh) {
+    try {
+      const localPort = await createTunnel(config);
+      console.log(`[db] ${config.name}: connected via SSH tunnel (port ${localPort})`);
+      return { host: '127.0.0.1', port: localPort, viaTunnel: true };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.log(
+        `[db] ${config.name}: SSH tunnel failed (${errorMsg}), falling back to direct connection`
+      );
+      directConnectionFallbacks.add(config.name);
+      // Fall through to direct connection
+    }
+  }
+
+  // Direct connection
+  console.log(`[db] ${config.name}: using direct connection to ${config.host}:${config.port}`);
+  return { host: config.host, port: config.port, viaTunnel: false };
 }
 
 // Connection pools
