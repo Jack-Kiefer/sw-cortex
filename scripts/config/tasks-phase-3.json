@@ -1,0 +1,23 @@
+{
+  "phaseId": 3,
+  "phaseName": "Manufacturing Orders",
+  "tasks": [
+    { "week": 1, "name": "Design boms and bom_lines tables", "days": 2 },
+    { "week": 1, "name": "Design manufacturing_orders table", "days": 2 },
+    { "week": 1, "name": "Handle multi-level BOM structure", "days": 1 },
+    { "week": 2, "name": "Export BOMs from Odoo", "days": 2 },
+    { "week": 2, "name": "Export BOM lines with quantities", "days": 2 },
+    { "week": 2, "name": "Validate BOM hierarchy", "days": 1 },
+    { "week": 3, "name": "Export manufacturing orders", "days": 2 },
+    { "week": 3, "name": "Export MO line items", "days": 2 },
+    { "week": 3, "name": "Validate MO migration", "days": 1 },
+    { "week": 4, "name": "Build BOM management UI", "days": 3 },
+    { "week": 4, "name": "Build MO creation UI", "days": 2 },
+    { "week": 5, "name": "Build MO → Odoo inventory push", "days": 3 },
+    { "week": 5, "name": "Handle production completion", "days": 2 },
+    { "week": 6, "name": "End-to-end MO workflow testing", "days": 3 },
+    { "week": 6, "name": "Train production team", "days": 2 },
+    { "week": 7, "name": "Wait for active MOs to complete in Odoo", "days": 5 },
+    { "week": 8, "name": "Cutover and go-live", "days": 3 }
+  ]
+}

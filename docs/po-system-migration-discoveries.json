@@ -1,0 +1,63 @@
+[
+  {
+    "id": "discovery-qb-payment-status",
+    "title": "QuickBooks is source of truth for payment status - Odoo bills not_paid",
+    "source": "exploration",
+    "description": "99.8% of Odoo bills show 'not_paid' status even though paid. QB is source of truth for payment status. No automated QB integration fields in Odoo. Current billing workflow: Ops creates draft bill → Accounting compares to vendor invoice → If match, finalize in SQL and QB. QB is not synced with Odoo.",
+    "type": "insight",
+    "sourceDatabase": "odoo",
+    "tags": ["migration", "po-system", "payment-status", "quickbooks"],
+    "savedAt": "2026-02-02T00:00:00Z"
+  },
+  {
+    "id": "discovery-multi-po-rare",
+    "title": "Multi-PO billing is extremely rare (0.06% of bills)",
+    "source": "exploration",
+    "description": "Only 1 bill out of 1,570 bills links to multiple POs. Normal pattern is one PO → multiple bills (partial shipments). 122 POs have 2-7 bills each. This simplifies migration logic as multi-PO consolidation is edge case.",
+    "type": "fact",
+    "sourceDatabase": "odoo",
+    "tableName": "account_move",
+    "tags": ["migration", "po-system", "billing-pattern"],
+    "savedAt": "2026-02-02T00:00:00Z"
+  },
+  {
+    "id": "discovery-laravel-schema",
+    "title": "Laravel already has purchase order and billing schema",
+    "source": "exploration",
+    "description": "Laravel SERP has purchase_orders, purchase_items, and bills tables. purchase_items.bill_id links items to bills. Schema exists but needs odoo_id columns added for dual-source tracking. 4 PO types: inventoried, service, blanket, distribution.",
+    "type": "fact",
+    "sourceDatabase": "laravel_local",
+    "tags": ["migration", "po-system", "schema"],
+    "savedAt": "2026-02-02T00:00:00Z"
+  },
+  {
+    "id": "discovery-read-only-integration",
+    "title": "SERP Odoo integration is read-only with no write-back sync",
+    "source": "exploration",
+    "description": "OdooInventoryService exists but minimal functionality. No write-back sync implemented for PO creation, receiving, or bill reconciliation to Odoo. Currently only reads from Odoo, does not update Odoo state.",
+    "type": "insight",
+    "sourceDatabase": "odoo",
+    "tags": ["migration", "po-system", "integration"],
+    "savedAt": "2026-02-02T00:00:00Z"
+  },
+  {
+    "id": "discovery-finance-reports",
+    "title": "Finance requires 4 monthly reports for Odoo migration",
+    "source": "exploration",
+    "description": "Per Ric: (1) Manufacturing Report, (2) Purchase Order Report, (3) Roll Forward Report (COGS-dependent, most complex), (4) Cash flow visibility for supplier payments. These are dependencies for post-migration success.",
+    "type": "insight",
+    "sourceDatabase": "odoo",
+    "tags": ["migration", "po-system", "reporting", "finance"],
+    "savedAt": "2026-02-02T00:00:00Z"
+  },
+  {
+    "id": "discovery-data-quality",
+    "title": "Data quality issues blocking Odoo migration",
+    "source": "exploration",
+    "description": "355 draft bills stuck worth $3.6M, 48,909 stuck stock moves, 20 PO lines with over-receipts, 482 negative inventory records. These must be resolved before migration to prevent legacy issues.",
+    "type": "anomaly",
+    "sourceDatabase": "odoo",
+    "tags": ["migration", "po-system", "data-quality"],
+    "savedAt": "2026-02-02T00:00:00Z"
+  }
+]

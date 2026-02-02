@@ -1,0 +1,52 @@
+{
+  "phases": [
+    {
+      "id": 1,
+      "name": "Purchase Orders & Bills",
+      "shortName": "PO+Bills",
+      "minWeeks": 6,
+      "maxWeeks": 8,
+      "dependencies": [],
+      "color": "#27ae60",
+      "tasksFile": "tasks-phase-1.json",
+      "milestone": "PO & Bill System Live in SERP",
+      "goal": "Move all PO creation, approvals, arrivals, and bill creation to SERP. On arrival, push only quantities to Odoo (not full PO). Bills created in SERP are automatically sent to QuickBooks."
+    },
+    {
+      "id": 2,
+      "name": "Raw Materials & Components",
+      "shortName": "RM/Comp",
+      "minWeeks": 4,
+      "maxWeeks": 5,
+      "dependencies": [1],
+      "color": "#9b59b6",
+      "tasksFile": "tasks-phase-2.json",
+      "milestone": "Product Master in SERP",
+      "goal": "Move product master data ownership to SERP. Inventory counts remain in Odoo until Phase 4."
+    },
+    {
+      "id": 3,
+      "name": "Manufacturing Orders",
+      "shortName": "MO",
+      "minWeeks": 6,
+      "maxWeeks": 8,
+      "dependencies": [2],
+      "color": "#e67e22",
+      "tasksFile": "tasks-phase-3.json",
+      "milestone": "MO System Live in SERP",
+      "goal": "Move Bill of Materials (BOM) ownership and manufacturing order creation to SERP. Production pushes to Odoo for inventory updates."
+    },
+    {
+      "id": 4,
+      "name": "Inventory Management",
+      "shortName": "Inventory",
+      "minWeeks": 8,
+      "maxWeeks": 10,
+      "dependencies": [2, 3],
+      "color": "#e74c3c",
+      "tasksFile": "tasks-phase-4.json",
+      "milestone": "Inventory Cutover Complete",
+      "goal": "Move all inventory tracking to SERP. Odoo becomes optional/deprecated."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "phaseId": 2,
+  "phaseName": "Raw Materials & Components",
+  "tasks": [
+    {
+      "week": 1,
+      "name": "Audit existing components/raw_materials tables",
+      "days": 2
+    },
+    { "week": 1, "name": "Design product_categories table", "days": 1 },
+    { "week": 1, "name": "Create supplier_products mapping", "days": 2 },
+    { "week": 2, "name": "Export products from Odoo", "days": 2 },
+    { "week": 2, "name": "Export product categories", "days": 1 },
+    { "week": 2, "name": "Export supplier-product relationships", "days": 2 },
+    { "week": 3, "name": "Validate product data migration", "days": 2 },
+    { "week": 3, "name": "Build product management UI", "days": 3 },
+    { "week": 4, "name": "Build category management", "days": 2 },
+    { "week": 4, "name": "Update PO creation to use SERP products", "days": 2 },
+    { "week": 5, "name": "End-to-end testing", "days": 3 },
+    { "week": 5, "name": "Cutover", "days": 2 }
+  ]
+}

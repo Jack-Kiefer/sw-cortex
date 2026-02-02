@@ -1,0 +1,62 @@
+[
+  {
+    "title": "PO System Migration Specification - Data Ownership Model",
+    "source": "exploration",
+    "sourceDatabase": "laravel_staging",
+    "description": "Detailed migration spec defines data ownership: Laravel owns POs, approvals, arrivals, suppliers, supplier-product mappings. Odoo owns raw materials, components, shelves/locations, inventory, bills, payments. One-way push: Laravel → Odoo only when goods arrive. Database changes needed: odoo_partner_id on suppliers, odoo_po_id/odoo_pushed_at on purchase_orders, odoo_po_line_id/odoo_qty_pushed on purchase_items. This is the authoritative spec for the migration architecture.",
+    "type": "insight",
+    "priority": 4,
+    "tags": ["purchase-orders", "migration", "architecture", "laravel", "odoo"]
+  },
+  {
+    "title": "SERP Odoo Integration Patterns - Production-Ready",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "description": "SERP has mature, proven Odoo integration patterns: Direct asyncpg PostgreSQL for reads (fast, efficient), XML-RPC API for writes with batch processing (50 items, 1-sec delays between batches), job queue architecture to prevent timeouts, supports both staging and production environments. This is a template for PO system integration. Should reuse SERP patterns rather than inventing new ones.",
+    "type": "pattern",
+    "priority": 4,
+    "tags": ["odoo", "integration", "serp", "api", "performance"]
+  },
+  {
+    "title": "Odoo Billing Architecture - Cannot Move to Laravel",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "tableName": "account.move",
+    "description": "Critical constraint: 1,566 of 1,569 bills show payment_state='not_paid' because payment tracking happens in QuickBooks, not Odoo. Bills are manually created by accountants AFTER receipt confirmation. Multi-PO billing consolidation exists (192 bills reference multiple POs). Moving billing to Laravel would break payment reconciliation chains with QuickBooks. Billing MUST remain in Odoo. Laravel PO system should create receipts that trigger Odoo bill creation, not manage bills itself.",
+    "type": "insight",
+    "priority": 4,
+    "tags": ["billing", "odoo", "architecture", "constraint", "payment-reconciliation"]
+  },
+  {
+    "title": "Odoo qty_received Field - Auto-Calculated from Stock Moves",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order_line",
+    "columnName": "qty_received",
+    "description": "qty_received on purchase_order_line is a computed field auto-calculated from stock_move table. When a stock_picking is validated (state → done), all linked stock_moves count toward qty_received. Laravel won't see these updates without explicit Odoo→Laravel sync. Must implement sync job to read updated qty_received values after receipt validation in Odoo. This is critical for PO status tracking.",
+    "type": "anomaly",
+    "priority": 4,
+    "tags": ["odoo", "inventory", "sync", "purchase-orders"]
+  },
+  {
+    "title": "Odoo Stock Move Reservation Crisis - 48,909 Stuck Moves",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "tableName": "stock_move",
+    "description": "48,909 stock moves are in stuck/problematic states, indicating a reservation crisis in Odoo inventory. When querying stock_move to calculate quantities, must use Odoo ORM methods (not raw SQL) to handle reserved/cancelled moves correctly. Raw SQL queries will return misleading totals. This affects PO receipt calculations and must be handled carefully during Laravel→Odoo sync implementation.",
+    "type": "anomaly",
+    "priority": 4,
+    "tags": ["odoo", "inventory", "data-quality", "risk"]
+  },
+  {
+    "title": "Odoo effective_date Field - Actual Arrival, Not Order Date",
+    "source": "exploration",
+    "sourceDatabase": "odoo",
+    "tableName": "purchase_order",
+    "columnName": "effective_date",
+    "description": "purchase_order.effective_date is the key field for actual goods arrival time (not date_order which is PO creation). This field determines when a PO transitions from 'to invoice' → ready for billing. When syncing receipt data from Laravel to Odoo, effective_date must be set correctly. This is what accountants use to determine when bills should be created.",
+    "type": "fact",
+    "priority": 3,
+    "tags": ["odoo", "purchase-orders", "dates", "billing"]
+  }
+]

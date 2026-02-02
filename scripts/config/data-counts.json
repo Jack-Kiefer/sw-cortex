@@ -1,0 +1,23 @@
+{
+  "odoo": {
+    "purchaseOrders": 1569,
+    "openPOs": 89,
+    "awaitingArrival": 67,
+    "draftPOs": 12,
+    "suppliers": 156,
+    "products": 2847,
+    "boms": 847,
+    "bills": 1569,
+    "manufacturingOrders": 12847,
+    "activeMOs": 23,
+    "stockLocations": 47,
+    "stockQuants": 3892
+  },
+  "laravel": {
+    "purchaseOrders": 0,
+    "suppliers": 0,
+    "components": 2341,
+    "rawMaterials": 892
+  },
+  "lastUpdated": "2026-02-02"
+}

@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phase Details</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .breadcrumb {
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+      .breadcrumb a {
+        color: #198754;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .breadcrumb a:hover {
+        text-decoration: underline;
+      }
+      .breadcrumb span {
+        color: #6c757d;
+        margin: 0 8px;
+      }
+
+      header {
+        padding: 24px;
+        background: #fff;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        border-left: 5px solid;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      header h1 {
+        font-size: 1.5em;
+        margin-bottom: 8px;
+        color: #212529;
+      }
+      .phase-meta {
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-bottom: 12px;
+      }
+      .phase-goal {
+        background: #f8f9fa;
+        padding: 14px;
+        border-radius: 8px;
+        color: #495057;
+        font-size: 0.95em;
+      }
+
+      .section {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .section h2 {
+        font-size: 1.1em;
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid;
+      }
+      .section h3 {
+        font-size: 0.95em;
+        margin: 16px 0 8px;
+        color: #495057;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 0.9em;
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+      th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+      }
+      .owner-cell {
+        color: #198754;
+        font-weight: 600;
+      }
+      .copy-cell {
+        color: #6c757d;
+      }
+
+      .workflow-table th:first-child {
+        background: #e8f5e9;
+        color: #198754;
+      }
+      .workflow-table th:last-child {
+        background: #f3e5f5;
+        color: #7b1fa2;
+      }
+      .workflow-table .sync-row {
+        background: #fff3cd;
+      }
+      .workflow-table .arrow {
+        text-align: center;
+        color: #6c757d;
+      }
+
+      ul {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+      li {
+        margin: 6px 0;
+      }
+
+      .highlight {
+        background: #fff3cd;
+        padding: 12px 16px;
+        border-left: 4px solid;
+        margin: 16px 0;
+        font-weight: 500;
+      }
+
+      .risk-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f3f5;
+      }
+      .risk-item:last-child {
+        border-bottom: none;
+      }
+      .risk-item strong {
+        color: #dc3545;
+      }
+
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+
+      .gantt-container {
+        overflow-x: auto;
+        margin-top: 16px;
+      }
+      .gantt-header {
+        display: flex;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 8px;
+        min-width: 800px;
+      }
+      .gantt-label {
+        width: 280px;
+        min-width: 280px;
+        padding: 10px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.85em;
+      }
+      .gantt-weeks {
+        display: flex;
+        flex: 1;
+      }
+      .week-col {
+        flex: 1;
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 0.75em;
+        font-weight: 600;
+        color: #495057;
+        border-left: 1px solid #e9ecef;
+        background: #f8f9fa;
+      }
+      .week-col:first-child {
+        border-left: none;
+      }
+      .week-dates {
+        font-size: 0.7em;
+        color: #6c757d;
+        font-weight: 400;
+      }
+
+      .gantt-row {
+        display: flex;
+        align-items: center;
+        min-height: 36px;
+        border-bottom: 1px solid #f1f3f5;
+        min-width: 800px;
+      }
+      .gantt-row:hover {
+        background: #f8f9fa;
+      }
+      .task-label {
+        width: 280px;
+        min-width: 280px;
+        padding: 6px 10px;
+        font-size: 0.85em;
+        color: #495057;
+      }
+      .task-track {
+        display: flex;
+        flex: 1;
+        position: relative;
+        height: 26px;
+      }
+      .task-cell {
+        flex: 1;
+        border-left: 1px solid #f1f3f5;
+      }
+      .task-cell:first-child {
+        border-left: none;
+      }
+      .task-bar {
+        position: absolute;
+        height: 20px;
+        top: 3px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7em;
+        font-weight: 500;
+        color: white;
+      }
+
+      .nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+      }
+      .nav-btn {
+        padding: 12px 20px;
+        background: #fff;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #495057;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+        transition: all 0.2s;
+      }
+      .nav-btn:hover {
+        background: #f8f9fa;
+        transform: translateY(-1px);
+      }
+      .nav-btn.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="breadcrumb">
+        <a href="index.html">Migration Plan</a><span>/</span
+        ><span id="breadcrumb-phase">Phase</span>
+      </div>
+
+      <header id="header">
+        <h1 id="title">Loading...</h1>
+        <div class="phase-meta" id="meta"></div>
+        <div class="phase-goal" id="goal"></div>
+      </header>
+
+      <div id="content"></div>
+
+      <div class="nav-buttons">
+        <a href="#" class="nav-btn" id="prev-btn">← Previous</a>
+        <a href="#" class="nav-btn" id="next-btn">Next →</a>
+      </div>
+    </div>
+
+    <script>
+      const PROJECT_START = '2026-02-02';
+
+      const phases = [
+        {
+          id: 1,
+          name: 'Purchase Orders & Bills',
+          shortName: 'PO+Bills',
+          weeks: 10,
+          deps: [],
+          color: '#198754',
+          goal: 'PO creation, arrivals, and bill management in SERP. On arrival, push quantities to Odoo via stock.move. Bills sync to QuickBooks.',
+          tasks: [
+            { name: 'Design new database schema and implementation', startWeek: 1, duration: 1 },
+            { name: 'Update database and build backend APIs', startWeek: 2, duration: 2 },
+            { name: 'Update front-end for new PO system', startWeek: 2, duration: 3 },
+            { name: 'Review with purchasing and finance teams', startWeek: 4, duration: 2 },
+            { name: 'Build Odoo sync and migrate historical data', startWeek: 5, duration: 3 },
+            { name: 'Review data migration with purchasing team', startWeek: 7, duration: 1 },
+            { name: 'Build bill system with QuickBooks sync', startWeek: 7, duration: 2 },
+            { name: 'Training and parallel run', startWeek: 9, duration: 2 },
+            { name: 'Go-live', startWeek: 10, duration: 1 },
+          ],
+          workflow: [
+            { laravel: 'Create PO (draft or sent)', odoo: '—' },
+            { laravel: 'Approval workflow (Ops → Finance)', odoo: '—' },
+            { laravel: 'Order sent to vendor', odoo: '—' },
+            { laravel: 'Dock receipt (goods arrive)', odoo: '—' },
+            { laravel: 'Receiving inspection complete', odoo: '—' },
+            {
+              laravel: 'Inventory receipt (after inspection)',
+              odoo: 'stock.move + stock_quant updated',
+              sync: true,
+            },
+            { laravel: 'Ops creates draft bill (qty × price)', odoo: '—' },
+            { laravel: 'Compare to vendor invoice, reconcile', odoo: '—' },
+            { laravel: 'Bill finalized', odoo: 'Amount synced to QuickBooks', sync: true },
+          ],
+          dataOwnership: [
+            {
+              data: 'Purchase orders (1,846 in Odoo)',
+              laravel: 'Owner',
+              odoo: 'Copy (on arrival)',
+            },
+            {
+              data: 'PO line items (14,549 lines)',
+              laravel: 'Owner',
+              odoo: 'Copy (as stock_move)',
+            },
+            { data: 'Approvals & backorders', laravel: 'Owner', odoo: '—' },
+            { data: 'Suppliers', laravel: 'Owner', odoo: 'Mapping (partner_id)' },
+            { data: 'Draft/Final bills', laravel: 'Owner (SQL)', odoo: '—' },
+            { data: 'Bill amounts', laravel: 'Created here', odoo: 'Owner (QuickBooks)' },
+            { data: 'Inventory quantities', laravel: '—', odoo: 'Owner (stock_quant)' },
+          ],
+          dbChanges: [
+            { table: 'suppliers', columns: 'odoo_partner_id (res.partner FK)' },
+            { table: 'purchase_orders', columns: 'odoo_po_id, odoo_pushed_at, effective_date' },
+            { table: 'purchase_items', columns: 'odoo_po_line_id, odoo_qty_pushed, qty_received' },
+            { table: 'bills', columns: 'EXISTS - linked to PO, status workflow' },
+          ],
+          implementation: [
+            'Draft POs (save without sending to vendor)',
+            'Two-stage arrival: dock receipt → inspection → inventory receipt',
+            'Only inventory receipt triggers Odoo stock.move push',
+            'Draft bill: qty_received × unit_price (Ops creates)',
+            'Bill reconciliation with vendor invoice comparison',
+            'PDF generation for PO documents',
+            'Activity log (changes, notes, supplier communications)',
+            'Backorder tracking for partial shipments',
+          ],
+          risks: [
+            {
+              title: 'Sync design flaw',
+              desc: 'Current system marks synced BEFORE Odoo confirms - causes ghost orders. Must fix.',
+            },
+            {
+              title: '20 PO lines over-received',
+              desc: 'Data shows qty_received > product_qty (+30K units). Clean up before migration.',
+            },
+            {
+              title: '10 cancelled POs with moves',
+              desc: 'Cancelled POs have 2-18 active stock_moves. Investigate.',
+            },
+            {
+              title: 'Correction handling',
+              desc: 'Define behavior when arrival amounts edited down after sync.',
+            },
+          ],
+          keyPoint: 'One-way push to Odoo. Bills in SQL, amounts to QuickBooks.',
+        },
+        {
+          id: 2,
+          name: 'Products & Manufacturing',
+          shortName: 'Products+MO',
+          weeks: 10,
+          deps: [1],
+          color: '#6f42c1',
+          goal: 'Product master data, BOMs, and manufacturing orders in SERP. MO completion pushes inventory to Odoo.',
+          tasks: [
+            { name: 'Audit tables and design new schema', startWeek: 1, duration: 2 },
+            { name: 'Export products and categories from Odoo', startWeek: 2, duration: 2 },
+            { name: 'Build product management UI', startWeek: 3, duration: 2 },
+            { name: 'Design and migrate BOMs', startWeek: 4, duration: 3 },
+            { name: 'Build BOM and MO management UI', startWeek: 7, duration: 2 },
+            { name: 'Build MO → Odoo inventory push', startWeek: 8, duration: 2 },
+            { name: 'Testing and training', startWeek: 9, duration: 2 },
+            { name: 'Cutover and go-live', startWeek: 10, duration: 1 },
+          ],
+          workflow: [
+            { laravel: 'Create/edit products (RM/components)', odoo: '—' },
+            { laravel: 'Define BOM (normal or phantom type)', odoo: '—' },
+            { laravel: 'BOM recursive explosion (up to 5 levels)', odoo: '—' },
+            { laravel: 'Create manufacturing order from BOM', odoo: '—' },
+            { laravel: 'MO: draft → progress (start production)', odoo: '—' },
+            {
+              laravel: 'MO complete (finished goods)',
+              odoo: 'stock.move: Production → Stock',
+              sync: true,
+            },
+            { laravel: 'Components consumed', odoo: 'stock.move: Stock → Production', sync: true },
+          ],
+          dataOwnership: [
+            { data: 'Products (5,000+ in Odoo)', laravel: 'Owner', odoo: 'Copy (via odoo_id)' },
+            { data: 'Product categories', laravel: 'Owner', odoo: 'Copy' },
+            { data: 'BOMs (2,078 total: 1,303 normal + 775 phantom)', laravel: 'Owner', odoo: '—' },
+            { data: 'BOM lines (component requirements)', laravel: 'Owner', odoo: '—' },
+            { data: 'Manufacturing orders', laravel: 'Owner', odoo: '—' },
+            { data: 'Inventory quantities', laravel: '—', odoo: 'Owner (stock_quant)' },
+          ],
+          dbChanges: [
+            {
+              table: 'products',
+              columns: 'odoo_product_id, category_id, type (storable/consu/service)',
+            },
+            { table: 'product_categories', columns: 'NEW TABLE - hierarchy support' },
+            { table: 'boms', columns: 'NEW TABLE - product_id, type (normal/phantom), qty' },
+            { table: 'bom_lines', columns: 'NEW TABLE - bom_id, component_id, qty, operation_id' },
+            { table: 'manufacturing_orders', columns: 'NEW TABLE - bom_id, qty, state, dates' },
+          ],
+          implementation: [
+            'Product CRUD with categories and supplier links (product_supplierinfo)',
+            'Multi-level BOM support - recursive explosion up to 5 levels',
+            'Phantom BOMs (775) for virtual assemblies that dissolve to components',
+            'MO creation from BOM with automatic qty calculation',
+            'Production tracking: draft → progress → done',
+            'Component availability check before starting MO',
+            'Push finished goods + component consumption to Odoo on completion',
+          ],
+          risks: [
+            {
+              title: '30 BOMs with qty=0',
+              desc: 'Division by zero bug. Filter product_qty > 0 in calculations.',
+            },
+            {
+              title: 'Multi-level BOM recursion',
+              desc: 'Complex hierarchies (5+ levels) need careful explosion logic.',
+            },
+            {
+              title: 'Active MOs during cutover',
+              desc: 'Must wait for in-progress MOs to complete in Odoo first.',
+            },
+            {
+              title: 'Component sync timing',
+              desc: 'Components must exist in Odoo before pushing MO completion.',
+            },
+          ],
+          keyPoint:
+            'Products/BOMs live in Laravel. Finished goods + component moves pushed to Odoo.',
+        },
+        {
+          id: 3,
+          name: 'Kit Migration',
+          shortName: 'Kits',
+          weeks: 4,
+          deps: [2],
+          color: '#fd7e14',
+          goal: 'Migrate all kit definitions and kit-building logic from Odoo to Laravel.',
+          tasks: [
+            { name: 'Analyze Odoo kit structure', startWeek: 1, duration: 1 },
+            { name: 'Design and create kit tables', startWeek: 1, duration: 1 },
+            { name: 'Export kit data from Odoo', startWeek: 2, duration: 1 },
+            { name: 'Build kit management API and UI', startWeek: 2, duration: 2 },
+            { name: 'Testing and validation', startWeek: 3, duration: 2 },
+            { name: 'Training and go-live', startWeek: 4, duration: 1 },
+          ],
+          workflow: [
+            { laravel: 'Define kit with components (junction table)', odoo: '—' },
+            { laravel: 'Check component availability via Odoo', odoo: '—' },
+            { laravel: 'Build kit (ReceiverOrderService::updateInsertKit)', odoo: '—' },
+            {
+              laravel: 'Kit built (consume components)',
+              odoo: 'stock.move: components reduced',
+              sync: true,
+            },
+            {
+              laravel: 'Kit ready for order fulfillment',
+              odoo: 'Kit product added to inventory',
+              sync: true,
+            },
+          ],
+          dataOwnership: [
+            { data: 'Kit definitions (775 phantom BOMs in Odoo)', laravel: 'Owner', odoo: '—' },
+            { data: 'Kit components (component_kits junction)', laravel: 'Owner', odoo: '—' },
+            { data: 'Kit build history', laravel: 'Owner', odoo: '—' },
+            { data: 'Component inventory', laravel: '—', odoo: 'Owner (stock_quant)' },
+          ],
+          dbChanges: [
+            { table: 'kits', columns: 'EXISTS - kit definitions' },
+            { table: 'component_kits', columns: 'EXISTS - kit_id, component_id, qty junction' },
+            { table: 'kit_builds', columns: 'NEW TABLE - kit_id, qty, built_at, built_by' },
+          ],
+          implementation: [
+            'Kit = phantom BOM that dissolves to components in orders',
+            'ReceiverOrderService::updateInsertKit() auto-expands components',
+            'Component availability check before building (real-time Odoo query)',
+            'Batch kit building support',
+            'Build history and audit log',
+            'Integration with order fulfillment (component_orders)',
+          ],
+          risks: [
+            {
+              title: 'Real-time inventory',
+              desc: 'Component availability must query Odoo in real-time.',
+            },
+            {
+              title: 'Partial builds',
+              desc: 'Handle cases where not all kits can be built due to stock.',
+            },
+            {
+              title: 'Phantom BOM migration',
+              desc: '775 phantom BOMs must be correctly converted to kit definitions.',
+            },
+          ],
+          keyPoint: 'Kits are phantom BOMs - virtual products that dissolve to components.',
+        },
+        {
+          id: 4,
+          name: 'Inventory Management',
+          shortName: 'Inventory',
+          weeks: 10,
+          deps: [2, 3],
+          color: '#dc3545',
+          goal: 'Complete inventory tracking in SERP. Odoo becomes deprecated for daily operations.',
+          tasks: [
+            { name: 'Design inventory tables', startWeek: 1, duration: 2 },
+            { name: 'Export warehouse structure and levels', startWeek: 2, duration: 2 },
+            { name: 'Build inventory system', startWeek: 3, duration: 3 },
+            { name: 'Build reports and alerts', startWeek: 5, duration: 2 },
+            { name: 'Integrate with PO and MO flows', startWeek: 6, duration: 2 },
+            { name: 'Physical count and reconciliation', startWeek: 7, duration: 2 },
+            { name: 'Training and parallel run', startWeek: 9, duration: 2 },
+            { name: 'Cutover and stabilization', startWeek: 10, duration: 1 },
+          ],
+          workflow: [
+            { laravel: 'PO arrival recorded', odoo: '—' },
+            { laravel: 'MO completion recorded', odoo: '—' },
+            { laravel: 'Kit build recorded', odoo: '—' },
+            { laravel: 'Order shipped (inventory reduced)', odoo: '—' },
+            { laravel: 'Inventory adjustment (approval workflow)', odoo: '—' },
+            { laravel: 'Stock reports and low-stock alerts', odoo: '—' },
+            { laravel: 'Physical count reconciliation', odoo: '—' },
+          ],
+          dataOwnership: [
+            {
+              data: 'Stock locations (424 in Odoo, 88 duplicates)',
+              laravel: 'Owner',
+              odoo: 'Deprecated',
+            },
+            {
+              data: 'Inventory quantities (14,729 stock_quant)',
+              laravel: 'Owner',
+              odoo: 'Deprecated',
+            },
+            { data: 'Stock moves (200K+ records)', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'Inventory adjustments', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'Reserved quantities', laravel: 'Owner', odoo: 'Deprecated' },
+          ],
+          dbChanges: [
+            { table: 'stock_locations', columns: 'NEW - name, type, parent_id, sugarwish_id' },
+            {
+              table: 'stock_quantities',
+              columns: 'NEW - product_id, location_id, qty, reserved_qty',
+            },
+            {
+              table: 'stock_moves',
+              columns: 'NEW - product_id, from_loc, to_loc, qty, reason, state',
+            },
+            {
+              table: 'odoo_inventory',
+              columns: 'EXISTS (Dec 2024) - product_id, qty synced from Odoo',
+            },
+          ],
+          implementation: [
+            'Location hierarchy (warehouse → zone → shelf) - import from Odoo',
+            'Real-time quantity tracking with reserved_quantity',
+            'Stock move recording: draft → confirmed → assigned → done',
+            'Inventory adjustment with approval workflow',
+            'Low stock alerts and reorder point configuration',
+            'Inventory reports (valuation, aging, movement history)',
+            'Barcode scanning support for warehouse operations',
+            'Physical count system with variance tracking',
+          ],
+          risks: [
+            {
+              title: '48,909 stuck stock moves',
+              desc: 'CRITICAL: 27K assigned, 15K pre-2024. Must use Odoo _do_unreserve() API to clean up.',
+            },
+            {
+              title: '88 duplicate locations',
+              desc: 'Same complete_name across multiple IDs. Consolidate before migration.',
+            },
+            {
+              title: '482 negative quants (-190K units)',
+              desc: 'Investigate root causes: cancelled moves, vendor location debt.',
+            },
+            {
+              title: 'Physical count required',
+              desc: 'Full inventory count needed before cutover for data accuracy.',
+            },
+            {
+              title: 'Parallel run critical',
+              desc: 'Run both systems simultaneously with extensive validation.',
+            },
+          ],
+          keyPoint:
+            'After this phase, Odoo is deprecated for daily inventory operations. Laravel is source of truth.',
+        },
+      ];
+
+      function addDays(d, n) {
+        const r = new Date(d);
+        r.setDate(r.getDate() + n);
+        return r;
+      }
+      function addWeeks(d, w) {
+        return addDays(d, w * 7);
+      }
+      function fmt(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      function fmtFull(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      function getPhaseStart(phaseId) {
+        const projectStart = new Date(PROJECT_START);
+        const ends = new Map();
+        for (const p of phases) {
+          let start = projectStart;
+          p.deps.forEach((id) => {
+            const e = ends.get(id);
+            if (e && e > start) start = e;
+          });
+          const end = addWeeks(start, p.weeks);
+          ends.set(p.id, end);
+          if (p.id === phaseId) return start;
+        }
+        return projectStart;
+      }
+
+      function render() {
+        const params = new URLSearchParams(window.location.search);
+        const phaseId = parseInt(params.get('id')) || 1;
+        const phase = phases.find((p) => p.id === phaseId);
+
+        if (!phase) {
+          document.getElementById('title').textContent = 'Phase not found';
+          return;
+        }
+
+        const start = getPhaseStart(phaseId);
+        const end = addWeeks(start, phase.weeks);
+
+        document.title = `Phase ${phase.id}: ${phase.name}`;
+        document.getElementById('breadcrumb-phase').textContent = `Phase ${phase.id}`;
+        document.getElementById('header').style.borderLeftColor = phase.color;
+        document.getElementById('title').textContent = `Phase ${phase.id}: ${phase.name}`;
+        document.getElementById('meta').textContent =
+          `${fmtFull(start)} → ${fmtFull(end)} (${phase.weeks} weeks)`;
+        document.getElementById('goal').textContent = phase.goal;
+
+        let html = '';
+
+        // Workflow Section
+        html += `<div class="section"><h2 style="border-color:${phase.color}">How It Works</h2>`;
+        html += `<table class="workflow-table"><tr><th>Laravel (SERP)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
+        phase.workflow.forEach((row) => {
+          const rowClass = row.sync ? 'sync-row' : '';
+          const arrow = row.sync ? '→' : '';
+          html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
+        });
+        html += `</table>`;
+        if (phase.keyPoint)
+          html += `<div class="highlight" style="border-color:${phase.color}"><strong>${phase.keyPoint}</strong></div>`;
+        html += `</div>`;
+
+        // Data Ownership Section
+        html += `<div class="section"><h2 style="border-color:${phase.color}">Data Ownership</h2>`;
+        html += `<table><tr><th>Data</th><th>Laravel</th><th>Odoo</th></tr>`;
+        phase.dataOwnership.forEach((row) => {
+          const laravelClass = row.laravel === 'Owner' ? 'owner-cell' : 'copy-cell';
+          const odooClass = row.odoo === 'Owner' ? 'owner-cell' : 'copy-cell';
+          html += `<tr><td>${row.data}</td><td class="${laravelClass}">${row.laravel}</td><td class="${odooClass}">${row.odoo}</td></tr>`;
+        });
+        html += `</table></div>`;
+
+        // Database Changes Section
+        html += `<div class="section"><h2 style="border-color:${phase.color}">Database Changes</h2>`;
+        html += `<table><tr><th>Table</th><th>Columns</th></tr>`;
+        phase.dbChanges.forEach((row) => {
+          html += `<tr><td><code>${row.table}</code></td><td><code>${row.columns}</code></td></tr>`;
+        });
+        html += `</table></div>`;
+
+        // Implementation Section
+        html += `<div class="section"><h2 style="border-color:${phase.color}">Implementation Details</h2><ul>`;
+        phase.implementation.forEach((item) => {
+          html += `<li>${item}</li>`;
+        });
+        html += `</ul></div>`;
+
+        // Risks Section
+        html += `<div class="section"><h2 style="border-color:${phase.color}">Risks & Considerations</h2>`;
+        phase.risks.forEach((risk) => {
+          html += `<div class="risk-item"><strong>${risk.title}:</strong> ${risk.desc}</div>`;
+        });
+        html += `</div>`;
+
+        // Timeline Section
+        html += `<div class="section"><h2 style="border-color:${phase.color}">Timeline</h2>`;
+        html += `<div class="gantt-container"><div class="gantt-header"><div class="gantt-label">Task</div><div class="gantt-weeks">`;
+        for (let w = 1; w <= phase.weeks; w++) {
+          const weekStart = addDays(start, (w - 1) * 7);
+          html += `<div class="week-col">W${w}<br><span class="week-dates">${fmt(weekStart)}</span></div>`;
+        }
+        html += `</div></div>`;
+        phase.tasks.forEach((task) => {
+          const left = ((task.startWeek - 1) / phase.weeks) * 100;
+          const width = (task.duration / phase.weeks) * 100;
+          html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
+          html += `<div class="task-track">${Array(phase.weeks).fill('<div class="task-cell"></div>').join('')}`;
+          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${phase.color}">${task.duration > 1 ? task.duration + 'w' : ''}</div></div></div>`;
+        });
+        html += `</div></div>`;
+
+        document.getElementById('content').innerHTML = html;
+
+        // Navigation
+        const prevPhase = phases.find((p) => p.id === phaseId - 1);
+        const nextPhase = phases.find((p) => p.id === phaseId + 1);
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        if (prevPhase) {
+          prevBtn.href = `phase?id=${prevPhase.id}`;
+          prevBtn.textContent = `← Phase ${prevPhase.id}: ${prevPhase.shortName}`;
+          prevBtn.classList.remove('disabled');
+        } else {
+          prevBtn.classList.add('disabled');
+          prevBtn.textContent = '← Previous';
+        }
+
+        if (nextPhase) {
+          nextBtn.href = `phase?id=${nextPhase.id}`;
+          nextBtn.textContent = `Phase ${nextPhase.id}: ${nextPhase.shortName} →`;
+          nextBtn.classList.remove('disabled');
+        } else {
+          nextBtn.classList.add('disabled');
+          nextBtn.textContent = 'End of Migration';
+        }
+      }
+
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "phaseId": 4,
+  "phaseName": "Inventory Management",
+  "tasks": [
+    { "week": 1, "name": "Design stock_locations table", "days": 2 },
+    { "week": 1, "name": "Design stock_quantities table", "days": 2 },
+    { "week": 1, "name": "Design stock_moves table", "days": 1 },
+    { "week": 2, "name": "Export warehouse structure from Odoo", "days": 2 },
+    { "week": 2, "name": "Export current inventory levels", "days": 2 },
+    { "week": 2, "name": "Decide on stuck stock moves cleanup", "days": 1 },
+    { "week": 3, "name": "Build inventory counting system", "days": 3 },
+    { "week": 3, "name": "Build stock move recording", "days": 2 },
+    { "week": 4, "name": "Build inventory adjustment UI", "days": 3 },
+    { "week": 4, "name": "Build stock location management", "days": 2 },
+    { "week": 5, "name": "Build inventory reports", "days": 3 },
+    { "week": 5, "name": "Build low stock alerts", "days": 2 },
+    { "week": 6, "name": "Integrate with PO arrival flow", "days": 2 },
+    { "week": 6, "name": "Integrate with MO completion flow", "days": 2 },
+    { "week": 6, "name": "Validate inventory accuracy", "days": 1 },
+    { "week": 7, "name": "Physical inventory count", "days": 5 },
+    { "week": 8, "name": "Reconcile counts with system", "days": 3 },
+    { "week": 8, "name": "Train warehouse team", "days": 2 },
+    { "week": 9, "name": "Parallel run (critical)", "days": 5 },
+    { "week": 10, "name": "Cutover during low-activity period", "days": 3 },
+    { "week": 10, "name": "Monitor and stabilize", "days": 2 }
+  ]
+}

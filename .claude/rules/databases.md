@@ -10,15 +10,16 @@ All production database queries MUST be read-only. Never execute:
 
 ## Database Mapping
 
-| Database        | Type       | MCP Database Name | Purpose              |
-| --------------- | ---------- | ----------------- | -------------------- |
-| WishDesk        | MySQL      | `wishdesk`        | WishDesk ticketing   |
-| SugarWish       | MySQL      | `sugarwish`       | Production orders    |
-| Odoo            | PostgreSQL | `odoo`            | ERP data (prod)      |
-| Odoo Staging    | PostgreSQL | `odoo_staging`    | ERP data (staging)   |
-| Retool          | PostgreSQL | `retool`          | Analytics/dashboards |
-| Laravel Local   | MySQL      | `laravel_local`   | Local Laravel dev    |
-| Laravel Staging | MySQL      | `laravel_staging` | Laravel staging      |
+| Database        | Type       | MCP Database Name | Purpose               |
+| --------------- | ---------- | ----------------- | --------------------- |
+| WishDesk        | MySQL      | `wishdesk`        | WishDesk ticketing    |
+| SugarWish       | MySQL      | `sugarwish`       | Production orders     |
+| Odoo            | PostgreSQL | `odoo`            | ERP data (prod)       |
+| Odoo Staging    | PostgreSQL | `odoo_staging`    | ERP data (staging)    |
+| Retool          | PostgreSQL | `retool`          | Analytics/dashboards  |
+| Laravel         | MySQL      | `laravel`         | **Production** (SERP) |
+| Laravel Local   | MySQL      | `laravel_local`   | Local Laravel dev     |
+| Laravel Staging | MySQL      | `laravel_staging` | Laravel staging       |
 
 All databases are accessed via unified MCP tools:
 

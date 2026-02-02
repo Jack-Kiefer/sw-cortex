@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Odoo Migration Planner</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 30px;
+      }
+      h1 {
+        color: #212529;
+        font-size: 1.8em;
+      }
+      .meta {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+      .summary-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .summary-card .value {
+        font-size: 2em;
+        font-weight: 700;
+        color: #198754;
+      }
+      .summary-card .label {
+        color: #6c757d;
+        font-size: 0.85em;
+        margin-top: 5px;
+      }
+
+      .timeline-container {
+        background: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .timeline-header {
+        display: flex;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+      }
+      .timeline-label {
+        width: 220px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9em;
+      }
+      .timeline-months {
+        display: flex;
+        flex: 1;
+      }
+      .month-col {
+        flex: 1;
+        text-align: center;
+        font-size: 0.8em;
+        font-weight: 600;
+        color: #495057;
+        padding: 8px 4px;
+        border-left: 1px solid #e9ecef;
+        background: #f8f9fa;
+      }
+      .month-col:first-child {
+        border-left: none;
+      }
+
+      .phase-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .phase-label {
+        width: 220px;
+        font-weight: 500;
+        font-size: 0.9em;
+        color: #495057;
+      }
+      .phase-track {
+        flex: 1;
+        height: 44px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        background: #f8f9fa;
+        border-radius: 6px;
+      }
+      .phase-bar {
+        position: absolute;
+        height: 36px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        font-size: 0.8em;
+        font-weight: 500;
+        color: white;
+        transition: all 0.2s;
+        text-decoration: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+      }
+      .phase-bar:hover {
+        transform: scaleY(1.08);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+      }
+      .phase-dates {
+        font-size: 0.75em;
+        opacity: 0.9;
+      }
+
+      .phases-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .phase-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s;
+        border-left: 5px solid;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border-top: 1px solid #e9ecef;
+        border-right: 1px solid #e9ecef;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .phase-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+      }
+      .phase-card h3 {
+        margin-bottom: 8px;
+        font-size: 1.05em;
+        color: #212529;
+      }
+      .phase-card .phase-num {
+        color: #6c757d;
+        font-size: 0.85em;
+        font-weight: 500;
+      }
+      .phase-card .phase-goal {
+        color: #6c757d;
+        font-size: 0.9em;
+        line-height: 1.5;
+        margin: 12px 0;
+      }
+      .phase-card .phase-meta {
+        display: flex;
+        justify-content: space-between;
+        color: #868e96;
+        font-size: 0.85em;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #e9ecef;
+      }
+      .phase-card .task-count {
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .milestones {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .milestones h3 {
+        margin-bottom: 20px;
+        color: #495057;
+        font-size: 1.1em;
+      }
+      .milestone-item {
+        display: flex;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .milestone-item:last-child {
+        border-bottom: none;
+      }
+      .milestone-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 15px;
+      }
+      .milestone-info {
+        flex: 1;
+      }
+      .milestone-name {
+        font-weight: 500;
+        color: #212529;
+      }
+      .milestone-phase {
+        font-size: 0.85em;
+        color: #6c757d;
+      }
+      .milestone-date {
+        font-weight: 600;
+        color: #198754;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <h1>Odoo to SERP Migration Plan</h1>
+          <div class="meta" id="meta"></div>
+        </div>
+      </header>
+
+      <div class="summary-cards" id="summary"></div>
+
+      <div class="timeline-container">
+        <div class="timeline-header">
+          <div class="timeline-label">Phase</div>
+          <div class="timeline-months" id="months"></div>
+        </div>
+        <div id="timeline"></div>
+      </div>
+
+      <h2 style="margin-bottom: 20px; color: #495057; font-size: 1.2em">Phase Details</h2>
+      <div class="phases-grid" id="phases-grid"></div>
+
+      <div class="milestones">
+        <h3>Key Milestones</h3>
+        <div id="milestones"></div>
+      </div>
+    </div>
+
+    <script>
+      const project = { startDate: '2026-02-02', preparedBy: 'Jack Kiefer' };
+
+      const phases = [
+        {
+          id: 1,
+          name: 'Purchase Orders & Bills',
+          shortName: 'PO+Bills',
+          weeks: 10,
+          deps: [],
+          color: '#198754',
+          milestone: 'PO & Bill System Live',
+          taskCount: 9,
+          goal: 'PO creation, arrivals, and bill management in SERP. Arrivals push quantities to Odoo. Bills sync to QuickBooks.',
+        },
+        {
+          id: 2,
+          name: 'Products & Manufacturing',
+          shortName: 'Products+MO',
+          weeks: 10,
+          deps: [1],
+          color: '#6f42c1',
+          milestone: 'Product & MO System Live',
+          taskCount: 28,
+          goal: 'Product master data, BOMs, and manufacturing orders in SERP. MO completion pushes inventory to Odoo.',
+        },
+        {
+          id: 3,
+          name: 'Kit Migration',
+          shortName: 'Kits',
+          weeks: 4,
+          deps: [2],
+          color: '#fd7e14',
+          milestone: 'Kits Migrated to Laravel',
+          taskCount: 12,
+          goal: 'Migrate all kit definitions and kit-building logic from Odoo to Laravel.',
+        },
+        {
+          id: 4,
+          name: 'Inventory Management',
+          shortName: 'Inventory',
+          weeks: 10,
+          deps: [2, 3],
+          color: '#dc3545',
+          milestone: 'Full Inventory Cutover',
+          taskCount: 21,
+          goal: 'Complete inventory tracking in SERP. Odoo becomes deprecated for daily operations.',
+        },
+      ];
+
+      function addDays(d, n) {
+        const r = new Date(d);
+        r.setDate(r.getDate() + n);
+        return r;
+      }
+      function addWeeks(d, w) {
+        return addDays(d, w * 7);
+      }
+      function fmt(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      function fmtFull(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      function calcSchedules() {
+        const start = new Date(project.startDate);
+        const ends = new Map();
+        return phases.map((p) => {
+          let s = start;
+          p.deps.forEach((id) => {
+            const e = ends.get(id);
+            if (e && e > s) s = e;
+          });
+          const e = addWeeks(s, p.weeks);
+          ends.set(p.id, e);
+          return { phase: p, start: s, end: e };
+        });
+      }
+
+      function render() {
+        const scheds = calcSchedules();
+        const start = new Date(project.startDate);
+        const end = scheds[scheds.length - 1].end;
+
+        document.getElementById('meta').textContent =
+          `${fmtFull(start)} → ${fmtFull(end)} | ${project.preparedBy}`;
+
+        const totalWeeks = Math.ceil((end - start) / (7 * 24 * 60 * 60 * 1000));
+        const totalTasks = phases.reduce((s, p) => s + p.taskCount, 0);
+        document.getElementById('summary').innerHTML = `
+          <div class="summary-card"><div class="value">${phases.length}</div><div class="label">Phases</div></div>
+          <div class="summary-card"><div class="value">${totalWeeks}</div><div class="label">Weeks</div></div>
+          <div class="summary-card"><div class="value">${totalTasks}</div><div class="label">Tasks</div></div>
+          <div class="summary-card"><div class="value">${fmt(end)}</div><div class="label">Target</div></div>
+        `;
+
+        const months = [];
+        let cur = new Date(start);
+        while (cur <= end) {
+          months.push(cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+          cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        }
+        document.getElementById('months').innerHTML = months
+          .map((m) => `<div class="month-col">${m}</div>`)
+          .join('');
+
+        const totalDays = (end - start) / (24 * 60 * 60 * 1000);
+        document.getElementById('timeline').innerHTML = scheds
+          .map((s) => {
+            const left = ((s.start - start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
+            const width = ((s.end - s.start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
+            return `
+            <div class="phase-row">
+              <div class="phase-label">Phase ${s.phase.id}: ${s.phase.shortName}</div>
+              <div class="phase-track">
+                <a href="phase?id=${s.phase.id}" class="phase-bar" style="left:${left}%;width:${width}%;background:${s.phase.color}">
+                  <span>${s.phase.name}</span>
+                  <span class="phase-dates">${fmt(s.start)} → ${fmt(s.end)}</span>
+                </a>
+              </div>
+            </div>`;
+          })
+          .join('');
+
+        document.getElementById('phases-grid').innerHTML = scheds
+          .map(
+            (s) => `
+          <a href="phase?id=${s.phase.id}" class="phase-card" style="border-left-color:${s.phase.color}">
+            <div class="phase-num">Phase ${s.phase.id}</div>
+            <h3>${s.phase.name}</h3>
+            <div class="phase-goal">${s.phase.goal}</div>
+            <div class="phase-meta">
+              <span>${fmt(s.start)} → ${fmt(s.end)}</span>
+              <span class="task-count">${s.phase.taskCount} tasks</span>
+            </div>
+          </a>
+        `
+          )
+          .join('');
+
+        document.getElementById('milestones').innerHTML = scheds
+          .map(
+            (s) => `
+          <div class="milestone-item">
+            <div class="milestone-dot" style="background:${s.phase.color}"></div>
+            <div class="milestone-info">
+              <div class="milestone-name">${s.phase.milestone}</div>
+              <div class="milestone-phase">Phase ${s.phase.id}</div>
+            </div>
+            <div class="milestone-date">${fmtFull(s.end)}</div>
+          </div>
+        `
+          )
+          .join('');
+      }
+
+      render();
+    </script>
+  </body>
+</html>

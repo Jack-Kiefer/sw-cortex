@@ -1,0 +1,10 @@
+{
+  "February 2026": ["Project kickoff", "PO/Bill schema design", "QuickBooks API research"],
+  "March 2026": ["Arrival qty sync to Odoo", "Bill creation + QB sync", "Product export begins"],
+  "April 2026": ["PO+Bill system go-live", "Product migration", "UI development"],
+  "May 2026": ["MO system design", "BOM migration", "Training prep"],
+  "June 2026": ["MO integration", "Production testing", "Parallel runs"],
+  "July 2026": ["Phases 1-3 complete", "Inventory design", "Stock export"],
+  "August 2026": ["Inventory development", "Physical counts", "Testing"],
+  "September 2026": ["Inventory cutover", "Final stabilization", "Project close"]
+}
