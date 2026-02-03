@@ -249,6 +249,21 @@
           <h1>Odoo to SERP Migration Plan</h1>
           <div class="meta" id="meta"></div>
         </div>
+        <div style="display: flex; gap: 10px">
+          <a
+            href="option-b.html"
+            style="
+              padding: 10px 16px;
+              background: #0d6efd;
+              color: white;
+              text-decoration: none;
+              border-radius: 6px;
+              font-size: 0.9em;
+              font-weight: 500;
+            "
+            >Option B: Integration Approach</a
+          >
+        </div>
       </header>
 
       <div class="summary-cards" id="summary"></div>
@@ -276,47 +291,47 @@
       const phases = [
         {
           id: 1,
-          name: 'Purchase Orders & Bills',
-          shortName: 'PO+Bills',
-          weeks: 10,
+          name: 'Purchase Orders',
+          shortName: 'POs',
+          weeks: 8,
           deps: [],
           color: '#198754',
-          milestone: 'PO & Bill System Live',
-          taskCount: 9,
-          goal: 'PO creation, arrivals, and bill management in SERP. Arrivals push quantities to Odoo. Bills sync to QuickBooks.',
+          milestone: 'PO System Live',
+          taskCount: 10,
+          goal: 'PO creation, approvals, and arrival tracking in SERP. Arrivals push quantities to Odoo via stock.move.',
         },
         {
           id: 2,
-          name: 'Products & Manufacturing',
-          shortName: 'Products+MO',
-          weeks: 10,
+          name: 'Bills & Blanket POs',
+          shortName: 'Bills+Blanket',
+          weeks: 6,
           deps: [1],
-          color: '#6f42c1',
-          milestone: 'Product & MO System Live',
-          taskCount: 28,
-          goal: 'Product master data, BOMs, and manufacturing orders in SERP. MO completion pushes inventory to Odoo.',
+          color: '#0d6efd',
+          milestone: 'Bill & Blanket PO System Live',
+          taskCount: 9,
+          goal: 'Bill creation from POs with QuickBooks sync. Blanket PO support for multi-release purchasing.',
         },
         {
           id: 3,
-          name: 'Kit Migration',
-          shortName: 'Kits',
-          weeks: 4,
+          name: 'Products & Manufacturing',
+          shortName: 'Products+MO',
+          weeks: 8,
           deps: [2],
-          color: '#fd7e14',
-          milestone: 'Kits Migrated to Laravel',
-          taskCount: 12,
-          goal: 'Migrate all kit definitions and kit-building logic from Odoo to Laravel.',
+          color: '#6f42c1',
+          milestone: 'Product & MO System Live',
+          taskCount: 18,
+          goal: 'Odoo is source of truth for BOMs. SERP consumes BOMs via API with caching. MO completion pushes inventory to Odoo.',
         },
         {
           id: 4,
-          name: 'Inventory Management',
-          shortName: 'Inventory',
-          weeks: 10,
-          deps: [2, 3],
+          name: 'Kits & Inventory',
+          shortName: 'Kits+Inventory',
+          weeks: 16,
+          deps: [3],
           color: '#dc3545',
           milestone: 'Full Inventory Cutover',
-          taskCount: 21,
-          goal: 'Complete inventory tracking in SERP. Odoo becomes deprecated for daily operations.',
+          taskCount: 14,
+          goal: 'Migrate 265 phantom BOMs to Laravel. Fix inventory concurrency. Build PO arrival and MO completion inventory updates. Laravel becomes source of truth.',
         },
       ];
 

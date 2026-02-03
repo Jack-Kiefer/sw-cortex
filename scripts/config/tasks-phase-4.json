@@ -20,8 +20,12 @@
     { "week": 7, "name": "Physical inventory count", "days": 5 },
     { "week": 8, "name": "Reconcile counts with system", "days": 3 },
     { "week": 8, "name": "Train warehouse team", "days": 2 },
-    { "week": 9, "name": "Parallel run (critical)", "days": 5 },
-    { "week": 10, "name": "Cutover during low-activity period", "days": 3 },
-    { "week": 10, "name": "Monitor and stabilize", "days": 2 }
+    { "week": 10, "name": "Physical count and reconciliation", "days": 5 },
+    { "week": 11, "name": "Training sessions", "days": 3 },
+    { "week": 11, "name": "Parallel run begins", "days": 2 },
+    { "week": 12, "name": "Parallel run continues (critical)", "days": 5 },
+    { "week": 13, "name": "Cutover during low-activity period", "days": 3 },
+    { "week": 13, "name": "Monitor and stabilize", "days": 2 },
+    { "week": 14, "name": "Post-cutover support and fixes", "days": 5 }
   ]
 }

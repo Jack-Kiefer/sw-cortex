@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Option B: Odoo Integration Approach</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .breadcrumb {
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+      .breadcrumb a {
+        color: #0d6efd;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .breadcrumb a:hover {
+        text-decoration: underline;
+      }
+      .breadcrumb span {
+        color: #6c757d;
+        margin: 0 8px;
+      }
+
+      header {
+        padding: 24px;
+        background: #fff;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        border-left: 5px solid #0d6efd;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      header h1 {
+        font-size: 1.5em;
+        margin-bottom: 8px;
+        color: #212529;
+      }
+      .phase-meta {
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-bottom: 12px;
+      }
+      .phase-goal {
+        background: #f8f9fa;
+        padding: 14px;
+        border-radius: 8px;
+        color: #495057;
+        font-size: 0.95em;
+      }
+
+      .section {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .section h2 {
+        font-size: 1.1em;
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #0d6efd;
+      }
+      .section h3 {
+        font-size: 0.95em;
+        margin: 16px 0 8px;
+        color: #495057;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 0.9em;
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+      th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+      }
+      .owner-odoo {
+        color: #6f42c1;
+        font-weight: 600;
+      }
+      .build-new {
+        color: #0d6efd;
+        font-weight: 600;
+      }
+
+      ul {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+      li {
+        margin: 6px 0;
+      }
+
+      .highlight {
+        background: #e3f2fd;
+        padding: 12px 16px;
+        border-left: 4px solid #0d6efd;
+        margin: 16px 0;
+        font-weight: 500;
+      }
+      .highlight.warning {
+        background: #fff3cd;
+        border-left-color: #ffc107;
+      }
+      .highlight.success {
+        background: #d1e7dd;
+        border-left-color: #198754;
+      }
+
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+
+      .issue-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 12px;
+        margin: 12px 0;
+      }
+      .issue-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 14px;
+        border: 1px solid #e9ecef;
+        border-left: 4px solid;
+      }
+      .issue-card.solvable {
+        border-left-color: #198754;
+        background: #f8fff9;
+      }
+      .issue-card.partial {
+        border-left-color: #ffc107;
+        background: #fffef8;
+      }
+      .issue-card.limitation {
+        border-left-color: #dc3545;
+        background: #fff8f8;
+      }
+      .issue-card h4 {
+        font-size: 0.9em;
+        margin-bottom: 6px;
+        color: #212529;
+      }
+      .issue-card .status {
+        font-size: 0.75em;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+      .issue-card.solvable .status {
+        color: #198754;
+      }
+      .issue-card.partial .status {
+        color: #997404;
+      }
+      .issue-card.limitation .status {
+        color: #dc3545;
+      }
+      .issue-card p {
+        font-size: 0.85em;
+        color: #495057;
+        margin: 0;
+      }
+
+      .arch-diagram {
+        background: #1a1a2e;
+        border-radius: 12px;
+        padding: 24px;
+        color: #e9ecef;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 0.85em;
+        line-height: 1.6;
+        overflow-x: auto;
+        margin: 16px 0;
+      }
+      .arch-diagram .layer {
+        margin: 8px 0;
+        padding: 10px 14px;
+        border-radius: 6px;
+      }
+      .arch-diagram .layer-ui {
+        background: #2d4a3e;
+        border: 1px solid #198754;
+      }
+      .arch-diagram .layer-odoo {
+        background: #3d2a4a;
+        border: 1px solid #6f42c1;
+      }
+      .arch-diagram .arrow {
+        text-align: center;
+        color: #6c757d;
+        font-size: 1.1em;
+        padding: 4px 0;
+      }
+      .arch-diagram .arrow-label {
+        font-size: 0.75em;
+        color: #adb5bd;
+      }
+
+      .comparison-table td:first-child {
+        font-weight: 600;
+        color: #495057;
+      }
+      .comparison-table .option-a {
+        background: #f8f9fa;
+      }
+      .comparison-table .option-b {
+        background: #e3f2fd;
+      }
+
+      .nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+      }
+      .nav-btn {
+        padding: 12px 20px;
+        background: #fff;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #495057;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+        transition: all 0.2s;
+      }
+      .nav-btn:hover {
+        background: #f8f9fa;
+        transform: translateY(-1px);
+      }
+      .nav-btn.primary {
+        background: #198754;
+        color: white;
+        border-color: #198754;
+      }
+      .nav-btn.primary:hover {
+        background: #157347;
+      }
+
+      .bottom-line {
+        background: linear-gradient(135deg, #212529 0%, #343a40 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+      .bottom-line h3 {
+        color: white;
+        margin-bottom: 12px;
+        font-size: 1.1em;
+      }
+      .bottom-line p {
+        opacity: 0.9;
+        font-size: 0.95em;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="breadcrumb">
+        <a href="index.html">Migration Plan</a><span>/</span
+        ><span>Option B: Integration Approach</span>
+      </div>
+
+      <header>
+        <h1>Option B: Odoo Integration Approach</h1>
+        <div class="phase-meta">Keep Odoo as the source of truth — Build better tools on top</div>
+        <div class="phase-goal">
+          <strong>No data migration.</strong> Odoo remains the source of truth for everything it
+          currently owns. Build better UI, workflows, and automation that read from and write to
+          Odoo. Fix the operational problems through better interfaces and integrations, not by
+          moving data elsewhere.
+        </div>
+      </header>
+
+      <div class="section">
+        <h2>Core Principle</h2>
+        <div class="highlight success">
+          <strong>Odoo = The Database. SERP = The Interface.</strong><br />
+          All data stays in Odoo. SERP reads from Odoo, displays it better, and writes back to Odoo.
+          No sync complexity. No dual ownership. One source of truth.
+        </div>
+        <div class="highlight" style="margin-top: 12px">
+          <strong>On-demand solutions, prioritized by impact.</strong><br />
+          Instead of a fixed migration roadmap, build solutions to Odoo issues as needed. Prioritize
+          the most important problems first — not what's easiest to build. Each tool addresses a
+          specific pain point and delivers value immediately.
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Already Built (Proof of Concept)</h2>
+        <p style="margin-bottom: 16px; color: #6c757d">
+          These tools already exist and demonstrate the Option B pattern in practice:
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>How It Works</th>
+              <th>Odoo Interaction</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Inventory Count Tool</strong></td>
+              <td>Users count inventory in SERP. Counts are stored locally during the process.</td>
+              <td>When counting is complete → sends final counts to Odoo</td>
+            </tr>
+            <tr>
+              <td><strong>Supplier Forecast</strong></td>
+              <td>Forecasting and analytics dashboard reading from Odoo data.</td>
+              <td>Reads from Odoo tables to calculate and display forecasts</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="highlight success">
+          <strong>This pattern is proven.</strong> The tools above already work this way. Option B
+          extends this approach to cover more workflows.
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>What Gets Built</h2>
+        <p style="margin-bottom: 20px; color: #6c757d">
+          Each tool addresses a specific gap and writes back to Odoo.
+        </p>
+
+        <div
+          style="
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border-left: 4px solid #0d6efd;
+          "
+        >
+          <h3 style="margin: 0 0 12px 0; color: #212529">Updated Purchase Order UI</h3>
+          <p style="margin: 0 0 12px 0; color: #495057">
+            Better interface for creating, managing, and receiving POs with a two-stage receiving
+            process.
+          </p>
+          <div style="margin-top: 16px">
+            <strong style="color: #495057; font-size: 0.9em">How it works:</strong>
+            <ul style="margin: 8px 0 0 0; color: #495057; font-size: 0.9em">
+              <li>
+                <strong>Create PO:</strong> User builds PO in SERP → SERP calls Odoo XML-RPC to
+                create <code>purchase.order</code> record
+              </li>
+              <li>
+                <strong>Dock Receipt:</strong> Warehouse scans items into SERP → data held locally
+                until confirmed
+              </li>
+              <li>
+                <strong>Issue Handling:</strong> Wrong item? Damaged? Flag in SERP, adjust
+                quantities, add notes before confirming
+              </li>
+              <li>
+                <strong>Confirm to Inventory:</strong> User confirms receipt → SERP calls Odoo to
+                create <code>stock.move</code> records and update inventory
+              </li>
+            </ul>
+          </div>
+          <div
+            style="
+              margin-top: 12px;
+              padding: 8px 12px;
+              background: #e3f2fd;
+              border-radius: 4px;
+              font-size: 0.85em;
+            "
+          >
+            <strong>Odoo writes:</strong> <code>purchase.order</code> (create),
+            <code>stock.picking</code> (validate), <code>stock.move</code> (quantities)
+          </div>
+        </div>
+
+        <div
+          style="
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border-left: 4px solid #6f42c1;
+          "
+        >
+          <h3 style="margin: 0 0 12px 0; color: #212529">Updated Manufacturing Order UI</h3>
+          <p style="margin: 0 0 12px 0; color: #495057">
+            Simplified MO creation and tracking. BOMs stay in Odoo, SERP provides better UI.
+          </p>
+          <div style="margin-top: 16px">
+            <strong style="color: #495057; font-size: 0.9em">How it works:</strong>
+            <ul style="margin: 8px 0 0 0; color: #495057; font-size: 0.9em">
+              <li>
+                <strong>View BOMs:</strong> SERP reads <code>mrp.bom</code> from Odoo via API,
+                displays in cleaner format
+              </li>
+              <li>
+                <strong>Create MO:</strong> User selects product + quantity → SERP calls Odoo to
+                create <code>mrp.production</code>
+              </li>
+              <li>
+                <strong>Track Progress:</strong> SERP reads MO status from Odoo, displays dashboard
+                view
+              </li>
+              <li>
+                <strong>Complete MO:</strong> User marks done → SERP calls Odoo to confirm
+                production, which consumes components and adds finished goods to inventory
+              </li>
+            </ul>
+          </div>
+          <div
+            style="
+              margin-top: 12px;
+              padding: 8px 12px;
+              background: #f3e8ff;
+              border-radius: 4px;
+              font-size: 0.85em;
+            "
+          >
+            <strong>Odoo writes:</strong> <code>mrp.production</code> (create/confirm),
+            <code>stock.move</code> (component consumption + finished goods)
+          </div>
+        </div>
+
+        <div
+          style="
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border-left: 4px solid #198754;
+          "
+        >
+          <h3 style="margin: 0 0 12px 0; color: #212529">Blanket PO Tracking</h3>
+          <p style="margin: 0 0 12px 0; color: #495057">
+            Track long-term vendor agreements. SERP manages the agreement, Odoo gets individual
+            release POs.
+          </p>
+          <div style="margin-top: 16px">
+            <strong style="color: #495057; font-size: 0.9em">How it works:</strong>
+            <ul style="margin: 8px 0 0 0; color: #495057; font-size: 0.9em">
+              <li>
+                <strong>Create Agreement:</strong> User creates blanket PO in SERP with total qty,
+                price terms, validity period → stored in Laravel
+              </li>
+              <li>
+                <strong>Release Orders:</strong> User creates releases against the blanket → each
+                release creates a real <code>purchase.order</code> in Odoo
+              </li>
+              <li>
+                <strong>Track Usage:</strong> SERP tracks total released vs. agreement amount, shows
+                remaining balance
+              </li>
+              <li>
+                <strong>Receipts:</strong> Individual PO receipts flow through normal PO UI above
+              </li>
+            </ul>
+          </div>
+          <div
+            style="
+              margin-top: 12px;
+              padding: 8px 12px;
+              background: #d1e7dd;
+              border-radius: 4px;
+              font-size: 0.85em;
+            "
+          >
+            <strong>Odoo writes:</strong> <code>purchase.order</code> (one per release) — blanket
+            agreement itself stays in Laravel
+          </div>
+        </div>
+
+        <div
+          style="
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border-left: 4px solid #fd7e14;
+          "
+        >
+          <h3 style="margin: 0 0 12px 0; color: #212529">Approval Workflows</h3>
+          <p style="margin: 0 0 12px 0; color: #495057">
+            Route POs for approval based on amount thresholds. Notify via Slack, update Odoo when
+            approved.
+          </p>
+          <div style="margin-top: 16px">
+            <strong style="color: #495057; font-size: 0.9em">How it works:</strong>
+            <ul style="margin: 8px 0 0 0; color: #495057; font-size: 0.9em">
+              <li>
+                <strong>Threshold Rules:</strong> Configure in SERP: POs over $X need manager
+                approval, over $Y need director
+              </li>
+              <li>
+                <strong>Submit for Approval:</strong> User submits PO → SERP sends Slack message to
+                approver with approve/reject buttons
+              </li>
+              <li>
+                <strong>Approve:</strong> Approver clicks approve in Slack → SERP updates PO status
+                → calls Odoo to confirm <code>purchase.order</code>
+              </li>
+              <li>
+                <strong>Reject:</strong> Approver rejects → SERP notifies requestor, PO stays draft
+                in Odoo
+              </li>
+            </ul>
+          </div>
+          <div
+            style="
+              margin-top: 12px;
+              padding: 8px 12px;
+              background: #ffe8d6;
+              border-radius: 4px;
+              font-size: 0.85em;
+            "
+          >
+            <strong>Odoo writes:</strong> <code>purchase.order</code> state change (draft →
+            confirmed) on approval
+          </div>
+        </div>
+
+        <div
+          style="
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border-left: 4px solid #dc3545;
+          "
+        >
+          <h3 style="margin: 0 0 12px 0; color: #212529">Supplier Forecast → Odoo Integration</h3>
+          <p style="margin: 0 0 12px 0; color: #495057">
+            Turn SERP supplier forecasts into draft POs in Odoo with one click.
+          </p>
+          <div style="margin-top: 16px">
+            <strong style="color: #495057; font-size: 0.9em">How it works:</strong>
+            <ul style="margin: 8px 0 0 0; color: #495057; font-size: 0.9em">
+              <li>
+                <strong>Generate Forecast:</strong> Supplier Forecast tool calculates what to order
+                based on demand
+              </li>
+              <li>
+                <strong>Review in SERP:</strong> User reviews suggested quantities, adjusts as
+                needed
+              </li>
+              <li>
+                <strong>Create Draft POs:</strong> User clicks "Send to Odoo" → SERP calls Odoo to
+                create <code>purchase.order</code> records in draft state
+              </li>
+              <li>
+                <strong>Finalize in Odoo or SERP:</strong> POs can be confirmed through normal
+                approval workflow
+              </li>
+            </ul>
+          </div>
+          <div
+            style="
+              margin-top: 12px;
+              padding: 8px 12px;
+              background: #f8d7da;
+              border-radius: 4px;
+              font-size: 0.85em;
+            "
+          >
+            <strong>Odoo writes:</strong> <code>purchase.order</code> (create as draft with lines)
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Timeline</h2>
+        <p style="margin-bottom: 16px; color: #6c757d">
+          Each phase builds a UI/workflow that reads from and writes to Odoo. No data migration
+          means faster delivery.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>What Gets Built</th>
+              <th>Est. Weeks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Updated Purchase Order UI</strong></td>
+              <td>PO creation, management, dock receipt with issue handling</td>
+              <td style="text-align: center">2-3</td>
+            </tr>
+            <tr>
+              <td><strong>Updated Manufacturing Order UI</strong></td>
+              <td>MO creation, tracking, completion workflow</td>
+              <td style="text-align: center">2-3</td>
+            </tr>
+            <tr>
+              <td><strong>Blanket PO Tracking</strong></td>
+              <td>Agreement tracking, distribution PO releases</td>
+              <td style="text-align: center">2-3</td>
+            </tr>
+            <tr>
+              <td><strong>Approval Workflows</strong></td>
+              <td>Slack notifications, threshold routing</td>
+              <td style="text-align: center">1-2</td>
+            </tr>
+            <tr>
+              <td><strong>Supplier Forecast → Odoo</strong></td>
+              <td>Auto-create draft POs in Odoo from SERP forecast</td>
+              <td style="text-align: center">1-2</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr style="background: #f8f9fa; font-weight: 600">
+              <td colspan="2">Total Estimated</td>
+              <td style="text-align: center">8-13 weeks</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div class="highlight">
+          <strong>Compare to Option A:</strong> Option A (full migration) is estimated at 32 weeks.
+          Option B is significantly faster — build only what's needed, when it's needed.
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>What This Doesn't Accomplish</h2>
+        <p style="margin-bottom: 16px; color: #6c757d">
+          These issues can only be fully solved by migrating data out of Odoo (Option A):
+        </p>
+
+        <div class="issue-grid">
+          <div class="issue-card limitation">
+            <div class="status">Permanent</div>
+            <h4>Odoo Licensing Costs</h4>
+            <p>Continue paying Odoo Enterprise license fees indefinitely.</p>
+          </div>
+
+          <div class="issue-card limitation">
+            <div class="status">Permanent</div>
+            <h4>Odoo Upgrade Dependency</h4>
+            <p>
+              Must upgrade Odoo when support ends. Upgrades are complex and can break
+              customizations.
+            </p>
+          </div>
+
+          <div class="issue-card limitation">
+            <div class="status">Permanent</div>
+            <h4>Existing Data Quality Issues</h4>
+            <p>
+              48,909 stuck stock moves, 2,045 over-received PO lines, and other data problems remain
+              in Odoo.
+            </p>
+          </div>
+
+          <div class="issue-card limitation">
+            <div class="status">Permanent</div>
+            <h4>No Schema Control</h4>
+            <p>
+              Can't modify Odoo's data model. Stuck with Odoo's table structure and field types.
+            </p>
+          </div>
+
+          <div class="issue-card limitation">
+            <div class="status">Permanent</div>
+            <h4>Integration Overhead</h4>
+            <p>
+              Every new feature requires XML-RPC integration with Odoo. More moving parts, more
+              failure points.
+            </p>
+          </div>
+
+          <div class="issue-card limitation">
+            <div class="status">Permanent</div>
+            <h4>Two Systems Forever</h4>
+            <p>
+              Users work in SERP but data lives in Odoo. Debugging requires checking both systems.
+            </p>
+          </div>
+        </div>
+
+        <div class="highlight warning" style="margin-top: 20px">
+          <strong>The tradeoff:</strong> Option B is faster and lower risk, but these limitations
+          are permanent. If eliminating Odoo is a hard requirement, only Option A achieves that.
+        </div>
+      </div>
+
+      <div class="nav-buttons">
+        <a href="index.html" class="nav-btn">← Back to Migration Plan</a>
+        <a href="phase?id=1" class="nav-btn primary">View Option A: Phase 1 →</a>
+      </div>
+    </div>
+  </body>
+</html>
