@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Future Improvements</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .breadcrumb {
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+      .breadcrumb a {
+        color: #6c757d;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .breadcrumb a:hover {
+        text-decoration: underline;
+      }
+      .breadcrumb span {
+        color: #6c757d;
+        margin: 0 8px;
+      }
+
+      header {
+        padding: 24px;
+        background: #fff;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        border-left: 5px solid #6c757d;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      header h1 {
+        font-size: 1.5em;
+        margin-bottom: 8px;
+        color: #212529;
+      }
+      .phase-meta {
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-bottom: 12px;
+      }
+      .phase-goal {
+        background: #f8f9fa;
+        padding: 14px;
+        border-radius: 8px;
+        color: #495057;
+        font-size: 0.95em;
+      }
+
+      .section {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .section h2 {
+        font-size: 1.1em;
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #6c757d;
+      }
+      .section h3 {
+        font-size: 0.95em;
+        margin: 16px 0 8px;
+        color: #495057;
+      }
+
+      ul {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+      li {
+        margin: 6px 0;
+      }
+
+      .highlight {
+        background: #e9ecef;
+        padding: 12px 16px;
+        border-left: 4px solid #6c757d;
+        margin: 16px 0;
+        font-weight: 500;
+      }
+      .highlight.info {
+        background: #e3f2fd;
+        border-left-color: #0d6efd;
+      }
+
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+
+      .feature-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-left: 4px solid;
+      }
+      .feature-card h3 {
+        margin: 0 0 12px 0;
+        color: #212529;
+      }
+      .feature-card p {
+        margin: 0 0 12px 0;
+        color: #495057;
+      }
+      .feature-card .details {
+        margin-top: 16px;
+      }
+      .feature-card .details strong {
+        color: #495057;
+        font-size: 0.9em;
+      }
+      .feature-card .details ul {
+        margin: 8px 0 0 0;
+        color: #495057;
+        font-size: 0.9em;
+      }
+      .feature-card .odoo-note {
+        margin-top: 12px;
+        padding: 8px 12px;
+        background: #fff3cd;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+
+      .nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+      }
+      .nav-btn {
+        padding: 12px 20px;
+        background: #fff;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #495057;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+        transition: all 0.2s;
+      }
+      .nav-btn:hover {
+        background: #f8f9fa;
+        transform: translateY(-1px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="breadcrumb">
+        <a href="index.html">Migration Plan</a><span>/</span><span>Future Improvements</span>
+      </div>
+
+      <header>
+        <h1>Future Improvements</h1>
+        <div class="phase-meta">Features not currently in Odoo — to be built as needed</div>
+        <div class="phase-goal">
+          These are <strong>new capabilities</strong> that don't exist in Odoo today. They can be
+          built in SERP/Laravel independently of the core migration phases, prioritized by business
+          need. Each feature writes back to Odoo where necessary but the logic lives in SERP.
+        </div>
+      </header>
+
+      <div class="section">
+        <h2>Why These Are Separate</h2>
+        <div class="highlight info">
+          <strong>These features don't exist in Odoo.</strong> The main migration phases focus on
+          replacing existing Odoo functionality with better SERP interfaces. These improvements are
+          net-new capabilities that can be built on-demand when the business needs them.
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Available Improvements</h2>
+
+        <div class="feature-card" style="border-left-color: #198754">
+          <h3>Blanket PO Tracking</h3>
+          <p>
+            Track long-term vendor agreements with multiple releases. SERP manages the agreement,
+            Odoo receives individual release POs.
+          </p>
+          <div class="details">
+            <strong>How it works:</strong>
+            <ul>
+              <li>
+                <strong>Create Agreement:</strong> User creates blanket PO in SERP with total qty,
+                price terms, validity period — stored in Laravel
+              </li>
+              <li>
+                <strong>Release Orders:</strong> User creates releases against the blanket — each
+                release creates a real <code>purchase.order</code> in Odoo
+              </li>
+              <li>
+                <strong>Track Usage:</strong> SERP tracks total released vs. agreement amount, shows
+                remaining balance
+              </li>
+              <li>
+                <strong>Receipts:</strong> Individual PO receipts flow through normal receiving
+                process
+              </li>
+            </ul>
+          </div>
+          <div class="odoo-note">
+            <strong>Why not in Odoo:</strong> Odoo has no native blanket/framework PO support. No
+            <code>purchase_requisition</code> or similar tables exist. This is a feature gap that
+            must be built custom.
+          </div>
+        </div>
+
+        <div class="feature-card" style="border-left-color: #fd7e14">
+          <h3>Approval Workflows</h3>
+          <p>
+            Route POs for approval based on amount thresholds. Notify via Slack, update Odoo when
+            approved.
+          </p>
+          <div class="details">
+            <strong>How it works:</strong>
+            <ul>
+              <li>
+                <strong>Threshold Rules:</strong> Configure in SERP: POs over $X need manager
+                approval, over $Y need director
+              </li>
+              <li>
+                <strong>Multi-Step Approval:</strong> Ops approval first, then Finance approval for
+                larger amounts
+              </li>
+              <li>
+                <strong>Slack Notifications:</strong> Approver receives Slack message with
+                approve/reject buttons
+              </li>
+              <li>
+                <strong>Approve:</strong> Approver clicks approve in Slack — SERP updates PO status
+                — calls Odoo to confirm <code>purchase.order</code>
+              </li>
+              <li>
+                <strong>Reject:</strong> Approver rejects — SERP notifies requestor, PO stays draft
+                in Odoo
+              </li>
+            </ul>
+          </div>
+          <div class="odoo-note">
+            <strong>Why not in Odoo:</strong> Odoo has <code>studio_approval_rule</code> table but
+            <strong>0 active rules configured</strong>. Current workflow is state-based only
+            (draft→purchase) with no enforcement of who can approve. Multi-step ops→finance approval
+            doesn't exist.
+          </div>
+        </div>
+
+        <div class="feature-card" style="border-left-color: #dc3545">
+          <h3>Supplier Forecast → Odoo Integration</h3>
+          <p>Turn SERP supplier forecasts into draft POs in Odoo with one click.</p>
+          <div class="details">
+            <strong>How it works:</strong>
+            <ul>
+              <li>
+                <strong>Generate Forecast:</strong> Supplier Forecast tool calculates what to order
+                based on demand
+              </li>
+              <li>
+                <strong>Review in SERP:</strong> User reviews suggested quantities, adjusts as
+                needed
+              </li>
+              <li>
+                <strong>Create Draft POs:</strong> User clicks "Send to Odoo" — SERP calls Odoo to
+                create <code>purchase.order</code> records in draft state
+              </li>
+              <li>
+                <strong>Finalize:</strong> POs can be confirmed through normal approval workflow
+              </li>
+            </ul>
+          </div>
+          <div class="odoo-note">
+            <strong>Why not in Odoo:</strong> Odoo has no forecasting integration. The Supplier
+            Forecast tool already exists in SERP — this adds the ability to push results directly to
+            Odoo as draft POs.
+          </div>
+        </div>
+
+        <div class="feature-card" style="border-left-color: #6f42c1">
+          <h3>Inventory Adjustment Approvals</h3>
+          <p>
+            Require approval for manual inventory adjustments above a threshold. Track who approved
+            and why.
+          </p>
+          <div class="details">
+            <strong>How it works:</strong>
+            <ul>
+              <li>
+                <strong>Adjustment Request:</strong> User submits inventory adjustment with reason
+                code
+              </li>
+              <li>
+                <strong>Threshold Check:</strong> Adjustments above configured threshold require
+                approval
+              </li>
+              <li>
+                <strong>Slack Notification:</strong> Approver notified via Slack with adjustment
+                details
+              </li>
+              <li>
+                <strong>Audit Trail:</strong> All adjustments logged with who requested, who
+                approved, and why
+              </li>
+            </ul>
+          </div>
+          <div class="odoo-note">
+            <strong>Why not in Odoo:</strong> Odoo allows direct inventory adjustments with no
+            approval gate. This adds governance for high-value inventory changes.
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Other Potential Improvements</h2>
+        <p style="margin-bottom: 16px; color: #6c757d">
+          Additional features discussed but not yet prioritized:
+        </p>
+        <ul>
+          <li><strong>Bulk BOM Import:</strong> Import BOMs from spreadsheet with validation</li>
+          <li>
+            <strong>Product/BOM Archiving:</strong> Soft-delete with archive flag instead of hard
+            delete
+          </li>
+          <li>
+            <strong>Warehouse Location Tracking:</strong> Track inventory by pallet/location within
+            warehouse
+          </li>
+          <li>
+            <strong>Bulk Inventory Adjustments:</strong> Adjust multiple items at once from
+            spreadsheet
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-buttons">
+        <a href="index.html" class="nav-btn">← Back to Migration Plan</a>
+        <span></span>
+      </div>
+    </div>
+  </body>
+</html>

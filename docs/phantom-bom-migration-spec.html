@@ -98,6 +98,19 @@
       inventory decrements happen through Laravel instead of Odoo.
     </p>
 
+    <h2>Goals</h2>
+    <ul>
+      <li>Migrate all phantom BOMs from Odoo to Laravel kits table</li>
+      <li>Validate kit-to-buyer_product links</li>
+      <li>Test order expansion with Laravel kits</li>
+      <li>Deprecate Odoo phantom BOM lookups</li>
+    </ul>
+
+    <div class="highlight">
+      <strong>Key:</strong> Runs parallel with Phase 2 (Bills/Products/MO). Kit migration is
+      independent and can proceed without waiting for other work.
+    </div>
+
     <h2>Current State</h2>
     <table>
       <tr>
@@ -275,6 +288,143 @@
       <tr>
         <td>Receiving</td>
         <td class="owner">Keep in Odoo</td>
+      </tr>
+    </table>
+
+    <h2>Data Ownership</h2>
+    <table>
+      <tr>
+        <th>Data</th>
+        <th style="background: #fef2f2; color: #e94560">Laravel</th>
+        <th style="background: #f3e8ff; color: #714b67">Odoo</th>
+      </tr>
+      <tr>
+        <td>Kit definitions (265 phantom BOMs)</td>
+        <td class="owner">Owner</td>
+        <td class="skip">Deprecated</td>
+      </tr>
+      <tr>
+        <td>Kit components (<code>component_kits</code> junction)</td>
+        <td class="owner">Owner</td>
+        <td class="skip">Deprecated</td>
+      </tr>
+      <tr>
+        <td>Kit-to-buyer_product links</td>
+        <td class="owner">Owner</td>
+        <td class="copy">—</td>
+      </tr>
+    </table>
+
+    <h2>How It Works (Workflow)</h2>
+    <table>
+      <tr>
+        <th style="background: #fef2f2; color: #e94560">Laravel (SERP)</th>
+        <th style="width: 60px"></th>
+        <th style="background: #f3e8ff; color: #714b67">Odoo</th>
+      </tr>
+      <tr>
+        <td>Migrate 265 phantom BOMs → <code>kits</code> table</td>
+        <td></td>
+        <td class="copy">Read-only source</td>
+      </tr>
+      <tr>
+        <td>Kit defines components (shippers, inserts, boxes)</td>
+        <td></td>
+        <td class="copy">—</td>
+      </tr>
+      <tr>
+        <td>Order placed → <code>ComponentOrder</code> created for all kit components</td>
+        <td></td>
+        <td class="copy">—</td>
+      </tr>
+      <tr>
+        <td>Order expansion uses Laravel kits</td>
+        <td></td>
+        <td class="skip">Deprecated</td>
+      </tr>
+    </table>
+
+    <h2>Existing Odoo Features</h2>
+    <ul>
+      <li><code>mrp_bom</code> with <code>type=phantom</code> (265 active kits)</li>
+      <li><code>mrp_bom_line</code> for kit components (~800 records)</li>
+      <li>Kit expansion called on order creation</li>
+    </ul>
+
+    <h2>New Features (After Migration)</h2>
+    <ul>
+      <li>All order expansion uses Laravel kits</li>
+      <li>Kit management UI in SERP</li>
+      <li>Kit version history and audit logging</li>
+    </ul>
+
+    <h2>Implementation Details</h2>
+    <ul>
+      <li>
+        Phantom BOM migration: <code>INSERT SELECT</code> from Odoo <code>mrp_bom</code> where
+        <code>type=phantom</code>
+      </li>
+      <li>265 BOMs with avg 2-3 components each (simple structure, no nesting)</li>
+      <li>Zero-qty consumables (tape, labels) migrated with <code>qty=0</code></li>
+      <li>Kit diff report comparing Laravel vs Odoo for validation</li>
+      <li>Parallel run period to validate order expansion</li>
+    </ul>
+
+    <h2>Timeline (10 Weeks)</h2>
+    <table>
+      <tr>
+        <th>Week</th>
+        <th>Tasks</th>
+      </tr>
+      <tr>
+        <td><strong>Week 1-2</strong></td>
+        <td>
+          <ul style="margin: 0; padding-left: 20px">
+            <li>Analyze Odoo phantom BOMs structure</li>
+            <li>Map phantom BOM components to Laravel components</li>
+            <li>Document kit-to-buyer_product relationships</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Week 3-4</strong></td>
+        <td>
+          <ul style="margin: 0; padding-left: 20px">
+            <li>Write phantom BOM export script</li>
+            <li>Build migration script (Odoo → Laravel kits)</li>
+            <li>Handle zero-qty consumables (tape, labels)</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Week 5-6</strong></td>
+        <td>
+          <ul style="margin: 0; padding-left: 20px">
+            <li>Build kit validation report</li>
+            <li>Test kit expansion in order flow</li>
+            <li>Validate kit-to-buyer_product links</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Week 7-8</strong></td>
+        <td>
+          <ul style="margin: 0; padding-left: 20px">
+            <li>Test ComponentOrder creation for all kit components</li>
+            <li>Build kit diff report (Laravel vs Odoo)</li>
+            <li>Deploy kit migration to staging</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Week 9-10</strong></td>
+        <td>
+          <ul style="margin: 0; padding-left: 20px">
+            <li>Deploy kit migration to production</li>
+            <li>Parallel run: validate orders use Laravel kits</li>
+            <li>Cutover: disable Odoo phantom BOM lookups</li>
+          </ul>
+        </td>
       </tr>
     </table>
 

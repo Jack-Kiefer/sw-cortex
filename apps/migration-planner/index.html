@@ -251,17 +251,17 @@
         </div>
         <div style="display: flex; gap: 10px">
           <a
-            href="option-b.html"
+            href="future-improvements.html"
             style="
               padding: 10px 16px;
-              background: #0d6efd;
+              background: #6c757d;
               color: white;
               text-decoration: none;
               border-radius: 6px;
               font-size: 0.9em;
               font-weight: 500;
             "
-            >Option B: Integration Approach</a
+            >Future Improvements</a
           >
         </div>
       </header>
@@ -274,6 +274,10 @@
           <div class="timeline-months" id="months"></div>
         </div>
         <div id="timeline"></div>
+        <div style="margin-top: 12px; font-size: 0.8em; color: #6c757d">
+          <strong>∥</strong> = Phases run in parallel (Bills+Products+MO & Kits start together after
+          POs)
+        </div>
       </div>
 
       <h2 style="margin-bottom: 20px; color: #495057; font-size: 1.2em">Phase Details</h2>
@@ -291,47 +295,49 @@
       const phases = [
         {
           id: 1,
-          name: 'Purchase Orders',
-          shortName: 'POs',
-          weeks: 8,
+          name: 'Purchase Orders & Bills',
+          shortName: 'POs+Bills',
+          weeks: 10,
           deps: [],
           color: '#198754',
-          milestone: 'PO System Live',
-          taskCount: 10,
-          goal: 'PO creation, approvals, and arrival tracking in SERP. Arrivals push quantities to Odoo via stock.move.',
+          milestone: 'PO + Bill System Live',
+          taskCount: 18,
+          goal: 'PO creation, arrivals, and manual bill workflow in SERP. Bills via 3-way matching (draft ↔ vendor invoice). Arrivals push quantities to Odoo.',
         },
         {
           id: 2,
-          name: 'Bills & Blanket POs',
-          shortName: 'Bills+Blanket',
-          weeks: 6,
+          name: 'Bills, Products, Manufacturing & COGS',
+          shortName: 'Bills+Products+MO+COGS',
+          weeks: 14,
           deps: [1],
-          color: '#0d6efd',
-          milestone: 'Bill & Blanket PO System Live',
-          taskCount: 9,
-          goal: 'Bill creation from POs with QuickBooks sync. Blanket PO support for multi-release purchasing.',
+          parallelWith: [3],
+          color: '#9b59b6',
+          milestone: 'Bills, Products, MO & COGS Live',
+          taskCount: 39,
+          goal: 'Mirror Odoo tables: vendor_bills, boms, manufacturing_orders, stock_quants, stock_valuation_layer. Shadow system for reconciliation.',
         },
         {
           id: 3,
-          name: 'Products & Manufacturing',
-          shortName: 'Products+MO',
-          weeks: 8,
-          deps: [2],
-          color: '#6f42c1',
-          milestone: 'Product & MO System Live',
-          taskCount: 18,
-          goal: 'Odoo is source of truth for BOMs. SERP consumes BOMs via API with caching. MO completion pushes inventory to Odoo.',
+          name: 'Kits',
+          shortName: 'Kits',
+          weeks: 5,
+          deps: [1],
+          parallelWith: [2],
+          color: '#3498db',
+          milestone: 'Kit Migration Complete',
+          taskCount: 8,
+          goal: 'Migrate 265 phantom BOMs from Odoo to Laravel kits table. Validate kit-to-buyer_product links and order expansion.',
         },
         {
           id: 4,
-          name: 'Kits & Inventory',
-          shortName: 'Kits+Inventory',
-          weeks: 16,
-          deps: [3],
+          name: 'Inventory Management',
+          shortName: 'Inventory',
+          weeks: 12,
+          deps: [2, 3],
           color: '#dc3545',
           milestone: 'Full Inventory Cutover',
-          taskCount: 14,
-          goal: 'Migrate 265 phantom BOMs to Laravel. Fix inventory concurrency. Build PO arrival and MO completion inventory updates. Laravel becomes source of truth.',
+          taskCount: 12,
+          goal: 'Move all inventory tracking to SERP. Fix concurrency, build PO arrival and MO completion inventory flows. Odoo becomes deprecated.',
         },
       ];
 
@@ -355,13 +361,19 @@
         const ends = new Map();
         return phases.map((p) => {
           let s = start;
+          // Start after all dependencies complete
           p.deps.forEach((id) => {
             const e = ends.get(id);
             if (e && e > s) s = e;
           });
           const e = addWeeks(s, p.weeks);
           ends.set(p.id, e);
-          return { phase: p, start: s, end: e };
+          return {
+            phase: p,
+            start: s,
+            end: e,
+            isParallel: p.parallelWith && p.parallelWith.length > 0,
+          };
         });
       }
 
@@ -397,9 +409,10 @@
           .map((s) => {
             const left = ((s.start - start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
             const width = ((s.end - s.start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
+            const parallelLabel = s.isParallel ? ' ∥' : '';
             return `
             <div class="phase-row">
-              <div class="phase-label">Phase ${s.phase.id}: ${s.phase.shortName}</div>
+              <div class="phase-label">Phase ${s.phase.id}: ${s.phase.shortName}${parallelLabel}</div>
               <div class="phase-track">
                 <a href="phase?id=${s.phase.id}" class="phase-bar" style="left:${left}%;width:${width}%;background:${s.phase.color}">
                   <span>${s.phase.name}</span>
@@ -414,7 +427,7 @@
           .map(
             (s) => `
           <a href="phase?id=${s.phase.id}" class="phase-card" style="border-left-color:${s.phase.color}">
-            <div class="phase-num">Phase ${s.phase.id}</div>
+            <div class="phase-num">Phase ${s.phase.id}${s.isParallel ? ' <span style="color:#3498db;font-size:0.9em">(parallel)</span>' : ''}</div>
             <h3>${s.phase.name}</h3>
             <div class="phase-goal">${s.phase.goal}</div>
             <div class="phase-meta">

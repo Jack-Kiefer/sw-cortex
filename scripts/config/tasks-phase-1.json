@@ -1,79 +1,26 @@
 {
   "phaseId": 1,
-  "phaseName": "Purchase Orders & Bills",
+  "phaseName": "Purchase Orders",
+  "goal": "Move all PO creation and arrivals to SERP. On arrival, push quantities to Odoo for inventory updates.",
   "tasks": [
-    {
-      "week": 1,
-      "name": "Add sync columns to Laravel tables (odoo_partner_id, etc)",
-      "days": 2
-    },
-    {
-      "week": 1,
-      "name": "Design vendor_bills and bill_items tables",
-      "days": 2
-    },
+    { "week": 1, "name": "Review existing SERP PO system", "days": 2 },
+    { "week": 1, "name": "Add sync columns to Laravel tables (odoo_partner_id, etc)", "days": 2 },
     { "week": 1, "name": "Set up Odoo staging for testing", "days": 1 },
-    { "week": 1, "name": "Review existing SERP PO system", "days": 1 },
-    {
-      "week": 2,
-      "name": "Research QuickBooks API for bill creation",
-      "days": 2
-    },
-    {
-      "week": 2,
-      "name": "Export suppliers from Odoo with ID mapping",
-      "days": 1
-    },
+    { "week": 2, "name": "Export suppliers from Odoo with ID mapping", "days": 2 },
     { "week": 2, "name": "Export historical POs from Odoo", "days": 2 },
-    { "week": 2, "name": "Export historical bills from Odoo", "days": 2 },
-    {
-      "week": 3,
-      "name": "Build arrival quantity push to Odoo (stock.move only)",
-      "days": 3
-    },
-    { "week": 3, "name": "Build bill creation API in SERP", "days": 2 },
-    { "week": 3, "name": "Validate migrated PO data against Odoo", "days": 2 },
-    { "week": 4, "name": "Build QuickBooks bill sync service", "days": 3 },
-    { "week": 4, "name": "Handle multi-PO bill consolidation", "days": 2 },
-    { "week": 4, "name": "Build job queue for async Odoo/QB sync", "days": 2 },
-    {
-      "week": 5,
-      "name": "Add Mark as Arrived UI with quantity input",
-      "days": 2
-    },
-    { "week": 5, "name": "Build bill creation UI linked to POs", "days": 2 },
-    {
-      "week": 5,
-      "name": "Add sync status indicators (Odoo qty pushed, QB synced)",
-      "days": 1
-    },
-    {
-      "week": 6,
-      "name": "Test full workflow: PO → Arrival → Odoo qty → Bill → QB",
-      "days": 3
-    },
-    {
-      "week": 6,
-      "name": "Document workflow for purchasing and accounting teams",
-      "days": 1
-    },
-    {
-      "week": 6,
-      "name": "Error handling and retry logic for QB sync failures",
-      "days": 1
-    },
-    {
-      "week": 7,
-      "name": "Disable PO/Bill creation in Odoo (permissions)",
-      "days": 1
-    },
-    { "week": 7, "name": "Train purchasing team on SERP PO workflow", "days": 2 },
-    { "week": 7, "name": "Train accounting team on SERP bill creation", "days": 2 },
-    {
-      "week": 8,
-      "name": "Parallel run: verify arrivals sync and bills go to QB",
-      "days": 4
-    },
-    { "week": 8, "name": "Go-live sign-off", "days": 1 }
+    { "week": 2, "name": "Validate migrated PO data against Odoo", "days": 1 },
+    { "week": 3, "name": "Build arrival quantity push to Odoo (stock.move only)", "days": 3 },
+    { "week": 3, "name": "Build job queue for async Odoo sync", "days": 2 },
+    { "week": 4, "name": "Add Mark as Arrived UI with quantity input", "days": 2 },
+    { "week": 4, "name": "Add sync status indicators (Odoo qty pushed)", "days": 1 },
+    { "week": 4, "name": "Error handling and retry logic for sync failures", "days": 2 },
+    { "week": 5, "name": "Test full workflow: PO → Arrival → Odoo qty push", "days": 3 },
+    { "week": 5, "name": "Document workflow for purchasing team", "days": 1 },
+    { "week": 5, "name": "Disable PO creation in Odoo (permissions)", "days": 1 },
+    { "week": 6, "name": "Train purchasing team on SERP PO workflow", "days": 2 },
+    { "week": 6, "name": "Parallel run: verify arrivals sync correctly", "days": 2 },
+    { "week": 6, "name": "Go-live sign-off", "days": 1 },
+    { "week": 7, "name": "Buffer week for issues", "days": 3 },
+    { "week": 8, "name": "Stabilization and monitoring", "days": 5 }
   ]
 }

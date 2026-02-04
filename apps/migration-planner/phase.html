@@ -85,6 +85,10 @@
         margin: 16px 0 8px;
         color: #495057;
       }
+      .section h3:not(:first-of-type) {
+        border-top: 1px solid #e9ecef;
+        padding-top: 16px;
+      }
 
       table {
         width: 100%;
@@ -289,429 +293,773 @@
       const phases = [
         {
           id: 1,
-          name: 'Purchase Orders',
-          shortName: 'POs',
-          weeks: 8,
+          name: 'Purchase Orders & Bills',
+          shortName: 'POs+Bills',
+          weeks: 10,
           deps: [],
           color: '#198754',
-          goal: 'PO creation, approvals, and arrival tracking in SERP. On receipt, sync entire PO to Odoo for inventory updates.',
+          goal: 'Move all PO creation, arrivals, and vendor bills to SERP. Bills are created MANUALLY after vendor invoice received (not auto-generated). On arrival, push FULL PO (header + lines + receipt) to Odoo for inventory updates.',
           goals: [
             'Move purchase order management from Odoo to SERP',
             'Enable purchasing team to create, edit, and track POs in one place',
             'Automate inventory updates in Odoo when goods are received',
-            'Build foundation for future phases (bills, products, inventory)',
+            'Preserve manual bill creation workflow (accountant creates bill after receiving vendor invoice)',
+            'Implement 3-way matching: PO → Receipt → Vendor Invoice reconciliation',
           ],
           tasks: [
-            { name: 'Design: Define database schema and plan UX', startWeek: 1, duration: 1 },
-            { name: 'Build PO list and detail views', startWeek: 2, duration: 2 },
-            { name: 'Build PO creation and edit forms', startWeek: 2, duration: 2 },
+            { name: 'Design: PO + Bills database schema and plan UX', startWeek: 1, duration: 1 },
             {
-              name: 'Build arrival tracking UI (dock receipt → inspection)',
-              startWeek: 3,
-              duration: 2,
+              name: 'Build PO views, forms, and arrival tracking UI',
+              startWeek: 2,
+              duration: 3,
             },
-            { name: 'Build Odoo XML-RPC sync for full PO on receipt', startWeek: 4, duration: 2 },
-            { name: 'Purchasing team review and feedback', startWeek: 5, duration: 1 },
-            { name: 'Build approval workflow UI', startWeek: 5, duration: 2 },
+            { name: 'Build Odoo XML-RPC sync for inventory on receipt', startWeek: 5, duration: 1 },
+            { name: 'Build email supplier communication service', startWeek: 6, duration: 1 },
+            { name: 'Build bill creation from PO arrivals', startWeek: 7, duration: 1 },
             {
-              name: 'Build migration scripts + update dependent systems',
-              startWeek: 6,
+              name: 'Migration scripts for existing data (POs + lines + bills + cleanup)',
+              startWeek: 8,
               duration: 1,
             },
-            { name: 'Test sync on Odoo staging environment', startWeek: 7, duration: 1 },
-            { name: 'Parallel run and final validation', startWeek: 8, duration: 1 },
+            {
+              name: 'Purchasing/Finance UAT, receipt validation, switchover + rollback plan',
+              startWeek: 9,
+              duration: 1,
+            },
+            { name: 'Buffer / stabilization', startWeek: 10, duration: 1 },
           ],
           workflow: [
-            { laravel: 'Create PO (draft or sent)', odoo: '—' },
-            { laravel: 'Approval workflow (Ops → Finance)', odoo: '—' },
-            { laravel: 'Order sent to vendor', odoo: '—' },
-            { laravel: 'Dock receipt (goods arrive)', odoo: '—' },
-            { laravel: 'Receiving inspection complete', odoo: '—' },
+            { laravel: 'Create PO (draft or sent) — date_order captured', odoo: '—' },
+            { laravel: 'Set date_planned (expected arrival date)', odoo: '—' },
+            { laravel: 'Email supplier or download PO as PDF', odoo: '—' },
+            { laravel: 'Dock receipt (no inventory update yet)', odoo: '—' },
+            { laravel: 'Inspection → assign warehouse location → inventory receipt', odoo: '—' },
             {
-              laravel: 'Inventory receipt (after inspection)',
-              odoo: 'Full PO synced + stock.move created',
+              laravel: 'Inventory receipt: effective_date set, sync triggered',
+              odoo: 'Push: PO header + lines + stock_picking (receipt) → inventory updated',
               sync: true,
             },
+            { laravel: 'Mark backorders for future arrival (accept or cancel later)', odoo: '—' },
+            { laravel: '--- 3-WAY MATCHING WORKFLOW (bills in SERP) ---', odoo: '---' },
+            {
+              laravel: '1. System creates DRAFT BILL from receipt (qty_received × price_unit)',
+              odoo: '—',
+            },
+            { laravel: '2. Vendor sends invoice externally (email/mail)', odoo: '—' },
+            { laravel: '3. Accountant compares draft bill vs vendor invoice', odoo: '—' },
+            { laravel: '4a. If match: Accountant finalizes bill → state=posted', odoo: '—' },
+            { laravel: '4b. If mismatch: Kick back to ops → reconcile with vendor', odoo: '—' },
+            { laravel: '5. Finalized bill stored in SERP with line-item detail', odoo: '—' },
           ],
           dataOwnership: [
-            {
-              data: 'Purchase orders (1,846 in Odoo)',
-              laravel: 'Owner',
-              odoo: 'Copy (on receipt)',
-            },
-            {
-              data: 'PO line items (14,549 lines)',
-              laravel: 'Owner',
-              odoo: 'Copy (on receipt)',
-            },
-            { data: 'Approvals & backorders', laravel: 'Owner', odoo: '—' },
+            { data: 'Purchase orders', laravel: 'Owner', odoo: 'Created on arrival (for billing)' },
+            { data: 'PO line items', laravel: 'Owner', odoo: 'Created on arrival (for billing)' },
+            { data: 'Backorders', laravel: 'Owner', odoo: '—' },
             { data: 'Suppliers (156 vendors)', laravel: 'Owner', odoo: 'Mapping (partner_id)' },
-            { data: 'Products, components, raw materials', laravel: '—', odoo: 'Owner' },
+            {
+              data: 'Supplier-product links (which products from which supplier)',
+              laravel: 'Owner',
+              odoo: '—',
+            },
+            { data: 'Receiving inspection records', laravel: 'Owner', odoo: '—' },
+            { data: 'Vendor bills', laravel: 'Owner', odoo: '—' },
             { data: 'Inventory quantities', laravel: '—', odoo: 'Owner (stock_quant)' },
           ],
           dbChanges: [
+            // --- CHATTER SYSTEM (Migration 001) ---
             {
-              table: 'Example',
-              columns: 'All schema changes to be defined in Week 1 design phase',
+              table: 'entity_message',
+              purpose:
+                'Activity log for POs, bills, receipts - tracks comments, notes, and system events',
+              columns: 'entity_type, entity_id, message_type, subtype, subject, body, author_id',
+            },
+            {
+              table: 'entity_field_change',
+              purpose:
+                'Audit trail - tracks what changed, old value vs new value, linked to messages',
+              columns: 'message_id, field_name, old_value, new_value',
+            },
+            {
+              table: 'entity_attachment',
+              purpose: 'File attachments on POs/bills (vendor invoices, shipping docs, etc.)',
+              columns: 'entity_type, entity_id, message_id, filename, storage_path',
+            },
+            {
+              table: 'message_subtype',
+              purpose:
+                'Predefined message types (created, updated, RFQ sent, goods received, etc.)',
+              columns: 'name, description, entity_type, is_default — seeded with PO/bill subtypes',
+            },
+            // --- SUPPLIERS (Migration 004) ---
+            {
+              table: 'suppliers',
+              purpose: 'Link SERP vendors to Odoo partners for bi-directional sync',
+              columns:
+                'odoo_partner_id (sync link), supplier_rank (priority 1=preferred), vat (tax ID), address fields',
+            },
+            // --- LOCATIONS (Migration 005) ---
+            {
+              table: 'locations',
+              purpose: 'Link SERP warehouse facilities to Odoo warehouse/location IDs',
+              columns: 'odoo_warehouse_id, odoo_location_id, active',
+            },
+            // --- PURCHASE ORDERS (Migration 008) ---
+            {
+              table: 'purchase_orders',
+              purpose:
+                'PO lifecycle tracking with Odoo-compatible workflow and THREE CRITICAL DATE FIELDS',
+              columns: 'odoo_id, name, state (draft→sent→purchase→done), invoice_status, amount_*',
+            },
+            {
+              table: 'purchase_orders (dates)',
+              purpose: '⚠️ THREE DATE FIELDS - understand the difference!',
+              columns:
+                'date_order (CREATED), date_planned (EXPECTED arrival), effective_date (ACTUAL arrival - USE FOR VARIANCE)',
+            },
+            {
+              table: 'purchase_order_line',
+              purpose: 'Line items with quantity tracking for partial receipts and billing',
+              columns:
+                'product_qty (ordered), qty_received (arrived), qty_invoiced (billed), price_unit',
+            },
+            {
+              table: 'purchase_order_line (product links)',
+              purpose: 'Dual-link products: SERP component_id + Odoo odoo_product_id for sync',
+              columns: 'component_id (SERP FK), odoo_product_id (Odoo FK)',
+            },
+            // --- BILLS (Migration 009) ---
+            {
+              table: 'account_journal',
+              purpose:
+                'Define journal types that categorize transactions (Vendor Bills, Inventory Valuation, etc.)',
+              columns: 'name, code (BILL, STJ), type (purchase, sale, general), default_account_id',
+            },
+            {
+              table: 'account_move',
+              purpose:
+                'Vendor bills - MANUAL creation after vendor invoice received (3-way matching)',
+              columns:
+                'name (bill #), ref (VENDOR invoice #), state (draft→posted), payment_state, amount_*',
+            },
+            {
+              table: 'account_move_line',
+              purpose: 'Bill line items linked to PO lines for line-level 3-way matching',
+              columns: 'quantity, price_unit, price_subtotal, purchase_line_id (FK to PO line!)',
+            },
+            {
+              table: 'account_move_purchase_order_rel',
+              purpose: 'Junction table linking bills to POs (one bill can reference multiple POs)',
+              columns: 'account_move_id, purchase_order_id',
             },
           ],
           implementation: [
             'Draft POs (save without sending to vendor)',
             'Two-stage arrival: dock receipt → inspection → inventory receipt',
-            'Only inventory receipt triggers Odoo stock.move push',
-            'PDF generation for PO documents',
-            'Activity log (changes, notes, supplier communications)',
-            'Backorder tracking for partial shipments',
-            'Sync error notifications and retry queue',
-          ],
-          currentOdoo: [
-            'purchase_order table (1,569 records)',
-            'purchase_order_line table (~8,000 lines)',
-            'res_partner for suppliers (156 vendors)',
-            'stock_move for arrival quantities',
-            'Automatic receipt creation on arrival',
-          ],
-          futureAdditions: [
-            'Ops → Finance approval workflow',
-            'Two-stage arrival (dock receipt → inspection)',
+            'On arrival: push FULL PO (header + lines) + stock_picking to Odoo — accountants can then create bills',
+            'Location assignment on receipt (which warehouse bin receives goods)',
+            'Supplier communication via email and activity log (similar to Odoo)',
+            'Backorder tracking: mark future arrivals, accept or cancel later',
             'Partial arrival with delta sync tracking',
-            'Push to Odoo status indicator',
-            'Sync error notifications and retry queue',
+            'Sync error notifications and retry queue for XML-RPC updates',
+            '--- THREE CRITICAL DATE FIELDS (understand the difference!) ---',
+            '• date_order: When PO was CREATED (auto-populated, audit trail)',
+            '• date_planned: EXPECTED arrival date (user-entered for planning)',
+            '• effective_date: ACTUAL arrival (NULL until goods received!) — USE THIS FOR INVENTORY VARIANCE',
+            'Migrates: 1,846 POs + 16,139 lines with qty_received/qty_invoiced status',
+            'Data cleanup: audit over-receipted lines and cancelled POs with active moves',
+            'Receipt validation with warehouse team before go-live',
+            '--- MANUAL BILL WORKFLOW (bills in SERP) ---',
+            'Draft bill created from receipt (qty_received × price_unit)',
+            'Accountant receives vendor invoice separately (email/mail)',
+            '3-way match: compare draft bill ↔ vendor invoice ↔ original PO',
+            'If match: accountant finalizes bill',
+            'If mismatch: ops reconciles with vendor before finalizing',
+            'Bill tracks qty_invoiced vs qty_received for partial billing',
+            'Migrates: 1,569 vendor bills from Odoo account_move',
+          ],
+          confirmations: [
+            'Purchasing team - PO creation and editing workflow',
+            'Warehouse team - receipt and inspection process',
+            'Finance team - 3-way matching workflow (draft bill vs vendor invoice)',
+            'Finance team - bill approval and finalization process',
           ],
           keyPoint:
-            'One-way push to Odoo on arrival. POs live in SERP, inventory updates sync to Odoo.',
+            'POs + Bills in SERP. On arrival: push full PO + receipt to Odoo (for inventory). Bills created in SERP via 3-way matching. Use effective_date for actual arrival.',
         },
         {
           id: 2,
-          name: 'Bills & Blanket POs',
-          shortName: 'Bills+Blanket',
-          weeks: 6,
+          name: 'Manufacturing, Adjustments, BOMs, Locations & Products',
+          shortName: 'MO+Adj+BOMs+Loc+Prod',
+          weeks: 12,
           deps: [1],
-          color: '#0d6efd',
-          goal: 'Bill creation from POs with QuickBooks sync. Blanket PO support for multi-release purchasing agreements.',
+          parallelWith: [3],
+          color: '#9b59b6',
+          goal: 'Build Odoo features in SERP. Users switch to SERP UI, which dual-writes to both Odoo (XML-RPC) and SERP tables (stock_quants). Incremental by feature.',
           goals: [
-            'Enable finance team to create and approve vendor bills in SERP',
-            'Link bills to POs for accurate cost tracking',
-            'Support blanket POs for long-term vendor agreements',
-            'Sync approved bill amounts to QuickBooks for payment',
+            'Build features in SERP that replicate Odoo functionality',
+            'Users switch to SERP UI for each feature (stop using Odoo UI)',
+            'Dual-write: SERP sends XML-RPC to Odoo AND updates SERP shadow tables',
+            'stock_quants table is independent (no linkage to component/RM inventory yet)',
+            'Incremental rollout: Manufacturing → Adjustments → BOMs → Stock Locations → Product Info',
+            'Track COGS correctly throughout transition',
           ],
           tasks: [
+            // Manufacturing Orders (Weeks 1-3)
+            { name: 'Build manufacturing_orders table and MO UI', startWeek: 1, duration: 1 },
             {
-              name: 'Design database updates for bills and blanket POs',
-              startWeek: 1,
-              duration: 1,
-            },
-            { name: 'Build bill creation API linked to POs', startWeek: 2, duration: 2 },
-            { name: 'Build blanket PO tracking (parent-child)', startWeek: 2, duration: 2 },
-            { name: 'Handle multi-PO bill consolidation', startWeek: 3, duration: 1 },
-            { name: 'Migrate historical bills from Odoo', startWeek: 4, duration: 1 },
-            { name: 'Build bill creation and approval UI', startWeek: 4, duration: 2 },
-            { name: 'Integrate with QuickBooks', startWeek: 5, duration: 1 },
-            { name: 'Train finance team', startWeek: 6, duration: 1 },
-            { name: 'Go-live and cutover', startWeek: 6, duration: 1 },
-          ],
-          workflow: [
-            { laravel: 'PO arrives (from Phase 1)', odoo: '—' },
-            { laravel: 'Ops creates draft bill (qty × price)', odoo: '—' },
-            { laravel: 'Compare to vendor invoice, reconcile', odoo: '—' },
-            { laravel: 'Finance approves bill', odoo: '—' },
-            { laravel: 'Bill finalized', odoo: 'Amount synced to QuickBooks', sync: true },
-            { laravel: 'Create blanket PO (master agreement)', odoo: '—' },
-            { laravel: 'Issue distribution PO from blanket', odoo: '—' },
-            { laravel: 'Track remaining blanket quantity', odoo: '—' },
-          ],
-          dataOwnership: [
-            { data: 'Vendor bills (1,569 in Odoo)', laravel: 'Owner', odoo: '—' },
-            { data: 'Bill line items (~12,000)', laravel: 'Owner', odoo: '—' },
-            { data: 'Bill approval workflow', laravel: 'Owner', odoo: '—' },
-            { data: 'Blanket POs', laravel: 'Owner', odoo: '—' },
-            { data: 'Blanket → Distribution PO links', laravel: 'Owner', odoo: '—' },
-            { data: 'Payment tracking', laravel: '—', odoo: 'Owner (QuickBooks)' },
-          ],
-          dbChanges: [
-            {
-              table: 'bills',
-              columns: 'EXISTS - purchase_order_id, supplier_id, status, approved_at',
-            },
-            { table: 'bill_items', columns: 'bill_id, purchase_item_id, qty_billed, unit_price' },
-            {
-              table: 'purchase_orders',
-              columns: 'is_blanket, parent_blanket_po_id, remaining_qty',
-            },
-            {
-              table: 'vendor_bill_po_links',
-              columns: 'NEW - bill_id, purchase_order_id (many-to-many)',
-            },
-          ],
-          implementation: [
-            'Draft bill: qty_received × unit_price (Ops creates)',
-            'Bill reconciliation with vendor invoice comparison',
-            'Multi-PO bill consolidation (122 POs have multiple bills)',
-            'Blanket PO with parent-child relationship',
-            'Track remaining quantity on blanket POs',
-            'Distribution POs trace back to blanket source',
-            'Finance approval workflow before QB sync',
-          ],
-          currentOdoo: [
-            'account_move table (1,569 vendor bills)',
-            'account_move_line for bill items (~12,000)',
-            'account_move_purchase_order_rel (PO-bill linking)',
-            'Bill-to-PO many-to-many relationship',
-            'Payment tracking in QuickBooks (not Odoo)',
-          ],
-          futureAdditions: [
-            'Blanket PO support (multiple releases)',
-            'Distribution PO tracking from blanket',
-            'Remaining blanket quantity tracking',
-            'Finance approval workflow',
-            'QuickBooks sync for bill amounts',
-            'Multi-PO bill consolidation',
-          ],
-          keyPoint:
-            'Bills in SERP, amounts to QuickBooks. Blanket POs track purchasing agreements.',
-        },
-        {
-          id: 3,
-          name: 'Products & Manufacturing',
-          shortName: 'Products+MO',
-          weeks: 8,
-          deps: [2],
-          color: '#6f42c1',
-          goal: 'Laravel is source of truth for products and MOs. Products auto-sync to Odoo on create/edit. MOs created in Laravel and synced to Odoo. Only inventory stays in Odoo (synced back to Laravel).',
-          goals: [
-            'Consolidate product data management in SERP',
-            'Enable easy creation and tracking of manufacturing orders',
-            'Maintain Odoo sync for inventory accuracy',
-            'Simplify BOM management with single-level structure',
-          ],
-          tasks: [
-            { name: 'Design database schema', startWeek: 1, duration: 1 },
-            { name: 'Build product management UI', startWeek: 2, duration: 3 },
-            { name: 'Build BOM and MO management UI', startWeek: 3, duration: 3 },
-            { name: 'Build MO → Odoo inventory push', startWeek: 5, duration: 1 },
-            { name: 'Migrate products and categories from Odoo', startWeek: 6, duration: 1 },
-            { name: 'Design and migrate BOMs', startWeek: 6, duration: 1 },
-            { name: 'Update all systems to reference Laravel products', startWeek: 7, duration: 1 },
-            { name: 'Testing and training', startWeek: 7, duration: 1 },
-            { name: 'Cutover and go-live', startWeek: 8, duration: 1 },
-          ],
-          workflow: [
-            {
-              laravel: 'Create/edit product (raw_materials, components, receiver_products)',
-              odoo: 'Product auto-created/updated via sync',
-              sync: true,
-            },
-            { laravel: 'Define BOM (normal or phantom type)', odoo: '—' },
-            { laravel: 'BOM defines components for product', odoo: '—' },
-            {
-              laravel: 'Create manufacturing order from BOM',
-              odoo: 'MO created via sync',
-              sync: true,
-            },
-            {
-              laravel: 'MO: draft → progress → done (status updates)',
-              odoo: 'MO status synced',
-              sync: true,
-            },
-            {
-              laravel: 'MO complete (finished goods + components consumed)',
-              odoo: 'stock.move updates inventory',
-              sync: true,
-            },
-            {
-              laravel: 'Inventory quantities updated (read-only)',
-              odoo: 'Owner - synced back to Laravel',
-              sync: true,
-            },
-          ],
-          dataOwnership: [
-            {
-              data: 'Products (raw_materials, components, receiver_products)',
-              laravel: 'Owner (source of truth)',
-              odoo: 'Auto-synced copy',
-            },
-            { data: 'Product categories', laravel: 'Owner', odoo: 'Auto-synced copy' },
-            { data: 'BOMs (2,078 total: 1,303 normal + 775 phantom)', laravel: 'Owner', odoo: '—' },
-            { data: 'BOM lines (component requirements)', laravel: 'Owner', odoo: '—' },
-            {
-              data: 'Manufacturing orders',
-              laravel: 'Owner (source of truth)',
-              odoo: 'Auto-synced copy',
-            },
-            {
-              data: 'Inventory quantities',
-              laravel: 'Read-only copy (synced from Odoo)',
-              odoo: 'Owner (stock_quant)',
-            },
-          ],
-          dbChanges: [
-            {
-              table: 'products',
-              columns: 'odoo_product_id, category_id, type (storable/consu/service)',
-            },
-            { table: 'product_categories', columns: 'NEW TABLE - hierarchy support' },
-            { table: 'boms', columns: 'NEW TABLE - product_id, type (normal/phantom), qty' },
-            { table: 'bom_lines', columns: 'NEW TABLE - bom_id, component_id, qty, operation_id' },
-            { table: 'manufacturing_orders', columns: 'NEW TABLE - bom_id, qty, state, dates' },
-          ],
-          implementation: [
-            'Product CRUD in Laravel (raw_materials, components, receiver_products tables)',
-            'Auto-sync products to Odoo on create/update (XML-RPC)',
-            'Single-level BOM support',
-            'Phantom BOMs (775) for virtual assemblies that dissolve to components',
-            'MO creation from BOM with automatic qty calculation',
-            'Auto-sync MOs to Odoo on create/status updates (XML-RPC)',
-            'Production tracking: draft → progress → done',
-            'Inventory sync from Odoo back to Laravel (read-only in Laravel)',
-          ],
-          currentOdoo: [
-            'Create and edit products in Odoo',
-            'Create and edit BOMs in Odoo',
-            'Create and track manufacturing orders in Odoo',
-            'Manage product categories in Odoo',
-            'Other systems pull product data from Odoo',
-          ],
-          futureAdditions: [
-            'MO completion syncs inventory to Odoo',
-            'Single source of truth for products in Laravel',
-            'All systems reference Laravel for product data',
-          ],
-          keyPoint:
-            'Laravel is source of truth for products and MOs. Auto-sync to Odoo on create/update. Only inventory owned by Odoo (synced back to Laravel).',
-        },
-        {
-          id: 4,
-          name: 'Kits & Inventory',
-          shortName: 'Kits+Inventory',
-          weeks: 16,
-          deps: [3],
-          color: '#dc3545',
-          goal: 'Migrate 265 phantom BOMs to Laravel kits. Fix inventory concurrency. Build PO arrival and MO completion inventory updates. Make Laravel source of truth for all inventory.',
-          goals: [
-            'Migrate all phantom BOMs from Odoo to Laravel kits table',
-            'Fix inventory concurrency to prevent overselling under load',
-            'Build inventory increase on PO arrival and MO completion',
-            'Make Odoo deprecated for daily inventory operations',
-          ],
-          tasks: [
-            // Stage 1: Kit Migration (Weeks 1-5)
-            {
-              name: 'Analyze Odoo phantom BOMs, map to Laravel kit structure',
-              startWeek: 1,
-              duration: 1,
-            },
-            {
-              name: 'Write phantom BOM → Laravel kits migration script',
+              name: 'Build MO creation, tracking, completion, and scrapping workflow',
               startWeek: 2,
-              duration: 2,
+              duration: 1,
             },
+            { name: 'Disable MO creation in Odoo, SERP becomes SOT', startWeek: 3, duration: 1 },
+            // Inventory Adjustments (Weeks 4-5)
             {
-              name: 'Validate kit-to-buyer_product links, test order expansion',
+              name: 'Build inventory adjustments in SERP with COGS tracking',
               startWeek: 4,
               duration: 1,
             },
-            { name: 'Deploy kit migration, parallel run with Odoo', startWeek: 5, duration: 1 },
-            // Stage 2: Fix Inventory Concurrency (Week 6)
             {
-              name: 'Fix inventory deduction concurrency (atomic updates)',
-              startWeek: 6,
+              name: 'Dual-write adjustments to both SERP and Odoo, disable Odoo adjustments',
+              startWeek: 5,
               duration: 1,
             },
-            // Stage 3: Order Inventory Deduction (Weeks 7-8)
-            { name: 'Ensure atomic inventory deduction on orders', startWeek: 7, duration: 1 },
+            // BOMs (Weeks 6-7)
+            { name: 'Build BOMs table and BOM management UI in SERP', startWeek: 6, duration: 1 },
             {
-              name: 'Handle edge cases: partials, cancellations, location fallbacks',
+              name: 'Migrate BOMs from Odoo, disable BOM editing in Odoo',
+              startWeek: 7,
+              duration: 1,
+            },
+            // Stock Locations (Weeks 8-9)
+            {
+              name: 'Build stock_locations table and location management UI',
               startWeek: 8,
               duration: 1,
             },
-            // Stage 4: PO Arrival Inventory (Weeks 9-11)
-            { name: 'Build PO arrival → inventory increase logic', startWeek: 9, duration: 2 },
-            { name: 'Test concurrent PO arrivals + order deductions', startWeek: 11, duration: 1 },
-            // Stage 5: MO Completion Inventory (Weeks 12-14)
-            { name: 'Build MO completion → component consumption', startWeek: 12, duration: 1 },
             {
-              name: 'Build MO completion → finished goods inventory add',
-              startWeek: 13,
+              name: 'Migrate locations from Odoo, disable location editing in Odoo',
+              startWeek: 9,
               duration: 1,
             },
+            // Product Info (Weeks 10-11)
+            { name: 'Build product management UI with cost tracking', startWeek: 10, duration: 1 },
             {
-              name: 'Test full MO cycle: create, complete, verify inventory',
-              startWeek: 14,
+              name: 'Migrate products from Odoo, disable product editing in Odoo',
+              startWeek: 11,
               duration: 1,
             },
-            // Stage 6: Cutover (Weeks 15-16)
-            { name: 'Physical count and reconciliation vs Odoo', startWeek: 15, duration: 1 },
-            { name: 'Go-live: deprecate Odoo for inventory', startWeek: 16, duration: 1 },
+            // Python utility functions (Week 11)
+            {
+              name: 'Build Python function suite for inventory ops (adjustments, arrivals, COGS)',
+              startWeek: 11,
+              duration: 1,
+            },
+            // Final Validation (Week 12)
+            { name: 'End-to-end testing and COGS reconciliation', startWeek: 12, duration: 1 },
           ],
           workflow: [
-            { laravel: 'Migrate 265 phantom BOMs → kits table', odoo: 'Read-only source' },
-            { laravel: 'Order placed → ComponentOrder created for all kit components', odoo: '—' },
-            { laravel: 'Atomic inventory deduction with concurrency protection', odoo: '—' },
-            { laravel: 'PO marked arrived → inventory increased atomically', odoo: '—' },
-            { laravel: 'MO completed → components consumed, finished goods added', odoo: '—' },
-            { laravel: 'All inventory operations use version-checked atomic updates', odoo: '—' },
-            { laravel: 'Physical count reconciliation before cutover', odoo: 'Final sync' },
+            // Core pattern for all features
+            {
+              laravel: 'User performs action in SERP UI (stops using Odoo UI)',
+              odoo: 'Odoo UI disabled for this feature',
+            },
+            {
+              laravel: 'SERP dual-writes: XML-RPC to Odoo + update stock_quants',
+              odoo: 'Receives sync, stays in sync',
+              sync: true,
+            },
+            {
+              laravel: 'stock_quants updated independently (not linked to component inventory)',
+              odoo: '—',
+            },
+            // Manufacturing
+            { laravel: 'MO created/completed/scrapped in SERP', odoo: 'XML-RPC sync', sync: true },
+            // Adjustments
+            {
+              laravel: 'Inventory adjustment in SERP + COGS tracking',
+              odoo: 'XML-RPC sync',
+              sync: true,
+            },
+            // BOMs
+            { laravel: 'BOM create/edit in SERP', odoo: 'XML-RPC sync', sync: true },
+            // Stock Locations
+            { laravel: 'Location management in SERP', odoo: 'XML-RPC sync', sync: true },
+            // Products
+            { laravel: 'Product management in SERP', odoo: 'XML-RPC sync', sync: true },
           ],
           dataOwnership: [
+            { data: 'Manufacturing orders', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
+            { data: 'Inventory adjustments', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
+            { data: 'BOMs (2,078 total)', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
+            { data: 'Stock locations', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
+            { data: 'Products (5,809)', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
             {
-              data: 'Kit definitions (265 phantom BOMs)',
-              laravel: 'Owner',
-              odoo: 'Deprecated',
+              data: 'stock_quants (shadow)',
+              laravel: 'Owner (independent)',
+              odoo: 'Has its own copy',
             },
-            {
-              data: 'Kit components (component_kits junction)',
-              laravel: 'Owner',
-              odoo: 'Deprecated',
-            },
-            {
-              data: 'Inventory quantities',
-              laravel: 'Owner (atomic updates)',
-              odoo: 'Deprecated',
-            },
-            { data: 'PO arrival inventory adds', laravel: 'Owner', odoo: 'Deprecated' },
-            { data: 'MO completion inventory changes', laravel: 'Owner', odoo: 'Deprecated' },
-            { data: 'Order inventory deductions', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'component_inventory', laravel: 'Unchanged', odoo: '—' },
+            { data: 'Valuation layers (COGS)', laravel: 'Owner', odoo: '—' },
           ],
           dbChanges: [
-            { table: 'kits', columns: 'EXISTS - receives migrated phantom BOMs' },
-            { table: 'component_kits', columns: 'EXISTS - kit_id, component_id, qty junction' },
+            // --- MANUFACTURING (Migration 002) ---
             {
-              table: 'component_inventory',
-              columns: 'ADD version column for optimistic locking',
+              table: 'manufacture_orders',
+              purpose: 'Track production orders with Odoo workflow (draft→confirmed→progress→done)',
+              columns:
+                'name, odoo_id, receiver_product_id (OUTPUT), state, bom_id, product_qty, qty_produced, location_src/dest_id',
+            },
+            // --- BOMs (Migration 003) ---
+            {
+              table: 'mrp_bom',
+              purpose: 'BOM headers - define "recipes" (what components make a product)',
+              columns:
+                'code, product_id (OUTPUT), type (normal/phantom), consumption, active, odoo_bom_id',
             },
             {
-              table: 'inventory_transactions',
-              columns: 'NEW - product_id, location_id, qty_change, reason, source_type, source_id',
+              table: 'mrp_bom_line',
+              purpose: 'BOM components - qty of each component needed per 1 unit of output',
+              columns: 'bom_id, product_id (component), product_qty, sequence, odoo_bom_line_id',
+            },
+            // --- INVENTORY CORE (Migration 006) ---
+            {
+              table: 'stock_location',
+              purpose:
+                'Hierarchical warehouse locations (bins, zones, areas) - different from SERP "locations" table',
+              columns:
+                'name, complete_name (path), parent_id, usage (internal/supplier/customer), scrap_location',
+            },
+            {
+              table: 'stock_picking_type',
+              purpose: 'Define operation types - how receipts, deliveries, transfers behave',
+              columns:
+                'name, code (incoming/outgoing/internal/mrp), default_location_src/dest_id, reservation_method',
+            },
+            {
+              table: 'stock_production_lot',
+              purpose: 'Lot/batch/serial tracking for inventory (e.g., expiration dates)',
+              columns:
+                'name (lot #), component_id/receiver_product_id, expiration_date, odoo_lot_id',
+            },
+            // --- INVENTORY SYSTEM (Migration 007) ---
+            {
+              table: 'stock_quant',
+              purpose:
+                '⭐ INVENTORY TRUTH - current on-hand qty per product/location. Available = quantity - reserved',
+              columns:
+                'component_id/receiver_product_id, location_id, quantity, reserved_quantity, in_date, unit_cost',
+            },
+            {
+              table: 'stock_picking',
+              purpose:
+                'Warehouse operations (receipts, deliveries, transfers) - groups stock_moves',
+              columns:
+                'name (WH/IN/00123), origin (PO#), location_id→location_dest_id, state (draft→assigned→done)',
+            },
+            {
+              table: 'stock_move',
+              purpose:
+                'Individual inventory movements - move X units from A to B. Only state=done updates inventory',
+              columns:
+                'product_uom_qty (requested), quantity_done (actual), state, picking_id, production_id',
+            },
+            {
+              table: 'stock_move_line',
+              purpose:
+                'Detailed lines within stock_move - for lot/serial tracking (one move can have multiple lots)',
+              columns: 'move_id, lot_id, qty_done, location_id→location_dest_id',
+            },
+            {
+              table: 'stock_valuation_layer',
+              purpose:
+                '⭐ FIFO COSTING - each receipt creates a layer; consumption decrements oldest first',
+              columns:
+                'quantity, unit_cost (from PO), remaining_qty (unconsumed), remaining_value (for GL)',
+            },
+            {
+              table: 'product_supplierinfo',
+              purpose:
+                'Supplier-specific pricing/lead times per product - critical for PO cost calculation',
+              columns:
+                'supplier_id, component_id, price, min_qty (MOQ), delay (lead time days), case_qty',
+            },
+            {
+              table: 'stock_scrap',
+              purpose: 'Track scrapped/damaged inventory - moves stock to scrap location',
+              columns:
+                'scrap_qty, location_id (from), scrap_location_id (to), production_id (if during MO)',
+            },
+            {
+              table: 'stock_landed_cost',
+              purpose: 'Add freight/duties/customs to inventory value after receipt',
+              columns:
+                'amount_total, state, vendor_bill_id, split_method (equal, by_qty, by_weight)',
             },
           ],
           implementation: [
-            'Phantom BOM migration: INSERT SELECT from Odoo mrp_bom where type=phantom',
-            '265 BOMs with avg 2-3 components each (simple structure, no nesting)',
-            'Zero-qty consumables (tape, labels) migrated with qty=0',
-            'Concurrency fix: UPDATE with WHERE inventory_qty >= X and version check',
-            'Deadlock retry logic: 3 attempts with exponential backoff',
-            'PO arrival: atomic inventory add using same locking pattern',
-            'MO consumption: atomic component deduction per BOM line',
-            'MO finished goods: atomic inventory add for SA products',
-            'All operations logged to inventory_transactions for audit trail',
+            'Incremental rollout: MO → Adjustments → BOMs → Locations → Products',
+            'Pattern: build feature in SERP → users switch to SERP UI → disable Odoo UI',
+            'Dual-write on every action: XML-RPC to Odoo + update SERP tables',
+            'stock_quants is independent shadow table (NOT linked to component/RM inventory)',
+            'Existing component_inventory unchanged during this phase',
+            'Manufacturing: MO in SERP, dual-writes to Odoo mrp_production',
+            'MO scrapping/cancellation: cancel defective MOs, reverse any partial consumption',
+            'Adjustments: adjustment in SERP updates stock_quants + XML-RPC to Odoo stock_move',
+            'BOMs: BOM management in SERP, syncs to Odoo mrp_bom',
+            'Stock locations: location hierarchy in SERP, syncs to Odoo stock_location',
+            'Products: product info in SERP, syncs to Odoo product_product',
+            'COGS tracking: valuation layers updated on MO completion and adjustments',
+            'Odoo stays in sync but users stop using Odoo UI for migrated features',
+            'Python function suite: reusable functions for inventory ops that maintain DB integrity',
+            'Functions: make_adjustment(), receive_arrival(), complete_mo(), scrap_mo()',
+            'All functions enforce COGS structure, update valuation layers, log transactions',
           ],
-          currentOdoo: [
-            'mrp_bom with type=phantom (265 active kits)',
-            'mrp_bom_line for kit components (~800 records)',
-            'stock_quant for current inventory (14,729 records)',
-            'stock_move for movement history (48,909+ records, many stuck)',
-            'No concurrency protection beyond database locks',
-          ],
-          futureAdditions: [
-            'Atomic inventory updates with optimistic locking',
-            'PO arrival → automatic inventory increase',
-            'MO completion → component consumption + finished goods add',
-            'Inventory transaction audit log',
-            'Concurrency-safe operations under high load',
-            'Physical count reconciliation before cutover',
+          confirmations: [
+            'Production team - MO creation and completion workflow',
+            'Warehouse team - inventory adjustments and location management',
+            'Finance team - COGS calculations and valuation accuracy',
+            'Operations team - BOM management and product info',
           ],
           keyPoint:
-            'Critical: Fix inventory concurrency before adding PO/MO operations. After this phase, Laravel handles all inventory atomically.',
+            'SERP becomes the UI, dual-writes to Odoo. stock_quants is independent (not linked to component inventory yet). Feature-by-feature migration.',
+        },
+        {
+          id: 3,
+          name: 'Kits',
+          shortName: 'Kits',
+          weeks: 10,
+          deps: [1],
+          parallelWith: [2],
+          color: '#3498db',
+          goal: 'Migrate phantom BOMs from Odoo to Laravel mrp_bom table. Modify updateInsertKit() to use Laravel BOMs for ComponentOrder creation.',
+          goals: [
+            'Migrate phantom BOMs from Odoo mrp_bom to Laravel mrp_bom table',
+            'Modify updateInsertKit() to query Laravel mrp_bom when no kit assigned',
+            'Match buyer_products.sku → product_template.default_code → mrp_bom',
+            'Create ComponentOrders from mrp_bom_line (same pattern as existing kits)',
+            'Deprecate Odoo phantom BOM lookups',
+          ],
+          tasks: [
+            {
+              name: 'Migrate Odoo mrp_bom (phantom) + mrp_bom_line to Laravel',
+              startWeek: 1,
+              duration: 2,
+            },
+            {
+              name: 'Migrate product_template for SKU matching (default_code)',
+              startWeek: 1,
+              duration: 1,
+            },
+            {
+              name: 'Map mrp_bom_line.product_id → components.odoo_id',
+              startWeek: 2,
+              duration: 1,
+            },
+            {
+              name: 'Modify updateInsertKit() to query Laravel mrp_bom as fallback',
+              startWeek: 3,
+              duration: 2,
+            },
+            {
+              name: 'Test order expansion: kit path vs phantom BOM path',
+              startWeek: 5,
+              duration: 2,
+            },
+            {
+              name: 'Parallel run: compare ComponentOrders between systems',
+              startWeek: 7,
+              duration: 2,
+            },
+            {
+              name: 'Cutover: disable Odoo phantom BOM lookups',
+              startWeek: 9,
+              duration: 1,
+            },
+          ],
+          workflow: [
+            { laravel: 'Migrate phantom BOMs → Laravel mrp_bom table', odoo: 'Read-only source' },
+            { laravel: 'Migrate product_template for SKU matching', odoo: 'Read-only source' },
+            { laravel: 'updateInsertKit() first tries existing kits (unchanged)', odoo: '—' },
+            { laravel: 'If no kit: query mrp_bom WHERE type=phantom AND active=true', odoo: '—' },
+            { laravel: 'Match: buyer_products.sku = product_template.default_code', odoo: '—' },
+            { laravel: 'Get mrp_bom_line → map product_id to components.odoo_id', odoo: '—' },
+            { laravel: 'Create ComponentOrders from BOM lines (same as kits)', odoo: 'Deprecated' },
+          ],
+          dataOwnership: [
+            { data: 'mrp_bom (phantom type)', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'mrp_bom_line (components)', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'product_template (SKU matching)', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'Existing kits table', laravel: 'Owner (unchanged)', odoo: '—' },
+          ],
+          dbChanges: [
+            {
+              table: 'mrp_bom',
+              purpose:
+                'Phantom BOMs = kits that "explode" into components when ordered (265 records)',
+              columns: 'type=phantom, active=true, product_tmpl_id (links to SKU)',
+            },
+            {
+              table: 'mrp_bom_line',
+              purpose: 'Kit components - what items go into each phantom BOM (~800 records)',
+              columns: 'bom_id, product_id (→ components.odoo_id), product_qty',
+            },
+            {
+              table: 'product_template',
+              purpose: 'SKU matching - links buyer_products.sku to mrp_bom via default_code',
+              columns: 'id (product_tmpl_id), default_code (SKU)',
+            },
+          ],
+          implementation: {
+            'Data Migration': [
+              'Migrate mrp_bom WHERE type=phantom AND active=true (265 BOMs)',
+              'Migrate mrp_bom_line for those BOMs (~800 component records)',
+              'Migrate product_template for SKU matching (default_code field)',
+              'Zero-qty consumables (tape, labels) preserved with qty=0',
+            ],
+            'Code Changes (updateInsertKit)': [
+              'After kit lookup fails, query Laravel mrp_bom as fallback',
+              'Match: buyer_products.sku = product_template.default_code',
+              'Query: mrp_bom WHERE product_tmpl_id=X AND type=phantom AND active=true',
+              'Loop mrp_bom_line → map product_id to components.odoo_id',
+              'Create ComponentOrder for each line (same as existing kit logic)',
+              'Deduct inventory from component location (same as existing)',
+            ],
+            'Odoo Sync (Already Handled)': [
+              'ComponentOrders already sync to Odoo via existing /api/odoo/component/prepick endpoint',
+              'Odoo polls Laravel, fetches orders where component_imported=0',
+              'ComponentResource sends: odoo_id, sku, name, quantity from pivot table',
+              'No additional sync code needed - phantom BOM ComponentOrders work automatically',
+            ],
+            Validation: [
+              'Diff report: compare ComponentOrders created by Laravel vs Odoo',
+              'Test orders with kits (existing path unchanged)',
+              'Test orders without kits (new phantom BOM path)',
+              'Verify component mapping: mrp_bom_line.product_id → components.odoo_id',
+              'Verify ComponentOrders from phantom BOMs sync to Odoo correctly',
+            ],
+          },
+          confirmations: [
+            'Ops - phantom BOM components match expected packaging',
+            'Tech - ComponentOrders created correctly for both kit and BOM paths',
+          ],
+          keyPoint:
+            'updateInsertKit() uses Laravel mrp_bom as fallback when no kit assigned. SKU matching: buyer_products.sku = product_template.default_code.',
+        },
+        {
+          id: 4,
+          name: 'Inventory Management',
+          shortName: 'Inventory',
+          weeks: 10,
+          deps: [2, 3],
+          color: '#dc3545',
+          goal: 'Make SERP the source of truth for inventory. Create views to expose stock_quant quantities. Build order processing queue. Deprecate Odoo.',
+          goals: [
+            'Migrate all inventory from Odoo to SERP stock_quant (quantities + FIFO cost layers)',
+            'Make stock_quant the single source of truth for inventory',
+            'Create inventory views (receiver_product_inventory, component_inventory) that aggregate stock_quant',
+            'Update all code to JOIN views instead of reading inventory_qty columns',
+            'Build order processing queue (reserve → ship → COGS)',
+            'Complete cutover: activate SERP queues, disable Odoo sync',
+          ],
+          tasks: [
+            // Inventory Views (Weeks 1-2)
+            {
+              name: 'Create inventory views (receiver_product_inventory, component_inventory)',
+              startWeek: 1,
+              duration: 1,
+            },
+            {
+              name: 'Find and update all code to use inventory views',
+              startWeek: 2,
+              duration: 1,
+            },
+            // Order Processing Queue (Weeks 3-5)
+            {
+              name: 'Build order processing queue (reserve inventory, write stock_move_id)',
+              startWeek: 3,
+              duration: 1,
+            },
+            {
+              name: 'Build ship processing (FIFO consumption, write cost_unit)',
+              startWeek: 4,
+              duration: 1,
+            },
+            {
+              name: 'Build cancel processing (release reservations)',
+              startWeek: 5,
+              duration: 1,
+            },
+            // Data Migration (Weeks 6-7)
+            {
+              name: 'Migrate Odoo inventory + FIFO cost layers to SERP stock_quant',
+              startWeek: 6,
+              duration: 1,
+            },
+            {
+              name: 'Physical count and reconciliation vs migrated data',
+              startWeek: 7,
+              duration: 1,
+            },
+            // Cutover (Weeks 8-10)
+            {
+              name: 'Parallel run: orders processed by both Odoo and SERP',
+              startWeek: 8,
+              duration: 1,
+            },
+            {
+              name: 'Validate COGS and inventory accuracy',
+              startWeek: 9,
+              duration: 1,
+            },
+            {
+              name: 'Go-live: disable Odoo, SERP is source of truth',
+              startWeek: 10,
+              duration: 1,
+            },
+          ],
+          workflow: {
+            'Inventory Views': [
+              { laravel: 'stock_quant is source of truth for inventory quantities', odoo: '—' },
+              {
+                laravel:
+                  'receiver_product_inventory view aggregates stock_quant by receiver_product_id',
+                odoo: '—',
+              },
+              {
+                laravel: 'component_inventory view aggregates stock_quant by component_id',
+                odoo: '—',
+              },
+              { laravel: 'Code JOINs views instead of reading inventory_qty columns', odoo: '—' },
+              { laravel: 'Physical count reconciliation before cutover', odoo: 'Final sync' },
+            ],
+            'Order Flow': [
+              { laravel: 'Order created → stock_move_id = NULL', odoo: '—' },
+              { laravel: 'SERP queue finds unprocessed (WHERE stock_move_id IS NULL)', odoo: '—' },
+              { laravel: 'SERP reserves inventory, writes stock_move_id back', odoo: '—' },
+              { laravel: 'Order ships → SERP consumes FIFO, writes cost_unit back', odoo: '—' },
+              { laravel: 'Order cancelled before ship → release reservation', odoo: '—' },
+            ],
+          },
+          dataOwnership: [
+            { data: 'stock_quant (source of truth)', laravel: 'Owner', odoo: 'Deprecated' },
+            {
+              data: 'receiver_product_inventory (view)',
+              laravel: 'Aggregates stock_quant',
+              odoo: '—',
+            },
+            {
+              data: 'component_inventory (view)',
+              laravel: 'Aggregates stock_quant',
+              odoo: '—',
+            },
+            { data: 'Order inventory deductions', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'COGS (cost_unit on items/component_orders)', laravel: 'Owner', odoo: '—' },
+          ],
+          dbChanges: [
+            // --- INVENTORY VIEWS ---
+            {
+              table: 'receiver_product_inventory (VIEW)',
+              purpose:
+                'Aggregates stock_quant for finished goods - replaces receiver_products.inventory_qty column',
+              columns:
+                'receiver_product_id, total_qty, reserved_qty, available_qty (total - reserved)',
+            },
+            {
+              table: 'component_inventory (VIEW)',
+              purpose:
+                'Aggregates stock_quant for components - replaces components.inventory_qty column',
+              columns: 'component_id, total_qty, reserved_qty, available_qty (total - reserved)',
+            },
+            // --- ORDER LINE ENHANCEMENTS (Migration 010) ---
+            {
+              table: 'items',
+              purpose: 'Link order items to inventory moves + track FIFO cost at fulfillment',
+              columns: 'stock_move_id (FK to stock_move), cost_unit (FIFO cost per unit)',
+            },
+            {
+              table: 'component_orders',
+              purpose: 'Link component orders to inventory moves + track FIFO cost at fulfillment',
+              columns: 'stock_move_id (FK to stock_move), cost_unit (FIFO cost per unit)',
+            },
+            {
+              table: 'ec_order',
+              purpose: 'Track order state and link to warehouse picking operations',
+              columns:
+                'serp_state (pending→confirmed→fulfilled), serp_picking_id (FK to stock_picking)',
+            },
+            // --- CLEANUP (Migration 011) ---
+            {
+              table: '❌ DROP legacy tables',
+              purpose: 'Remove tables replaced by Odoo-style inventory system',
+              columns:
+                'serp_audit_logs, component_shelves, supplier_product, raw_materials, raw_material_inventory, rm_inventory_transactions, component_inventory, component_inventory_transactions',
+            },
+          ],
+          implementation: {
+            'Inventory Views': [
+              'Create receiver_product_inventory view: SELECT receiver_product_id, SUM(quantity), SUM(reserved_quantity) FROM stock_quant GROUP BY receiver_product_id',
+              'Create component_inventory view: SELECT component_id, SUM(quantity), SUM(reserved_quantity) FROM stock_quant GROUP BY component_id',
+              'Index stock_quant on (receiver_product_id) and (component_id) for view performance',
+            ],
+            'Code Migration': [
+              'Find all code reading receiver_products.inventory_qty → change to JOIN receiver_product_inventory',
+              'Find all code reading components.inventory_qty → change to JOIN component_inventory',
+              'Update queries, reports, dashboards, APIs that reference inventory columns',
+              'Test all inventory-related features with new views',
+            ],
+            'Database Changes': [
+              'items: ADD stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
+              'component_orders: ADD stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
+            ],
+            'Order Processing Queue': [
+              'Queue runs every 5 minutes',
+              'Process new orders: find items/component_orders WHERE stock_move_id IS NULL',
+              'Fulfill shipped orders: when ec_order.ship_date is set, consume FIFO, write cost_unit',
+              'Cancel orders: if cancelled before ship, release reservation',
+            ],
+            'New Order Processing': [
+              'Find ec_order where line items have no stock_move_id',
+              'Map items.product_sku → receiver_products',
+              'Create stock_picking + stock_move, reserve inventory',
+              'Write stock_move_id back to items/component_orders',
+            ],
+            'Ship Order Processing': [
+              'Find orders where ship_date is set but cost_unit is empty',
+              'Consume oldest FIFO layers, decrease stock_quant.quantity',
+              'Write cost_unit to items/component_orders',
+            ],
+            'Cancel Order Processing': [
+              'Before ship: release reservation, cancel moves',
+              'After ship: no action - COGS already recorded',
+            ],
+            'Data Migration': [
+              'Export all receiver_product inventory from Odoo stock_quant to SERP stock_quant',
+              'Export all component inventory from Odoo stock_quant to SERP stock_quant',
+              'Export FIFO cost layers from Odoo stock_valuation_layer to SERP',
+              'Physical count reconciliation to verify migrated quantities',
+            ],
+          },
+          cutoverChecklist: [
+            'All inventory data migrated from Odoo to SERP stock_quant',
+            'All code updated to use inventory views (no direct inventory_qty reads)',
+            'Inventory views created and tested (receiver_product_inventory, component_inventory)',
+            'SERP order processing queue built and tested',
+            'Parallel run completed (both Odoo and SERP process same orders)',
+            'COGS accuracy validated between Odoo and SERP',
+            'Physical count reconciliation completed',
+            'Legacy tables dropped (serp_audit_logs, component_shelves, etc.)',
+            'Odoo order sync disabled',
+            'SERP order queue activated as primary',
+            'Monitoring/alerting configured for queue failures',
+            'Rollback plan documented and tested',
+          ],
+          confirmations: [
+            'Ops - inventory counts match stock_quant',
+            'Finance - COGS calculations and valuation accuracy',
+            'Tech - all syncs work',
+          ],
+          keyPoint:
+            'SERP becomes source of truth. Inventory views aggregate stock_quant (no sync needed). Order queue handles reservations and COGS.',
         },
       ];
 
@@ -780,13 +1128,38 @@
 
         // Workflow Section
         html += `<div class="section"><h2 style="border-color:${phase.color}">How It Works</h2>`;
-        html += `<table class="workflow-table"><tr><th>Laravel (SERP)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
-        phase.workflow.forEach((row) => {
-          const rowClass = row.sync ? 'sync-row' : '';
-          const arrow = row.sync ? '→' : '';
-          html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
-        });
-        html += `</table>`;
+        if (Array.isArray(phase.workflow)) {
+          html += `<table class="workflow-table"><tr><th>Laravel (SERP)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
+          phase.workflow.forEach((row) => {
+            // Detect section headers (rows where laravel starts with ---)
+            if (row.laravel.startsWith('---')) {
+              const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+              html += `<tr><td colspan="3" style="background:${phase.color}15;color:${phase.color};font-weight:600;text-align:center;padding:12px;border-top:2px solid ${phase.color}">${headerText}</td></tr>`;
+            } else {
+              const rowClass = row.sync ? 'sync-row' : '';
+              const arrow = row.sync ? '→' : '';
+              html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
+            }
+          });
+          html += `</table>`;
+        } else {
+          Object.entries(phase.workflow).forEach(([header, rows]) => {
+            html += `<h3>${header}</h3>`;
+            html += `<table class="workflow-table"><tr><th>Laravel (SERP)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
+            rows.forEach((row) => {
+              // Detect section headers (rows where laravel starts with ---)
+              if (row.laravel.startsWith('---')) {
+                const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+                html += `<tr><td colspan="3" style="background:${phase.color}15;color:${phase.color};font-weight:600;text-align:center;padding:12px;border-top:2px solid ${phase.color}">${headerText}</td></tr>`;
+              } else {
+                const rowClass = row.sync ? 'sync-row' : '';
+                const arrow = row.sync ? '→' : '';
+                html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
+              }
+            });
+            html += `</table>`;
+          });
+        }
         if (phase.keyPoint)
           html += `<div class="highlight" style="border-color:${phase.color}"><strong>${phase.keyPoint}</strong></div>`;
         html += `</div>`;
@@ -803,32 +1176,64 @@
 
         // Database Changes Section
         html += `<div class="section"><h2 style="border-color:${phase.color}">Database Changes</h2>`;
-        html += `<table><tr><th>Table</th><th>Columns</th></tr>`;
+        html += `<table><tr><th>Table</th><th>Purpose</th><th>Columns</th></tr>`;
         phase.dbChanges.forEach((row) => {
-          html += `<tr><td><code>${row.table}</code></td><td><code>${row.columns}</code></td></tr>`;
+          const purpose = row.purpose || '';
+          html += `<tr><td><code>${row.table}</code></td><td>${purpose}</td><td><code>${row.columns}</code></td></tr>`;
         });
         html += `</table></div>`;
 
         // Implementation Section
-        html += `<div class="section"><h2 style="border-color:${phase.color}">Implementation Details</h2><ul>`;
-        phase.implementation.forEach((item) => {
-          html += `<li>${item}</li>`;
-        });
-        html += `</ul></div>`;
+        html += `<div class="section"><h2 style="border-color:${phase.color}">Implementation Details</h2>`;
+        if (Array.isArray(phase.implementation)) {
+          html += `<ul>`;
+          phase.implementation.forEach((item) => {
+            // Detect section headers (items starting with ---)
+            if (item.startsWith('---') && item.endsWith('---')) {
+              const headerText = item.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+              html += `</ul><h3 style="margin-top:20px;color:${phase.color}">${headerText}</h3><ul>`;
+            } else {
+              html += `<li>${item}</li>`;
+            }
+          });
+          html += `</ul>`;
+        } else {
+          Object.entries(phase.implementation).forEach(([header, items]) => {
+            html += `<h3>${header}</h3><ul>`;
+            items.forEach((item) => {
+              html += `<li>${item}</li>`;
+            });
+            html += `</ul>`;
+          });
+        }
+        html += `</div>`;
 
-        // Existing Odoo Features Section
-        html += `<div class="section"><h2 style="border-color:${phase.color}">Existing Odoo Features</h2><ul>`;
-        phase.currentOdoo.forEach((item) => {
-          html += `<li>${item}</li>`;
-        });
-        html += `</ul></div>`;
+        // Cutover Checklist Section
+        if (phase.cutoverChecklist && phase.cutoverChecklist.length > 0) {
+          html += `<div class="section"><h2 style="border-color:${phase.color}">Cutover Checklist</h2><ul>`;
+          phase.cutoverChecklist.forEach((item) => {
+            html += `<li>☐ ${item}</li>`;
+          });
+          html += `</ul></div>`;
+        }
 
-        // New Features Section
-        html += `<div class="section"><h2 style="border-color:${phase.color}">New Features</h2><ul>`;
-        phase.futureAdditions.forEach((item) => {
-          html += `<li>${item}</li>`;
-        });
-        html += `</ul></div>`;
+        // Confirmations Section
+        if (phase.confirmations && phase.confirmations.length > 0) {
+          html += `<div class="section"><h2 style="border-color:${phase.color}">Team Confirmations Before Launch</h2><ul>`;
+          phase.confirmations.forEach((item) => {
+            html += `<li>${item}</li>`;
+          });
+          html += `</ul></div>`;
+        }
+
+        // Questions to Decide Section
+        if (phase.questionsToDecide && phase.questionsToDecide.length > 0) {
+          html += `<div class="section"><h2 style="border-color:${phase.color}">Questions to Decide</h2><ul>`;
+          phase.questionsToDecide.forEach((item) => {
+            html += `<li>${item}</li>`;
+          });
+          html += `</ul></div>`;
+        }
 
         // Timeline Section
         html += `<div class="section"><h2 style="border-color:${phase.color}">Timeline</h2>`;
