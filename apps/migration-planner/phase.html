@@ -548,6 +548,12 @@
               startWeek: 11,
               duration: 1,
             },
+            // Odoo Sync Queue (Week 10-11)
+            {
+              name: 'Build Odoo sync queue with retry, DLQ, and circuit breaker',
+              startWeek: 10,
+              duration: 2,
+            },
             // Python utility functions (Week 11)
             {
               name: 'Build Python function suite for inventory ops (adjustments, arrivals, COGS)',
@@ -695,11 +701,27 @@
               columns:
                 'amount_total, state, vendor_bill_id, split_method (equal, by_qty, by_weight)',
             },
+            // --- ODOO SYNC QUEUE ---
+            {
+              table: 'odoo_sync_queue',
+              purpose: 'Track pending/failed Odoo syncs with retry logic and dead letter queue',
+              columns:
+                'entity_type, entity_id, operation (create/update/delete), payload JSON, status (pending/processing/synced/failed/dlq), attempts, last_attempt_at, error_message, created_at',
+            },
           ],
           implementation: [
             'Incremental rollout: MO → Adjustments → BOMs → Locations → Products',
             'Pattern: build feature in SERP → users switch to SERP UI → disable Odoo UI',
             'Dual-write on every action: XML-RPC to Odoo + update SERP tables',
+            '--- ODOO SYNC QUEUE (critical for reliability) ---',
+            '• Async queue pattern: SERP writes locally first, then queues Odoo sync job',
+            '• Odoo sync MUST succeed: retry with exponential backoff (1s, 2s, 4s, 8s, max 5 min)',
+            '• Dead letter queue: after N failures, move to DLQ for manual review',
+            '• Sync status tracking: each record has sync_status (pending/synced/failed/retrying)',
+            '• Admin dashboard: view failed syncs, retry individual items, bulk retry',
+            '• Circuit breaker: if Odoo is down (5+ consecutive failures), pause queue and alert',
+            '• Reconciliation job: daily job compares SERP vs Odoo, flags discrepancies',
+            '--- END SYNC QUEUE ---',
             'stock_quants is independent shadow table (NOT linked to component/RM inventory)',
             'Existing component_inventory unchanged during this phase',
             'Manufacturing: MO in SERP, dual-writes to Odoo mrp_production',
@@ -731,37 +753,45 @@
           deps: [1],
           parallelWith: [2],
           color: '#3498db',
-          goal: 'Migrate phantom BOMs from Odoo to Laravel mrp_bom table. Modify updateInsertKit() to use Laravel BOMs for ComponentOrder creation.',
+          goal: 'Migrate phantom BOMs from Odoo to Laravel mrp_bom table. Modify updateInsertKit() to use BOTH existing kits AND Laravel BOMs (additive, not fallback).',
           goals: [
             'Migrate phantom BOMs from Odoo mrp_bom to Laravel mrp_bom table',
-            'Modify updateInsertKit() to query Laravel mrp_bom when no kit assigned',
+            'Modify updateInsertKit() to query BOTH existing kits AND Laravel mrp_bom (additive logic)',
             'Match buyer_products.sku → product_template.default_code → mrp_bom',
-            'Create ComponentOrders from mrp_bom_line (same pattern as existing kits)',
+            'Create ComponentOrders from BOTH sources - union of kit components + BOM components',
             'Deprecate Odoo phantom BOM lookups',
           ],
           tasks: [
+            // Data Migration (Weeks 1-3)
             {
-              name: 'Migrate Odoo mrp_bom (phantom) + mrp_bom_line to Laravel',
-              startWeek: 1,
-              duration: 2,
-            },
-            {
-              name: 'Migrate product_template for SKU matching (default_code)',
+              name: 'Create SERP tables: mrp_bom, mrp_bom_line, product_template',
               startWeek: 1,
               duration: 1,
             },
             {
-              name: 'Map mrp_bom_line.product_id → components.odoo_id',
+              name: 'Build migration script: export Odoo phantom BOMs + lines',
+              startWeek: 1,
+              duration: 1,
+            },
+            {
+              name: 'Run migration: load 265 BOMs + ~800 lines into SERP',
               startWeek: 2,
               duration: 1,
             },
             {
-              name: 'Modify updateInsertKit() to query Laravel mrp_bom as fallback',
+              name: 'Validate migration: verify component mappings, count records',
+              startWeek: 2,
+              duration: 1,
+            },
+            // Code Changes (Weeks 3-4)
+            {
+              name: 'Modify updateInsertKit() for ADDITIVE logic (kit + BOM combined)',
               startWeek: 3,
               duration: 2,
             },
+            // Testing (Weeks 5-8)
             {
-              name: 'Test order expansion: kit path vs phantom BOM path',
+              name: 'Test order expansion: verify kit + phantom BOM components combined',
               startWeek: 5,
               duration: 2,
             },
@@ -770,20 +800,44 @@
               startWeek: 7,
               duration: 2,
             },
+            // Cutover (Weeks 9-10)
             {
               name: 'Cutover: disable Odoo phantom BOM lookups',
               startWeek: 9,
               duration: 1,
             },
+            {
+              name: 'Monitor and stabilize',
+              startWeek: 10,
+              duration: 1,
+            },
           ],
           workflow: [
-            { laravel: 'Migrate phantom BOMs → Laravel mrp_bom table', odoo: 'Read-only source' },
-            { laravel: 'Migrate product_template for SKU matching', odoo: 'Read-only source' },
-            { laravel: 'updateInsertKit() first tries existing kits (unchanged)', odoo: '—' },
-            { laravel: 'If no kit: query mrp_bom WHERE type=phantom AND active=true', odoo: '—' },
-            { laravel: 'Match: buyer_products.sku = product_template.default_code', odoo: '—' },
-            { laravel: 'Get mrp_bom_line → map product_id to components.odoo_id', odoo: '—' },
-            { laravel: 'Create ComponentOrders from BOM lines (same as kits)', odoo: 'Deprecated' },
+            { laravel: '--- DATA MIGRATION (Odoo → SERP, one-time) ---', odoo: '---' },
+            {
+              laravel: 'Export mrp_bom WHERE type=phantom AND active=true (265 BOMs)',
+              odoo: 'Source',
+            },
+            {
+              laravel: 'Export mrp_bom_line for those BOMs (~800 component records)',
+              odoo: 'Source',
+            },
+            { laravel: 'Export product_template for SKU matching (default_code)', odoo: 'Source' },
+            {
+              laravel: 'Load into SERP mrp_bom + mrp_bom_line + product_template tables',
+              odoo: '—',
+            },
+            { laravel: 'Validate: verify component_id mappings, count records', odoo: '—' },
+            { laravel: '--- ADDITIVE LOGIC (do BOTH kits + BOMs) ---', odoo: '---' },
+            { laravel: '1. Get existing kit components (if buyer_product has kit)', odoo: '—' },
+            { laravel: '2. ALSO query mrp_bom WHERE type=phantom AND active=true', odoo: '—' },
+            { laravel: '3. Match: buyer_products.sku = product_template.default_code', odoo: '—' },
+            { laravel: '4. Get mrp_bom_line → map product_id to components.odoo_id', odoo: '—' },
+            { laravel: '5. UNION both sets of components (kit + BOM)', odoo: '—' },
+            {
+              laravel: '6. Create ComponentOrders for ALL components from both sources',
+              odoo: 'Deprecated',
+            },
           ],
           dataOwnership: [
             { data: 'mrp_bom (phantom type)', laravel: 'Owner', odoo: 'Deprecated' },
@@ -792,36 +846,62 @@
             { data: 'Existing kits table', laravel: 'Owner (unchanged)', odoo: '—' },
           ],
           dbChanges: [
+            // --- TABLES CREATED IN SERP (migrated from Odoo) ---
             {
-              table: 'mrp_bom',
+              table: 'mrp_bom (CREATE in SERP)',
               purpose:
-                'Phantom BOMs = kits that "explode" into components when ordered (265 records)',
-              columns: 'type=phantom, active=true, product_tmpl_id (links to SKU)',
+                'Phantom BOMs migrated from Odoo. 265 active records. Same schema as Odoo for compatibility.',
+              columns:
+                'id, code, product_tmpl_id, type (phantom), active, product_qty, product_uom_id, odoo_bom_id (link back to Odoo)',
             },
             {
-              table: 'mrp_bom_line',
-              purpose: 'Kit components - what items go into each phantom BOM (~800 records)',
-              columns: 'bom_id, product_id (→ components.odoo_id), product_qty',
+              table: 'mrp_bom_line (CREATE in SERP)',
+              purpose: 'BOM components migrated from Odoo. ~800 records for 265 phantom BOMs.',
+              columns:
+                'id, bom_id (FK), product_id (→ components.odoo_id), product_qty, sequence, odoo_bom_line_id',
             },
             {
-              table: 'product_template',
-              purpose: 'SKU matching - links buyer_products.sku to mrp_bom via default_code',
-              columns: 'id (product_tmpl_id), default_code (SKU)',
+              table: 'product_template (CREATE in SERP)',
+              purpose:
+                'SKU mapping table. Links buyer_products.sku to mrp_bom via default_code field.',
+              columns: 'id, name, default_code (SKU), odoo_product_tmpl_id',
+            },
+            // --- EXISTING TABLES (unchanged) ---
+            {
+              table: 'kits (EXISTS - unchanged)',
+              purpose: 'Existing Laravel kits table. 1,091 active kits. NOT replaced by mrp_bom.',
+              columns: 'Unchanged - both kits AND mrp_bom used together (additive)',
+            },
+            {
+              table: 'component_kits (EXISTS - unchanged)',
+              purpose: 'Existing kit-component mappings. Used alongside mrp_bom_line.',
+              columns: 'Unchanged - additive logic unions both sources',
             },
           ],
           implementation: {
-            'Data Migration': [
-              'Migrate mrp_bom WHERE type=phantom AND active=true (265 BOMs)',
-              'Migrate mrp_bom_line for those BOMs (~800 component records)',
-              'Migrate product_template for SKU matching (default_code field)',
-              'Zero-qty consumables (tape, labels) preserved with qty=0',
+            'Data Migration (Odoo → SERP)': [
+              '--- WHAT GETS MIGRATED ---',
+              'mrp_bom: 265 active phantom BOMs (type=phantom, active=true)',
+              'mrp_bom_line: ~800 component records linked to those BOMs',
+              'product_template: SKU mapping table (default_code = buyer_products.sku)',
+              '--- MIGRATION SCRIPT ---',
+              'Export from Odoo: mrp_bom JOIN mrp_bom_line JOIN product_template',
+              'Transform: map product_id → components.odoo_id for each line',
+              'Load into Laravel: mrp_bom + mrp_bom_line tables (same schema as Odoo)',
+              'Validate: count records, verify component mappings exist',
+              '--- EDGE CASES ---',
+              'Zero-qty consumables (tape, labels): preserved with qty=0',
+              'Inactive BOMs (511 records): NOT migrated - only active=true',
+              'Normal BOMs (977 records): migrated in Phase 2, not this phase',
             ],
             'Code Changes (updateInsertKit)': [
-              'After kit lookup fails, query Laravel mrp_bom as fallback',
-              'Match: buyer_products.sku = product_template.default_code',
-              'Query: mrp_bom WHERE product_tmpl_id=X AND type=phantom AND active=true',
-              'Loop mrp_bom_line → map product_id to components.odoo_id',
-              'Create ComponentOrder for each line (same as existing kit logic)',
+              'ADDITIVE LOGIC: Query BOTH existing kits AND mrp_bom (not fallback)',
+              'Step 1: Get kit components if buyer_product has assigned kit',
+              'Step 2: Match buyer_products.sku = product_template.default_code',
+              'Step 3: Query mrp_bom WHERE product_tmpl_id=X AND type=phantom AND active=true',
+              'Step 4: Loop mrp_bom_line → map product_id to components.odoo_id',
+              'Step 5: UNION kit components + BOM components (dedupe by component_id if needed)',
+              'Step 6: Create ComponentOrder for EACH component from combined set',
               'Deduct inventory from component location (same as existing)',
             ],
             'Odoo Sync (Already Handled)': [
@@ -843,7 +923,7 @@
             'Tech - ComponentOrders created correctly for both kit and BOM paths',
           ],
           keyPoint:
-            'updateInsertKit() uses Laravel mrp_bom as fallback when no kit assigned. SKU matching: buyer_products.sku = product_template.default_code.',
+            'ADDITIVE: updateInsertKit() uses BOTH existing kits AND Laravel mrp_bom (not fallback). Components from both sources are unioned. SKU matching: buyer_products.sku = product_template.default_code.',
         },
         {
           id: 4,

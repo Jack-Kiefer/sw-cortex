@@ -2,53 +2,53 @@
   "phases": [
     {
       "id": 1,
-      "name": "Purchase Orders",
-      "shortName": "POs",
-      "minWeeks": 6,
-      "maxWeeks": 8,
+      "name": "Purchase Orders & Bills",
+      "shortName": "POs+Bills",
+      "minWeeks": 10,
+      "maxWeeks": 10,
       "dependencies": [],
-      "color": "#27ae60",
+      "color": "#198754",
       "tasksFile": "tasks-phase-1.json",
-      "milestone": "PO System Live in SERP",
-      "goal": "Move all PO creation and arrivals to SERP. On arrival, push quantities to Odoo for inventory updates."
+      "milestone": "PO + Bill System Live",
+      "goal": "PO creation, arrivals, and manual bill workflow in SERP. Bills via 3-way matching. Arrivals push quantities to Odoo."
     },
     {
       "id": 2,
-      "name": "Bills, Products, Manufacturing & COGS",
-      "shortName": "Bills+Products+MO+COGS",
+      "name": "Manufacturing, Adjustments, BOMs, Locations & Products",
+      "shortName": "MO+Adj+BOMs+Loc+Prod",
       "minWeeks": 12,
-      "maxWeeks": 16,
+      "maxWeeks": 12,
       "dependencies": [1],
       "parallelWith": [3],
       "color": "#9b59b6",
       "tasksFile": "tasks-phase-2.json",
-      "milestone": "Bills, Products, MO & COGS Live in SERP",
-      "goal": "Mirror Odoo's core tables in Laravel: vendor_bills, boms, manufacturing_orders, stock_quants, stock_valuation_layer. Shadow system enables reconciliation before Phase 4 cutover."
+      "milestone": "MO, Adjustments, BOMs, Locations & Products Live",
+      "goal": "Build Odoo features in SERP with dual-write. Users switch to SERP UI. Includes Odoo sync queue with retry/DLQ."
     },
     {
       "id": 3,
       "name": "Kits",
       "shortName": "Kits",
-      "minWeeks": 8,
+      "minWeeks": 10,
       "maxWeeks": 10,
       "dependencies": [1],
       "parallelWith": [2],
       "color": "#3498db",
       "tasksFile": "tasks-phase-3.json",
       "milestone": "Kit Migration Complete",
-      "goal": "Migrate 265 phantom BOMs from Odoo to Laravel kits table. Validate kit-to-buyer_product links and order expansion logic."
+      "goal": "Migrate 265 phantom BOMs to Laravel. ADDITIVE logic: use BOTH existing kits AND phantom BOMs together."
     },
     {
       "id": 4,
       "name": "Inventory Management",
       "shortName": "Inventory",
       "minWeeks": 10,
-      "maxWeeks": 12,
+      "maxWeeks": 10,
       "dependencies": [2, 3],
-      "color": "#e74c3c",
+      "color": "#dc3545",
       "tasksFile": "tasks-phase-4.json",
-      "milestone": "Inventory Cutover Complete",
-      "goal": "Move all inventory tracking to SERP. Fix concurrency, build PO arrival and MO completion inventory flows. Odoo becomes deprecated."
+      "milestone": "Full Inventory Cutover",
+      "goal": "Move all inventory tracking to SERP. FIFO layers migrated from Odoo. Order processing queue. Odoo deprecated."
     }
   ]
 }
