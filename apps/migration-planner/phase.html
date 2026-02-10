@@ -490,7 +490,7 @@
           id: 2,
           name: 'Manufacturing, Adjustments, BOMs, Locations & Products',
           shortName: 'MO+Adj+BOMs+Loc+Prod',
-          weeks: 12,
+          weeks: 14,
           deps: [1],
           parallelWith: [3],
           color: '#9b59b6',
@@ -749,66 +749,96 @@
           id: 3,
           name: 'Kits',
           shortName: 'Kits',
-          weeks: 10,
-          deps: [1],
-          parallelWith: [2],
+          weeks: 14,
+          deps: [],
+          parallelWith: [1, 2],
           color: '#3498db',
-          goal: 'Migrate phantom BOMs from Odoo to Laravel mrp_bom table. Modify updateInsertKit() to use BOTH existing kits AND Laravel BOMs (additive, not fallback).',
+          goal: 'Start planning immediately, migrate phantom BOMs from Odoo to Laravel. ADDITIVE logic: use BOTH existing kits AND Laravel BOMs together.',
           goals: [
+            'Begin discovery and planning immediately (parallel with Phase 1)',
+            'Meet with Carolyn to understand kit/BOM workflows and requirements',
             'Migrate phantom BOMs from Odoo mrp_bom to Laravel mrp_bom table',
             'Modify updateInsertKit() to query BOTH existing kits AND Laravel mrp_bom (additive logic)',
             'Match buyer_products.sku → product_template.default_code → mrp_bom',
             'Create ComponentOrders from BOTH sources - union of kit components + BOM components',
+            'Build kit editing UI in SERP (create, edit, delete kits)',
             'Deprecate Odoo phantom BOM lookups',
           ],
           tasks: [
-            // Data Migration (Weeks 1-3)
+            // Discovery & Planning (Weeks 1-4) - starts immediately
+            {
+              name: 'Discovery: Map current kit/BOM workflows with Carolyn',
+              startWeek: 1,
+              duration: 2,
+            },
+            {
+              name: 'Document requirements: what Odoo BOMs do vs Laravel kits',
+              startWeek: 2,
+              duration: 1,
+            },
+            {
+              name: 'Design: Plan ADDITIVE logic (how kit + BOM combine)',
+              startWeek: 3,
+              duration: 1,
+            },
+            {
+              name: 'Review edge cases: zero-qty consumables, inactive BOMs, overlaps',
+              startWeek: 4,
+              duration: 1,
+            },
+            // Data Migration (Weeks 5-7)
             {
               name: 'Create SERP tables: mrp_bom, mrp_bom_line, product_template',
-              startWeek: 1,
+              startWeek: 5,
               duration: 1,
             },
             {
               name: 'Build migration script: export Odoo phantom BOMs + lines',
-              startWeek: 1,
+              startWeek: 5,
               duration: 1,
             },
             {
               name: 'Run migration: load 265 BOMs + ~800 lines into SERP',
-              startWeek: 2,
+              startWeek: 6,
               duration: 1,
             },
             {
               name: 'Validate migration: verify component mappings, count records',
-              startWeek: 2,
+              startWeek: 7,
               duration: 1,
             },
-            // Code Changes (Weeks 3-4)
+            // Code Changes (Weeks 8-9)
             {
               name: 'Modify updateInsertKit() for ADDITIVE logic (kit + BOM combined)',
-              startWeek: 3,
+              startWeek: 8,
+              duration: 1,
+            },
+            // Kit Management UI (Weeks 9-10)
+            {
+              name: 'Build SERP kit editing UI (list, create, edit, delete kits)',
+              startWeek: 9,
               duration: 2,
             },
-            // Testing (Weeks 5-8)
+            // Testing (Weeks 11-12)
             {
               name: 'Test order expansion: verify kit + phantom BOM components combined',
-              startWeek: 5,
-              duration: 2,
+              startWeek: 11,
+              duration: 1,
             },
             {
               name: 'Parallel run: compare ComponentOrders between systems',
-              startWeek: 7,
-              duration: 2,
+              startWeek: 12,
+              duration: 1,
             },
-            // Cutover (Weeks 9-10)
+            // Cutover (Weeks 13-14)
             {
               name: 'Cutover: disable Odoo phantom BOM lookups',
-              startWeek: 9,
+              startWeek: 13,
               duration: 1,
             },
             {
               name: 'Monitor and stabilize',
-              startWeek: 10,
+              startWeek: 14,
               duration: 1,
             },
           ],
@@ -939,6 +969,7 @@
             'Create inventory views (receiver_product_inventory, component_inventory) that aggregate stock_quant',
             'Update all code to JOIN views instead of reading inventory_qty columns',
             'Build order processing queue (reserve → ship → COGS)',
+            'Build financial reports currently in Odoo (Ric requirements)',
             'Complete cutover: activate SERP queues, disable Odoo sync',
           ],
           tasks: [
@@ -969,30 +1000,40 @@
               startWeek: 5,
               duration: 1,
             },
-            // Data Migration (Weeks 6-7)
+            // Financial Reports - Ric Requirements (Weeks 5-7)
             {
-              name: 'Migrate Odoo inventory + FIFO cost layers to SERP stock_quant',
+              name: 'Build Inventory Valuation Report (current stock value by SKU)',
+              startWeek: 5,
+              duration: 1,
+            },
+            {
+              name: 'Build Roll Forward Report (last count + purchases - usage = expected)',
               startWeek: 6,
               duration: 1,
             },
             {
-              name: 'Physical count and reconciliation vs migrated data',
+              name: 'Build FIFO COGS Report (cost of goods sold with FIFO layers)',
+              startWeek: 6,
+              duration: 1,
+            },
+            {
+              name: 'Build Cost Tracking Report (material costs, product costs, by size tier)',
               startWeek: 7,
               duration: 1,
             },
-            // Cutover (Weeks 8-10)
+            // Data Migration & Cutover (Weeks 8-10)
             {
-              name: 'Parallel run: orders processed by both Odoo and SERP',
+              name: 'Migrate Odoo inventory + FIFO cost layers to SERP stock_quant',
               startWeek: 8,
               duration: 1,
             },
             {
-              name: 'Validate COGS and inventory accuracy',
+              name: 'Physical count, reconciliation, parallel run validation',
               startWeek: 9,
               duration: 1,
             },
             {
-              name: 'Go-live: disable Odoo, SERP is source of truth',
+              name: 'Go-live: validate with Ric, disable Odoo, SERP is source of truth',
               startWeek: 10,
               duration: 1,
             },
@@ -1341,7 +1382,7 @@
         const nextBtn = document.getElementById('next-btn');
 
         if (prevPhase) {
-          prevBtn.href = `phase?id=${prevPhase.id}`;
+          prevBtn.href = `phase.html?id=${prevPhase.id}`;
           prevBtn.textContent = `← Phase ${prevPhase.id}: ${prevPhase.shortName}`;
           prevBtn.classList.remove('disabled');
         } else {
@@ -1350,7 +1391,7 @@
         }
 
         if (nextPhase) {
-          nextBtn.href = `phase?id=${nextPhase.id}`;
+          nextBtn.href = `phase.html?id=${nextPhase.id}`;
           nextBtn.textContent = `Phase ${nextPhase.id}: ${nextPhase.shortName} →`;
           nextBtn.classList.remove('disabled');
         } else {

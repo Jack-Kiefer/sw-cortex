@@ -16,8 +16,8 @@
       "id": 2,
       "name": "Manufacturing, Adjustments, BOMs, Locations & Products",
       "shortName": "MO+Adj+BOMs+Loc+Prod",
-      "minWeeks": 12,
-      "maxWeeks": 12,
+      "minWeeks": 14,
+      "maxWeeks": 14,
       "dependencies": [1],
       "parallelWith": [3],
       "color": "#9b59b6",
@@ -29,14 +29,14 @@
       "id": 3,
       "name": "Kits",
       "shortName": "Kits",
-      "minWeeks": 10,
-      "maxWeeks": 10,
-      "dependencies": [1],
-      "parallelWith": [2],
+      "minWeeks": 14,
+      "maxWeeks": 14,
+      "dependencies": [],
+      "parallelWith": [1, 2],
       "color": "#3498db",
       "tasksFile": "tasks-phase-3.json",
       "milestone": "Kit Migration Complete",
-      "goal": "Migrate 265 phantom BOMs to Laravel. ADDITIVE logic: use BOTH existing kits AND phantom BOMs together."
+      "goal": "Start planning immediately, migrate phantom BOMs to Laravel. ADDITIVE logic: use BOTH existing kits AND phantom BOMs together."
     },
     {
       "id": 4,
@@ -48,7 +48,7 @@
       "color": "#dc3545",
       "tasksFile": "tasks-phase-4.json",
       "milestone": "Full Inventory Cutover",
-      "goal": "Move all inventory tracking to SERP. FIFO layers migrated from Odoo. Order processing queue. Odoo deprecated."
+      "goal": "Move all inventory tracking to SERP. FIFO layers migrated from Odoo. Order processing queue. Build financial reports. Odoo deprecated."
     }
   ]
 }

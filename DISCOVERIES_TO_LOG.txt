@@ -1,0 +1,108 @@
+ODOO TO SERP MIGRATION ANALYSIS - DISCOVERIES READY FOR LOGGING
+==============================================================
+
+Analysis Date: 2026-02-04
+Status: Ready for MCP Discovery System
+
+8 Critical Discoveries Identified for Knowledge Base Logging:
+
+1. MIGRATION PLAN ARCHITECTURE
+   Priority: CRITICAL (4)
+   Type: pattern
+   Database: odoo
+   Title: "Odoo to SERP Migration Plan - 4 Phase Architecture"
+   Key Points:
+   - 4-phase plan: Phase 1 (POs+Bills, 10w) → Phase 2 (MO+BOMs, 14w) → Phase 3 (Kits parallel, 14w) → Phase 4 (Inventory, 10w)
+   - Total 33 weeks (Feb-Sep 2026)
+   - Phases 1-3 use dual-write with Odoo sync queue
+   - Phase 3 uses ADDITIVE logic (union of Laravel + Odoo kits)
+
+2. INVENTORY DATA QUALITY CRISIS
+   Priority: CRITICAL (4)
+   Type: anomaly
+   Database: odoo
+   Table: stock_quant, stock_move
+   Title: "Odoo Inventory Data Quality - Negative Stock & Stuck Moves"
+   Key Points:
+   - 482 stock_quant records with -37.8M units negative inventory (Vendors location)
+   - 48,909 stock_moves stuck in assigned/confirmed states
+   - MUST resolve before Phase 4 cutover or SERP inventory corrupted
+
+3. PO RECEIPT QUALITY ISSUES
+   Priority: High (3)
+   Type: anomaly
+   Database: odoo
+   Table: purchase_order_line, stock_move
+   Title: "Odoo PO Over-receipts and Cancelled PO Orphaned Stock"
+   Key Points:
+   - 20 PO lines over-received (received_qty > ordered_qty)
+   - 10 cancelled POs with orphaned stock_move records
+   - Affects inventory variance calculations
+
+4. PAYMENT TRACKING BROKEN
+   Priority: High (3)
+   Type: insight
+   Database: odoo
+   Table: account_move
+   Title: "Odoo Payment Status Unreliable - 99.8% Show Not Paid"
+   Key Points:
+   - 99.8% of invoices show state='not_paid' in Odoo
+   - Actual payments are in QuickBooks (they're paid)
+   - Invoices not properly linked to payments in Odoo
+   - Cannot migrate payment reconciliation; use QB as source of truth
+
+5. KIT MIGRATION ARCHITECTURE
+   Priority: CRITICAL (4)
+   Type: insight
+   Database: odoo
+   Title: "Phase 3 Kit Migration - ADDITIVE (Union) Pattern Not Replacement"
+   Key Points:
+   - ADDITIVE logic: both Laravel kits AND Odoo phantom BOMs used together
+   - This is NOT replacement - it's union/merge
+   - Affects deduplication, component sourcing, pricing rules
+   - Critical architectural decision for engineering team
+
+6. SYNC QUEUE PATTERN REQUIRED
+   Priority: CRITICAL (4)
+   Type: pattern
+   Title: "Odoo Sync Queue Pattern Required - Async with Retry"
+   Key Points:
+   - Async message queue for Odoo XML-RPC sync (required, not optional)
+   - Retry with exponential backoff
+   - Dead-letter queue for failures
+   - Circuit breaker for reliability
+   - Needed for dual-write consistency in Phases 1-3
+
+7. PO DATE FIELD SEMANTICS
+   Priority: High (3)
+   Type: fact
+   Database: odoo
+   Table: purchase_order
+   Columns: date_order, date_planned, effective_date
+   Title: "Odoo PO Has Three Critical Date Fields - Use effective_date"
+   Key Points:
+   - date_order: creation date (old, 2020s)
+   - date_planned: expected delivery
+   - effective_date: ACTUAL arrival (2024-2025 for recent receipts)
+   - MUST use effective_date for inventory variance analysis, not date_order
+
+8. BILL CREATION IS MANUAL
+   Priority: High (3)
+   Type: insight
+   Database: odoo
+   Table: account_move
+   Title: "Odoo Bill Creation is 100% Manual - No Auto Generation"
+   Key Points:
+   - Bills NOT auto-generated from POs
+   - Workflow: PO received → accountant gets invoice → manually creates bill → matches to QB
+   - No invoice scanning/OCR
+   - Cannot be auto-migrated; SERP needs same manual workflow
+
+NEXT STEPS:
+===========
+1. Use mcp__discoveries__add_discovery() to log each of these 8 discoveries
+2. Include all metadata (priority, type, database, tables, tags)
+3. Discoveries will be searchable by team via mcp__discoveries__search_discoveries()
+4. Reference in future migration planning and architecture discussions
+
+See MIGRATION_ANALYSIS_DISCOVERIES.md for detailed breakdown.

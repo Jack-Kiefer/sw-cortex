@@ -130,6 +130,9 @@
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "enabledPlugins": {
     "ralph-wiggum@claude-plugins-official": true
   }
