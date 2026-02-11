@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SERP Migration Plan - Kits (Phantom BOMs)</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 30px;
+      }
+      h1 {
+        color: #212529;
+        font-size: 1.8em;
+      }
+      .meta {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+      .summary-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .summary-card .value {
+        font-size: 2em;
+        font-weight: 700;
+        color: #3498db;
+      }
+      .summary-card .label {
+        color: #6c757d;
+        font-size: 0.85em;
+        margin-top: 5px;
+      }
+      .timeline-container {
+        background: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .timeline-header {
+        display: flex;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+      }
+      .timeline-label {
+        width: 220px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9em;
+      }
+      .timeline-months {
+        display: flex;
+        flex: 1;
+      }
+      .month-col {
+        flex: 1;
+        text-align: center;
+        font-size: 0.8em;
+        font-weight: 600;
+        color: #495057;
+        padding: 8px 4px;
+        border-left: 1px solid #e9ecef;
+        background: #f8f9fa;
+      }
+      .month-col:first-child {
+        border-left: none;
+      }
+      .phase-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .phase-label {
+        width: 220px;
+        font-weight: 500;
+        font-size: 0.9em;
+        color: #495057;
+      }
+      .phase-track {
+        flex: 1;
+        height: 44px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        background: #f8f9fa;
+        border-radius: 6px;
+      }
+      .phase-bar {
+        position: absolute;
+        height: 36px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        font-size: 0.8em;
+        font-weight: 500;
+        color: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+      }
+      .phase-dates {
+        font-size: 0.75em;
+        opacity: 0.9;
+      }
+      .phase-detail {
+        background: #fff;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+      }
+      .phase-header {
+        padding: 24px;
+        border-left: 5px solid;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .phase-header:hover {
+        background: #f8f9fa;
+      }
+      .phase-header h2 {
+        font-size: 1.3em;
+        margin-bottom: 8px;
+        color: #212529;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .phase-header h2 .toggle {
+        font-size: 0.8em;
+        color: #6c757d;
+        transition: transform 0.2s;
+        transform: rotate(90deg);
+      }
+      .phase-header.collapsed h2 .toggle {
+        transform: rotate(0deg);
+      }
+      .phase-meta-info {
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-bottom: 12px;
+      }
+      .phase-goal-text {
+        background: #f8f9fa;
+        padding: 14px;
+        border-radius: 8px;
+        color: #495057;
+        font-size: 0.95em;
+      }
+      .phase-content {
+        display: block;
+        padding: 0 24px 24px;
+        border-top: 1px solid #e9ecef;
+      }
+      .phase-content.hide {
+        display: none;
+      }
+      .section {
+        margin-top: 24px;
+      }
+      .section h3 {
+        font-size: 1.05em;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid;
+        color: #495057;
+      }
+      .section h4 {
+        font-size: 0.95em;
+        margin: 16px 0 8px;
+        color: #495057;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 0.9em;
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+      th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+      }
+      .owner-cell {
+        color: #198754;
+        font-weight: 600;
+      }
+      .copy-cell {
+        color: #6c757d;
+      }
+      .migration-header-row {
+        background: #f8f9fa !important;
+        border-top: 2px solid #dee2e6;
+        border-bottom: 2px solid #dee2e6;
+      }
+      .migration-header-row td {
+        font-weight: 600;
+        color: #495057;
+        padding: 12px;
+      }
+      .migration-header-row .table-name {
+        color: #0d6efd;
+        font-size: 0.95em;
+      }
+      .table-row {
+        background: white;
+      }
+      .table-row .table-name {
+        font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        font-size: 0.9em;
+        color: #198754;
+        font-weight: 500;
+        padding-left: 24px;
+      }
+      .table-row .purpose {
+        color: #495057;
+      }
+      .table-row .columns {
+        font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        font-size: 0.85em;
+        color: #6c757d;
+      }
+      .workflow-table th:first-child {
+        background: #e8f5e9;
+        color: #198754;
+      }
+      .workflow-table th:last-child {
+        background: #f3e5f5;
+        color: #7b1fa2;
+      }
+      .workflow-table .sync-row {
+        background: #fff3cd;
+      }
+      .workflow-table .arrow {
+        text-align: center;
+        color: #6c757d;
+      }
+      ul {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      .highlight {
+        background: #fff3cd;
+        padding: 12px 16px;
+        border-left: 4px solid;
+        margin: 16px 0;
+        font-weight: 500;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .gantt-container {
+        overflow-x: auto;
+        margin-top: 16px;
+      }
+      .gantt-header {
+        display: flex;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 8px;
+        min-width: 800px;
+      }
+      .gantt-label {
+        width: 280px;
+        min-width: 280px;
+        padding: 10px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.85em;
+      }
+      .gantt-weeks {
+        display: flex;
+        flex: 1;
+      }
+      .week-col {
+        flex: 1;
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 0.75em;
+        font-weight: 600;
+        color: #495057;
+        border-left: 1px solid #e9ecef;
+        background: #f8f9fa;
+      }
+      .week-col:first-child {
+        border-left: none;
+      }
+      .week-dates {
+        font-size: 0.7em;
+        color: #6c757d;
+        font-weight: 400;
+      }
+      .gantt-row {
+        display: flex;
+        align-items: center;
+        min-height: 36px;
+        border-bottom: 1px solid #f1f3f5;
+        min-width: 800px;
+      }
+      .gantt-row:hover {
+        background: #f8f9fa;
+      }
+      .task-label {
+        width: 280px;
+        min-width: 280px;
+        padding: 6px 10px;
+        font-size: 0.85em;
+        color: #495057;
+      }
+      .task-track {
+        display: flex;
+        flex: 1;
+        position: relative;
+        height: 26px;
+      }
+      .task-cell {
+        flex: 1;
+        border-left: 1px solid #f1f3f5;
+      }
+      .task-cell:first-child {
+        border-left: none;
+      }
+      .task-bar {
+        position: absolute;
+        height: 20px;
+        top: 3px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7em;
+        font-weight: 500;
+        color: white;
+      }
+      .milestones {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .milestones h3 {
+        margin-bottom: 20px;
+        color: #495057;
+        font-size: 1.1em;
+      }
+      .milestone-item {
+        display: flex;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .milestone-item:last-child {
+        border-bottom: none;
+      }
+      .milestone-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 15px;
+      }
+      .milestone-info {
+        flex: 1;
+      }
+      .milestone-name {
+        font-weight: 500;
+        color: #212529;
+      }
+      .milestone-phase {
+        font-size: 0.85em;
+        color: #6c757d;
+      }
+      .milestone-date {
+        font-weight: 600;
+        color: #3498db;
+      }
+      .migration-events {
+        background: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .migration-events h3 {
+        margin-bottom: 5px;
+        color: #495057;
+      }
+      .migration-event {
+        display: flex;
+        align-items: flex-start;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f3f5;
+      }
+      .migration-event:last-child {
+        border-bottom: none;
+      }
+      .migration-event-phase {
+        width: 100px;
+        min-width: 100px;
+        font-weight: 600;
+        font-size: 0.85em;
+      }
+      .migration-event-week {
+        width: 80px;
+        min-width: 80px;
+        color: #6c757d;
+        font-size: 0.85em;
+      }
+      .migration-event-info {
+        flex: 1;
+      }
+      .migration-event-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .migration-event-desc {
+        color: #6c757d;
+        font-size: 0.85em;
+      }
+      .migration-event-tables {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .migration-event-tables code {
+        background: #e9ecef;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75em;
+      }
+      @media print {
+        .phase-content {
+          display: block !important;
+        }
+        .phase-header {
+          break-after: avoid;
+        }
+        .phase-detail {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <h1>SERP Migration Plan - Kits (Phantom BOMs)</h1>
+          <div class="meta" id="meta"></div>
+        </div>
+      </header>
+      <div class="summary-cards" id="summary"></div>
+      <div class="timeline-container">
+        <div class="timeline-header">
+          <div class="timeline-label">Phase</div>
+          <div class="timeline-months" id="months"></div>
+        </div>
+        <div id="timeline"></div>
+      </div>
+      <div class="migration-events">
+        <h3>📦 Data Migration Timeline</h3>
+        <p style="color: #6c757d; font-size: 0.9em; margin-bottom: 15px">
+          When Odoo BOM data gets imported into SERP tables
+        </p>
+        <div id="migration-events"></div>
+      </div>
+      <div class="milestones">
+        <h3>Key Milestones</h3>
+        <div id="milestones"></div>
+      </div>
+      <h2 style="margin: 30px 0 20px; color: #495057; font-size: 1.3em">Phase Details</h2>
+      <div id="phases-detail"></div>
+    </div>
+    <script>
+      const PROJECT_START = '2026-02-09';
+      const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
+
+      const phases = [
+        {
+          id: 1,
+          name: 'Kits (Phantom BOMs)',
+          shortName: 'Kits',
+          weeks: 15,
+          deps: [],
+          color: '#3498db',
+          milestone: 'Kit Migration Complete',
+          goal: 'Start planning immediately, migrate phantom BOMs from Odoo to Laravel. ADDITIVE logic: use BOTH existing kits AND Laravel BOMs together.',
+          goals: [
+            'Begin discovery and planning immediately (parallel with foundation work)',
+            'Meet with Carolyn to understand kit/BOM workflows and requirements',
+            'Migrate phantom BOMs from Odoo mrp_bom to Laravel mrp_bom table',
+            'Modify updateInsertKit() to query BOTH existing kits AND Laravel mrp_bom (additive logic)',
+            'Match buyer_products.sku → mrp_bom.code for lookup',
+            'Create ComponentOrders from BOTH sources - union of kit components + BOM components',
+            'Build kit editing UI in SERP (create, edit, delete kits)',
+            'Deprecate Odoo phantom BOM lookups',
+          ],
+          tasks: [
+            {
+              name: 'Discovery: Map current kit/BOM workflows with Carolyn',
+              startWeek: 1,
+              duration: 1,
+            },
+            {
+              name: 'Design: Plan ADDITIVE logic (how kit + BOM combine)',
+              startWeek: 2,
+              duration: 1,
+            },
+            {
+              name: 'Create SERP tables: mrp_bom, mrp_bom_line',
+              startWeek: 3,
+              duration: 1,
+            },
+            {
+              name: 'Build migration script: export Odoo phantom BOMs + lines',
+              startWeek: 4,
+              duration: 1,
+            },
+            {
+              name: 'Run migration: load 265 BOMs + ~800 lines into SERP',
+              startWeek: 5,
+              duration: 1,
+            },
+            {
+              name: 'Modify updateInsertKit() for ADDITIVE logic (kit + BOM combined)',
+              startWeek: 6,
+              duration: 1,
+            },
+            {
+              name: 'Build SERP kit editing UI (list, create, edit, delete kits)',
+              startWeek: 6,
+              duration: 2,
+            },
+            {
+              name: 'Test order expansion + cutover: disable Odoo phantom BOM lookups',
+              startWeek: 8,
+              duration: 1,
+            },
+          ],
+          workflow: [
+            { laravel: '--- DATA MIGRATION (Odoo → SERP, one-time) ---', odoo: '---' },
+            {
+              laravel: 'Export mrp_bom WHERE type=phantom AND active=true (265 BOMs)',
+              odoo: 'Source',
+            },
+            {
+              laravel: 'Export mrp_bom_line for those BOMs (~800 component records)',
+              odoo: 'Source',
+            },
+            {
+              laravel: 'Load into SERP mrp_bom + mrp_bom_line tables',
+              odoo: '—',
+            },
+            { laravel: 'Validate: verify component_id mappings, count records', odoo: '—' },
+            { laravel: '--- ADDITIVE LOGIC (do BOTH kits + BOMs) ---', odoo: '---' },
+            { laravel: '1. Get existing kit components (if buyer_product has kit)', odoo: '—' },
+            { laravel: '2. ALSO query mrp_bom WHERE type=phantom AND active=true', odoo: '—' },
+            { laravel: '3. Match: buyer_products.sku = mrp_bom.code', odoo: '—' },
+            { laravel: '4. Get mrp_bom_line → map product_id to components.odoo_id', odoo: '—' },
+            { laravel: '5. UNION both sets of components (kit + BOM)', odoo: '—' },
+            {
+              laravel: '6. Create ComponentOrders for ALL components from both sources',
+              odoo: 'Deprecated',
+            },
+          ],
+          dataOwnership: [
+            { data: 'mrp_bom (phantom type)', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'mrp_bom_line (components)', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'Existing kits table', laravel: 'Owner (unchanged)', odoo: '—' },
+          ],
+          dbChanges: [
+            {
+              table: 'mrp_bom (CREATE in SERP)',
+              purpose:
+                '🎯 Phantom BOMs - "Virtual" products that auto-expand into components. Type=phantom means no physical product exists, just a recipe. Example: "Holiday Gift Box" BOM expands into ribbon + box + tissue paper. Migrated from Odoo: 265 active phantom BOMs.',
+              columns:
+                'code (BOM-001 - matches buyer_products.sku for lookup!), type (phantom), active, product_qty (output quantity), product_uom_id (unit)',
+            },
+            {
+              table: 'mrp_bom_line (CREATE in SERP)',
+              purpose:
+                '📦 Kit components - ingredients in the BOM recipe. Each line says "this kit needs X units of component Y". Example: Holiday Gift Box needs 1 ribbon + 1 box + 5 sheets tissue. ~800 component lines for 265 phantom BOMs.',
+              columns:
+                'bom_id (which BOM), product_id (which component - maps to components.odoo_product_id), product_qty (how many), sequence (order)',
+            },
+            {
+              table: 'kits (EXISTS - unchanged)',
+              purpose:
+                'Existing Laravel kits table. 1,091 active kits. NOT replaced by mrp_bom - BOTH systems used together (additive).',
+              columns: '—',
+            },
+            {
+              table: 'component_kits (EXISTS - unchanged)',
+              purpose:
+                'Existing kit-component mappings. Used alongside mrp_bom_line - both sources combined.',
+              columns: '→ kits, → components',
+            },
+          ],
+          implementation: {
+            'Data Migration (Odoo → SERP)': [
+              '--- WHAT GETS MIGRATED ---',
+              'mrp_bom: 265 active phantom BOMs (type=phantom, active=true)',
+              'mrp_bom_line: ~800 component records linked to those BOMs',
+              '--- MIGRATION SCRIPT ---',
+              'Export from Odoo: mrp_bom JOIN mrp_bom_line',
+              'Transform: map product_id → components.odoo_id for each line',
+              'Load into Laravel: mrp_bom + mrp_bom_line tables (same schema as Odoo)',
+              'Validate: count records, verify component mappings exist',
+              '--- EDGE CASES ---',
+              'Zero-qty consumables (tape, labels): preserved with qty=0',
+              'Inactive BOMs (511 records): NOT migrated - only active=true',
+              'Normal BOMs (977 records): migrated in Phase 2, not this phase',
+            ],
+            'Code Changes (updateInsertKit)': [
+              'ADDITIVE LOGIC: Query BOTH existing kits AND mrp_bom (not fallback)',
+              'Step 1: Get kit components if buyer_product has assigned kit',
+              'Step 2: Match buyer_products.sku = mrp_bom.code',
+              'Step 3: Query mrp_bom WHERE product_tmpl_id=X AND type=phantom AND active=true',
+              'Step 4: Loop mrp_bom_line → map product_id to components.odoo_id',
+              'Step 5: UNION kit components + BOM components (dedupe by component_id if needed)',
+              'Step 6: Create ComponentOrder for EACH component from combined set',
+              'Deduct inventory from component location (same as existing)',
+            ],
+            'Odoo Sync (Already Handled)': [
+              'ComponentOrders already sync to Odoo via existing /api/odoo/component/prepick endpoint',
+              'Odoo polls Laravel, fetches orders where component_imported=0',
+              'ComponentResource sends: odoo_id, sku, name, quantity from pivot table',
+              'No additional sync code needed - phantom BOM ComponentOrders work automatically',
+            ],
+            Validation: [
+              'Diff report: compare ComponentOrders created by Laravel vs Odoo',
+              'Test orders with kits (existing path unchanged)',
+              'Test orders without kits (new phantom BOM path)',
+              'Verify component mapping: mrp_bom_line.product_id → components.odoo_id',
+              'Verify ComponentOrders from phantom BOMs sync to Odoo correctly',
+            ],
+          },
+          confirmations: [
+            'Ops - phantom BOM components match expected packaging',
+            'Tech - ComponentOrders created correctly for both kit and BOM paths',
+          ],
+          keyPoint:
+            'ADDITIVE: updateInsertKit() uses BOTH existing kits AND Laravel mrp_bom (not fallback). Components from both sources are unioned. SKU matching: buyer_products.sku = mrp_bom.code.',
+        },
+      ];
+
+      // Migration events - Kit phase only
+      const migrationEvents = [
+        {
+          phase: 1,
+          week: 5,
+          name: 'Import Kit BOMs',
+          desc: 'Import phantom BOMs for kit explosion. Filter mrp_bom where type=phantom.',
+          tables: ['mrp_bom (phantom)', 'mrp_bom_line (kit components)'],
+          color: '#3498db',
+        },
+      ];
+
+      function addDays(d, n) {
+        const r = new Date(d);
+        r.setDate(r.getDate() + n);
+        return r;
+      }
+      function addWeeks(d, w) {
+        return addDays(d, w * 7);
+      }
+      function fmt(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      function fmtFull(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      function calcSchedules() {
+        const start = new Date(project.startDate);
+        const ends = new Map();
+        return phases.map((p) => {
+          let s = start;
+          p.deps.forEach((id) => {
+            const e = ends.get(id);
+            if (e && e > s) s = e;
+          });
+          const e = addWeeks(s, p.weeks);
+          ends.set(p.id, e);
+          return {
+            phase: p,
+            start: s,
+            end: e,
+            isParallel: p.parallelWith && p.parallelWith.length > 0,
+          };
+        });
+      }
+
+      function renderPhaseDetail(sched) {
+        const p = sched.phase;
+        const start = sched.start;
+        let html = `<div class="phase-detail">
+    <div class="phase-header" style="border-left-color:${p.color}" onclick="togglePhase(${p.id})">
+      <h2><span class="toggle">▶</span> Phase ${p.id}: ${p.name}</h2>
+      <div class="phase-meta-info">${fmtFull(sched.start)} → ${fmtFull(sched.end)} (${p.weeks} weeks)</div>
+      <div class="phase-goal-text">${p.goal}</div>
+    </div>
+    <div class="phase-content" id="phase-content-${p.id}">`;
+
+        // Goals
+        if (p.goals && p.goals.length) {
+          html += `<div class="section"><h3 style="border-color:${p.color}">Goals</h3><ul>`;
+          p.goals.forEach((g) => (html += `<li>${g}</li>`));
+          html += `</ul></div>`;
+        }
+
+        // Workflow
+        html += `<div class="section"><h3 style="border-color:${p.color}">How It Works</h3>`;
+        if (Array.isArray(p.workflow)) {
+          html += `<table class="workflow-table"><tr><th>SERP (Laravel)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
+          p.workflow.forEach((row) => {
+            if (row.laravel.startsWith('---')) {
+              const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+              html += `<tr><td colspan="3" style="background:${p.color}15;color:${p.color};font-weight:600;text-align:center;padding:12px;border-top:2px solid ${p.color}">${headerText}</td></tr>`;
+            } else {
+              const rowClass = row.sync ? 'sync-row' : '';
+              const arrow = row.sync ? '→' : '';
+              html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
+            }
+          });
+          html += `</table>`;
+        }
+        if (p.keyPoint)
+          html += `<div class="highlight" style="border-color:${p.color}"><strong>${p.keyPoint}</strong></div>`;
+        html += `</div>`;
+
+        // Data Ownership
+        html += `<div class="section"><h3 style="border-color:${p.color}">Data Ownership</h3>`;
+        html += `<table><tr><th>Data</th><th>SERP</th><th>Odoo</th></tr>`;
+        p.dataOwnership.forEach((row) => {
+          const laravelClass = row.laravel.includes('Owner') ? 'owner-cell' : 'copy-cell';
+          const odooClass = row.odoo.includes('Owner') ? 'owner-cell' : 'copy-cell';
+          html += `<tr><td>${row.data}</td><td class="${laravelClass}">${row.laravel}</td><td class="${odooClass}">${row.odoo}</td></tr>`;
+        });
+        html += `</table></div>`;
+
+        // Database Changes
+        html += `<div class="section"><h3 style="border-color:${p.color}">Database Changes</h3>`;
+        html += `<table><tr><th>Table</th><th>Purpose</th><th>Links To</th></tr>`;
+        p.dbChanges.forEach((row) => {
+          const isMigrationHeader = row.table.startsWith('📋');
+          const rowClass = isMigrationHeader ? 'migration-header-row' : 'table-row';
+          const tableCell = isMigrationHeader
+            ? `<td class="table-name">${row.table}</td>`
+            : `<td class="table-name">${row.table}</td>`;
+          const purposeCell = `<td class="purpose">${row.purpose || ''}</td>`;
+          const columnsCell = isMigrationHeader
+            ? `<td class="columns"></td>`
+            : `<td class="columns">${row.columns}</td>`;
+          html += `<tr class="${rowClass}">${tableCell}${purposeCell}${columnsCell}</tr>`;
+        });
+        html += `</table></div>`;
+
+        // Implementation
+        html += `<div class="section"><h3 style="border-color:${p.color}">Implementation Details</h3>`;
+        Object.entries(p.implementation).forEach(([header, items]) => {
+          html += `<h4>${header}</h4><ul>`;
+          items.forEach((item) => {
+            if (item.startsWith('---')) {
+              const headerText = item.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+              html += `</ul><h4 style="color:${p.color}">${headerText}</h4><ul>`;
+            } else {
+              html += `<li>${item}</li>`;
+            }
+          });
+          html += `</ul>`;
+        });
+        html += `</div>`;
+
+        // Confirmations
+        if (p.confirmations && p.confirmations.length) {
+          html += `<div class="section"><h3 style="border-color:${p.color}">Team Confirmations Before Launch</h3><ul>`;
+          p.confirmations.forEach((item) => (html += `<li>${item}</li>`));
+          html += `</ul></div>`;
+        }
+
+        // Timeline
+        html += `<div class="section"><h3 style="border-color:${p.color}">Timeline</h3>`;
+        html += `<div class="gantt-container"><div class="gantt-header"><div class="gantt-label">Task</div><div class="gantt-weeks">`;
+        for (let w = 1; w <= p.weeks; w++) {
+          const weekStart = addDays(start, (w - 1) * 7);
+          html += `<div class="week-col">W${w}<br><span class="week-dates">${fmt(weekStart)}</span></div>`;
+        }
+        html += `</div></div>`;
+        p.tasks.forEach((task) => {
+          const left = ((task.startWeek - 1) / p.weeks) * 100;
+          const width = (task.duration / p.weeks) * 100;
+          html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
+          html += `<div class="task-track">${Array(p.weeks).fill('<div class="task-cell"></div>').join('')}`;
+          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${p.color}">${task.duration}w</div></div></div>`;
+        });
+        html += `</div></div>`;
+
+        html += `</div></div>`;
+        return html;
+      }
+
+      function togglePhase(id) {
+        const content = document.getElementById(`phase-content-${id}`);
+        const header = content.previousElementSibling;
+        content.classList.toggle('hide');
+        header.classList.toggle('collapsed');
+      }
+
+      function render() {
+        const scheds = calcSchedules();
+        const start = new Date(project.startDate);
+        const end = scheds.reduce((max, s) => (s.end > max ? s.end : max), scheds[0].end);
+
+        document.getElementById('meta').textContent =
+          `${fmtFull(start)} → ${fmtFull(end)} | ${project.preparedBy}`;
+
+        const totalWeeks = Math.ceil((end - start) / (7 * 24 * 60 * 60 * 1000));
+        const totalTasks = phases.reduce((s, p) => s + p.tasks.length, 0);
+        document.getElementById('summary').innerHTML = `
+    <div class="summary-card"><div class="value">${phases.length}</div><div class="label">Phase</div></div>
+    <div class="summary-card"><div class="value">${totalWeeks}</div><div class="label">Weeks</div></div>
+    <div class="summary-card"><div class="value">${totalTasks}</div><div class="label">Tasks</div></div>
+    <div class="summary-card"><div class="value">${fmt(end)}</div><div class="label">Target</div></div>
+  `;
+
+        const months = [];
+        let cur = new Date(start);
+        while (cur <= end) {
+          months.push(cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+          cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        }
+        document.getElementById('months').innerHTML = months
+          .map((m) => `<div class="month-col">${m}</div>`)
+          .join('');
+
+        const totalDays = (end - start) / (24 * 60 * 60 * 1000);
+        document.getElementById('timeline').innerHTML = scheds
+          .map((s) => {
+            const left = ((s.start - start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
+            const width = ((s.end - s.start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
+            return `<div class="phase-row">
+      <div class="phase-label">Phase ${s.phase.id}: ${s.phase.shortName}</div>
+      <div class="phase-track">
+        <div class="phase-bar" style="left:${left}%;width:${width}%;background:${s.phase.color}">
+          <span>${s.phase.name}</span>
+          <span class="phase-dates">${fmt(s.start)} → ${fmt(s.end)}</span>
+        </div>
+      </div>
+    </div>`;
+          })
+          .join('');
+
+        // Render migration events with calculated dates
+        document.getElementById('migration-events').innerHTML = migrationEvents
+          .map((evt) => {
+            const phaseSched = scheds.find((s) => s.phase.id === evt.phase);
+            const eventDate = addDays(phaseSched.start, (evt.week - 1) * 7);
+            return `<div class="migration-event">
+      <div class="migration-event-phase" style="color:${evt.color}">Phase ${evt.phase}</div>
+      <div class="migration-event-week">Week ${evt.week}<br><span style="font-size:0.8em">${fmt(eventDate)}</span></div>
+      <div class="migration-event-info">
+        <div class="migration-event-name">${evt.name}</div>
+        <div class="migration-event-desc">${evt.desc}</div>
+        <div class="migration-event-tables">${evt.tables.map((t) => `<code>${t}</code>`).join('')}</div>
+      </div>
+    </div>`;
+          })
+          .join('');
+
+        document.getElementById('milestones').innerHTML = scheds
+          .map(
+            (s) => `
+    <div class="milestone-item">
+      <div class="milestone-dot" style="background:${s.phase.color}"></div>
+      <div class="milestone-info">
+        <div class="milestone-name">${s.phase.milestone}</div>
+        <div class="milestone-phase">Phase ${s.phase.id}</div>
+      </div>
+      <div class="milestone-date">${fmtFull(s.end)}</div>
+    </div>
+  `
+          )
+          .join('');
+
+        document.getElementById('phases-detail').innerHTML = scheds
+          .map((s) => renderPhaseDetail(s))
+          .join('');
+      }
+
+      render();
+    </script>
+  </body>
+</html>
