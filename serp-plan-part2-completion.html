@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SERP Migration Plan - Part 2: Completion (Manufacturing, Inventory, Final Cutover)</title>
+    <title>SERP Migration Plan - Part 2: Completion — 16 Weeks (Manufacturing, Inventory, Final Cutover)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -461,7 +461,7 @@
     <div class="container">
       <header>
         <div>
-          <h1>SERP Migration Plan - Part 2: Completion (Manufacturing, Inventory, Final Cutover)</h1>
+          <h1>SERP Migration Plan - Part 2: Completion — 16 Weeks (Manufacturing, Inventory, Final Cutover)</h1>
           <div class="meta" id="meta"></div>
         </div>
       </header>
@@ -661,10 +661,53 @@
                 gate.
               </div>
             </div>
+            <div
+              style="
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 16px 0;
+                border-left: 4px solid #0dcaf0;
+              "
+            >
+              <h4 style="margin: 0 0 12px 0; color: #212529">Shopify Order Integration</h4>
+              <p style="margin: 0 0 12px 0; color: #495057">
+                Pull Shopify orders directly into SERP for automated inventory adjustments, replacing
+                the current manual process of monthly WCC reports.
+              </p>
+              <ul style="color: #495057; font-size: 0.9em">
+                <li>
+                  <strong>Auto-Import:</strong> Shopify orders flow into SERP automatically via API
+                </li>
+                <li>
+                  <strong>Inventory Deductions:</strong> SERP adjusts inventory in real-time instead of
+                  monthly manual adjustments
+                </li>
+                <li>
+                  <strong>COGS Tracking:</strong> FIFO cost applied to Shopify orders same as all other
+                  order types
+                </li>
+              </ul>
+              <div
+                style="
+                  margin-top: 12px;
+                  padding: 8px 12px;
+                  background: #fff3cd;
+                  border-radius: 4px;
+                  font-size: 0.85em;
+                "
+              >
+                <strong>Why post-launch:</strong> Odoo currently receives manual monthly adjustments
+                from WCC reports — not a direct Shopify integration. Manual adjustments will still work
+                in SERP. Full Shopify integration is a net-new capability.
+              </div>
+            </div>
           </div>
     </div>
     <script>
-      const PROJECT_START = '2026-05-25';
+      // Part 2 starts when Part 1 Phase 3 ends (Feb 16 + 9w Phase 1 + 8w Phase 3 = Jun 15)
+      // Phase 5 (Kits, 8w) runs parallel with Phase 4, both start Jun 15
+      const PROJECT_START = '2026-06-15';
       const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
 
       const phases = [
@@ -672,37 +715,46 @@
           id: 4,
           name: 'Manufacturing, Adjustments, BOMs, Locations & Products',
           shortName: 'MO+Adj+BOMs+Loc+Prod',
-          weeks: 10,
+          weeks: 12,
           deps: [3],
           parallelWith: [5],
           color: '#9b59b6',
           milestone: 'MO, Adjustments, BOMs, Locations & Products Live',
-          goal: 'Build Odoo features in SERP. Users switch to SERP UI, which dual-writes to both Odoo (XML-RPC) and SERP tables (stock_quants). Incremental by feature.',
+          goal: 'Product UI first, then import ALL Odoo products into SERP. Then build remaining Odoo features. Users switch to SERP UI, which dual-writes to both Odoo (XML-RPC) and SERP tables (stock_quants). Incremental by feature.',
           goals: [
-            'Build features in SERP that replicate Odoo functionality',
+            'FIRST: Build product management UI in SERP so all products can be managed there',
+            'Import ALL Odoo products (~3,900 missing) into SERP via product UI — raw materials, packed products, labels, cartons, etc. Currently only ~598 exist (packaging only). Every Odoo product_id in BOMs/MOs/stock_quant must have a SERP equivalent before migration.',
+            'Backfill components.odoo_id mapping — current values are external references ("800" + component.id), need real Odoo product_product.id for migration FK resolution',
+            'Build remaining features in SERP that replicate Odoo functionality',
             'Users switch to SERP UI for each feature (stop using Odoo UI)',
             'Dual-write: SERP sends XML-RPC to Odoo AND updates SERP shadow tables',
             'stock_quants table is independent (no linkage to component/RM inventory yet)',
-            'Incremental rollout: Manufacturing → Adjustments → BOMs → Stock Locations → Product Info',
+            'Incremental rollout: Product UI → Product Import → Manufacturing → Adjustments → BOMs (normal only, kits in Phase 5) → Stock Locations',
             'Track COGS correctly throughout transition',
           ],
           tasks: [
+            { name: 'Build product management UI with cost tracking', startWeek: 1, duration: 2 },
+            {
+              name: 'Import ~3,900 missing Odoo products into SERP via product UI (raw materials, packed products, labels, cartons, etc.)',
+              startWeek: 3,
+              duration: 1,
+            },
+            { name: 'Backfill real Odoo product_product.id mapping (SKU match + update odoo_id)', startWeek: 3, duration: 1 },
             {
               name: 'Build MO UI, creation/tracking/completion/scrapping',
-              startWeek: 1,
+              startWeek: 4,
               duration: 2,
             },
-            { name: 'Build inventory adjustments with COGS tracking', startWeek: 1, duration: 2 },
-            { name: 'Build BOM management UI', startWeek: 2, duration: 2 },
-            { name: 'Build stock_locations and location UI', startWeek: 3, duration: 2 },
-            { name: 'Build product management UI with cost tracking', startWeek: 4, duration: 2 },
-            { name: 'Migrate MOs, BOMs, locations, products from Odoo', startWeek: 5, duration: 2 },
-            { name: 'Cutover MO: disable Odoo MO UI, SERP becomes SOT', startWeek: 7, duration: 1 },
-            { name: 'Cutover adjustments + BOMs: disable Odoo UIs', startWeek: 8, duration: 1 },
-            { name: 'Cutover locations + products: disable Odoo UIs', startWeek: 9, duration: 1 },
+            { name: 'Build inventory adjustments with COGS tracking', startWeek: 4, duration: 2 },
+            { name: 'Build BOM management UI (normal BOMs only — kit/phantom BOMs in Phase 5)', startWeek: 5, duration: 2 },
+            { name: 'Build stock_locations and location UI', startWeek: 6, duration: 2 },
+            { name: 'Migrate MOs, BOMs, locations from Odoo', startWeek: 7, duration: 2 },
+            { name: 'Cutover products: SERP becomes SOT for product management', startWeek: 9, duration: 1 },
+            { name: 'Cutover MO + adjustments: disable Odoo UIs', startWeek: 10, duration: 1 },
+            { name: 'Cutover BOMs + locations: disable Odoo UIs', startWeek: 11, duration: 1 },
             {
               name: 'End-to-end testing, COGS validation, stabilization',
-              startWeek: 10,
+              startWeek: 12,
               duration: 1,
             },
           ],
@@ -726,14 +778,14 @@
               odoo: 'XML-RPC sync',
               sync: true,
             },
-            { laravel: 'BOM create/edit in SERP', odoo: 'XML-RPC sync', sync: true },
+            { laravel: 'Normal (non-kit) BOM create/edit in SERP (kit BOMs in Phase 5)', odoo: 'XML-RPC sync', sync: true },
             { laravel: 'Location management in SERP', odoo: 'XML-RPC sync', sync: true },
             { laravel: 'Product management in SERP', odoo: 'XML-RPC sync', sync: true },
           ],
           dataOwnership: [
             { data: 'Manufacturing orders', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
             { data: 'Inventory adjustments', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
-            { data: 'BOMs (2,078 total)', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
+            { data: 'BOMs (normal only — kit/phantom BOMs in Phase 5)', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
             { data: 'Stock locations', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
             { data: 'Products (5,809)', laravel: 'UI + Owner', odoo: 'Synced via XML-RPC' },
             {
@@ -744,126 +796,23 @@
             { data: 'component_inventory', laravel: 'Unchanged', odoo: '—' },
             { data: 'Valuation layers (COGS)', laravel: 'Owner', odoo: '—' },
           ],
-          dbChanges: [
-            {
-              table: 'mrp_production',
-              purpose: 'Track production orders with Odoo workflow (draft→confirmed→progress→done)',
-              columns:
-                'name, odoo_id, receiver_product_id (OUTPUT), state, bom_id, product_qty, qty_produced, location_src_id, location_dest_id',
-            },
-            {
-              table: 'mrp_bom',
-              purpose: 'BOM headers - define "recipes" (what components make a product)',
-              columns:
-                'code, product_id (OUTPUT), type (normal/phantom), consumption, active, odoo_bom_id',
-            },
-            {
-              table: 'mrp_bom_line',
-              purpose: 'BOM components - qty of each component needed per 1 unit of output',
-              columns: 'bom_id, product_id (component), product_qty, sequence, odoo_bom_line_id',
-            },
-            {
-              table: 'uom_category',
-              purpose:
-                'Unit of measure categories (Unit, Weight, Volume, etc.) - SEEDED with 7 categories',
-              columns: 'name — seeded to match Odoo IDs',
-            },
-            {
-              table: 'uom_uom',
-              purpose: 'Units of measure with conversion factors - SEEDED with 27 units',
-              columns: 'name, category_id, factor, rounding, uom_type (reference/bigger/smaller)',
-            },
-            {
-              table: 'stock_location',
-              purpose:
-                'Hierarchical warehouse locations (bins, zones, areas) - different from SERP "locations" table',
-              columns:
-                'name, complete_name (path), parent_id, usage (internal/supplier/customer), scrap_location',
-            },
-            {
-              table: 'stock_picking_type',
-              purpose: 'Define operation types - how receipts, deliveries, transfers behave',
-              columns:
-                'name, code (incoming/outgoing/internal/mrp), default_location_src/dest_id, reservation_method',
-            },
-            {
-              table: 'stock_quant',
-              purpose:
-                '⭐ INVENTORY TRUTH - current on-hand qty per product/location. Available = quantity - reserved',
-              columns:
-                'component_id/receiver_product_id, location_id, quantity, reserved_quantity, in_date, unit_cost',
-            },
-            {
-              table: 'stock_picking',
-              purpose:
-                'Warehouse operations (receipts, deliveries, transfers) - groups stock_moves',
-              columns:
-                'name (WH/IN/00123), origin (PO#), location_id→location_dest_id, state (draft→assigned→done)',
-            },
-            {
-              table: 'stock_move',
-              purpose:
-                'Individual inventory movements - move X units from A to B. Only state=done updates inventory',
-              columns:
-                'product_uom_qty (requested), quantity_done (actual), state, picking_id, production_id',
-            },
-            {
-              table: 'stock_move_line',
-              purpose:
-                'Detailed lines within stock_move - for lot/serial tracking (one move can have multiple lots)',
-              columns: 'move_id, qty_done, location_id→location_dest_id',
-            },
-            {
-              table: 'stock_valuation_layer',
-              purpose:
-                '⭐ FIFO COSTING - each receipt creates a layer; consumption decrements oldest first',
-              columns:
-                'quantity, unit_cost (from PO), remaining_qty (unconsumed), remaining_value (for GL)',
-            },
-            {
-              table: 'product_supplierinfo',
-              purpose:
-                'Supplier-specific pricing/lead times per product - critical for PO cost calculation',
-              columns:
-                'supplier_id, component_id, price, min_qty (MOQ), delay (lead time days), case_qty',
-            },
-            {
-              table: 'stock_scrap',
-              purpose: 'Track scrapped/damaged inventory - moves stock to scrap location',
-              columns:
-                'scrap_qty, location_id (from), scrap_location_id (to), production_id (if during MO)',
-            },
-            {
-              table: 'stock_landed_cost',
-              purpose: 'Add freight/duties/customs to inventory value after receipt',
-              columns:
-                'amount_total, state, vendor_bill_id, split_method (equal, by_qty, by_weight)',
-            },
-            {
-              table: 'stock_landed_cost_lines',
-              purpose:
-                'Individual cost items within a landed cost (freight line, customs line, etc.)',
-              columns: 'cost_id, name, product_id, price_unit, split_method, account_id',
-            },
-            {
-              table: 'stock_landed_cost_stock_picking_rel',
-              purpose: 'Junction: which receipts (pickings) a landed cost applies to',
-              columns: 'stock_landed_cost_id, stock_picking_id',
-            },
-            {
-              table: 'mrp_unbuild',
-              purpose:
-                'Disassembly orders - reverse a BOM to recover components from finished product',
-              columns:
-                'product_id (to unbuild), bom_id, product_qty, production_id (optional - unbuild specific MO), state',
-            },
-          ],
           implementation: [
-            'Incremental rollout: MO → Adjustments → BOMs → Locations → Products',
+            '--- PRODUCT UI + IMPORT (Weeks 1-3) ---',
+            '• Build product management UI first so all products are managed in SERP',
+            '• Laravel components table currently has ~598 records (mostly packaging: boxes, inserts, shippers)',
+            '• Odoo has ~4,300 active storable products with SKUs referenced in BOMs/MOs/stock_quant',
+            '• Missing ~3,900 products: raw materials (candy, cookies, etc.), packed products, labels, cartons, gift sets, etc.',
+            '• Import all Odoo products into SERP via the new product UI / bulk import tool',
+            '• Set odoo_id = "800" + component.id per existing convention (Component.php setOddoId())',
+            '• Also need real Odoo product_product.id mapping: match by SKU (components.sku = product_product.default_code) for migration FK resolution',
+            '• 5 existing components already have real Odoo IDs (hot sauce foam inserts, ids 646-650)',
+            '• ~160 Odoo products without SKUs are junk (copies, freight charges) — skip these',
+            '--- END PRODUCT UI + IMPORT ---',
+            'Incremental rollout: Product UI → Product Import → MO → Adjustments → BOMs (normal only) → Locations',
             'Pattern: build feature in SERP → users switch to SERP UI → disable Odoo UI',
             'Dual-write on every action: XML-RPC to Odoo + update SERP tables',
-            '--- USES SYNC QUEUE FROM PHASE 1 ---',
-            '• Same odoo_sync_queue table and infrastructure built in Phase 1',
+            '--- USES SYNC QUEUE FROM PHASE 3 ---',
+            '• Same odoo_sync_queue table and infrastructure built in Phase 3',
             '• Extend with new entity_types: mrp_production, stock_move, mrp_bom, stock_location, product',
             '• Same retry logic, DLQ, circuit breaker patterns',
             '--- END SYNC QUEUE ---',
@@ -872,7 +821,7 @@
             'Manufacturing: MO in SERP, dual-writes to Odoo mrp_production',
             'MO scrapping/cancellation: cancel defective MOs, reverse any partial consumption',
             'Adjustments: adjustment in SERP updates stock_quants + XML-RPC to Odoo stock_move',
-            'BOMs: BOM management in SERP, syncs to Odoo mrp_bom',
+            'BOMs: normal (non-kit) BOM management in SERP, syncs to Odoo mrp_bom. Kit/phantom BOMs handled in Phase 5',
             'Stock locations: location hierarchy in SERP, syncs to Odoo stock_location',
             'Products: product info in SERP, syncs to Odoo product_product',
             'COGS tracking: valuation layers updated on MO completion and adjustments',
@@ -888,185 +837,97 @@
             'Operations team - BOM management and product info',
           ],
           keyPoint:
-            'SERP becomes the UI, dual-writes to Odoo. stock_quants is independent (not linked to component inventory yet). Feature-by-feature migration.',
+            'Product UI built FIRST (Weeks 1-2), then import ~3,900 missing Odoo products via SERP (Week 3). Then build remaining features: MO, adjustments, BOMs, locations. Dual-writes to Odoo throughout. stock_quants is independent (not linked to component inventory yet).',
         },
 {
           id: 6,
           name: 'Inventory Management',
           shortName: 'Inventory',
-          weeks: 9,
-          deps: [4, 5],
+          weeks: 6,
+          deps: [4],
           color: '#dc3545',
           milestone: 'Full Inventory Cutover',
-          goal: 'Make SERP the source of truth for inventory. Create views to expose stock_quant quantities. Build order processing queue. Build financial reports for Ric. Deprecate Odoo.',
+          goal: 'Make SERP the source of truth for inventory. Migrate all inventory + FIFO layers from Odoo. Build financial reports for Ric. Update all code to use inventory views. Deprecate Odoo.',
           goals: [
             'Migrate all inventory from Odoo to SERP stock_quant (quantities + FIFO cost layers)',
             'Make stock_quant the single source of truth for inventory',
-            'Create inventory views (receiver_product_inventory, component_inventory) that aggregate stock_quant',
-            'Update all code to JOIN views instead of reading inventory_qty columns',
-            'Build order processing queue (reserve → ship → COGS)',
+            'Update all code to JOIN inventory views instead of reading inventory_qty columns (views created in Phase 1)',
             'Build financial reports for Ric (Valuation, Roll Forward, FIFO COGS, Cost Tracking)',
             'Complete cutover: activate SERP queues, disable Odoo sync',
           ],
           tasks: [
             {
-              name: 'Create receiver_product_inventory view + update code',
+              name: 'Build financial reports (Valuation, Roll Forward, FIFO COGS)',
               startWeek: 1,
               duration: 1,
             },
             {
-              name: 'Build order processing queue (reserve, ship, cancel)',
-              startWeek: 2,
-              duration: 2,
-            },
-            {
-              name: 'Build financial reports (Valuation, Roll Forward, FIFO COGS)',
-              startWeek: 3,
+              name: 'Update all code to use inventory views (replace inventory_qty reads)',
+              startWeek: 1,
               duration: 1,
             },
             {
               name: '⚡ PARALLEL RUN: compare SERP vs Odoo inventory daily',
-              startWeek: 4,
-              duration: 4,
+              startWeek: 2,
+              duration: 3,
             },
             {
               name: 'Freeze Odoo, migrate inventory + FIFO layers to SERP',
-              startWeek: 8,
+              startWeek: 5,
               duration: 1,
             },
             {
               name: 'Physical count, reconcile, validate with Ric + go-live',
-              startWeek: 9,
+              startWeek: 6,
               duration: 1,
             },
           ],
-          workflow: {
-            'Inventory Views': [
-              { laravel: 'stock_quant is source of truth for inventory quantities', odoo: '—' },
-              {
-                laravel:
-                  'receiver_product_inventory view aggregates stock_quant by receiver_product_id',
-                odoo: '—',
-              },
-              {
-                laravel: 'component_inventory view aggregates stock_quant by component_id',
-                odoo: '—',
-              },
-              { laravel: 'Code JOINs views instead of reading inventory_qty columns', odoo: '—' },
-              { laravel: 'Physical count reconciliation before cutover', odoo: 'Final sync' },
-            ],
-            'Order Flow': [
-              { laravel: 'Order created → stock_move_id = NULL', odoo: '—' },
-              { laravel: 'SERP queue finds unprocessed (WHERE stock_move_id IS NULL)', odoo: '—' },
-              { laravel: 'SERP reserves inventory, writes stock_move_id back', odoo: '—' },
-              { laravel: 'Order ships → SERP consumes FIFO, writes cost_unit back', odoo: '—' },
-              { laravel: 'Order cancelled before ship → release reservation', odoo: '—' },
-            ],
-          },
+          workflow: [
+            { laravel: 'stock_quant is source of truth for inventory quantities', odoo: '—' },
+            { laravel: 'Inventory views created in Phase 1 — code updated here to use them', odoo: '—' },
+            { laravel: 'Order queue built in Phase 2, expanded in Phase 7 — processes all orders', odoo: '—' },
+            { laravel: 'Parallel run: SERP and Odoo both track inventory, compare daily', odoo: 'Still active' },
+            { laravel: 'Cutover: freeze Odoo, migrate inventory + FIFO layers to SERP', odoo: 'Frozen' },
+            { laravel: 'Physical count reconciliation, validate with Ric, go-live', odoo: 'Deprecated' },
+          ],
           dataOwnership: [
             { data: 'stock_quant (source of truth)', laravel: 'Owner', odoo: 'Deprecated' },
-            {
-              data: 'receiver_product_inventory (view)',
-              laravel: 'Aggregates stock_quant',
-              odoo: '—',
-            },
-            { data: 'component_inventory (view)', laravel: 'Aggregates stock_quant', odoo: '—' },
-            { data: 'Order inventory deductions', laravel: 'Owner', odoo: 'Deprecated' },
+            { data: 'FIFO valuation layers', laravel: 'Owner', odoo: 'Deprecated' },
             { data: 'COGS (cost_unit on items/component_orders)', laravel: 'Owner', odoo: '—' },
-          ],
-          dbChanges: [
-            {
-              table: 'receiver_product_inventory (VIEW)',
-              purpose:
-                'Aggregates stock_quant for finished goods - replaces receiver_products.inventory_qty column',
-              columns:
-                'receiver_product_id, total_qty, reserved_qty, available_qty (total - reserved)',
-            },
-            {
-              table: 'component_inventory (VIEW)',
-              purpose:
-                'Aggregates stock_quant for components - replaces components.inventory_qty column',
-              columns: 'component_id, total_qty, reserved_qty, available_qty (total - reserved)',
-            },
-            {
-              table: 'items',
-              purpose: 'Link order items to inventory moves + track FIFO cost at fulfillment',
-              columns: 'stock_move_id (FK to stock_move), cost_unit (FIFO cost per unit)',
-            },
-            {
-              table: 'component_orders',
-              purpose: 'Link component orders to inventory moves + track FIFO cost at fulfillment',
-              columns: 'stock_move_id (FK to stock_move), cost_unit (FIFO cost per unit)',
-            },
-            {
-              table: 'ec_order',
-              purpose: 'Track order state and link to warehouse picking operations',
-              columns:
-                'serp_state (pending→confirmed→fulfilled), serp_picking_id (FK to stock_picking)',
-            },
-            {
-              table: '❌ DROP legacy tables',
-              purpose: 'Remove tables replaced by Odoo-style inventory system',
-              columns:
-                'serp_audit_logs, component_shelves, supplier_product, raw_materials, raw_material_inventory, rm_inventory_transactions, component_inventory, component_inventory_transactions',
-            },
+            { data: 'Financial reports (Valuation, Roll Forward, COGS)', laravel: 'Owner', odoo: '—' },
           ],
           implementation: {
-            'Inventory Views': [
-              'Create receiver_product_inventory view: SELECT receiver_product_id, SUM(quantity), SUM(reserved_quantity) FROM stock_quant GROUP BY receiver_product_id',
-              'Create component_inventory view: SELECT component_id, SUM(quantity), SUM(reserved_quantity) FROM stock_quant GROUP BY component_id',
-              'Index stock_quant on (receiver_product_id) and (component_id) for view performance',
-            ],
-            'Code Migration': [
+            'Code Migration (inventory views created in Phase 1)': [
               'Find all code reading receiver_products.inventory_qty → change to JOIN receiver_product_inventory',
               'Find all code reading components.inventory_qty → change to JOIN component_inventory',
               'Update queries, reports, dashboards, APIs that reference inventory columns',
               'Test all inventory-related features with new views',
             ],
-            'Database Changes': [
-              'items: ADD stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
-              'component_orders: ADD stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
-            ],
-            'Order Processing Queue': [
-              'Queue runs every 5 minutes',
-              'Process new orders: find items/component_orders WHERE stock_move_id IS NULL',
-              'Fulfill shipped orders: when ec_order.ship_date is set, consume FIFO, write cost_unit',
-              'Cancel orders: if cancelled before ship, release reservation',
-            ],
-            'New Order Processing': [
-              'Find ec_order where line items have no stock_move_id',
-              'Map items.product_sku → receiver_products',
-              'Create stock_picking + stock_move, reserve inventory',
-              'Write stock_move_id back to items/component_orders',
-            ],
-            'Ship Order Processing': [
-              'Find orders where ship_date is set but cost_unit is empty',
-              'Consume oldest FIFO layers, decrease stock_quant.quantity',
-              'Write cost_unit to items/component_orders',
-            ],
-            'Cancel Order Processing': [
-              'Before ship: release reservation, cancel moves',
-              'After ship: no action - COGS already recorded',
+            'Financial Reports': [
+              'Inventory Valuation Report: current value of all stock by product/location',
+              'Inventory Roll Forward: beginning + purchases + MO output - COGS - adjustments = ending',
+              'FIFO COGS Report: cost breakdown per order/shipment using valuation layers',
+              'Cost Tracking: unit cost trends over time by product',
             ],
             'Data Migration': [
-              'Export all receiver_product inventory from Odoo stock_quant to SERP stock_quant',
+              'Export all receiver_product inventory from Odoo stock_quant (14K rows) to SERP stock_quant',
               'Export all component inventory from Odoo stock_quant to SERP stock_quant',
-              'Export FIFO cost layers from Odoo stock_valuation_layer to SERP',
+              'Export active FIFO cost layers from Odoo stock_valuation_layer (~3.7K rows with remaining_qty > 0, NOT all 13.4M historical records)',
+              'Export stock_scrap (1.4K), stock_landed_cost (87), stock_landed_cost_lines (88)',
+              'Map Odoo product_id references to SERP component_id via product mapping built in Phase 4 Week 1',
               'Physical count reconciliation to verify migrated quantities',
             ],
           },
           cutoverChecklist: [
             'All inventory data migrated from Odoo to SERP stock_quant',
+            'All FIFO valuation layers migrated from Odoo to SERP',
             'All code updated to use inventory views (no direct inventory_qty reads)',
-            'Inventory views created and tested (receiver_product_inventory, component_inventory)',
-            'SERP order processing queue built and tested',
-            'Parallel run completed (both Odoo and SERP process same orders)',
+            'Parallel run completed — SERP and Odoo inventory match',
             'COGS accuracy validated between Odoo and SERP',
             'Physical count reconciliation completed',
+            'Financial reports reviewed and approved by Ric',
             'Legacy tables dropped (serp_audit_logs, component_shelves, etc.)',
             'Odoo order sync disabled',
-            'SERP order queue activated as primary',
-            'Monitoring/alerting configured for queue failures',
             'Rollback plan documented and tested',
           ],
           confirmations: [
@@ -1075,28 +936,28 @@
             'Tech - all syncs work',
           ],
           keyPoint:
-            'SERP becomes source of truth. Inventory views aggregate stock_quant (no sync needed). Order queue handles reservations and COGS.',
+            'SERP becomes source of truth. Inventory migrated from Odoo, views already built in Phase 1, order queue already built in Phase 2/7. This phase migrates data, updates code, builds reports, and cuts over.',
         },
 {
           id: 7,
           name: 'Laravel Order Queue (All Orders)',
           shortName: 'Laravel All Orders',
           weeks: 2,
-          deps: [4, 5],
+          deps: [4],
           parallelWith: [6],
           color: '#e74c3c',
           milestone: 'All Orders Process Through SERP',
-          goal: 'Laravel developer expands order queue processor from custom branding only to ALL orders. Removes filter, processes all ec_order inventory through SERP.',
+          goal: 'Laravel developer expands the order queue built in Part 1 Phase 2 (custom branding only) to process ALL ec_order types through SERP inventory APIs.',
           goals: [
-            'Modify OrderObserver to process ALL orders (not just merchandise_selections)',
-            'Expand queue to handle all ec_order → items deductions',
-            'Expand queue to handle all ec_order → component_orders deductions',
-            'Remove custom branding filter',
-            'Full parallel run with all order types',
+            'Remove merchandise_selections filter — process ALL orders, not just custom branding',
+            'Expand to handle receiver product orders (items table) via same SERP /api/orders/* APIs',
+            'Expand to handle kit/component orders (component_orders table) via same SERP APIs',
+            'Same pattern as Phase 2: reserve on create, ship on fulfillment, cancel on cancellation',
+            'Full parallel run with all order types before Odoo sync is disabled',
           ],
           tasks: [
             {
-              name: 'Modify OrderObserver to process ALL orders',
+              name: 'Expand order detection to all ec_order types + receiver products',
               startWeek: 1,
               duration: 1,
             },
@@ -1108,35 +969,39 @@
           ],
           workflow: [
             {
-              laravel: 'Remove filter: process ALL ec_order (not just merchandise_selections)',
+              laravel: 'Remove merchandise_selections filter: detect ALL new ec_orders',
               odoo: '—',
             },
-            { laravel: 'On order create: queue reserve for items + component_orders', odoo: '—' },
-            { laravel: 'On ship: queue ship event', odoo: '—' },
-            { laravel: 'On cancel: queue cancel event', odoo: '—' },
-            { laravel: 'SERP processes all inventory movements via same API', odoo: '—' },
+            { laravel: 'On order create: POST /api/orders/reserve for items + component_orders', odoo: '—' },
+            { laravel: 'Store response: picking_id, stock_move_id on items/component_orders', odoo: '—' },
+            { laravel: 'On ship: POST /api/orders/ship → store cost_unit (FIFO)', odoo: '—' },
+            { laravel: 'On cancel: POST /api/orders/cancel → release reservations', odoo: '—' },
+            { laravel: 'Same SERP APIs built in Phase 1 — no new endpoints needed', odoo: '—' },
           ],
-          dataOwnership: [{ data: 'All ec_order inventory', laravel: 'Queued to SERP', odoo: '—' }],
-          dbChanges: [
-            {
-              table: 'serp_order_queue (modify)',
-              purpose: 'Expand filter: process all orders, not just custom branding',
-              columns: 'No schema changes - just logic changes in OrderObserver',
-            },
+          dataOwnership: [
+            { data: 'All ec_order inventory (not just custom branding)', laravel: 'Queued to SERP', odoo: '—' },
+            { data: 'items.stock_move_id + cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
+            { data: 'component_orders.stock_move_id + cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
           ],
           implementation: [
-            'Modify OrderObserver: remove merchandise_selections filter',
-            'Queue ALL orders for SERP processing',
-            'Test with regular orders (items), kit orders (component_orders), and custom branding',
-            'Validate COGS write-back for all order types',
-            'Monitor queue depth and processing time',
+            '--- EXPANDS PART 1 PHASE 2 ---',
+            '• Same integration pattern built for custom branding in Phase 2',
+            '• Same SERP APIs: /api/orders/reserve, /ship, /cancel',
+            '• Same response storage: picking_id, stock_move_id, cost_unit',
+            '--- CHANGES REQUIRED ---',
+            'Remove merchandise_selections IS NOT NULL filter from order detection',
+            'Add receiver product mapping: items.product_sku → receiver_products → SERP reserve',
+            'Handle all three order types: receiver orders, kit/component orders, custom branding',
+            'Test with high-volume order flow (all orders, not just custom branding subset)',
+            'Validate COGS write-back (cost_unit) for all order types',
+            'Monitor queue depth and processing latency under full load',
           ],
           confirmations: [
-            'Ops team - all orders process correctly',
-            'Finance team - COGS accurate for all order types',
+            'Ops team - all order types process correctly through SERP',
+            'Finance team - COGS accurate for receiver products, kits, and custom branding',
           ],
           keyPoint:
-            'Laravel developer task (parallel with Phase 6). Expands queue from custom branding only to ALL orders. 2 weeks of work.',
+            'Laravel developer task (parallel with Phase 6). Expands Part 1 Phase 2 queue from custom branding only to ALL orders using same SERP /api/orders/* APIs. 2 weeks of work.',
         }
       ];
 
@@ -1145,16 +1010,30 @@
 {
           phase: 4,
           week: 3,
-          name: 'Import MO/BOM/Product Data',
-          desc: 'Import manufacturing orders, BOMs, products, and locations after core schemas built.',
+          name: 'Import ALL Odoo Products into SERP (via Product UI)',
+          desc: 'Product management UI built in Weeks 1-2. Now import ~3,900 missing Odoo products into SERP via bulk import. Currently ~598 components exist (packaging only). Missing: raw materials, packed products, labels, cartons, gift sets, etc. Match by SKU (components.sku = product_product.default_code). Set odoo_id = "800" + component.id per existing convention. Without this, no BOM/MO/stock_quant migration can proceed.',
           tables: [
-            'mrp_production (26K)',
-            'mrp_bom (2K)',
-            'mrp_bom_line (6.5K)',
-            'product_product (7K)',
-            'product_template (7K)',
-            'mrp_unbuild (184)',
-            'stock_location (2.7K)',
+            'Odoo product_product (4,300 active storable with SKUs) → import into SERP via product UI',
+            'SKU matching: product_product.default_code = components.sku',
+            'odoo_id convention: "800" + components.id (external reference, not Odoo internal ID)',
+            'Map real Odoo product_product.id for migration FK references',
+            '~160 Odoo products without SKUs skipped (junk/copies/freight)',
+          ],
+          color: '#9b59b6',
+        },
+{
+          phase: 4,
+          week: 5,
+          name: 'Import MO/BOM/Location Data',
+          desc: 'Import manufacturing orders, normal BOMs (kit/phantom BOMs in Phase 5), and locations from Odoo. Product mapping already complete from Week 3.',
+          tables: [
+            'mrp_production (26K) → SERP mrp_production',
+            'mrp_bom (2K normal) → SERP mrp_bom',
+            'mrp_bom_line (6.5K) → SERP mrp_bom_line',
+            'mrp_unbuild (190) → SERP mrp_unbuild',
+            'stock_location (2.7K) → SERP stock_location',
+            'stock_picking_type (135) → SERP stock_picking_type',
+            'uom_category (7) + uom_uom (27) → seed SERP tables',
           ],
           color: '#9b59b6',
         },
@@ -1162,11 +1041,11 @@
           phase: 6,
           week: 4,
           name: 'Test Inventory Import (Optional)',
-          desc: 'Practice run: export Odoo inventory snapshot to validate import scripts. Data will be stale - for testing only.',
+          desc: 'Practice run: export Odoo inventory snapshot to validate import scripts. Data will be stale - for testing only. Tests the full pipeline without going live.',
           tables: [
-            'stock_quant (14K) - TEST',
-            'stock_valuation_layer (sample)',
-            'Validate import scripts',
+            'stock_quant (14K) - TEST ONLY',
+            'stock_valuation_layer (sample active layers) - TEST ONLY',
+            'Validate import scripts + mapping',
           ],
           color: '#ffc107',
         },
@@ -1174,13 +1053,13 @@
           phase: 6,
           week: 8,
           name: '🚨 INVENTORY CUTOVER',
-          desc: 'THE migration moment. Freeze Odoo, physical count, import current inventory. This is the only time inventory data is imported for real.',
+          desc: 'THE migration moment. Freeze Odoo, physical count, import current inventory. This is the only time inventory data is imported for real. Only active FIFO layers migrated (not 13.4M historical records).',
           tables: [
-            'stock_quant (14K) - LIVE',
-            'stock_valuation_layer (current FIFO layers)',
-            'stock_scrap (1.4K)',
-            'stock_landed_cost (87)',
-            'stock_landed_cost_lines (88)',
+            'stock_quant (14K) - LIVE → SERP stock_quant',
+            'stock_valuation_layer (~3.7K active layers, remaining_qty > 0) → SERP stock_valuation_layer',
+            'stock_scrap (1.4K) → SERP stock_scrap',
+            'stock_landed_cost (87) → SERP stock_landed_cost',
+            'stock_landed_cost_lines (88) → SERP stock_landed_cost_lines',
           ],
           color: '#dc3545',
         },
@@ -1293,14 +1172,6 @@
           const laravelClass = row.laravel.includes('Owner') ? 'owner-cell' : 'copy-cell';
           const odooClass = row.odoo.includes('Owner') ? 'owner-cell' : 'copy-cell';
           html += `<tr><td>${row.data}</td><td class="${laravelClass}">${row.laravel}</td><td class="${odooClass}">${row.odoo}</td></tr>`;
-        });
-        html += `</table></div>`;
-
-        // Database Changes
-        html += `<div class="section"><h3 style="border-color:${p.color}">Database Changes</h3>`;
-        html += `<table><tr><th>Table</th><th>Purpose</th><th>Columns</th></tr>`;
-        p.dbChanges.forEach((row) => {
-          html += `<tr><td><code>${row.table}</code></td><td>${row.purpose || ''}</td><td><code>${row.columns}</code></td></tr>`;
         });
         html += `</table></div>`;
 

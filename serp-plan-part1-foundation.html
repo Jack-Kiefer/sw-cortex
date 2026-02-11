@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SERP Migration Plan - Part 1: Foundation (Custom Branding, POs)</title>
+    <title>SERP Migration Plan - Part 1: Foundation — 17 Weeks (Custom Branding, POs)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -493,7 +493,7 @@
     <div class="container">
       <header>
         <div>
-          <h1>SERP Migration Plan - Part 1: Foundation (Custom Branding, POs)</h1>
+          <h1>SERP Migration Plan - Part 1: Foundation — 17 Weeks (Custom Branding, POs)</h1>
           <div class="meta" id="meta"></div>
         </div>
       </header>
@@ -523,697 +523,697 @@
       <div id="phases-detail"></div>
     </div>
     <script>
-          const PROJECT_START = '2026-02-09';
-          const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
+      const PROJECT_START = '2026-02-16';
+      const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
 
-          const phases = [
+      const phases = [
+        {
+          id: 1,
+          name: 'Custom Branding Infrastructure',
+          shortName: 'Branding',
+          weeks: 9,
+          deps: [],
+          color: '#e67e22',
+          milestone: 'Custom Branding Inventory Live',
+          goal: 'Build SERP backend infrastructure (migrations 001-010). Create database schema, build core services for PO management, inventory tracking, FIFO costing. Test with custom branding products (backend only, no UI). Foundation for all future phases.',
+          goals: [
+            'Create migrations 001-010: purchase_orders, lines, suppliers, bills, stock_quant, stock_move, valuation layers',
+            'Build core PO services: create, receive, bill creation (reusable code for Phase 3)',
+            'Build inventory services: adjust, reserve, deduct, FIFO consumption (reusable code)',
+            'Build order APIs for Laravel integration: /api/orders/reserve, /ship, /cancel',
+            'Build component inventory view: aggregate stock_quant (reserved + on-hand)',
+            'Test complete custom branding workflow end-to-end (backend APIs only)',
+            'NO UI in this phase - backend infrastructure only',
+            'NO Odoo sync in this phase - that comes in Phase 3',
+          ],
+          tasks: [
             {
-              id: 1,
-              name: 'Custom Branding Infrastructure',
-              shortName: 'Branding',
-              weeks: 7,
-              deps: [],
-              color: '#e67e22',
-              milestone: 'Custom Branding Inventory Live',
-              goal: 'Build SERP backend infrastructure (migrations 001-010). Create database schema, build core services for PO management, inventory tracking, FIFO costing. Test with custom branding products (backend only, no UI). Foundation for all future phases.',
-              goals: [
-                'Create migrations 001-010: purchase_orders, lines, suppliers, bills, stock_quant, stock_move, valuation layers',
-                'Build core PO services: create, receive, bill creation (reusable code for Phase 3)',
-                'Build inventory services: adjust, reserve, deduct, FIFO consumption (reusable code)',
-                'Build order APIs for Laravel integration: /api/orders/reserve, /ship, /cancel',
-                'Build component inventory view: aggregate stock_quant (reserved + on-hand)',
-                'Test complete custom branding workflow end-to-end (backend APIs only)',
-                'NO UI in this phase - backend infrastructure only',
-                'NO Odoo sync in this phase - that comes in Phase 3',
-              ],
-              tasks: [
-                {
-                  name: 'Create migrations 001-010: database schema (POs, inventory, bills, views)',
-                  startWeek: 1,
-                  duration: 3,
-                },
-                {
-                  name: 'Send finalized migrations to Laravel team',
-                  startWeek: 3,
-                  duration: 1,
-                },
-                {
-                  name: 'Build PO services (create, send, receive, bill)',
-                  startWeek: 4,
-                  duration: 2,
-                },
-                {
-                  name: 'Build inventory services (adjust, reserve, deduct, FIFO)',
-                  startWeek: 4,
-                  duration: 2,
-                },
-                {
-                  name: 'Build order APIs: /api/orders/reserve, /ship, /cancel',
-                  startWeek: 6,
-                  duration: 1,
-                },
-                {
-                  name: 'Backend API testing: PO + inventory + order workflow',
-                  startWeek: 7,
-                  duration: 1,
-                },
-              ],
-              workflow: [
-                { laravel: '--- UNIFIED INFRASTRUCTURE (single code path) ---', odoo: '---' },
-                {
-                  laravel: 'Create component with odoo_product_id=NULL (custom branding)',
-                  odoo: '—',
-                },
-                { laravel: 'Create supplier (odoo_partner_id=NULL in Phase 1)', odoo: '—' },
-                {
-                  laravel: 'Create PO with line: component_id=X, odoo_component_id=NULL',
-                  odoo: '—',
-                },
-                { laravel: 'Receive PO arrival → update stock_quant', odoo: '—' },
-                {
-                  laravel: 'Sync check per line: if odoo_component_id IS NOT NULL → sync',
-                  odoo: '—',
-                },
-                {
-                  laravel: 'Custom branding lines: odoo_component_id=NULL → skip sync',
-                  odoo: '—',
-                },
-                {
-                  laravel: 'Odoo lines (Phase 2): odoo_component_id populated → sync',
-                  odoo: 'Receive PO sync',
-                },
-                {
-                  laravel: 'Mixed POs: sync ONLY lines where odoo_component_id IS NOT NULL',
-                  odoo: 'Partial sync',
-                },
-                { laravel: 'Create bill manually after vendor invoice received', odoo: '—' },
-                { laravel: 'Order fulfillment → consume FIFO layers, deduct inventory', odoo: '—' },
-                { laravel: '--- LINE-LEVEL SYNC CONTROL (odoo_component_id) ---', odoo: '---' },
-              ],
-              dataOwnership: [
-                { data: 'Custom branding components', laravel: 'Owner', odoo: '—' },
-                { data: 'Custom branding inventory (stock_quant)', laravel: 'Owner', odoo: '—' },
-                { data: 'Custom branding inventory moves', laravel: 'Owner', odoo: '—' },
-                { data: 'Custom branding COGS', laravel: 'Owner', odoo: '—' },
-              ],
-              dbChanges: [
-                {
-                  table: '📋 Migration 001: Foundation',
-                  purpose: 'Chatter system and entity tracking',
-                  columns: 'message_subtype, mail_message, entity_field_change, entity_attachment',
-                },
-                {
-                  table: 'message_subtype',
-                  purpose: 'Predefined message types (created, updated, RFQ sent, goods received)',
-                  columns: '—',
-                },
-                {
-                  table: 'mail_message',
-                  purpose: 'Activity log - tracks comments, notes, system events (Odoo chatter)',
-                  columns: '→ serp_users, → suppliers',
-                },
-                {
-                  table: 'entity_field_change',
-                  purpose: 'Audit trail - what changed, old vs new value',
-                  columns: '→ mail_message',
-                },
-                {
-                  table: 'entity_attachment',
-                  purpose: 'File attachments (vendor invoices, shipping docs)',
-                  columns: '—',
-                },
-                {
-                  table: '📋 Migration 002: MRP System',
-                  purpose: 'Manufacturing BOMs and production orders',
-                  columns: 'mrp_bom, mrp_bom_line, mrp_production, mrp_unbuild',
-                },
-                {
-                  table: 'mrp_bom',
-                  purpose: 'Bill of Materials - product recipes',
-                  columns: '→ product_template, → uom_uom',
-                },
-                {
-                  table: 'mrp_bom_line',
-                  purpose: 'BOM components - ingredients in recipe',
-                  columns: '→ mrp_bom, → components',
-                },
-                {
-                  table: 'mrp_production',
-                  purpose: 'Manufacturing orders',
-                  columns: '→ mrp_bom, → components',
-                },
-                {
-                  table: 'mrp_unbuild',
-                  purpose: 'Disassembly orders - reverse manufacturing',
-                  columns: '→ components, → mrp_production',
-                },
-                {
-                  table: '📋 Migration 003: Suppliers & Locations',
-                  purpose: 'Adds Odoo columns to existing suppliers/locations tables',
-                  columns:
-                    'odoo_partner_id → suppliers, odoo_warehouse_id/odoo_location_id → locations',
-                },
-                {
-                  table: '📋 Migration 004: UOM Foundation',
-                  purpose: 'Units of measure',
-                  columns: 'uom_category, uom_uom',
-                },
-                {
-                  table: 'uom_category',
-                  purpose: 'UOM categories (Weight, Volume, Length, etc.)',
-                  columns: '—',
-                },
-                {
-                  table: 'uom_uom',
-                  purpose: 'Units of measure (kg, lb, L, gal, m, ft)',
-                  columns: '→ uom_category',
-                },
-                {
-                  table: '📋 Migration 005: Stock Locations',
-                  purpose: 'Warehouse structure and operation types',
-                  columns: 'stock_location, stock_picking_type',
-                },
-                {
-                  table: 'stock_location',
-                  purpose: 'Hierarchical warehouse locations (bins, zones, areas)',
-                  columns:
-                    'name, complete_name (path), parent_id, usage (internal/supplier/customer), scrap_location',
-                },
-                {
-                  table: 'stock_picking_type',
-                  purpose: 'Operation types - how receipts/deliveries/transfers behave',
-                  columns:
-                    'name, code (incoming/outgoing/internal/mrp), default_location_src_id, default_location_dest_id',
-                },
-                {
-                  table: '📋 Migration 006: Inventory Operations',
-                  purpose: 'Inventory tracking and movements',
-                  columns:
-                    'stock_quant, stock_picking, stock_move, stock_move_line, product_supplierinfo',
-                },
-                {
-                  table: 'stock_quant',
-                  purpose: '⭐ INVENTORY TRUTH - current on-hand qty per product/location',
-                  columns: 'component_id, location_id, quantity, reserved_quantity, in_date, unit_cost',
-                },
-                {
-                  table: 'stock_picking',
-                  purpose:
-                    'Warehouse operations (receipts, deliveries, transfers) - groups stock_moves',
-                  columns:
-                    'name (WH/IN/00123), origin (PO#), location_id→location_dest_id, state (draft→assigned→done), picking_type_id',
-                },
-                {
-                  table: 'stock_move',
-                  purpose: 'Individual inventory movements - move X units from A to B',
-                  columns:
-                    'product_uom_qty (requested), quantity_done (actual), state, picking_id, location_id→location_dest_id, component_id',
-                },
-                {
-                  table: 'stock_move_line',
-                  purpose: 'Detailed lines within stock_move - for lot/serial tracking',
-                  columns: 'move_id, qty_done, location_id→location_dest_id, lot_id, package_id',
-                },
-                {
-                  table: 'product_supplierinfo',
-                  purpose: 'Supplier-specific pricing/lead times per product',
-                  columns:
-                    'supplier_id, component_id, price, min_qty (MOQ), delay (lead time days), case_qty',
-                },
-                {
-                  table: '📋 Migration 007: Inventory Valuation',
-                  purpose: 'FIFO costing and landed costs',
-                  columns:
-                    'stock_valuation_layer, stock_landed_cost, stock_landed_cost_lines, stock_landed_cost_stock_picking_rel',
-                },
-                {
-                  table: 'stock_valuation_layer',
-                  purpose:
-                    '⭐ FIFO COSTING - each receipt creates a layer; consumption decrements oldest first',
-                  columns:
-                    'component_id, quantity, unit_cost (from PO), remaining_qty (unconsumed), remaining_value (for GL), stock_move_id',
-                },
-                {
-                  table: 'stock_landed_cost',
-                  purpose: 'Landed cost adjustments (freight, customs, insurance)',
-                  columns: '→ account_move',
-                },
-                {
-                  table: 'stock_landed_cost_lines',
-                  purpose: 'Cost distribution lines within landed cost',
-                  columns: '→ stock_landed_cost, → components',
-                },
-                {
-                  table: 'stock_landed_cost_stock_picking_rel',
-                  purpose: 'Junction - links landed costs to pickings',
-                  columns: '→ stock_landed_cost, → stock_picking',
-                },
-                {
-                  table: '📋 Migration 008: Purchasing',
-                  purpose: 'Adds Odoo columns to existing purchase_orders/purchase_order_line tables',
-                  columns: 'odoo_id, date_order, date_planned, effective_date → purchase_orders',
-                },
-                {
-                  table: '📋 Migration 009: Accounting',
-                  purpose: 'Bills and journals (NO payment terms)',
-                  columns:
-                    'account_journal, account_move, account_move_line, account_move_purchase_order_rel',
-                },
-                {
-                  table: 'account_journal',
-                  purpose:
-                    'Journal types that categorize transactions (Vendor Bills, Inventory Valuation)',
-                  columns: '—',
-                },
-                {
-                  table: 'account_move',
-                  purpose: 'Vendor bills - MANUAL creation after vendor invoice received',
-                  columns: '→ account_journal, → suppliers, → purchase_orders',
-                },
-                {
-                  table: 'account_move_line',
-                  purpose: 'Bill line items linked to PO lines for 3-way matching',
-                  columns: '→ account_move, → purchase_order_line, → components, → stock_move',
-                },
-                {
-                  table: 'account_move_purchase_order_rel',
-                  purpose: 'Junction - links bills to POs (one bill can reference multiple POs)',
-                  columns: '→ account_move, → purchase_orders',
-                },
-                {
-                  table: '📋 Migration 010: Sales & Views',
-                  purpose: 'Sales integration and inventory views',
-                  columns:
-                    'serp_state, serp_picking_id → ec_order; stock_move_id, cost_unit → items/component_orders; component_inventory_summary VIEW',
-                },
-              ],
-              implementation: [
-                '--- CREATE MIGRATIONS 001-010 (Database Schema) ---',
-                'Migration 001: Foundation - core tables',
-                'Migration 002: MRP System - BOMs and manufacturing',
-                'Migration 003: Suppliers and Locations',
-                'Migration 004: UOM Foundation - units of measure',
-                'Migration 005: Stock Locations - warehouse structure',
-                'Migration 006: Inventory Operations - stock_picking, stock_move',
-                'Migration 007: Inventory Valuation - FIFO costing layers',
-                'Migration 008: Purchasing - POs and lines',
-                'Migration 009: Accounting - journals, bills (NO payment terms)',
-                'Migration 010: Sales and Views',
-                '--- BUILD SERVICES (Reusable Code for Future Phases) ---',
-                'PO services: create, send, receive, bill creation',
-                'Inventory services: adjust, reserve, deduct, FIFO consumption',
-                '--- BUILD ORDER APIs (For Laravel Integration) ---',
-                'POST /api/orders/reserve - Reserve inventory for order, return picking_id + stock_move_id',
-                'POST /api/orders/ship - Consume FIFO layers, return cost_unit per item',
-                'POST /api/orders/cancel - Release reservations, cancel stock moves',
-                '--- BACKEND API TESTING (No UI, No Order Processing) ---',
-                'Create custom branding products in components table (via backend)',
-                'Create POs for custom branding (backend API)',
-                'Receive POs, validate FIFO costing (backend)',
-                'Test inventory adjustments, reservations',
-                'All testing via API calls, Postman, or scripts - NO UI',
-                'Order workflow (ec_order → component_orders) handled in Phase 2',
-                'component_inventory VIEW created in Migration 010',
-              ],
-              confirmations: [
-                'Tech team - backend APIs functional and tested',
-                'Finance team - COGS calculation accuracy validated',
-              ],
-              keyPoint:
-                'Phase 1 builds backend infrastructure ONLY (migrations 001-010, core services). NO UI, NO Odoo sync. Custom branding products test the foundation. Phase 3 adds UI and Odoo integration.',
+              name: 'Create migrations 001-010: database schema (POs, inventory, bills, views)',
+              startWeek: 1,
+              duration: 3,
             },
             {
-              id: 2,
-              name: 'Laravel Order Queue (Custom Branding)',
-              shortName: 'Laravel Queue',
-              weeks: 7,
-              deps: [],
-              parallelWith: [1],
-              color: '#f39c12',
-              milestone: 'Custom Branding Orders Auto-Process',
-              goal: 'Laravel developer integrates custom branding orders with SERP inventory system. Detect when orders are created/shipped/cancelled, communicate with SERP for inventory management, store results.',
-              goals: [
-                'Detect custom branding orders (merchandise_selections IS NOT NULL)',
-                'Parse merchandise_selections and create component_orders records',
-                'Communicate with SERP for: reserve inventory, calculate COGS, release reservations',
-                'Store SERP responses in Laravel: picking_id, stock_move_id, cost_unit',
-                'Handle failures and retries',
-              ],
-              tasks: [
-                {
-                  name: 'Design: Review SERP migrations, design integration approach',
-                  startWeek: 1,
-                  duration: 2,
-                },
-                {
-                  name: 'Implement: Laravel migrations + order detection logic',
-                  startWeek: 3,
-                  duration: 2,
-                },
-                {
-                  name: 'Implement: SERP integration + response handling',
-                  startWeek: 5,
-                  duration: 2,
-                },
-                {
-                  name: 'Testing: Integration testing with SERP + edge cases',
-                  startWeek: 7,
-                  duration: 1,
-                },
-              ],
-              workflow: [
-                { laravel: '1. Order created with merchandise_selections', odoo: '—' },
-                { laravel: '2. Parse JSON → create component_orders records', odoo: '—' },
-                { laravel: '3. Trigger SERP reserve → POST /api/orders/reserve', odoo: '—' },
-                { laravel: '4. Store response: picking_id + stock_move_id', odoo: '—' },
-                { laravel: '5. Order ships → trigger SERP ship → POST /api/orders/ship', odoo: '—' },
-                { laravel: '6. Store response: cost_unit on items/component_orders', odoo: '—' },
-                {
-                  laravel: '7. Order cancelled → trigger SERP cancel → POST /api/orders/cancel',
-                  odoo: '—',
-                },
-              ],
-              dataOwnership: [
-                { data: 'ec_order.serp_picking_id', laravel: 'Owner', odoo: '—' },
-                { data: 'items.cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
-                { data: 'component_orders.cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
-              ],
-              dbChanges: [
-                {
-                  table: 'ec_order (ADD columns)',
-                  purpose: 'Link to SERP inventory operations',
-                  columns: 'serp_picking_id (BIGINT), serp_state (VARCHAR 20)',
-                },
-                {
-                  table: 'items (ADD columns)',
-                  purpose: 'Track inventory moves and FIFO cost',
-                  columns: 'stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
-                },
-                {
-                  table: 'component_orders (ADD columns)',
-                  purpose: 'Track inventory moves and FIFO cost',
-                  columns: 'stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
-                },
-              ],
-              implementation: [
-                '--- REQUIREMENTS ---',
-                '1. Detect custom branding orders (merchandise_selections IS NOT NULL)',
-                '2. Parse merchandise_selections JSON → create component_orders records',
-                '3. On order created: Call SERP /api/orders/reserve → store picking_id, stock_move_id',
-                '4. On order ships: Call SERP /api/orders/ship → store cost_unit',
-                '5. On order cancelled: Call SERP /api/orders/cancel',
-                '6. Handle API failures gracefully (retry transient errors, alert on persistent failures)',
-                '--- MERCHANDISE_SELECTIONS FORMAT ---',
-                'ec_order.merchandise_selections stores custom merchandise from proposal branding JSON:',
-                'Product details: component_id, sku, quantity, unit_price',
-                'Box overrides: if custom merchandise requires different box than standard',
-                'Inventory adjustments: add back standard box, deduct actual box used',
-                'Example component: <code>{ "component_id": 123, "sku": "CB-RIBBON-RED", "quantity": 50, "unit_price": 0.25 }</code>',
-                'Example component: <code>{ "component_id": 456, "sku": "CB-BOX-SM", "quantity": 100, "unit_price": 1.50 }</code>',
-                'Full structure TBD - aligned with sleeve branding implementation (see sleeve planning doc)',
-                '--- SERP API: POST /api/orders/reserve ---',
-                'Request: <code>{ "order_id": 12345, "items": [{ "component_id": 123, "quantity": 50 }, ...] }</code>',
-                'Response: <code>{ "picking_id": 789, "moves": [{ "component_id": 123, "stock_move_id": 1001 }, ...] }</code>',
-                '--- SERP API: POST /api/orders/ship ---',
-                'Request: <code>{ "order_id": 12345, "picking_id": 789 }</code>',
-                'Response: <code>{ "costs": [{ "component_id": 123, "cost_unit": 0.23 }, ...] }</code>',
-                '--- SERP API: POST /api/orders/cancel ---',
-                'Request: <code>{ "order_id": 12345, "picking_id": 789 }</code>',
-                'Response: <code>{ "success": true }</code>',
-                '--- IMPLEMENTATION APPROACH ---',
-                'Laravel developer chooses pattern: queue, observer, events, scheduled job, etc.',
-                'Can be sync or async - SERP APIs are idempotent',
-              ],
-              keyPoint:
-                'Laravel developer task (parallel with Phase 1). Builds queue processor for CUSTOM BRANDING ONLY. Phase 6 expands to all orders.',
+              name: 'Send finalized migrations to Laravel team',
+              startWeek: 3,
+              duration: 1,
             },
             {
-              id: 3,
-              name: 'PO/Bill UI + Odoo Sync + Data Migration',
-              shortName: 'PO UI+Sync',
-              weeks: 8,
-              deps: [1, 2],
-              color: '#198754',
-              milestone: 'PO + Bill System Live',
-              goal: 'Build frontend UI for PO/Bill management. Implement Odoo XML-RPC sync. Migrate existing PO data from Odoo. Add email notifications and activity logging. Backend services already built in Phase 1.',
-              goals: [
-                'Build PO management UI: create, edit, receive, track POs',
-                'Build vendor bill UI: 3-way matching workflow (PO → Receipt → Vendor Invoice)',
-                'Implement Odoo XML-RPC sync service + sync queue',
-                'Migrate existing data: 1.8K POs + 16K lines + 1.6K bills from Odoo',
-                'Add email notifications for supplier communication',
-                'Integrate activity logging (mail_message) into UI',
-                'Train purchasing team and run parallel validation',
-              ],
-              tasks: [
-                {
-                  name: 'Migrate Odoo data: suppliers, components, POs, bills',
-                  startWeek: 1,
-                  duration: 2,
-                },
-                {
-                  name: 'Build Odoo XML-RPC sync service + sync queue',
-                  startWeek: 2,
-                  duration: 2,
-                },
-                {
-                  name: 'Build PO UI: create, edit, list, detail views',
-                  startWeek: 3,
-                  duration: 2,
-                },
-                {
-                  name: 'Build receiving UI: dock receipt → inspection → inventory receipt',
-                  startWeek: 5,
-                  duration: 1,
-                },
-                {
-                  name: 'Build vendor bill UI: 3-way matching workflow',
-                  startWeek: 5,
-                  duration: 2,
-                },
-                {
-                  name: 'Add email notifications + activity log integration',
-                  startWeek: 6,
-                  duration: 1,
-                },
-                {
-                  name: 'Train purchasing team + parallel run validation',
-                  startWeek: 7,
-                  duration: 1,
-                },
-                {
-                  name: 'Cutover + stabilization',
-                  startWeek: 8,
-                  duration: 1,
-                },
-              ],
-              workflow: [
-                { laravel: 'Create PO (draft or sent) — date_order captured', odoo: '—' },
-                { laravel: 'Set date_planned (expected arrival date)', odoo: '—' },
-                { laravel: 'Email supplier or download PO as PDF', odoo: '—' },
-                { laravel: 'Dock receipt (no inventory update yet)', odoo: '—' },
-                { laravel: 'Inspection → assign warehouse location → inventory receipt', odoo: '—' },
-                {
-                  laravel: 'Inventory receipt: effective_date set, sync triggered',
-                  odoo: 'Push: PO header + lines + stock_picking (receipt) → inventory updated',
-                  sync: true,
-                },
-                { laravel: 'Mark backorders for future arrival (accept or cancel later)', odoo: '—' },
-                { laravel: '--- 3-WAY MATCHING WORKFLOW (bills in SERP) ---', odoo: '---' },
-                {
-                  laravel: '1. System creates DRAFT BILL from receipt (qty_received × price_unit)',
-                  odoo: '—',
-                },
-                { laravel: '2. Vendor sends invoice externally (email/mail)', odoo: '—' },
-                { laravel: '3. Accountant compares draft bill vs vendor invoice', odoo: '—' },
-                { laravel: '4a. If match: Accountant finalizes bill → state=posted', odoo: '—' },
-                { laravel: '4b. If mismatch: Kick back to ops → reconcile with vendor', odoo: '—' },
-                { laravel: '5. Finalized bill stored in SERP with line-item detail', odoo: '—' },
-              ],
-              dataOwnership: [
-                { data: 'Purchase orders', laravel: 'Owner', odoo: 'Created on arrival (for billing)' },
-                { data: 'PO line items', laravel: 'Owner', odoo: 'Created on arrival (for billing)' },
-                { data: 'Backorders', laravel: 'Owner', odoo: '—' },
-                { data: 'Suppliers (156 vendors)', laravel: 'Owner', odoo: 'Mapping (partner_id)' },
-                {
-                  data: 'Supplier-product links (which products from which supplier)',
-                  laravel: 'Owner',
-                  odoo: '—',
-                },
-                { data: 'Receiving inspection records', laravel: 'Owner', odoo: '—' },
-                { data: 'Vendor bills', laravel: 'Owner', odoo: '—' },
-                { data: 'Inventory quantities', laravel: '—', odoo: 'Owner (stock_quant)' },
-              ],
-              implementation: [
-                '--- NOTE: Backend services (PO/inventory/FIFO) already built in Phase 1 ---',
-                '--- DATA MIGRATION (export from Odoo, import to SERP) ---',
-                'Export suppliers (res_partner) with vendor_rank > 0',
-                'Export components (product_product + product_template) with type=product',
-                'Export 1,846 POs + 16,139 lines with qty_received/qty_invoiced status',
-                'Export 1,569 vendor bills from account_move',
-                'Data cleanup: audit over-receipted lines and cancelled POs with active moves',
-                'Receipt validation with warehouse team before go-live',
-                'Migration scripts with dry-run mode and rollback capability',
-                '--- ODOO XML-RPC SYNC (core infrastructure for ALL phases) ---',
-                'Build OdooSyncService: XML-RPC client for purchase_order, stock_picking, account_move',
-                'Async queue pattern: SERP writes locally first, then queues Odoo sync job',
-                'Odoo sync MUST succeed: retry with exponential backoff (1s, 2s, 4s, 8s, max 5 min)',
-                'Dead letter queue: after N failures, move to DLQ for manual review',
-                'Sync status tracking: each record has sync_status (pending/synced/failed/retrying)',
-                'Circuit breaker: if Odoo is down (5+ consecutive failures), pause queue and alert',
-                'Reconciliation job: daily job compares SERP vs Odoo, flags discrepancies',
-                'Admin dashboard: view failed syncs, retry individual items, bulk retry',
-                'REUSED IN ALL PHASES: MO sync, adjustment sync, BOM sync, location sync, product sync',
-                '--- FRONTEND UI ---',
-                'PO creation form: supplier, components, quantities, expected dates',
-                'Draft PO workflow: save without sending to vendor',
-                'Two-stage receiving UI: dock receipt → inspection → inventory receipt',
-                'Location assignment on receipt (which warehouse bin receives goods)',
-                'Partial receipt workflow with delta sync tracking',
-                'Backorder UI: mark future arrivals, accept or cancel later',
-                'Bill creation UI: draft bill from receipt (qty_received × price_unit)',
-                '3-way match UI: compare draft bill ↔ vendor invoice ↔ original PO',
-                'Activity log UI: timeline of PO events (created, received, billed)',
-                '--- EMAIL & NOTIFICATIONS ---',
-                'Send PO to supplier via email (with PDF attachment)',
-                'Warehouse alerts: backorder notifications, overdue receipts',
-                'Finance alerts: bills ready for review, mismatched amounts',
-                '--- EDGE CASES & VALIDATION ---',
-                'Backorder workflow: split PO into received + pending shipments',
-                'Partial receipt handling: update qty_received, sync delta to Odoo',
-                'Bill rejection workflow: accountant flags mismatch, ops reconciles with vendor',
-                'Over-receipt prevention: validate qty_received ≤ ordered quantity (with override)',
-              ],
-              dbChanges: [
-                {
-                  table: '📋 No New Migrations (uses Phase 1 schema)',
-                  purpose: 'All tables created in Phase 1 migrations 001-010',
-                  columns: '',
-                },
-                {
-                  table: 'purchase_orders (POPULATE)',
-                  purpose: 'Import 1,846 POs from Odoo purchase.order',
-                  columns: 'odoo_id, date_order, date_planned, effective_date populated',
-                },
-                {
-                  table: 'purchase_order_line (POPULATE)',
-                  purpose: 'Import 16,139 PO lines from Odoo',
-                  columns: 'qty_received, qty_invoiced, odoo_component_id populated',
-                },
-                {
-                  table: 'suppliers (POPULATE)',
-                  purpose: 'Import 289 suppliers from Odoo res.partner',
-                  columns: 'odoo_partner_id populated',
-                },
-                {
-                  table: 'product_supplierinfo (POPULATE)',
-                  purpose: 'Import 2,600 supplier-product links',
-                  columns: 'supplier_id, component_id, price, min_qty, delay',
-                },
-                {
-                  table: 'account_move (POPULATE)',
-                  purpose: 'Import 1,569 vendor bills from Odoo',
-                  columns: 'account_journal_id, supplier_id, state',
-                },
-                {
-                  table: 'account_move_line (POPULATE)',
-                  purpose: 'Import bill line items for 3-way matching',
-                  columns: 'purchase_order_line_id, component_id',
-                },
-              ],
-              confirmations: [
-                'Purchasing team - PO creation and editing workflow',
-                'Warehouse team - receipt and inspection process',
-                'Finance team - 3-way matching workflow (draft bill vs vendor invoice)',
-                'Finance team - bill approval and finalization process',
-              ],
-              keyPoint:
-                'Frontend UI for PO/Bill management + Odoo XML-RPC sync + data migration. Backend services already built in Phase 1.',
+              name: 'Build PO services (create, send, receive, bill)',
+              startWeek: 4,
+              duration: 2,
             },
-          ];
+            {
+              name: 'Build inventory services (adjust, reserve, deduct, FIFO)',
+              startWeek: 4,
+              duration: 2,
+            },
+            {
+              name: 'Build order APIs: /api/orders/reserve, /ship, /cancel',
+              startWeek: 6,
+              duration: 1,
+            },
+            {
+              name: 'Backend API testing: PO + inventory + order workflow',
+              startWeek: 7,
+              duration: 2,
+            },
+          ],
+          workflow: [
+            { laravel: '--- CUSTOM BRANDING WORKFLOW (Phase 1 only) ---', odoo: '---' },
+            { laravel: 'Create custom branding component in components table', odoo: '—' },
+            { laravel: 'Create supplier record', odoo: '—' },
+            { laravel: 'Create PO with lines for custom branding components', odoo: '—' },
+            { laravel: 'Send PO to supplier (email/PDF)', odoo: '—' },
+            { laravel: 'Receive PO arrival → create stock_picking + stock_moves', odoo: '—' },
+            { laravel: 'Update stock_quant (on-hand inventory)', odoo: '—' },
+            { laravel: 'Create FIFO valuation layer (unit_cost from PO)', odoo: '—' },
+            { laravel: '--- ORDER FULFILLMENT (via Laravel APIs) ---', odoo: '---' },
+            { laravel: 'Laravel calls POST /api/orders/reserve → reserve inventory', odoo: '—' },
+            {
+              laravel:
+                'Laravel calls POST /api/orders/ship → consume FIFO layers, return cost_unit',
+              odoo: '—',
+            },
+            { laravel: 'Laravel calls POST /api/orders/cancel → release reservations', odoo: '—' },
+            { laravel: '--- BILLING ---', odoo: '---' },
+            { laravel: 'Create vendor bill after invoice received', odoo: '—' },
+          ],
+          dataOwnership: [
+            { data: 'Custom branding components', laravel: 'Owner', odoo: '—' },
+            { data: 'Custom branding inventory (stock_quant)', laravel: 'Owner', odoo: '—' },
+            { data: 'Custom branding inventory moves', laravel: 'Owner', odoo: '—' },
+            { data: 'Custom branding COGS', laravel: 'Owner', odoo: '—' },
+          ],
+          dbChanges: [
+            {
+              table: '📋 Migration 001: Foundation',
+              purpose: 'Chatter system and entity tracking',
+              columns: 'message_subtype, mail_message, entity_field_change, entity_attachment',
+            },
+            {
+              table: 'message_subtype',
+              purpose: 'Predefined message types (created, updated, RFQ sent, goods received)',
+              columns: '—',
+            },
+            {
+              table: 'mail_message',
+              purpose: 'Activity log - tracks comments, notes, system events (Odoo chatter)',
+              columns: '→ serp_users, → suppliers',
+            },
+            {
+              table: 'entity_field_change',
+              purpose: 'Audit trail - what changed, old vs new value',
+              columns: '→ mail_message',
+            },
+            {
+              table: 'entity_attachment',
+              purpose: 'File attachments (vendor invoices, shipping docs)',
+              columns: '—',
+            },
+            {
+              table: '📋 Migration 002: MRP System',
+              purpose: 'Manufacturing BOMs and production orders',
+              columns: 'mrp_bom, mrp_bom_line, mrp_production, mrp_unbuild',
+            },
+            {
+              table: 'mrp_bom',
+              purpose: 'Bill of Materials - product recipes',
+              columns: '→ components (via odoo_product_id), → uom_uom',
+            },
+            {
+              table: 'mrp_bom_line',
+              purpose: 'BOM components - ingredients in recipe',
+              columns: '→ mrp_bom, → components',
+            },
+            {
+              table: 'mrp_production',
+              purpose: 'Manufacturing orders',
+              columns: '→ mrp_bom, → components',
+            },
+            {
+              table: 'mrp_unbuild',
+              purpose: 'Disassembly orders - reverse manufacturing',
+              columns: '→ components, → mrp_production',
+            },
+            {
+              table: '📋 Migration 003: Suppliers & Locations',
+              purpose: 'Adds Odoo columns to existing suppliers/locations tables',
+              columns:
+                'odoo_partner_id → suppliers, odoo_warehouse_id/odoo_location_id → locations',
+            },
+            {
+              table: '📋 Migration 004: UOM Foundation',
+              purpose: 'Units of measure',
+              columns: 'uom_category, uom_uom',
+            },
+            {
+              table: 'uom_category',
+              purpose: 'UOM categories (Weight, Volume, Length, etc.)',
+              columns: '—',
+            },
+            {
+              table: 'uom_uom',
+              purpose: 'Units of measure (kg, lb, L, gal, m, ft)',
+              columns: '→ uom_category',
+            },
+            {
+              table: '📋 Migration 005: Stock Locations',
+              purpose: 'Warehouse structure and operation types',
+              columns: 'stock_location, stock_picking_type',
+            },
+            {
+              table: 'stock_location',
+              purpose: 'Hierarchical warehouse locations (bins, zones, areas)',
+              columns:
+                'name, complete_name (path), parent_id, usage (internal/supplier/customer), scrap_location',
+            },
+            {
+              table: 'stock_picking_type',
+              purpose: 'Operation types - how receipts/deliveries/transfers behave',
+              columns:
+                'name, code (incoming/outgoing/internal/mrp), default_location_src_id, default_location_dest_id',
+            },
+            {
+              table: '📋 Migration 006: Inventory Operations',
+              purpose: 'Inventory tracking and movements',
+              columns:
+                'stock_quant, stock_picking, stock_move, stock_move_line, product_supplierinfo',
+            },
+            {
+              table: 'stock_quant',
+              purpose: '⭐ INVENTORY TRUTH - current on-hand qty per product/location',
+              columns: 'component_id, location_id, quantity, reserved_quantity, in_date, unit_cost',
+            },
+            {
+              table: 'stock_picking',
+              purpose:
+                'Warehouse operations (receipts, deliveries, transfers) - groups stock_moves',
+              columns:
+                'name (WH/IN/00123), origin (PO#), location_id→location_dest_id, state (draft→assigned→done), picking_type_id',
+            },
+            {
+              table: 'stock_move',
+              purpose: 'Individual inventory movements - move X units from A to B',
+              columns:
+                'product_uom_qty (requested), quantity_done (actual), state, picking_id, location_id→location_dest_id, component_id',
+            },
+            {
+              table: 'stock_move_line',
+              purpose: 'Detailed lines within stock_move - for lot/serial tracking',
+              columns: 'move_id, qty_done, location_id→location_dest_id, lot_id, package_id',
+            },
+            {
+              table: 'product_supplierinfo',
+              purpose: 'Supplier-specific pricing/lead times per product',
+              columns:
+                'supplier_id, component_id, price, min_qty (MOQ), delay (lead time days), case_qty',
+            },
+            {
+              table: '📋 Migration 007: Inventory Valuation',
+              purpose: 'FIFO costing and landed costs',
+              columns:
+                'stock_valuation_layer, stock_landed_cost, stock_landed_cost_lines, stock_landed_cost_stock_picking_rel',
+            },
+            {
+              table: 'stock_valuation_layer',
+              purpose:
+                '⭐ FIFO COSTING - each receipt creates a layer; consumption decrements oldest first',
+              columns:
+                'component_id, quantity, unit_cost (from PO), remaining_qty (unconsumed), remaining_value (for GL), stock_move_id',
+            },
+            {
+              table: 'stock_landed_cost',
+              purpose: 'Landed cost adjustments (freight, customs, insurance)',
+              columns: '→ account_move',
+            },
+            {
+              table: 'stock_landed_cost_lines',
+              purpose: 'Cost distribution lines within landed cost',
+              columns: '→ stock_landed_cost, → components',
+            },
+            {
+              table: 'stock_landed_cost_stock_picking_rel',
+              purpose: 'Junction - links landed costs to pickings',
+              columns: '→ stock_landed_cost, → stock_picking',
+            },
+            {
+              table: '📋 Migration 008: Purchasing',
+              purpose: 'Adds Odoo columns to existing purchase_orders/purchase_order_line tables',
+              columns: 'odoo_id, date_order, date_planned, effective_date → purchase_orders',
+            },
+            {
+              table: '📋 Migration 009: Accounting',
+              purpose: 'Bills and journals (NO payment terms)',
+              columns:
+                'account_journal, account_move, account_move_line, account_move_purchase_order_rel',
+            },
+            {
+              table: 'account_journal',
+              purpose:
+                'Journal types that categorize transactions (Vendor Bills, Inventory Valuation)',
+              columns: '—',
+            },
+            {
+              table: 'account_move',
+              purpose: 'Vendor bills - MANUAL creation after vendor invoice received',
+              columns: '→ account_journal, → suppliers, → purchase_orders',
+            },
+            {
+              table: 'account_move_line',
+              purpose: 'Bill line items linked to PO lines for 3-way matching',
+              columns: '→ account_move, → purchase_order_line, → components, → stock_move',
+            },
+            {
+              table: 'account_move_purchase_order_rel',
+              purpose: 'Junction - links bills to POs (one bill can reference multiple POs)',
+              columns: '→ account_move, → purchase_orders',
+            },
+            {
+              table: '📋 Migration 010: Sales & Views',
+              purpose: 'Sales integration and inventory views',
+              columns:
+                'serp_state, serp_picking_id → ec_order; stock_move_id, cost_unit → items/component_orders; component_inventory_summary VIEW',
+            },
+          ],
+          implementation: [
+            '--- CREATE MIGRATIONS 001-010 (Database Schema) ---',
+            'Migration 001: Foundation - core tables',
+            'Migration 002: MRP System - BOMs and manufacturing',
+            'Migration 003: Suppliers and Locations',
+            'Migration 004: UOM Foundation - units of measure',
+            'Migration 005: Stock Locations - warehouse structure',
+            'Migration 006: Inventory Operations - stock_picking, stock_move',
+            'Migration 007: Inventory Valuation - FIFO costing layers',
+            'Migration 008: Purchasing - POs and lines',
+            'Migration 009: Accounting - journals, bills (NO payment terms)',
+            'Migration 010: Sales and Views',
+            '--- BUILD SERVICES (Reusable Code for Future Phases) ---',
+            'PO services: create, send, receive, bill creation',
+            'Inventory services: adjust, reserve, deduct, FIFO consumption',
+            '--- BUILD ORDER APIs (For Laravel Integration) ---',
+            'POST /api/orders/reserve - Reserve inventory for order, return picking_id + stock_move_id',
+            'POST /api/orders/ship - Consume FIFO layers, return cost_unit per item',
+            'POST /api/orders/cancel - Release reservations, cancel stock moves',
+            '--- BACKEND API TESTING (No UI, No Order Processing) ---',
+            'Create custom branding products in components table (via backend)',
+            'Create POs for custom branding (backend API)',
+            'Receive POs, validate FIFO costing (backend)',
+            'Test inventory adjustments, reservations',
+            'All testing via API calls, Postman, or scripts - NO UI',
+            'Order workflow (ec_order → component_orders) handled in Phase 2',
+            'component_inventory VIEW created in Migration 010',
+          ],
+          confirmations: [
+            'Tech team - backend APIs functional and tested',
+            'Finance team - COGS calculation accuracy validated',
+          ],
+          keyPoint:
+            'Phase 1 builds backend infrastructure ONLY (migrations 001-010, core services, order APIs). NO UI, NO Odoo sync. Custom branding products test the full PO → inventory → order fulfillment workflow. Phase 3 adds UI and Odoo sync.',
+        },
+        {
+          id: 2,
+          name: 'Laravel Order Queue (Custom Branding)',
+          shortName: 'Laravel Queue',
+          weeks: 9,
+          deps: [],
+          parallelWith: [1],
+          color: '#f39c12',
+          milestone: 'Custom Branding Orders Auto-Process',
+          goal: 'Laravel developer integrates custom branding orders with SERP inventory system. Detect when orders are created/shipped/cancelled, communicate with SERP for inventory management, store results.',
+          goals: [
+            'Detect custom branding orders (merchandise_selections IS NOT NULL)',
+            'Parse merchandise_selections and create component_orders records',
+            'Stub SERP API calls in weeks 1-4 (mock responses), switch to real APIs in week 5 when Phase 1 APIs are ready',
+            'Communicate with SERP for: reserve inventory, calculate COGS, release reservations',
+            'Store SERP responses in Laravel: picking_id, stock_move_id, cost_unit',
+            'Handle failures and retries',
+          ],
+          tasks: [
+            {
+              name: 'Design: Review SERP migrations, design integration approach',
+              startWeek: 1,
+              duration: 1,
+            },
+            {
+              name: 'Implement: Laravel migrations + order detection logic',
+              startWeek: 2,
+              duration: 2,
+            },
+            {
+              name: 'Implement: SERP integration + response handling',
+              startWeek: 4,
+              duration: 2,
+            },
+            {
+              name: 'Testing: Integration testing with SERP + edge cases',
+              startWeek: 6,
+              duration: 1,
+            },
+          ],
+          workflow: [
+            { laravel: '1. Order created with merchandise_selections', odoo: '—' },
+            { laravel: '2. Parse JSON → create component_orders records', odoo: '—' },
+            { laravel: '3. Trigger SERP reserve → POST /api/orders/reserve', odoo: '—' },
+            { laravel: '4. Store response: picking_id + stock_move_id', odoo: '—' },
+            { laravel: '5. Order ships → trigger SERP ship → POST /api/orders/ship', odoo: '—' },
+            { laravel: '6. Store response: cost_unit on items/component_orders', odoo: '—' },
+            {
+              laravel: '7. Order cancelled → trigger SERP cancel → POST /api/orders/cancel',
+              odoo: '—',
+            },
+          ],
+          dataOwnership: [
+            { data: 'ec_order.serp_picking_id', laravel: 'Owner', odoo: '—' },
+            { data: 'items.cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
+            { data: 'component_orders.cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
+          ],
+          dbChanges: [
+            {
+              table: 'ec_order (ADD columns)',
+              purpose: 'Link to SERP inventory operations',
+              columns: 'serp_picking_id (BIGINT), serp_state (VARCHAR 20)',
+            },
+            {
+              table: 'items (ADD columns)',
+              purpose: 'Track inventory moves and FIFO cost',
+              columns: 'stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
+            },
+            {
+              table: 'component_orders (ADD columns)',
+              purpose: 'Track inventory moves and FIFO cost',
+              columns: 'stock_move_id (BIGINT), cost_unit (DECIMAL 12,4)',
+            },
+          ],
+          implementation: [
+            '--- REQUIREMENTS ---',
+            '1. Detect custom branding orders (merchandise_selections IS NOT NULL)',
+            '2. Parse merchandise_selections JSON → create component_orders records',
+            '3. On order created: Call SERP /api/orders/reserve → store picking_id, stock_move_id',
+            '4. On order ships: Call SERP /api/orders/ship → store cost_unit',
+            '5. On order cancelled: Call SERP /api/orders/cancel',
+            '6. Handle API failures gracefully (retry transient errors, alert on persistent failures)',
+            '--- MERCHANDISE_SELECTIONS FORMAT ---',
+            'ec_order.merchandise_selections stores custom merchandise from proposal branding JSON:',
+            'Product details: component_id, sku, quantity, unit_price',
+            'Box overrides: if custom merchandise requires different box than standard',
+            'Inventory adjustments: add back standard box, deduct actual box used',
+            'Example component: <code>{ "component_id": 123, "sku": "CB-RIBBON-RED", "quantity": 50, "unit_price": 0.25 }</code>',
+            'Example component: <code>{ "component_id": 456, "sku": "CB-BOX-SM", "quantity": 100, "unit_price": 1.50 }</code>',
+            'Full structure TBD - aligned with sleeve branding implementation (see sleeve planning doc)',
+            '--- SERP API: POST /api/orders/reserve ---',
+            'Request: <code>{ "order_id": 12345, "items": [{ "component_id": 123, "quantity": 50 }, ...] }</code>',
+            'Response: <code>{ "picking_id": 789, "moves": [{ "component_id": 123, "stock_move_id": 1001 }, ...] }</code>',
+            '--- SERP API: POST /api/orders/ship ---',
+            'Request: <code>{ "order_id": 12345, "picking_id": 789 }</code>',
+            'Response: <code>{ "costs": [{ "component_id": 123, "cost_unit": 0.23 }, ...] }</code>',
+            '--- SERP API: POST /api/orders/cancel ---',
+            'Request: <code>{ "order_id": 12345, "picking_id": 789 }</code>',
+            'Response: <code>{ "success": true }</code>',
+            '--- IMPLEMENTATION APPROACH ---',
+            'Laravel developer chooses pattern: queue, observer, events, scheduled job, etc.',
+            'Can be sync or async - SERP APIs are idempotent',
+            '--- API INTEGRATION STRATEGY ---',
+            'Weeks 1-4: Stub SERP API calls with mock responses (Phase 1 APIs not ready yet)',
+            'Week 5: Switch stubs to real SERP /api/orders/* endpoints (Phase 1 builds these in weeks 6-7)',
+            'Week 6: Integration testing against live SERP APIs with real inventory data',
+          ],
+          keyPoint:
+            'Laravel developer task (parallel with Phase 1). Builds queue processor for CUSTOM BRANDING ONLY. Phase 6 expands to all orders.',
+        },
+        {
+          id: 3,
+          name: 'PO/Bill UI + Odoo Sync + Data Migration',
+          shortName: 'PO UI+Sync',
+          weeks: 8,
+          deps: [1, 2],
+          color: '#198754',
+          milestone: 'PO + Bill System Live',
+          goal: 'Build frontend UI for PO/Bill management. Implement Odoo XML-RPC sync. Migrate existing PO data from Odoo. Add email notifications and activity logging. Backend services already built in Phase 1.',
+          goals: [
+            'Build PO management UI: create, edit, receive, track POs',
+            'Build vendor bill UI: 3-way matching workflow (PO → Receipt → Vendor Invoice)',
+            'Implement Odoo XML-RPC sync service + sync queue',
+            'Migrate existing data: 1.8K POs + 16K lines + 1.6K bills from Odoo',
+            'Add email notifications for supplier communication',
+            'Integrate activity logging (mail_message) into UI',
+            'Train purchasing team and run parallel validation',
+          ],
+          tasks: [
+            {
+              name: 'Migrate Odoo data: suppliers, components, POs, bills',
+              startWeek: 1,
+              duration: 2,
+            },
+            {
+              name: 'Build Odoo XML-RPC sync service + sync queue',
+              startWeek: 2,
+              duration: 2,
+            },
+            {
+              name: 'Build PO UI: create, edit, list, detail views',
+              startWeek: 3,
+              duration: 2,
+            },
+            {
+              name: 'Build receiving UI: dock receipt → inspection → inventory receipt',
+              startWeek: 5,
+              duration: 1,
+            },
+            {
+              name: 'Build vendor bill UI: 3-way matching workflow',
+              startWeek: 5,
+              duration: 2,
+            },
+            {
+              name: 'Add email notifications + activity log integration',
+              startWeek: 6,
+              duration: 1,
+            },
+            {
+              name: 'Train purchasing team + parallel run validation',
+              startWeek: 7,
+              duration: 1,
+            },
+            {
+              name: 'Cutover + stabilization',
+              startWeek: 8,
+              duration: 1,
+            },
+          ],
+          workflow: [
+            { laravel: 'Create PO (draft or sent) — date_order captured', odoo: '—' },
+            { laravel: 'Set date_planned (expected arrival date)', odoo: '—' },
+            { laravel: 'Email supplier or download PO as PDF', odoo: '—' },
+            { laravel: 'Dock receipt (no inventory update yet)', odoo: '—' },
+            { laravel: 'Inspection → assign warehouse location → inventory receipt', odoo: '—' },
+            {
+              laravel: 'Inventory receipt: effective_date set, sync triggered',
+              odoo: 'Push: PO header + lines + stock_picking (receipt) → inventory updated',
+              sync: true,
+            },
+            { laravel: 'Mark backorders for future arrival (accept or cancel later)', odoo: '—' },
+            { laravel: '--- 3-WAY MATCHING WORKFLOW (bills in SERP) ---', odoo: '---' },
+            {
+              laravel: '1. System creates DRAFT BILL from receipt (qty_received × price_unit)',
+              odoo: '—',
+            },
+            { laravel: '2. Vendor sends invoice externally (email/mail)', odoo: '—' },
+            { laravel: '3. Accountant compares draft bill vs vendor invoice', odoo: '—' },
+            { laravel: '4a. If match: Accountant finalizes bill → state=posted', odoo: '—' },
+            { laravel: '4b. If mismatch: Kick back to ops → reconcile with vendor', odoo: '—' },
+            { laravel: '5. Finalized bill stored in SERP with line-item detail', odoo: '—' },
+          ],
+          dataOwnership: [
+            { data: 'Purchase orders', laravel: 'Owner', odoo: 'Created on arrival (for billing)' },
+            { data: 'PO line items', laravel: 'Owner', odoo: 'Created on arrival (for billing)' },
+            { data: 'Backorders', laravel: 'Owner', odoo: '—' },
+            { data: 'Suppliers (156 vendors)', laravel: 'Owner', odoo: 'Mapping (partner_id)' },
+            {
+              data: 'Supplier-product links (which products from which supplier)',
+              laravel: 'Owner',
+              odoo: '—',
+            },
+            { data: 'Receiving inspection records', laravel: 'Owner', odoo: '—' },
+            { data: 'Vendor bills', laravel: 'Owner', odoo: '—' },
+            {
+              data: 'Inventory quantities',
+              laravel: '—',
+              odoo: 'Owner (stock_quant) — migrates to SERP in later part',
+            },
+          ],
+          implementation: [
+            '--- NOTE: Backend services (PO/inventory/FIFO) already built in Phase 1 ---',
+            '--- DATA MIGRATION (export from Odoo, import to SERP) ---',
+            'Week 1-2: Import historical data FIRST (POs, suppliers, bills) — no sync needed for old data',
+            'Week 2-3: Build Odoo sync service for ONGOING operations (new POs going forward)',
+            'Inventory quantities (stock_quant) stay in Odoo for Part 1 — migrated in a later part when SERP becomes inventory owner',
+            'Export suppliers (res_partner) with vendor_rank > 0',
+            'Export components (product_product + product_template) with type=product',
+            'Export 1,846 POs + 16,139 lines with qty_received/qty_invoiced status',
+            'Export 1,569 vendor bills from account_move',
+            'Data cleanup: audit over-receipted lines and cancelled POs with active moves',
+            'Receipt validation with warehouse team before go-live',
+            'Migration scripts with dry-run mode and rollback capability',
+            '--- ODOO XML-RPC SYNC (core infrastructure for ALL phases) ---',
+            'Build OdooSyncService: XML-RPC client for purchase_order, stock_picking, account_move',
+            'Async queue pattern: SERP writes locally first, then queues Odoo sync job',
+            'Odoo sync MUST succeed: retry with exponential backoff (1s, 2s, 4s, 8s, max 5 min)',
+            'Dead letter queue: after N failures, move to DLQ for manual review',
+            'Sync status tracking: each record has sync_status (pending/synced/failed/retrying)',
+            'Circuit breaker: if Odoo is down (5+ consecutive failures), pause queue and alert',
+            'Reconciliation job: daily job compares SERP vs Odoo, flags discrepancies',
+            'Admin dashboard: view failed syncs, retry individual items, bulk retry',
+            'REUSED IN ALL PHASES: MO sync, adjustment sync, BOM sync, location sync, product sync',
+            '--- FRONTEND UI ---',
+            'PO creation form: supplier, components, quantities, expected dates',
+            'Draft PO workflow: save without sending to vendor',
+            'Two-stage receiving UI: dock receipt → inspection → inventory receipt',
+            'Location assignment on receipt (which warehouse bin receives goods)',
+            'Partial receipt workflow with delta sync tracking',
+            'Backorder UI: mark future arrivals, accept or cancel later',
+            'Bill creation UI: draft bill from receipt (qty_received × price_unit)',
+            '3-way match UI: compare draft bill ↔ vendor invoice ↔ original PO',
+            'Activity log UI: timeline of PO events (created, received, billed)',
+            '--- EMAIL & NOTIFICATIONS ---',
+            'Send PO to supplier via email (with PDF attachment)',
+            'Warehouse alerts: backorder notifications, overdue receipts',
+            'Finance alerts: bills ready for review, mismatched amounts',
+            '--- EDGE CASES & VALIDATION ---',
+            'Backorder workflow: split PO into received + pending shipments',
+            'Partial receipt handling: update qty_received, sync delta to Odoo',
+            'Bill rejection workflow: accountant flags mismatch, ops reconciles with vendor',
+            'Over-receipt prevention: validate qty_received ≤ ordered quantity (with override)',
+          ],
+          dbChanges: [
+            {
+              table: '📋 No New Migrations (uses Phase 1 schema)',
+              purpose: 'All tables created in Phase 1 migrations 001-010',
+              columns: '',
+            },
+            {
+              table: 'purchase_orders (POPULATE)',
+              purpose: 'Import 1,846 POs from Odoo purchase.order',
+              columns: 'odoo_id, date_order, date_planned, effective_date populated',
+            },
+            {
+              table: 'purchase_order_line (POPULATE)',
+              purpose: 'Import 16,139 PO lines from Odoo',
+              columns: 'qty_received, qty_invoiced, odoo_component_id populated',
+            },
+            {
+              table: 'suppliers (POPULATE)',
+              purpose: 'Import 289 suppliers from Odoo res.partner',
+              columns: 'odoo_partner_id populated',
+            },
+            {
+              table: 'product_supplierinfo (POPULATE)',
+              purpose: 'Import 2,600 supplier-product links',
+              columns: 'supplier_id, component_id, price, min_qty, delay',
+            },
+            {
+              table: 'account_move (POPULATE)',
+              purpose: 'Import 1,569 vendor bills from Odoo',
+              columns: 'account_journal_id, supplier_id, state',
+            },
+            {
+              table: 'account_move_line (POPULATE)',
+              purpose: 'Import bill line items for 3-way matching',
+              columns: 'purchase_order_line_id, component_id',
+            },
+          ],
+          confirmations: [
+            'Purchasing team - PO creation and editing workflow',
+            'Warehouse team - receipt and inspection process',
+            'Finance team - 3-way matching workflow (draft bill vs vendor invoice)',
+            'Finance team - bill approval and finalization process',
+          ],
+          keyPoint:
+            'Frontend UI for PO/Bill management + Odoo XML-RPC sync + data migration. Backend services already built in Phase 1.',
+        },
+      ];
 
-          // Migration events - Part 1 only includes events for phases 1, 2, 3
-          const migrationEvents = [
-            {
-              phase: 1,
-              week: 1,
-              name: 'Custom Branding Setup',
-              desc: 'Create custom branding products and initial inventory in SERP. No Odoo import - built from scratch.',
-              tables: [
-                'components (custom branding)',
-                'stock_quant (custom inventory)',
-                'stock_location (warehouse bins)',
-              ],
-              color: '#e67e22',
-            },
-            {
-              phase: 3,
-              week: 4,
-              name: 'Import PO/Supplier Data',
-              desc: 'After schema design finalized, import PO and supplier data into SERP tables. Development continues against real data.',
-              tables: [
-                'purchase_order (1.8K)',
-                'purchase_order_line (16K)',
-                'res_partner (289 suppliers)',
-                'product_supplierinfo (2.6K)',
-                'account_move (vendor bills only)',
-              ],
-              color: '#198754',
-            },
-            {
-              phase: 3,
-              week: 8,
-              name: 'Run Migration Scripts',
-              desc: 'Execute data cleanup, transformation, and validation scripts. Link SERP components to Odoo products.',
-              tables: [
-                'Data cleanup',
-                'qty_received/qty_invoiced',
-                'supplier-product links',
-                'bill line matching',
-              ],
-              color: '#198754',
-            },
-          ];
+      // Migration events - Part 1 only includes events for phases 1, 2, 3
+      const migrationEvents = [
+        {
+          phase: 1,
+          week: 1,
+          name: 'Custom Branding Setup',
+          desc: 'Create custom branding products and initial inventory in SERP. No Odoo import - built from scratch.',
+          tables: [
+            'components (custom branding)',
+            'stock_quant (custom inventory)',
+            'stock_location (warehouse bins)',
+          ],
+          color: '#e67e22',
+        },
+        {
+          phase: 3,
+          week: 4,
+          name: 'Import PO/Supplier Data',
+          desc: 'After schema design finalized, import PO and supplier data into SERP tables. Development continues against real data.',
+          tables: [
+            'purchase_order (1.8K)',
+            'purchase_order_line (16K)',
+            'res_partner (289 suppliers)',
+            'product_supplierinfo (2.6K)',
+            'account_move (vendor bills only)',
+          ],
+          color: '#198754',
+        },
+        {
+          phase: 3,
+          week: 8,
+          name: 'Run Migration Scripts',
+          desc: 'Execute data cleanup, transformation, and validation scripts. Link SERP components to Odoo products.',
+          tables: [
+            'Data cleanup',
+            'qty_received/qty_invoiced',
+            'supplier-product links',
+            'bill line matching',
+          ],
+          color: '#198754',
+        },
+      ];
 
-          function addDays(d, n) {
-            const r = new Date(d);
-            r.setDate(r.getDate() + n);
-            return r;
-          }
-          function addWeeks(d, w) {
-            return addDays(d, w * 7);
-          }
-          function fmt(d) {
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          }
-          function fmtFull(d) {
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-          }
+      function addDays(d, n) {
+        const r = new Date(d);
+        r.setDate(r.getDate() + n);
+        return r;
+      }
+      function addWeeks(d, w) {
+        return addDays(d, w * 7);
+      }
+      function fmt(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      function fmtFull(d) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
 
-          function calcSchedules() {
-            const start = new Date(project.startDate);
-            const ends = new Map();
-            return phases.map((p) => {
-              let s = start;
-              p.deps.forEach((id) => {
-                const e = ends.get(id);
-                if (e && e > s) s = e;
-              });
-              const e = addWeeks(s, p.weeks);
-              ends.set(p.id, e);
-              return {
-                phase: p,
-                start: s,
-                end: e,
-                isParallel: p.parallelWith && p.parallelWith.length > 0,
-              };
-            });
-          }
+      function calcSchedules() {
+        const start = new Date(project.startDate);
+        const ends = new Map();
+        return phases.map((p) => {
+          let s = start;
+          p.deps.forEach((id) => {
+            const e = ends.get(id);
+            if (e && e > s) s = e;
+          });
+          const e = addWeeks(s, p.weeks);
+          ends.set(p.id, e);
+          return {
+            phase: p,
+            start: s,
+            end: e,
+            isParallel: p.parallelWith && p.parallelWith.length > 0,
+          };
+        });
+      }
 
-          function renderPhaseDetail(sched) {
-            const p = sched.phase;
-            const start = sched.start;
-            let html = `<div class="phase-detail">
+      function renderPhaseDetail(sched) {
+        const p = sched.phase;
+        const start = sched.start;
+        let html = `<div class="phase-detail">
         <div class="phase-header" style="border-left-color:${p.color}" onclick="togglePhase(${p.id})">
           <h2><span class="toggle">▶</span> Phase ${p.id}: ${p.name}</h2>
           <div class="phase-meta-info">${fmtFull(sched.start)} → ${fmtFull(sched.end)} (${p.weeks} weeks)${sched.isParallel ? ' • Runs in parallel' : ''}</div>
@@ -1221,181 +1221,182 @@
         </div>
         <div class="phase-content" id="phase-content-${p.id}">`;
 
-            // Goals
-            if (p.goals && p.goals.length) {
-              html += `<div class="section"><h3 style="border-color:${p.color}">Goals</h3><ul>`;
-              p.goals.forEach((g) => (html += `<li>${g}</li>`));
-              html += `</ul></div>`;
-            }
+        // Goals
+        if (p.goals && p.goals.length) {
+          html += `<div class="section"><h3 style="border-color:${p.color}">Goals</h3><ul>`;
+          p.goals.forEach((g) => (html += `<li>${g}</li>`));
+          html += `</ul></div>`;
+        }
 
-            // Workflow
-            html += `<div class="section"><h3 style="border-color:${p.color}">How It Works</h3>`;
-            if (Array.isArray(p.workflow)) {
-              html += `<table class="workflow-table"><tr><th>SERP (Laravel)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
-              p.workflow.forEach((row) => {
-                if (row.laravel.startsWith('---')) {
-                  const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
-                  html += `<tr><td colspan="3" style="background:${p.color}15;color:${p.color};font-weight:600;text-align:center;padding:12px;border-top:2px solid ${p.color}">${headerText}</td></tr>`;
-                } else {
-                  const rowClass = row.sync ? 'sync-row' : '';
-                  const arrow = row.sync ? '→' : '';
-                  html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
-                }
-              });
-              html += `</table>`;
+        // Workflow
+        html += `<div class="section"><h3 style="border-color:${p.color}">How It Works</h3>`;
+        if (Array.isArray(p.workflow)) {
+          html += `<table class="workflow-table"><tr><th>SERP (Laravel)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
+          p.workflow.forEach((row) => {
+            if (row.laravel.startsWith('---')) {
+              const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+              html += `<tr><td colspan="3" style="background:${p.color}15;color:${p.color};font-weight:600;text-align:center;padding:12px;border-top:2px solid ${p.color}">${headerText}</td></tr>`;
             } else {
-              Object.entries(p.workflow).forEach(([header, rows]) => {
-                html += `<h4>${header}</h4><table class="workflow-table"><tr><th>SERP (Laravel)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
-                rows.forEach((row) => {
-                  if (row.laravel.startsWith('---')) {
-                    const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
-                    html += `<tr><td colspan="3" style="background:${p.color}15;color:${p.color};font-weight:600;text-align:center;padding:12px">${headerText}</td></tr>`;
-                  } else {
-                    const rowClass = row.sync ? 'sync-row' : '';
-                    const arrow = row.sync ? '→' : '';
-                    html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
-                  }
-                });
-                html += `</table>`;
-              });
+              const rowClass = row.sync ? 'sync-row' : '';
+              const arrow = row.sync ? '→' : '';
+              html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
             }
-            if (p.keyPoint)
-              html += `<div class="highlight" style="border-color:${p.color}"><strong>${p.keyPoint}</strong></div>`;
-            html += `</div>`;
-
-            // Data Ownership
-            html += `<div class="section"><h3 style="border-color:${p.color}">Data Ownership</h3>`;
-            html += `<table><tr><th>Data</th><th>SERP</th><th>Odoo</th></tr>`;
-            p.dataOwnership.forEach((row) => {
-              const laravelClass = row.laravel.includes('Owner') ? 'owner-cell' : 'copy-cell';
-              const odooClass = row.odoo.includes('Owner') ? 'owner-cell' : 'copy-cell';
-              html += `<tr><td>${row.data}</td><td class="${laravelClass}">${row.laravel}</td><td class="${odooClass}">${row.odoo}</td></tr>`;
+          });
+          html += `</table>`;
+        } else {
+          Object.entries(p.workflow).forEach(([header, rows]) => {
+            html += `<h4>${header}</h4><table class="workflow-table"><tr><th>SERP (Laravel)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
+            rows.forEach((row) => {
+              if (row.laravel.startsWith('---')) {
+                const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+                html += `<tr><td colspan="3" style="background:${p.color}15;color:${p.color};font-weight:600;text-align:center;padding:12px">${headerText}</td></tr>`;
+              } else {
+                const rowClass = row.sync ? 'sync-row' : '';
+                const arrow = row.sync ? '→' : '';
+                html += `<tr class="${rowClass}"><td>${row.laravel}</td><td class="arrow">${arrow}</td><td>${row.odoo}</td></tr>`;
+              }
             });
-            html += `</table></div>`;
+            html += `</table>`;
+          });
+        }
+        if (p.keyPoint)
+          html += `<div class="highlight" style="border-color:${p.color}"><strong>${p.keyPoint}</strong></div>`;
+        html += `</div>`;
 
-            // Database Changes
-            if (p.dbChanges && p.dbChanges.length) {
-            html += `<div class="section"><h3 style="border-color:${p.color}">Database Changes</h3>`;
-            html += `<table><tr><th>Table</th><th>Purpose</th><th>Links To</th></tr>`;
-            p.dbChanges.forEach((row) => {
-              const isMigrationHeader = row.table.startsWith('📋');
-              const rowClass = isMigrationHeader ? 'migration-header-row' : 'table-row';
-              const tableCell = isMigrationHeader
-                ? `<td class="table-name">${row.table}</td>`
-                : `<td class="table-name">${row.table}</td>`;
-              const purposeCell = `<td class="purpose">${row.purpose || ''}</td>`;
-              const columnsCell = isMigrationHeader
-                ? `<td class="columns"></td>`
-                : `<td class="columns">${row.columns}</td>`;
-              html += `<tr class="${rowClass}">${tableCell}${purposeCell}${columnsCell}</tr>`;
-            });
-            html += `</table></div>`;
+        // Data Ownership
+        html += `<div class="section"><h3 style="border-color:${p.color}">Data Ownership</h3>`;
+        html += `<table><tr><th>Data</th><th>SERP</th><th>Odoo</th></tr>`;
+        p.dataOwnership.forEach((row) => {
+          const laravelClass = row.laravel.includes('Owner') ? 'owner-cell' : 'copy-cell';
+          const odooClass = row.odoo.includes('Owner') ? 'owner-cell' : 'copy-cell';
+          html += `<tr><td>${row.data}</td><td class="${laravelClass}">${row.laravel}</td><td class="${odooClass}">${row.odoo}</td></tr>`;
+        });
+        html += `</table></div>`;
 
-            // Implementation
-            html += `<div class="section"><h3 style="border-color:${p.color}">Implementation Details</h3>`;
-            if (Array.isArray(p.implementation)) {
-              html += `<ul>`;
-              p.implementation.forEach((item) => {
-                if (item.startsWith('---') && item.endsWith('---')) {
-                  const headerText = item.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
-                  html += `</ul><h4 style="margin-top:20px;color:${p.color}">${headerText}</h4><ul>`;
-                } else {
-                  html += `<li>${item}</li>`;
-                }
-              });
-              html += `</ul>`;
+        // Database Changes
+        if (p.dbChanges && p.dbChanges.length) {
+          html += `<div class="section"><h3 style="border-color:${p.color}">Database Changes</h3>`;
+          html += `<table><tr><th>Table</th><th>Purpose</th><th>Links To</th></tr>`;
+          p.dbChanges.forEach((row) => {
+            const isMigrationHeader = row.table.startsWith('📋');
+            const rowClass = isMigrationHeader ? 'migration-header-row' : 'table-row';
+            const tableCell = isMigrationHeader
+              ? `<td class="table-name">${row.table}</td>`
+              : `<td class="table-name">${row.table}</td>`;
+            const purposeCell = `<td class="purpose">${row.purpose || ''}</td>`;
+            const columnsCell = isMigrationHeader
+              ? `<td class="columns"></td>`
+              : `<td class="columns">${row.columns}</td>`;
+            html += `<tr class="${rowClass}">${tableCell}${purposeCell}${columnsCell}</tr>`;
+          });
+          html += `</table></div>`;
+        }
+
+        // Implementation
+        html += `<div class="section"><h3 style="border-color:${p.color}">Implementation Details</h3>`;
+        if (Array.isArray(p.implementation)) {
+          html += `<ul>`;
+          p.implementation.forEach((item) => {
+            if (item.startsWith('---') && item.endsWith('---')) {
+              const headerText = item.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+              html += `</ul><h4 style="margin-top:20px;color:${p.color}">${headerText}</h4><ul>`;
             } else {
-              Object.entries(p.implementation).forEach(([header, items]) => {
-                html += `<h4>${header}</h4><ul>`;
-                items.forEach((item) => {
-                  if (item.startsWith('---')) {
-                    const headerText = item.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
-                    html += `</ul><h4 style="color:${p.color}">${headerText}</h4><ul>`;
-                  } else {
-                    html += `<li>${item}</li>`;
-                  }
-                });
-                html += `</ul>`;
-              });
+              html += `<li>${item}</li>`;
             }
-            html += `</div>`;
-
-            // Cutover Checklist
-            if (p.cutoverChecklist && p.cutoverChecklist.length) {
-              html += `<div class="section"><h3 style="border-color:${p.color}">Cutover Checklist</h3><ul>`;
-              p.cutoverChecklist.forEach((item) => (html += `<li>☐ ${item}</li>`));
-              html += `</ul></div>`;
-            }
-
-            // Confirmations
-            if (p.confirmations && p.confirmations.length) {
-              html += `<div class="section"><h3 style="border-color:${p.color}">Team Confirmations Before Launch</h3><ul>`;
-              p.confirmations.forEach((item) => (html += `<li>${item}</li>`));
-              html += `</ul></div>`;
-            }
-
-            // Timeline
-            html += `<div class="section"><h3 style="border-color:${p.color}">Timeline</h3>`;
-            html += `<div class="gantt-container"><div class="gantt-header"><div class="gantt-label">Task</div><div class="gantt-weeks">`;
-            for (let w = 1; w <= p.weeks; w++) {
-              const weekStart = addDays(start, (w - 1) * 7);
-              html += `<div class="week-col">W${w}<br><span class="week-dates">${fmt(weekStart)}</span></div>`;
-            }
-            html += `</div></div>`;
-            p.tasks.forEach((task) => {
-              const left = ((task.startWeek - 1) / p.weeks) * 100;
-              const width = (task.duration / p.weeks) * 100;
-              html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
-              html += `<div class="task-track">${Array(p.weeks).fill('<div class="task-cell"></div>').join('')}`;
-              html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${p.color}">${task.duration}w</div></div></div>`;
+          });
+          html += `</ul>`;
+        } else {
+          Object.entries(p.implementation).forEach(([header, items]) => {
+            html += `<h4>${header}</h4><ul>`;
+            items.forEach((item) => {
+              if (item.startsWith('---')) {
+                const headerText = item.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+                html += `</ul><h4 style="color:${p.color}">${headerText}</h4><ul>`;
+              } else {
+                html += `<li>${item}</li>`;
+              }
             });
-            html += `</div></div>`;
+            html += `</ul>`;
+          });
+        }
+        html += `</div>`;
 
-            html += `</div></div>`;
-            return html;
-          }
+        // Cutover Checklist
+        if (p.cutoverChecklist && p.cutoverChecklist.length) {
+          html += `<div class="section"><h3 style="border-color:${p.color}">Cutover Checklist</h3><ul>`;
+          p.cutoverChecklist.forEach((item) => (html += `<li>☐ ${item}</li>`));
+          html += `</ul></div>`;
+        }
 
-          function togglePhase(id) {
-            const content = document.getElementById(`phase-content-${id}`);
-            const header = content.previousElementSibling;
-            content.classList.toggle('hide');
-            header.classList.toggle('collapsed');
-          }
+        // Confirmations
+        if (p.confirmations && p.confirmations.length) {
+          html += `<div class="section"><h3 style="border-color:${p.color}">Team Confirmations Before Launch</h3><ul>`;
+          p.confirmations.forEach((item) => (html += `<li>${item}</li>`));
+          html += `</ul></div>`;
+        }
 
-          function render() {
-            const scheds = calcSchedules();
-            const start = new Date(project.startDate);
-            const end = scheds.reduce((max, s) => (s.end > max ? s.end : max), scheds[0].end);
+        // Timeline
+        html += `<div class="section"><h3 style="border-color:${p.color}">Timeline</h3>`;
+        html += `<div class="gantt-container"><div class="gantt-header"><div class="gantt-label">Task</div><div class="gantt-weeks">`;
+        for (let w = 1; w <= p.weeks; w++) {
+          const weekStart = addDays(start, (w - 1) * 7);
+          html += `<div class="week-col">W${w}<br><span class="week-dates">${fmt(weekStart)}</span></div>`;
+        }
+        html += `</div></div>`;
+        p.tasks.forEach((task) => {
+          const left = ((task.startWeek - 1) / p.weeks) * 100;
+          const width = (task.duration / p.weeks) * 100;
+          html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
+          html += `<div class="task-track">${Array(p.weeks).fill('<div class="task-cell"></div>').join('')}`;
+          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${p.color}">${task.duration}w</div></div></div>`;
+        });
+        html += `</div></div>`;
 
-            document.getElementById('meta').textContent =
-              `${fmtFull(start)} → ${fmtFull(end)} | ${project.preparedBy}`;
+        html += `</div></div>`;
+        return html;
+      }
 
-            const totalWeeks = Math.ceil((end - start) / (7 * 24 * 60 * 60 * 1000));
-            const totalTasks = phases.reduce((s, p) => s + p.tasks.length, 0);
-            document.getElementById('summary').innerHTML = `
+      function togglePhase(id) {
+        const content = document.getElementById(`phase-content-${id}`);
+        const header = content.previousElementSibling;
+        content.classList.toggle('hide');
+        header.classList.toggle('collapsed');
+      }
+
+      function render() {
+        const scheds = calcSchedules();
+        const start = new Date(project.startDate);
+        const end = scheds.reduce((max, s) => (s.end > max ? s.end : max), scheds[0].end);
+
+        document.getElementById('meta').textContent =
+          `${fmtFull(start)} → ${fmtFull(end)} | ${project.preparedBy}`;
+
+        const totalWeeks = Math.ceil((end - start) / (7 * 24 * 60 * 60 * 1000));
+        const totalTasks = phases.reduce((s, p) => s + p.tasks.length, 0);
+        document.getElementById('summary').innerHTML = `
         <div class="summary-card"><div class="value">${phases.length}</div><div class="label">Phases</div></div>
         <div class="summary-card"><div class="value">${totalWeeks}</div><div class="label">Weeks</div></div>
         <div class="summary-card"><div class="value">${totalTasks}</div><div class="label">Tasks</div></div>
         <div class="summary-card"><div class="value">${fmt(end)}</div><div class="label">Target</div></div>
       `;
 
-            const months = [];
-            let cur = new Date(start);
-            while (cur <= end) {
-              months.push(cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
-              cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
-            }
-            document.getElementById('months').innerHTML = months
-              .map((m) => `<div class="month-col">${m}</div>`)
-              .join('');
+        const months = [];
+        let cur = new Date(start);
+        while (cur <= end) {
+          months.push(cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+          cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        }
+        document.getElementById('months').innerHTML = months
+          .map((m) => `<div class="month-col">${m}</div>`)
+          .join('');
 
-            const totalDays = (end - start) / (24 * 60 * 60 * 1000);
-            document.getElementById('timeline').innerHTML = scheds
-              .map((s) => {
-                const left = ((s.start - start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
-                const width = ((s.end - s.start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
-                const parallelLabel = s.isParallel ? ' ∥' : '';
-                return `<div class="phase-row">
+        const totalDays = (end - start) / (24 * 60 * 60 * 1000);
+        document.getElementById('timeline').innerHTML = scheds
+          .map((s) => {
+            const left = ((s.start - start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
+            const width = ((s.end - s.start) / (24 * 60 * 60 * 1000) / totalDays) * 100;
+            const parallelLabel = s.isParallel ? ' ∥' : '';
+            return `<div class="phase-row">
           <div class="phase-label">Phase ${s.phase.id}: ${s.phase.shortName}${parallelLabel}</div>
           <div class="phase-track">
             <div class="phase-bar" style="left:${left}%;width:${width}%;background:${s.phase.color}">
@@ -1404,15 +1405,15 @@
             </div>
           </div>
         </div>`;
-              })
-              .join('');
+          })
+          .join('');
 
-            // Render migration events with calculated dates
-            document.getElementById('migration-events').innerHTML = migrationEvents
-              .map((evt) => {
-                const phaseSched = scheds.find((s) => s.phase.id === evt.phase);
-                const eventDate = addDays(phaseSched.start, (evt.week - 1) * 7);
-                return `<div class="migration-event">
+        // Render migration events with calculated dates
+        document.getElementById('migration-events').innerHTML = migrationEvents
+          .map((evt) => {
+            const phaseSched = scheds.find((s) => s.phase.id === evt.phase);
+            const eventDate = addDays(phaseSched.start, (evt.week - 1) * 7);
+            return `<div class="migration-event">
           <div class="migration-event-phase" style="color:${evt.color}">Phase ${evt.phase}</div>
           <div class="migration-event-week">Week ${evt.week}<br><span style="font-size:0.8em">${fmt(eventDate)}</span></div>
           <div class="migration-event-info">
@@ -1421,12 +1422,12 @@
             <div class="migration-event-tables">${evt.tables.map((t) => `<code>${t}</code>`).join('')}</div>
           </div>
         </div>`;
-              })
-              .join('');
+          })
+          .join('');
 
-            document.getElementById('milestones').innerHTML = scheds
-              .map(
-                (s) => `
+        document.getElementById('milestones').innerHTML = scheds
+          .map(
+            (s) => `
         <div class="milestone-item">
           <div class="milestone-dot" style="background:${s.phase.color}"></div>
           <div class="milestone-info">
@@ -1436,15 +1437,15 @@
           <div class="milestone-date">${fmtFull(s.end)}</div>
         </div>
       `
-              )
-              .join('');
+          )
+          .join('');
 
-            document.getElementById('phases-detail').innerHTML = scheds
-              .map((s) => renderPhaseDetail(s))
-              .join('');
-          }
+        document.getElementById('phases-detail').innerHTML = scheds
+          .map((s) => renderPhaseDetail(s))
+          .join('');
+      }
 
-          render();
+      render();
     </script>
   </body>
 </html>

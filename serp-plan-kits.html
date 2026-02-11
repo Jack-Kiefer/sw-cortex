@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SERP Migration Plan - Kits (Phantom BOMs)</title>
+    <title>SERP Migration Plan - Phase 5: Kits — 8 Weeks (Phantom BOMs)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -493,11 +493,1201 @@
     <div class="container">
       <header>
         <div>
-          <h1>SERP Migration Plan - Kits (Phantom BOMs)</h1>
+          <h1>SERP Migration Plan - Phase 5: Kits — 8 Weeks (Phantom BOMs)</h1>
           <div class="meta" id="meta"></div>
         </div>
       </header>
       <div class="summary-cards" id="summary"></div>
+
+      <div
+        style="
+          background: #fff;
+          border-radius: 12px;
+          padding: 25px;
+          margin-bottom: 30px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e9ecef;
+          border-left: 5px solid #3498db;
+        "
+      >
+        <h3 style="margin-bottom: 16px; color: #212529; font-size: 1.15em">
+          Background: How Kit Syncing Works Today
+        </h3>
+
+        <h4 style="margin: 14px 0 8px; color: #495057; font-size: 0.95em">Current Order Flow</h4>
+        <ol style="padding-left: 24px; margin: 8px 0; color: #495057; font-size: 0.9em">
+          <li>
+            <strong>Odoo pulls orders from Laravel</strong> &mdash; the
+            <code>sugarwish_integration</code> module authenticates to Laravel's
+            <code>/api/odoo/</code> endpoints via cron and fetches unsync'd orders. Laravel does NOT
+            push to Odoo.
+          </li>
+          <li>
+            <strong>Laravel sends two separate arrays per order:</strong>
+            <code>items</code> (receiver products / actual gifts) and
+            <code>component_orders</code> (kit components / packaging).
+          </li>
+          <li>
+            <strong>Odoo creates a <code>sale_order</code></strong> and on
+            <code>action_confirm()</code>, the built-in <strong>phantom BOM explosion</strong> kicks
+            in &mdash; any product with a phantom BOM gets stock_moves created for its
+            <em>component</em> products, not the kit product itself.
+          </li>
+        </ol>
+
+        <h4 style="margin: 18px 0 8px; color: #495057; font-size: 0.95em">
+          Two Types of Kits (Complementary, NOT Overlapping)
+        </h4>
+        <table style="width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 0.9em">
+          <tr>
+            <th
+              style="
+                padding: 8px 12px;
+                text-align: left;
+                background: #f8f9fa;
+                border-bottom: 1px solid #e9ecef;
+              "
+            >
+              Source
+            </th>
+            <th
+              style="
+                padding: 8px 12px;
+                text-align: left;
+                background: #f8f9fa;
+                border-bottom: 1px solid #e9ecef;
+              "
+            >
+              What It Covers
+            </th>
+            <th
+              style="
+                padding: 8px 12px;
+                text-align: left;
+                background: #f8f9fa;
+                border-bottom: 1px solid #e9ecef;
+              "
+            >
+              Example
+            </th>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e9ecef">
+              <strong>Laravel kits</strong>
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e9ecef">
+              Colored box / packaging components
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e9ecef">
+              Box color, tissue paper
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e9ecef">
+              <strong>Odoo phantom BOMs</strong>
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e9ecef">
+              Gift contents / product bundles
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e9ecef">
+              Actual products inside the box
+            </td>
+          </tr>
+        </table>
+        <p style="color: #495057; font-size: 0.9em; margin: 8px 0">
+          Both are <strong>ADDITIVE</strong> &mdash; for a full order, you need components from both
+          sources. There are ~265 active phantom BOMs in Odoo production.
+        </p>
+
+        <h4 style="margin: 18px 0 8px; color: #495057; font-size: 0.95em">Known Issues</h4>
+        <ul style="padding-left: 24px; margin: 8px 0; color: #495057; font-size: 0.9em">
+          <li>
+            <strong>BOM explosion can be unreliable</strong> &mdash;
+            <code>sugarwish_integration</code> has multiple <code>fix_*</code> methods to repair
+            orders where explosion didn't work correctly.
+          </li>
+          <li>
+            <strong>Double-counting risk</strong> &mdash; a documented incident (soap dish) where
+            the same component appeared in both a Laravel kit AND an Odoo BOM, causing it to be
+            deducted twice.
+          </li>
+        </ul>
+
+        <h4 style="margin: 18px 0 8px; color: #495057; font-size: 0.95em">
+          What Changes After This Phase
+        </h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 8px 0">
+          <div
+            style="
+              background: #fff3cd;
+              padding: 14px;
+              border-radius: 8px;
+              border: 1px solid #ffc107;
+            "
+          >
+            <strong style="color: #856404; font-size: 0.85em">BEFORE (Current)</strong>
+            <p style="font-size: 0.85em; color: #856404; margin-top: 6px">
+              Laravel sends kit product "Gift Box A" &rarr; Odoo phantom BOM explodes it &rarr;
+              creates stock_moves for [Chocolate, Mug, Card]
+            </p>
+          </div>
+          <div
+            style="
+              background: #d4edda;
+              padding: 14px;
+              border-radius: 8px;
+              border: 1px solid #28a745;
+            "
+          >
+            <strong style="color: #155724; font-size: 0.85em">AFTER (Phase 5)</strong>
+            <p style="font-size: 0.85em; color: #155724; margin-top: 6px">
+              SERP explodes kit &rarr; sends [Chocolate, Mug, Card] individually &rarr; Odoo
+              receives individual items (no BOM explosion needed)
+            </p>
+          </div>
+        </div>
+        <ul style="padding-left: 24px; margin: 12px 0; color: #495057; font-size: 0.9em">
+          <li>
+            <strong>SERP becomes the kit authority</strong> &mdash; one source of truth for ALL kit
+            definitions (merged from both Laravel kits + Odoo phantom BOMs).
+          </li>
+          <li>
+            <strong>Phantom BOMs can be deactivated in Odoo</strong> &mdash; since SERP pre-explodes
+            kits, eliminating the unreliable explosion problem.
+          </li>
+          <li>
+            <strong>Double-counting risk eliminated</strong> &mdash; single source of truth means no
+            chance of the same component in two systems.
+          </li>
+          <li>
+            <strong>Migration risk</strong> &mdash; all ~265 active phantom BOMs must be imported
+            and verified. Missing even one means incorrect component deductions.
+          </li>
+        </ul>
+      </div>
+
+      <div
+        style="
+          background: #fff;
+          border-radius: 12px;
+          padding: 25px;
+          margin-bottom: 30px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e9ecef;
+          border-left: 5px solid #e74c3c;
+        "
+      >
+        <h3 style="margin-bottom: 16px; color: #212529; font-size: 1.15em">
+          Open Questions (Must Resolve Before/During Phase 5)
+        </h3>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9em">
+          <tr>
+            <th
+              style="
+                padding: 10px 12px;
+                text-align: left;
+                background: #f8f9fa;
+                border-bottom: 2px solid #e9ecef;
+                width: 30%;
+              "
+            >
+              Question
+            </th>
+            <th
+              style="
+                padding: 10px 12px;
+                text-align: left;
+                background: #f8f9fa;
+                border-bottom: 2px solid #e9ecef;
+                width: 15%;
+              "
+            >
+              Owner
+            </th>
+            <th
+              style="
+                padding: 10px 12px;
+                text-align: left;
+                background: #f8f9fa;
+                border-bottom: 2px solid #e9ecef;
+              "
+            >
+              Context / What We Know
+            </th>
+          </tr>
+          <tr style="border-bottom: 1px solid #e9ecef">
+            <td style="padding: 10px 12px; font-weight: 600">
+              Does Odoo still need buyer product info sent to it?
+            </td>
+            <td style="padding: 10px 12px; color: #198754; font-weight: 600">Jack &rarr; Ric</td>
+            <td style="padding: 10px 12px; color: #495057">
+              The integration is pull-based &mdash; Odoo calls Laravel API endpoints to fetch data.
+              If BOM expansion moves to Laravel, Odoo would receive pre-expanded component orders
+              instead of needing to look up BOMs itself. The question is whether Odoo uses buyer
+              product data for anything <strong>OTHER</strong> than BOM expansion (e.g., reporting,
+              invoicing, inventory valuation). Carolyn said: "As long as we have somewhere to update
+              inventory if needed, I'm fine with them skipping Odoo."
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e9ecef">
+            <td style="padding: 10px 12px; font-weight: 600">
+              How to handle the "500" prefix parsing for Odoo ID &rarr; Laravel ID mapping?
+            </td>
+            <td style="padding: 10px 12px; color: #198754; font-weight: 600">Jack</td>
+            <td style="padding: 10px 12px; color: #495057">
+              Odoo buyer products use a "500" prefix convention (e.g., <code>5006510</code> for
+              Vinebox-Themed-Collection). Need to define the approach for stripping this prefix to
+              map Odoo product IDs to Laravel <code>buyer_products</code> IDs. The
+              <code>buyer_products.odoo_id</code> field exists but may be null for some products.
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e9ecef">
+            <td style="padding: 10px 12px; font-weight: 600">
+              Are all Odoo BOM components accounted for in Laravel's <code>components</code> table?
+            </td>
+            <td style="padding: 10px 12px; color: #198754; font-weight: 600">Jack + Carolyn</td>
+            <td style="padding: 10px 12px; color: #495057">
+              Many Odoo BOM components don't exist in Laravel yet. Jack flagged (Jan 9, 2026) that
+              Laravel is missing many box SKUs that are in Odoo. Production paper was also missing
+              &mdash; Jack added it manually (Feb 6). The full scope of components that need to be
+              added is still open. This is a prerequisite for BOM migration &mdash; every
+              <code>mrp_bom_line.product_id</code> must map to a Laravel component.
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e9ecef">
+            <td style="padding: 10px 12px; font-weight: 600">
+              What Odoo-side dev work is needed to ingest component data that's currently only in
+              BOMs?
+            </td>
+            <td style="padding: 10px 12px; color: #198754; font-weight: 600">Jack + Manish</td>
+            <td style="padding: 10px 12px; color: #495057">
+              Some components (like production paper) exist in Odoo BOMs but aren't tracked in the
+              old system. Need to determine: (a) which components need to be added to Laravel, (b)
+              whether Odoo's <code>sugarwish_integration</code> needs changes to accept individual
+              component items instead of phantom BOM products, (c) what API changes are needed on
+              Odoo's side.
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e9ecef">
+            <td style="padding: 10px 12px; font-weight: 600">
+              Will preps and receiver orders correctly pick up from the new BOM kits?
+            </td>
+            <td style="padding: 10px 12px; color: #198754; font-weight: 600">
+              Jack + Manish + Bilal
+            </td>
+            <td style="padding: 10px 12px; color: #495057">
+              Pending follow-up meeting. Need to confirm that when SERP sends pre-exploded component
+              items instead of kit products, Odoo's prep pick and receiver order flows still work
+              correctly. The <code>sugarwish_integration</code> module's order processing may need
+              updates.
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 12px; font-weight: 600">
+              What does the kit editing UI in SERP look like?
+            </td>
+            <td style="padding: 10px 12px; color: #198754; font-weight: 600">Jack + Carolyn</td>
+            <td style="padding: 10px 12px; color: #495057">
+              <strong style="color: #28a745">DESIGNED &mdash; see wireframes below.</strong>
+              Odoo-style BOM form: product header at top, inline editable component line table
+              below. List page at <code>/kit-management/boms</code>, detail page at
+              <code>/kit-management/boms/:id</code>. Create via modal (CreateKitBOMModal). Component
+              lines have searchable dropdown, qty input, type badges by SKU prefix. Zero-qty
+              consumables (tape, labels) shown with dashed border + "Consumable" badge. Follows
+              existing SERP patterns (Card/Modal/DataTable, React Hook Form + Zod, TanStack Query).
+              <strong>Still need from Carolyn</strong>: what BOM edits she makes most often, and
+              whether the existing component search is sufficient vs needing group-based filtering.
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div
+        style="
+          background: #fff;
+          border-radius: 12px;
+          padding: 25px;
+          margin-bottom: 30px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e9ecef;
+          border-left: 5px solid #3498db;
+        "
+      >
+        <h3 style="margin-bottom: 6px; color: #212529; font-size: 1.15em">
+          Kit Editing UI Design (Odoo-Style BOM Management)
+        </h3>
+        <p style="color: #6c757d; font-size: 0.85em; margin-bottom: 20px">
+          Mirrors Odoo's BOM form layout so Carolyn can transition seamlessly. Uses existing SERP
+          component library (Card, Modal, DataTable, React Hook Form + Zod, TanStack Query).
+        </p>
+
+        <!-- Screen 1: Kit BOM List -->
+        <div style="margin-bottom: 28px">
+          <h4 style="color: #3498db; font-size: 0.95em; margin-bottom: 12px">
+            Screen 1: Kit BOM List &mdash; <code>/kit-management/boms</code>
+          </h4>
+          <div
+            style="
+              background: #f8f9fa;
+              border: 2px solid #dee2e6;
+              border-radius: 10px;
+              padding: 16px;
+              font-size: 0.85em;
+            "
+          >
+            <!-- Wireframe header -->
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+              "
+            >
+              <div>
+                <div style="font-weight: 700; font-size: 1.1em; color: #212529">Kit BOMs</div>
+                <div style="color: #6c757d; font-size: 0.85em">
+                  Phantom BOMs &mdash; packaging recipes that auto-expand into component orders
+                </div>
+              </div>
+              <div
+                style="
+                  background: #3498db;
+                  color: white;
+                  padding: 6px 14px;
+                  border-radius: 6px;
+                  font-weight: 600;
+                  font-size: 0.85em;
+                "
+              >
+                + Create Kit BOM
+              </div>
+            </div>
+            <!-- Summary stats -->
+            <div style="display: flex; gap: 12px; margin-bottom: 12px">
+              <div
+                style="
+                  background: white;
+                  padding: 8px 14px;
+                  border-radius: 6px;
+                  border: 1px solid #e9ecef;
+                  text-align: center;
+                  flex: 1;
+                "
+              >
+                <div style="font-weight: 700; color: #3498db; font-size: 1.3em">265</div>
+                <div style="color: #6c757d; font-size: 0.75em">Active BOMs</div>
+              </div>
+              <div
+                style="
+                  background: white;
+                  padding: 8px 14px;
+                  border-radius: 6px;
+                  border: 1px solid #e9ecef;
+                  text-align: center;
+                  flex: 1;
+                "
+              >
+                <div style="font-weight: 700; color: #3498db; font-size: 1.3em">738</div>
+                <div style="color: #6c757d; font-size: 0.75em">Component Lines</div>
+              </div>
+              <div
+                style="
+                  background: white;
+                  padding: 8px 14px;
+                  border-radius: 6px;
+                  border: 1px solid #e9ecef;
+                  text-align: center;
+                  flex: 1;
+                "
+              >
+                <div style="font-weight: 700; color: #3498db; font-size: 1.3em">48</div>
+                <div style="color: #6c757d; font-size: 0.75em">Zero-Qty Consumables</div>
+              </div>
+            </div>
+            <!-- Search -->
+            <div
+              style="
+                background: white;
+                padding: 10px 14px;
+                border-radius: 6px;
+                border: 1px solid #dee2e6;
+                margin-bottom: 12px;
+                display: flex;
+                gap: 10px;
+                align-items: center;
+              "
+            >
+              <div
+                style="
+                  flex: 1;
+                  padding: 5px 10px;
+                  background: #f8f9fa;
+                  border-radius: 4px;
+                  color: #adb5bd;
+                "
+              >
+                Search by product SKU, name, or component...
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; font-size: 0.85em">
+                <span style="color: #6c757d">Show inactive</span>
+                <div
+                  style="
+                    width: 32px;
+                    height: 18px;
+                    background: #dee2e6;
+                    border-radius: 9px;
+                    position: relative;
+                  "
+                >
+                  <div
+                    style="
+                      width: 14px;
+                      height: 14px;
+                      background: white;
+                      border-radius: 50%;
+                      position: absolute;
+                      top: 2px;
+                      left: 2px;
+                    "
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <!-- Table -->
+            <div
+              style="
+                background: white;
+                border-radius: 6px;
+                border: 1px solid #dee2e6;
+                overflow: hidden;
+              "
+            >
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85em">
+                <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6">
+                  <th style="padding: 8px 12px; text-align: left; font-weight: 600; color: #495057">
+                    Product
+                  </th>
+                  <th style="padding: 8px 12px; text-align: left; font-weight: 600; color: #495057">
+                    Components
+                  </th>
+                  <th
+                    style="padding: 8px 12px; text-align: center; font-weight: 600; color: #495057"
+                  >
+                    Status
+                  </th>
+                  <th
+                    style="padding: 8px 12px; text-align: right; font-weight: 600; color: #495057"
+                  >
+                    Actions
+                  </th>
+                </tr>
+                <tr style="border-bottom: 1px solid #e9ecef">
+                  <td style="padding: 8px 12px">
+                    <div style="font-weight: 600; color: #212529">dogtreats-mini</div>
+                    <div style="color: #6c757d; font-size: 0.85em">Dog Treats Mini Box</div>
+                  </td>
+                  <td style="padding: 8px 12px">
+                    <span
+                      style="
+                        display: inline-block;
+                        background: #e3f2fd;
+                        color: #1565c0;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        margin-right: 4px;
+                      "
+                      >S-AAA-REG-22</span
+                    >
+                    <span
+                      style="
+                        display: inline-block;
+                        background: #f3e5f5;
+                        color: #7b1fa2;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        margin-right: 4px;
+                      "
+                      >I-AAA-REG-22</span
+                    >
+                    <span
+                      style="
+                        display: inline-block;
+                        background: #fff8e1;
+                        color: #f57f17;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        margin-right: 4px;
+                      "
+                      >P-XXX-REG-22</span
+                    >
+                    <span
+                      style="
+                        display: inline-block;
+                        background: #f5f5f5;
+                        color: #757575;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                      "
+                      >+2</span
+                    >
+                  </td>
+                  <td style="padding: 8px 12px; text-align: center">
+                    <span
+                      style="
+                        background: #d4edda;
+                        color: #155724;
+                        padding: 2px 10px;
+                        border-radius: 10px;
+                        font-size: 0.8em;
+                        font-weight: 600;
+                      "
+                      >Active</span
+                    >
+                  </td>
+                  <td style="padding: 8px 12px; text-align: right">
+                    <span
+                      style="color: #3498db; font-weight: 500; cursor: pointer; font-size: 0.85em"
+                      >Edit</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e9ecef">
+                  <td style="padding: 8px 12px">
+                    <div style="font-weight: 600; color: #212529">cookies-mini</div>
+                    <div style="color: #6c757d; font-size: 0.85em">Cookies Mini Box</div>
+                  </td>
+                  <td style="padding: 8px 12px">
+                    <span
+                      style="
+                        display: inline-block;
+                        background: #e3f2fd;
+                        color: #1565c0;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        margin-right: 4px;
+                      "
+                      >S-AAA-REG-22</span
+                    >
+                    <span
+                      style="
+                        display: inline-block;
+                        background: #fff8e1;
+                        color: #f57f17;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                      "
+                      >P-XXX-REG-22</span
+                    >
+                  </td>
+                  <td style="padding: 8px 12px; text-align: center">
+                    <span
+                      style="
+                        background: #d4edda;
+                        color: #155724;
+                        padding: 2px 10px;
+                        border-radius: 10px;
+                        font-size: 0.8em;
+                        font-weight: 600;
+                      "
+                      >Active</span
+                    >
+                  </td>
+                  <td style="padding: 8px 12px; text-align: right">
+                    <span
+                      style="color: #3498db; font-weight: 500; cursor: pointer; font-size: 0.85em"
+                      >Edit</span
+                    >
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    colspan="4"
+                    style="padding: 6px 12px; color: #6c757d; font-size: 0.8em; text-align: center"
+                  >
+                    ... 263 more rows &mdash; paginated (25 per page)
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 2: Kit BOM Detail -->
+        <div style="margin-bottom: 28px">
+          <h4 style="color: #3498db; font-size: 0.95em; margin-bottom: 12px">
+            Screen 2: Kit BOM Detail &mdash; <code>/kit-management/boms/:id</code>
+          </h4>
+          <div
+            style="
+              background: #f8f9fa;
+              border: 2px solid #dee2e6;
+              border-radius: 10px;
+              padding: 16px;
+              font-size: 0.85em;
+            "
+          >
+            <!-- Breadcrumb -->
+            <div style="color: #6c757d; font-size: 0.8em; margin-bottom: 12px">
+              Kit Management &rsaquo; Kit BOMs &rsaquo;
+              <strong style="color: #212529">dogtreats-mini</strong>
+            </div>
+            <!-- Product header card -->
+            <div
+              style="
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 16px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <div>
+                <div style="font-weight: 700; font-size: 1.1em; color: #212529">dogtreats-mini</div>
+                <div style="color: #6c757d; font-size: 0.85em">
+                  Dog Treats Mini Box &mdash; Phantom BOM &mdash; 5 components
+                </div>
+                <div style="color: #adb5bd; font-size: 0.75em; margin-top: 4px">
+                  Created: Jun 15, 2026 &middot; Modified: Jun 20, 2026
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <!-- Active toggle -->
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 0.85em; color: #6c757d">Active</span>
+                  <div
+                    style="
+                      width: 36px;
+                      height: 20px;
+                      background: #28a745;
+                      border-radius: 10px;
+                      position: relative;
+                    "
+                  >
+                    <div
+                      style="
+                        width: 16px;
+                        height: 16px;
+                        background: white;
+                        border-radius: 50%;
+                        position: absolute;
+                        top: 2px;
+                        right: 2px;
+                      "
+                    ></div>
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #f8f9fa;
+                    color: #495057;
+                    padding: 5px 12px;
+                    border-radius: 6px;
+                    border: 1px solid #dee2e6;
+                    font-size: 0.85em;
+                    font-weight: 500;
+                  "
+                >
+                  Duplicate
+                </div>
+                <div
+                  style="
+                    background: #dc3545;
+                    color: white;
+                    padding: 5px 12px;
+                    border-radius: 6px;
+                    font-size: 0.85em;
+                    font-weight: 500;
+                  "
+                >
+                  Delete
+                </div>
+              </div>
+            </div>
+            <!-- Component lines table (THE KEY PART - matches Odoo inline tree) -->
+            <div
+              style="
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                overflow: hidden;
+              "
+            >
+              <div
+                style="
+                  padding: 12px 16px;
+                  border-bottom: 1px solid #dee2e6;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <div style="font-weight: 600; color: #212529">Component Lines</div>
+                <div
+                  style="
+                    background: #3498db;
+                    color: white;
+                    padding: 4px 12px;
+                    border-radius: 5px;
+                    font-size: 0.85em;
+                    font-weight: 500;
+                  "
+                >
+                  + Add Component
+                </div>
+              </div>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85em">
+                <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6">
+                  <th
+                    style="
+                      padding: 6px 12px;
+                      text-align: center;
+                      font-weight: 600;
+                      color: #495057;
+                      width: 40px;
+                    "
+                  >
+                    #
+                  </th>
+                  <th style="padding: 6px 12px; text-align: left; font-weight: 600; color: #495057">
+                    Component
+                  </th>
+                  <th style="padding: 6px 12px; text-align: left; font-weight: 600; color: #495057">
+                    Type
+                  </th>
+                  <th
+                    style="
+                      padding: 6px 12px;
+                      text-align: center;
+                      font-weight: 600;
+                      color: #495057;
+                      width: 80px;
+                    "
+                  >
+                    Qty
+                  </th>
+                  <th
+                    style="
+                      padding: 6px 12px;
+                      text-align: right;
+                      font-weight: 600;
+                      color: #495057;
+                      width: 100px;
+                    "
+                  >
+                    Actions
+                  </th>
+                </tr>
+                <!-- Row 1: Shipper -->
+                <tr style="border-bottom: 1px solid #e9ecef">
+                  <td style="padding: 6px 12px; text-align: center; color: #6c757d">1</td>
+                  <td style="padding: 6px 12px">
+                    <div style="font-weight: 500; color: #212529">S-AAA-REG-22-XXX-MIN</div>
+                    <div style="color: #6c757d; font-size: 0.85em">Type A 2-Pick Shipper 22</div>
+                  </td>
+                  <td style="padding: 6px 12px">
+                    <span
+                      style="
+                        background: #e3f2fd;
+                        color: #1565c0;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        font-weight: 500;
+                      "
+                      >Shipper</span
+                    >
+                  </td>
+                  <td
+                    style="padding: 6px 12px; text-align: center; font-weight: 600; color: #212529"
+                  >
+                    1
+                  </td>
+                  <td style="padding: 6px 12px; text-align: right">
+                    <span style="color: #3498db; margin-right: 8px; cursor: pointer">Edit</span>
+                    <span style="color: #dc3545; cursor: pointer">Remove</span>
+                  </td>
+                </tr>
+                <!-- Row 2: Insert -->
+                <tr style="border-bottom: 1px solid #e9ecef">
+                  <td style="padding: 6px 12px; text-align: center; color: #6c757d">2</td>
+                  <td style="padding: 6px 12px">
+                    <div style="font-weight: 500; color: #212529">I-AAA-REG-22-XXX-MED</div>
+                    <div style="color: #6c757d; font-size: 0.85em">Type A Cup 6-Pick Insert 22</div>
+                  </td>
+                  <td style="padding: 6px 12px">
+                    <span
+                      style="
+                        background: #f3e5f5;
+                        color: #7b1fa2;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        font-weight: 500;
+                      "
+                      >Insert</span
+                    >
+                  </td>
+                  <td
+                    style="padding: 6px 12px; text-align: center; font-weight: 600; color: #212529"
+                  >
+                    1
+                  </td>
+                  <td style="padding: 6px 12px; text-align: right">
+                    <span style="color: #3498db; margin-right: 8px; cursor: pointer">Edit</span>
+                    <span style="color: #dc3545; cursor: pointer">Remove</span>
+                  </td>
+                </tr>
+                <!-- Row 3: Production Paper -->
+                <tr style="border-bottom: 1px solid #e9ecef">
+                  <td style="padding: 6px 12px; text-align: center; color: #6c757d">3</td>
+                  <td style="padding: 6px 12px">
+                    <div style="font-weight: 500; color: #212529">P-XXX-REG-22-SKR-XXX</div>
+                    <div style="color: #6c757d; font-size: 0.85em">Production Paper (sticker)</div>
+                  </td>
+                  <td style="padding: 6px 12px">
+                    <span
+                      style="
+                        background: #fff8e1;
+                        color: #f57f17;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        font-weight: 500;
+                      "
+                      >Paper</span
+                    >
+                  </td>
+                  <td
+                    style="padding: 6px 12px; text-align: center; font-weight: 600; color: #212529"
+                  >
+                    1
+                  </td>
+                  <td style="padding: 6px 12px; text-align: right">
+                    <span style="color: #3498db; margin-right: 8px; cursor: pointer">Edit</span>
+                    <span style="color: #dc3545; cursor: pointer">Remove</span>
+                  </td>
+                </tr>
+                <!-- Row 4: Label (zero-qty consumable) -->
+                <tr
+                  style="
+                    border-bottom: 1px solid #e9ecef;
+                    border-left: 3px dashed #ffc107;
+                    background: #fffde7;
+                  "
+                >
+                  <td style="padding: 6px 12px; text-align: center; color: #6c757d">4</td>
+                  <td style="padding: 6px 12px">
+                    <div style="font-weight: 500; color: #212529">L-XXX-REG-22-ZBA-XXX</div>
+                    <div style="color: #6c757d; font-size: 0.85em">Zebra Shipping Label</div>
+                  </td>
+                  <td style="padding: 6px 12px">
+                    <span
+                      style="
+                        background: #f5f5f5;
+                        color: #757575;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        font-weight: 500;
+                      "
+                      >Label</span
+                    >
+                  </td>
+                  <td style="padding: 6px 12px; text-align: center">
+                    <span
+                      style="
+                        font-weight: 600;
+                        color: #f57f17;
+                        background: #fff8e1;
+                        padding: 1px 8px;
+                        border-radius: 4px;
+                      "
+                      >0</span
+                    >
+                    <div
+                      style="font-size: 0.7em; color: #f57f17; font-weight: 500; margin-top: 2px"
+                    >
+                      Consumable
+                    </div>
+                  </td>
+                  <td style="padding: 6px 12px; text-align: right">
+                    <span style="color: #3498db; margin-right: 8px; cursor: pointer">Edit</span>
+                    <span style="color: #dc3545; cursor: pointer">Remove</span>
+                  </td>
+                </tr>
+                <!-- Row 5: Tape (zero-qty consumable) -->
+                <tr
+                  style="
+                    border-bottom: 1px solid #e9ecef;
+                    border-left: 3px dashed #ffc107;
+                    background: #fffde7;
+                  "
+                >
+                  <td style="padding: 6px 12px; text-align: center; color: #6c757d">5</td>
+                  <td style="padding: 6px 12px">
+                    <div style="font-weight: 500; color: #212529">T-XXX-REG-22-MCH-XXX</div>
+                    <div style="color: #6c757d; font-size: 0.85em">Tape Clear for the Machine</div>
+                  </td>
+                  <td style="padding: 6px 12px">
+                    <span
+                      style="
+                        background: #f5f5f5;
+                        color: #757575;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        font-weight: 500;
+                      "
+                      >Tape</span
+                    >
+                  </td>
+                  <td style="padding: 6px 12px; text-align: center">
+                    <span
+                      style="
+                        font-weight: 600;
+                        color: #f57f17;
+                        background: #fff8e1;
+                        padding: 1px 8px;
+                        border-radius: 4px;
+                      "
+                      >0</span
+                    >
+                    <div
+                      style="font-size: 0.7em; color: #f57f17; font-weight: 500; margin-top: 2px"
+                    >
+                      Consumable
+                    </div>
+                  </td>
+                  <td style="padding: 6px 12px; text-align: right">
+                    <span style="color: #3498db; margin-right: 8px; cursor: pointer">Edit</span>
+                    <span style="color: #dc3545; cursor: pointer">Remove</span>
+                  </td>
+                </tr>
+                <!-- Add a line (Odoo-style) -->
+                <tr>
+                  <td
+                    colspan="5"
+                    style="
+                      padding: 8px 12px;
+                      color: #3498db;
+                      font-size: 0.85em;
+                      cursor: pointer;
+                      font-weight: 500;
+                    "
+                  >
+                    + Add a line
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <!-- Relationship to existing kits -->
+            <div
+              style="
+                background: #e8f5e9;
+                border: 1px solid #c8e6c9;
+                border-radius: 8px;
+                padding: 12px 16px;
+                margin-top: 16px;
+                font-size: 0.85em;
+              "
+            >
+              <div style="font-weight: 600; color: #2e7d32; margin-bottom: 4px">
+                Also has Laravel Kit: "dogtreats-mini kit" (1 component: B-A01-REG-22-RED-MIN)
+              </div>
+              <div style="color: #558b2f">
+                Order expansion will use BOTH sources &mdash; box from Laravel kit +
+                shipper/insert/paper/labels/tape from this BOM
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 3: Inline Edit Mode -->
+        <div style="margin-bottom: 28px">
+          <h4 style="color: #3498db; font-size: 0.95em; margin-bottom: 12px">
+            Screen 3: Inline Edit Mode (click Edit on a row)
+          </h4>
+          <div
+            style="
+              background: #f8f9fa;
+              border: 2px solid #dee2e6;
+              border-radius: 10px;
+              padding: 16px;
+              font-size: 0.85em;
+            "
+          >
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85em">
+              <!-- Normal row above for context -->
+              <tr style="border-bottom: 1px solid #e9ecef">
+                <td style="padding: 6px 12px; text-align: center; color: #6c757d; width: 40px">
+                  1
+                </td>
+                <td style="padding: 6px 12px; color: #212529">
+                  S-AAA-REG-22-XXX-MIN &mdash; Type A 2-Pick Shipper 22
+                </td>
+                <td style="padding: 6px 12px; text-align: center; width: 80px">1</td>
+                <td style="padding: 6px 12px; text-align: right; width: 100px">
+                  <span style="color: #3498db">Edit</span>
+                </td>
+              </tr>
+              <!-- EDITING ROW (highlighted) -->
+              <tr style="background: #e3f2fd; border: 2px solid #3498db; border-radius: 4px">
+                <td style="padding: 8px 12px; text-align: center; color: #6c757d">2</td>
+                <td style="padding: 8px 12px">
+                  <div
+                    style="
+                      background: white;
+                      border: 1px solid #3498db;
+                      border-radius: 4px;
+                      padding: 4px 8px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span style="color: #212529">I-AAA-REG-22-XXX-MED</span>
+                    <span style="color: #6c757d; font-size: 0.8em">&darr;</span>
+                  </div>
+                  <div style="color: #6c757d; font-size: 0.75em; margin-top: 2px">
+                    Searchable dropdown &mdash; type to filter components by SKU or name
+                  </div>
+                </td>
+                <td style="padding: 8px 12px; text-align: center">
+                  <div
+                    style="
+                      background: white;
+                      border: 1px solid #3498db;
+                      border-radius: 4px;
+                      padding: 4px 8px;
+                      width: 60px;
+                      text-align: center;
+                      display: inline-block;
+                    "
+                  >
+                    1
+                  </div>
+                </td>
+                <td style="padding: 8px 12px; text-align: right">
+                  <span
+                    style="
+                      background: #28a745;
+                      color: white;
+                      padding: 3px 10px;
+                      border-radius: 4px;
+                      font-weight: 500;
+                      margin-right: 4px;
+                      font-size: 0.85em;
+                    "
+                    >Save</span
+                  >
+                  <span
+                    style="
+                      background: #6c757d;
+                      color: white;
+                      padding: 3px 10px;
+                      border-radius: 4px;
+                      font-weight: 500;
+                      font-size: 0.85em;
+                    "
+                    >Cancel</span
+                  >
+                </td>
+              </tr>
+              <!-- Normal row below for context -->
+              <tr style="border-bottom: 1px solid #e9ecef">
+                <td style="padding: 6px 12px; text-align: center; color: #6c757d">3</td>
+                <td style="padding: 6px 12px; color: #212529">
+                  P-XXX-REG-22-SKR-XXX &mdash; Production Paper (sticker)
+                </td>
+                <td style="padding: 6px 12px; text-align: center">1</td>
+                <td style="padding: 6px 12px; text-align: right">
+                  <span style="color: #3498db">Edit</span>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- Odoo comparison -->
+        <div>
+          <h4 style="color: #495057; font-size: 0.95em; margin-bottom: 10px">
+            Odoo &harr; SERP Feature Mapping
+          </h4>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.85em">
+            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6">
+              <th style="padding: 8px 12px; text-align: left; font-weight: 600; color: #495057">
+                Odoo BOM Feature
+              </th>
+              <th style="padding: 8px 12px; text-align: left; font-weight: 600; color: #495057">
+                SERP Equivalent
+              </th>
+              <th style="padding: 8px 12px; text-align: left; font-weight: 600; color: #495057">
+                Notes
+              </th>
+            </tr>
+            <tr style="border-bottom: 1px solid #e9ecef">
+              <td style="padding: 8px 12px">Product selector (top of form)</td>
+              <td style="padding: 8px 12px">Product header card with SKU/name</td>
+              <td style="padding: 8px 12px; color: #6c757d">
+                Set on create, read-only on detail page
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e9ecef">
+              <td style="padding: 8px 12px">Active checkbox</td>
+              <td style="padding: 8px 12px">Active toggle switch</td>
+              <td style="padding: 8px 12px; color: #6c757d">Warns about order expansion impact</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e9ecef">
+              <td style="padding: 8px 12px">BOM type selector (phantom/normal)</td>
+              <td style="padding: 8px 12px">Not needed &mdash; all are phantom in Phase 5</td>
+              <td style="padding: 8px 12px; color: #6c757d">Phase 4 adds normal BOMs later</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e9ecef">
+              <td style="padding: 8px 12px">Inline editable component tree</td>
+              <td style="padding: 8px 12px">Component lines table with inline edit mode</td>
+              <td style="padding: 8px 12px; color: #6c757d">
+                Follows EditableComponentRow pattern
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e9ecef">
+              <td style="padding: 8px 12px">"Add a line" at bottom of tree</td>
+              <td style="padding: 8px 12px">"+ Add Component" button + inline new row</td>
+              <td style="padding: 8px 12px; color: #6c757d">Same UX pattern</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e9ecef">
+              <td style="padding: 8px 12px">Product qty + UoM per line</td>
+              <td style="padding: 8px 12px">Quantity per line (UoM always "units")</td>
+              <td style="padding: 8px 12px; color: #6c757d">
+                Simplified &mdash; all Sugarwish components use "units"
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e9ecef">
+              <td style="padding: 8px 12px">Sequence field for ordering</td>
+              <td style="padding: 8px 12px">Row number + up/down reorder buttons</td>
+              <td style="padding: 8px 12px; color: #6c757d">Drag-reorder as stretch goal</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 12px">Full-page form for create + edit</td>
+              <td style="padding: 8px 12px">Modal for create, full page for detail/edit</td>
+              <td style="padding: 8px 12px; color: #6c757d">
+                Faster create flow, same detail depth
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
       <div class="timeline-container">
         <div class="timeline-header">
           <div class="timeline-label">Phase</div>
@@ -520,67 +1710,88 @@
       <div id="phases-detail"></div>
     </div>
     <script>
-      const PROJECT_START = '2026-02-09';
+      // Kits starts when Part 1 Phase 3 ends (Feb 16 + 9w Phase 1 + 8w Phase 3 = Jun 15)
+      const PROJECT_START = '2026-06-15';
       const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
 
       const phases = [
         {
-          id: 1,
+          id: 5,
           name: 'Kits (Phantom BOMs)',
           shortName: 'Kits',
-          weeks: 15,
-          deps: [],
+          weeks: 8,
+          deps: [3],
+          parallelWith: [4],
           color: '#3498db',
           milestone: 'Kit Migration Complete',
-          goal: 'Start planning immediately, migrate phantom BOMs from Odoo to Laravel. ADDITIVE logic: use BOTH existing kits AND Laravel BOMs together.',
+          goal: 'Runs parallel with Phase 4. Migrate phantom BOMs from Odoo to SERP mrp_bom tables (created in Part 1 Migration 002). Build kit editing UI in SERP so Carolyn can manage kits directly. ADDITIVE logic: use BOTH existing kits AND SERP BOMs together.',
           goals: [
-            'Begin discovery and planning immediately (parallel with foundation work)',
-            'Meet with Carolyn to understand kit/BOM workflows and requirements',
-            'Migrate phantom BOMs from Odoo mrp_bom to Laravel mrp_bom table',
-            'Modify updateInsertKit() to query BOTH existing kits AND Laravel mrp_bom (additive logic)',
+            'Build migration script early (week 1), run it at go-live (week 8) to populate mrp_bom + mrp_bom_line with latest Odoo data',
+            '[Laravel Devs] Modify updateInsertKit() to query BOTH existing kits AND SERP mrp_bom (additive logic)',
             'Match buyer_products.sku → mrp_bom.code for lookup',
             'Create ComponentOrders from BOTH sources - union of kit components + BOM components',
-            'Build kit editing UI in SERP (create, edit, delete kits)',
+            'Build kit editing UI in SERP — Odoo-style BOM form with inline component lines, matching existing SERP patterns (Card/Modal/DataTable)',
+            'Kit list page: searchable table of all phantom BOMs with component counts, product links, active/inactive toggle',
+            'Kit detail/edit: Odoo-style form — product header + inline editable component line table (add/remove/reorder lines, qty, component search)',
+            'Create kit: modal or dedicated page — select buyer product, add component lines with searchable component dropdown',
             'Deprecate Odoo phantom BOM lookups',
+            'NOTE: Phase 4 full BOM migration will skip phantom BOMs already imported here',
           ],
           tasks: [
+            // --- Jack: SERP side (migration script, API, UI) ---
             {
-              name: 'Discovery: Map current kit/BOM workflows with Carolyn',
+              name: 'Build migration script: export Odoo phantom BOMs → SERP mrp_bom tables',
+              owner: 'Jack',
               startWeek: 1,
               duration: 1,
             },
             {
-              name: 'Design: Plan ADDITIVE logic (how kit + BOM combine)',
+              name: 'SERP API endpoints for kit BOM CRUD (Next.js routes)',
+              owner: 'Jack',
+              startWeek: 2,
+              duration: 2,
+            },
+            {
+              name: 'Build Kit BOM list page + CreateKitBOMModal in SERP',
+              owner: 'Jack',
               startWeek: 2,
               duration: 1,
             },
             {
-              name: 'Create SERP tables: mrp_bom, mrp_bom_line',
+              name: 'Build Kit BOM detail page with inline component editing in SERP',
+              owner: 'Jack',
               startWeek: 3,
               duration: 1,
             },
+            // --- Laravel Devs: Laravel code changes ---
             {
-              name: 'Build migration script: export Odoo phantom BOMs + lines',
-              startWeek: 4,
-              duration: 1,
-            },
-            {
-              name: 'Run migration: load 265 BOMs + ~800 lines into SERP',
-              startWeek: 5,
-              duration: 1,
-            },
-            {
-              name: 'Modify updateInsertKit() for ADDITIVE logic (kit + BOM combined)',
-              startWeek: 6,
-              duration: 1,
-            },
-            {
-              name: 'Build SERP kit editing UI (list, create, edit, delete kits)',
-              startWeek: 6,
+              name: 'Modify updateInsertKit() — ADDITIVE logic (kit + BOM combined)',
+              owner: 'Laravel Devs',
+              startWeek: 2,
               duration: 2,
             },
             {
-              name: 'Test order expansion + cutover: disable Odoo phantom BOM lookups',
+              name: 'Disable Odoo phantom BOM lookups (after validation)',
+              owner: 'Laravel Devs',
+              startWeek: 7,
+              duration: 1,
+            },
+            // --- Joint: testing + cutover ---
+            {
+              name: 'Joint testing: validate order expansion + Odoo sync end-to-end',
+              owner: 'Both',
+              startWeek: 4,
+              duration: 3,
+            },
+            {
+              name: 'Run migration: load ~265 BOMs + ~738 lines into SERP (go-live data)',
+              owner: 'Jack',
+              startWeek: 8,
+              duration: 1,
+            },
+            {
+              name: 'Cutover: go live with SERP kit management, retire Odoo BOMs',
+              owner: 'Both',
               startWeek: 8,
               duration: 1,
             },
@@ -588,15 +1799,16 @@
           workflow: [
             { laravel: '--- DATA MIGRATION (Odoo → SERP, one-time) ---', odoo: '---' },
             {
-              laravel: 'Export mrp_bom WHERE type=phantom AND active=true (265 BOMs)',
+              laravel: 'Export mrp_bom WHERE type=phantom AND active=true (~265 BOMs)',
               odoo: 'Source',
             },
             {
-              laravel: 'Export mrp_bom_line for those BOMs (~800 component records)',
+              laravel: 'Export mrp_bom_line for those BOMs (~738 component records)',
               odoo: 'Source',
             },
             {
-              laravel: 'Load into SERP mrp_bom + mrp_bom_line tables',
+              laravel:
+                'Populate SERP mrp_bom + mrp_bom_line tables (created by Part 1 Migration 002)',
               odoo: '—',
             },
             { laravel: 'Validate: verify component_id mappings, count records', odoo: '—' },
@@ -618,16 +1830,16 @@
           ],
           dbChanges: [
             {
-              table: 'mrp_bom (CREATE in SERP)',
+              table: 'mrp_bom (POPULATE - table created by Part 1 Migration 002)',
               purpose:
-                '🎯 Phantom BOMs - "Virtual" products that auto-expand into components. Type=phantom means no physical product exists, just a recipe. Example: "Holiday Gift Box" BOM expands into ribbon + box + tissue paper. Migrated from Odoo: 265 active phantom BOMs.',
+                '🎯 Phantom BOMs - "Virtual" products that auto-expand into components. Type=phantom means no physical product exists, just a recipe. Example: "Holiday Gift Box" BOM expands into ribbon + box + tissue paper. Populated with ~265 active phantom BOMs from Odoo. Phase 4 will later import remaining BOM types (normal), skipping phantoms already here.',
               columns:
                 'code (BOM-001 - matches buyer_products.sku for lookup!), type (phantom), active, product_qty (output quantity), product_uom_id (unit)',
             },
             {
-              table: 'mrp_bom_line (CREATE in SERP)',
+              table: 'mrp_bom_line (POPULATE - table created by Part 1 Migration 002)',
               purpose:
-                '📦 Kit components - ingredients in the BOM recipe. Each line says "this kit needs X units of component Y". Example: Holiday Gift Box needs 1 ribbon + 1 box + 5 sheets tissue. ~800 component lines for 265 phantom BOMs.',
+                '📦 Kit components - ingredients in the BOM recipe. Each line says "this kit needs X units of component Y". Example: Holiday Gift Box needs 1 ribbon + 1 box + 5 sheets tissue. ~738 component lines for ~265 phantom BOMs. Phase 4 will later import remaining BOM lines, skipping those already here.',
               columns:
                 'bom_id (which BOM), product_id (which component - maps to components.odoo_product_id), product_qty (how many), sequence (order)',
             },
@@ -645,22 +1857,92 @@
             },
           ],
           implementation: {
-            'Data Migration (Odoo → SERP)': [
+            'Jack — Data Migration (Odoo → SERP)': [
               '--- WHAT GETS MIGRATED ---',
-              'mrp_bom: 265 active phantom BOMs (type=phantom, active=true)',
-              'mrp_bom_line: ~800 component records linked to those BOMs',
-              '--- MIGRATION SCRIPT ---',
-              'Export from Odoo: mrp_bom JOIN mrp_bom_line',
+              'mrp_bom: ~265 active phantom BOMs (type=phantom, active=true)',
+              'mrp_bom_line: ~738 component records linked to those BOMs',
+              '--- TABLES ALREADY EXIST (Part 1 Migration 002) ---',
+              'mrp_bom and mrp_bom_line tables are created by Part 1 Phase 1 Migration 002',
+              'This phase POPULATES them with phantom BOM data — no new migrations needed',
+              '--- MIGRATION SCRIPT (build in week 1, run at go-live week 8) ---',
+              'Build script early so it can be tested and refined during development',
+              'Export from Odoo: mrp_bom JOIN mrp_bom_line WHERE type=phantom AND active=true',
               'Transform: map product_id → components.odoo_id for each line',
-              'Load into Laravel: mrp_bom + mrp_bom_line tables (same schema as Odoo)',
+              'Load into SERP mrp_bom + mrp_bom_line tables',
               'Validate: count records, verify component mappings exist',
+              'Run at go-live to capture latest BOM state from Odoo (not stale data from weeks earlier)',
+              '--- PHASE 4 COORDINATION ---',
+              'Phase 4 migrates ALL remaining BOM types (~976 normal BOMs + 6.5K lines)',
+              'Phase 4 migration script MUST skip phantom BOMs already imported by this phase',
+              "Use WHERE type != 'phantom' OR id NOT IN (SELECT id FROM mrp_bom WHERE type='phantom')",
               '--- EDGE CASES ---',
               'Zero-qty consumables (tape, labels): preserved with qty=0',
-              'Inactive BOMs (511 records): NOT migrated - only active=true',
-              'Normal BOMs (977 records): migrated in Phase 2, not this phase',
+              'Inactive BOMs (~511 records): NOT migrated - only active=true',
+              'Normal BOMs (~976 records): migrated in Phase 4, not this phase',
             ],
-            'Code Changes (updateInsertKit)': [
-              'ADDITIVE LOGIC: Query BOTH existing kits AND mrp_bom (not fallback)',
+            'Jack — Kit Editing UI in SERP (Odoo-Style BOM Management)': [
+              '--- DESIGN PHILOSOPHY ---',
+              "Mirror Odoo's BOM form UX so Carolyn can transition seamlessly — product at top, inline component table below",
+              'Follow existing SERP patterns: Card/Modal/DataTable/Button components, React Hook Form + Zod, TanStack Query hooks',
+              'Extends the existing Kit Browser (KitBrowserTab.tsx) and kit management hooks (useKitManagement.ts)',
+              '--- PAGE: /kit-management/boms (Kit BOM List) ---',
+              'Card-based list page matching bill-of-materials/page.tsx pattern',
+              'Search bar: filter by product SKU, product name, or component SKU/name',
+              'Filters: Active/Inactive toggle, component count range, "has zero-qty lines" flag',
+              'Each row shows: product SKU + name, component count badge, active/inactive status, last modified date',
+              'Row click → navigates to kit detail page. Edit button → opens edit modal',
+              'Create Kit button (top right) → opens CreateKitBOMModal',
+              'Summary stats at top: total active BOMs, total component lines, BOMs with zero-qty consumables',
+              '--- MODAL: CreateKitBOMModal ---',
+              'Follows CreateBOMModal.tsx pattern exactly (React Hook Form + useFieldArray + Zod)',
+              'Step 1: Select buyer product — TypeAheadSelect searching buyer_products by SKU/name',
+              'Shows product info card after selection (SKU, name, current kit if any)',
+              'Step 2: Add component lines — useFieldArray for dynamic rows',
+              'Each line: searchable component dropdown (components table, shows SKU + name + type prefix), quantity input (numeric, allows 0 for consumables), sequence/order input',
+              'Add Line button appends new row. Trash icon removes row (min 1 line required)',
+              'Component dropdown groups by SKU prefix: S-* shippers, I-* inserts, P-* production paper, L-* labels, T-* tape, B-* boxes',
+              'Zod validation: product required, at least 1 line, each line needs component + qty >= 0',
+              'Submit creates mrp_bom + mrp_bom_line records. Invalidates React Query cache',
+              '--- PAGE: /kit-management/boms/[id] (Kit BOM Detail) ---',
+              'Top section: Card with product info (SKU, name, BOM type, active toggle, created/modified dates)',
+              'Active toggle: switch BOM on/off (like Odoo\'s active checkbox) — warns "this will stop kit expansion for this product"',
+              'Component lines table (main content): DataTable with columns — Sequence (#), Component SKU, Component Name, Type (prefix badge), Quantity, Actions',
+              'Inline editing: click Edit on a row → row becomes editable (EditableComponentRow pattern from KitDetail). Change component via dropdown, adjust qty, save/cancel',
+              'Add Component button: opens inline row at bottom (Odoo-style "Add a line" at bottom of table)',
+              'Remove Component: trash icon per row, confirmation dialog for safety',
+              'Drag-to-reorder: optional — update sequence field. Simple up/down arrows as MVP',
+              'Duplicate BOM button: copies entire BOM + lines to a new buyer product (useful for similar kits)',
+              'Delete BOM button (danger): removes BOM + all lines, requires confirmation. Only if BOM is inactive',
+              '--- COMPONENT LINE DETAILS (Odoo Parity) ---',
+              'Component search: TypeAheadSelect that searches components by SKU or name',
+              'Component type badges by prefix: S-* = Shipper (blue), I-* = Insert (purple), P-* = Paper (yellow), L-* = Label (gray), T-* = Tape (gray), B-* = Box (green)',
+              'Quantity: numeric input, step=1, min=0 (0 = consumable like tape/labels, tracked but not deducted)',
+              'Zero-qty visual indicator: rows with qty=0 shown with dashed border + "Consumable" badge (matches Odoo behavior)',
+              'Validation: warn on duplicate components in same BOM, warn if component has no odoo_id mapping',
+              '--- HOOKS (new in useKitBOM.ts) ---',
+              'useKitBOMs() — list all phantom BOMs with component counts',
+              'useKitBOM(id) — single BOM with full component lines',
+              'useCreateKitBOM() — create mrp_bom + mrp_bom_line records',
+              'useUpdateKitBOM(id) — update BOM header (active, code)',
+              'useAddBOMLine(bomId) — add component line',
+              'useUpdateBOMLine(lineId) — update component/qty/sequence',
+              'useRemoveBOMLine(lineId) — remove component line',
+              'useDuplicateKitBOM(id) — clone BOM to new product',
+              'useDeleteKitBOM(id) — delete BOM + all lines (only if inactive)',
+              "All hooks invalidate ['kit-boms'] query key on mutation success",
+              '--- API ENDPOINTS (SERP backend — Next.js API routes) ---',
+              'GET /api/kit-boms — list phantom BOMs with component counts + product info',
+              'GET /api/kit-boms/:id — single BOM with all lines + component details',
+              'POST /api/kit-boms — create BOM + lines (accepts {product_id, lines: [{component_id, qty, sequence}]})',
+              'PUT /api/kit-boms/:id — update BOM header fields',
+              'POST /api/kit-boms/:id/lines — add line',
+              'PUT /api/kit-boms/:id/lines/:lineId — update line',
+              'DELETE /api/kit-boms/:id/lines/:lineId — remove line',
+              'POST /api/kit-boms/:id/duplicate — clone to new product',
+              'DELETE /api/kit-boms/:id — delete BOM (must be inactive)',
+            ],
+            'Laravel Devs — updateInsertKit() Changes': [
+              'ADDITIVE LOGIC: Query BOTH existing kits AND SERP mrp_bom (not fallback)',
               'Step 1: Get kit components if buyer_product has assigned kit',
               'Step 2: Match buyer_products.sku = mrp_bom.code',
               'Step 3: Query mrp_bom WHERE product_tmpl_id=X AND type=phantom AND active=true',
@@ -669,18 +1951,25 @@
               'Step 6: Create ComponentOrder for EACH component from combined set',
               'Deduct inventory from component location (same as existing)',
             ],
-            'Odoo Sync (Already Handled)': [
-              'ComponentOrders already sync to Odoo via existing /api/odoo/component/prepick endpoint',
-              'Odoo polls Laravel, fetches orders where component_imported=0',
-              'ComponentResource sends: odoo_id, sku, name, quantity from pivot table',
-              'No additional sync code needed - phantom BOM ComponentOrders work automatically',
+            'Laravel Devs — Deactivate Odoo Phantom BOMs': [
+              '--- NO ODOO CODE CHANGES NEEDED ---',
+              'ComponentOrders already sync to Odoo via /api/odoo/component/prepick endpoint',
+              'Odoo polls Laravel, fetches ComponentOrders where component_imported=0',
+              'ComponentResource sends: odoo_id, sku, name, quantity — works identically for BOM-sourced components',
+              'The new BOM-sourced ComponentOrders flow through the SAME existing sync path — no integration changes required',
+              '--- DEACTIVATE PHANTOM BOMs (after validation) ---',
+              'After validation: set active=false on Odoo phantom BOMs that have been migrated to SERP',
+              'Do NOT delete them — keep for audit trail and rollback safety',
+              'Phase this: deactivate in batches, validate each batch before proceeding',
             ],
-            Validation: [
-              'Diff report: compare ComponentOrders created by Laravel vs Odoo',
-              'Test orders with kits (existing path unchanged)',
-              'Test orders without kits (new phantom BOM path)',
+            'Both — Joint Validation': [
+              'Diff report: compare ComponentOrders created by SERP vs what Odoo previously created via BOM explosion',
+              'Test orders with existing kits (path unchanged — must not break)',
+              'Test orders with phantom BOMs (new SERP expansion path)',
+              'Test orders with BOTH kit + BOM (additive — components from both sources)',
               'Verify component mapping: mrp_bom_line.product_id → components.odoo_id',
-              'Verify ComponentOrders from phantom BOMs sync to Odoo correctly',
+              'Verify ComponentOrders from phantom BOMs sync to Odoo correctly via existing prepick endpoint',
+              'Carolyn validates: kit editing UI covers her common BOM editing workflows',
             ],
           },
           confirmations: [
@@ -688,18 +1977,18 @@
             'Tech - ComponentOrders created correctly for both kit and BOM paths',
           ],
           keyPoint:
-            'ADDITIVE: updateInsertKit() uses BOTH existing kits AND Laravel mrp_bom (not fallback). Components from both sources are unioned. SKU matching: buyer_products.sku = mrp_bom.code.',
+            'ADDITIVE: updateInsertKit() uses BOTH existing kits AND SERP mrp_bom (not fallback). Components from both sources are unioned. SKU matching: buyer_products.sku = mrp_bom.code.',
         },
       ];
 
       // Migration events - Kit phase only
       const migrationEvents = [
         {
-          phase: 1,
-          week: 5,
-          name: 'Import Kit BOMs',
-          desc: 'Import phantom BOMs for kit explosion. Filter mrp_bom where type=phantom.',
-          tables: ['mrp_bom (phantom)', 'mrp_bom_line (kit components)'],
+          phase: 5,
+          week: 8,
+          name: 'Import Kit BOMs (go-live)',
+          desc: 'Run migration script (built in week 1) to populate mrp_bom + mrp_bom_line with live Odoo phantom BOM data. Done at go-live time to capture latest BOM state.',
+          tables: ['mrp_bom (~265 phantom)', 'mrp_bom_line (~738 kit components)'],
           color: '#3498db',
         },
       ];
@@ -760,7 +2049,7 @@
         // Workflow
         html += `<div class="section"><h3 style="border-color:${p.color}">How It Works</h3>`;
         if (Array.isArray(p.workflow)) {
-          html += `<table class="workflow-table"><tr><th>SERP (Laravel)</th><th style="width:40px"></th><th>Odoo</th></tr>`;
+          html += `<table class="workflow-table"><tr><th>SERP</th><th style="width:40px"></th><th>Odoo</th></tr>`;
           p.workflow.forEach((row) => {
             if (row.laravel.startsWith('---')) {
               const headerText = row.laravel.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
@@ -827,20 +2116,41 @@
           html += `</ul></div>`;
         }
 
+        // Owner colors
+        const ownerColors = { Jack: '#3498db', 'Laravel Devs': '#e67e22', Both: '#8e44ad' };
+        const ownerBg = { Jack: '#ebf5fb', 'Laravel Devs': '#fef5e7', Both: '#f4ecf7' };
+
         // Timeline
-        html += `<div class="section"><h3 style="border-color:${p.color}">Timeline</h3>`;
+        html += `<div class="section"><h3 style="border-color:${p.color}">Timeline — Who Does What</h3>`;
+        // Legend
+        html += `<div style="display:flex;gap:16px;margin-bottom:12px;font-size:0.85em">`;
+        html += `<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#3498db"></span><strong>Jack</strong> — SERP migrations, data export, kit editing UI</div>`;
+        html += `<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#e67e22"></span><strong>Laravel Devs</strong> — Laravel code changes, Odoo integration updates</div>`;
+        html += `<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#8e44ad"></span><strong>Both</strong> — Joint testing &amp; cutover</div>`;
+        html += `</div>`;
         html += `<div class="gantt-container"><div class="gantt-header"><div class="gantt-label">Task</div><div class="gantt-weeks">`;
         for (let w = 1; w <= p.weeks; w++) {
           const weekStart = addDays(start, (w - 1) * 7);
           html += `<div class="week-col">W${w}<br><span class="week-dates">${fmt(weekStart)}</span></div>`;
         }
         html += `</div></div>`;
+        let lastOwner = '';
         p.tasks.forEach((task) => {
+          // Insert owner group header when owner changes
+          if (task.owner && task.owner !== lastOwner) {
+            lastOwner = task.owner;
+            const oc = ownerColors[task.owner] || p.color;
+            const ob = ownerBg[task.owner] || '#f8f9fa';
+            html += `<div class="gantt-row" style="min-height:28px;background:${ob};border-top:2px solid ${oc}">`;
+            html += `<div class="task-label" style="font-weight:700;color:${oc};font-size:0.9em">${task.owner}</div>`;
+            html += `<div class="task-track" style="background:${ob}"></div></div>`;
+          }
           const left = ((task.startWeek - 1) / p.weeks) * 100;
           const width = (task.duration / p.weeks) * 100;
+          const barColor = ownerColors[task.owner] || p.color;
           html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
           html += `<div class="task-track">${Array(p.weeks).fill('<div class="task-cell"></div>').join('')}`;
-          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${p.color}">${task.duration}w</div></div></div>`;
+          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${barColor}">${task.duration}w</div></div></div>`;
         });
         html += `</div></div>`;
 
