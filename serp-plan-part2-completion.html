@@ -664,7 +664,7 @@
           </div>
     </div>
     <script>
-      const PROJECT_START = '2026-02-09';
+      const PROJECT_START = '2026-05-25';
       const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
 
       const phases = [
@@ -1378,7 +1378,7 @@
       function render() {
         const scheds = calcSchedules();
         const start = new Date(project.startDate);
-        const end = scheds[scheds.length - 1].end;
+        const end = scheds.reduce((max, s) => s.end > max ? s.end : max, scheds[0].end);
 
         document.getElementById('meta').textContent =
           `${fmtFull(start)} → ${fmtFull(end)} | ${project.preparedBy}`;

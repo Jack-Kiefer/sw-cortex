@@ -2307,7 +2307,7 @@
       function render() {
         const scheds = calcSchedules();
         const start = new Date(project.startDate);
-        const end = scheds[scheds.length - 1].end;
+        const end = scheds.reduce((max, s) => (s.end > max ? s.end : max), scheds[0].end);
 
         document.getElementById('meta').textContent =
           `${fmtFull(start)} → ${fmtFull(end)} | ${project.preparedBy}`;
