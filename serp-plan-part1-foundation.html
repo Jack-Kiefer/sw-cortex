@@ -570,11 +570,11 @@
             {
               name: 'Build order APIs: /api/orders/reserve, /ship, /cancel',
               startWeek: 6,
-              duration: 1,
+              duration: 2,
             },
             {
               name: 'Backend API testing: PO + inventory + order workflow',
-              startWeek: 7,
+              startWeek: 8,
               duration: 2,
             },
           ],
@@ -846,28 +846,29 @@
             'Stub SERP API calls in weeks 1-4 (mock responses), switch to real APIs in week 5 when Phase 1 APIs are ready',
             'Communicate with SERP for: reserve inventory, calculate COGS, release reservations',
             'Store SERP responses in Laravel: picking_id, stock_move_id, cost_unit',
+            'Run migrations: add same SERP columns to preselect_orders as ec_order (columns ready for Phase 7)',
             'Handle failures and retries',
           ],
           tasks: [
             {
               name: 'Design: Review SERP migrations, design integration approach',
               startWeek: 1,
-              duration: 1,
-            },
-            {
-              name: 'Implement: Laravel migrations + order detection logic',
-              startWeek: 2,
               duration: 2,
             },
             {
+              name: 'Implement: Laravel migrations + order detection logic',
+              startWeek: 3,
+              duration: 3,
+            },
+            {
               name: 'Implement: SERP integration + response handling',
-              startWeek: 4,
+              startWeek: 6,
               duration: 2,
             },
             {
               name: 'Testing: Integration testing with SERP + edge cases',
-              startWeek: 6,
-              duration: 1,
+              startWeek: 8,
+              duration: 2,
             },
           ],
           workflow: [
@@ -884,6 +885,7 @@
           ],
           dataOwnership: [
             { data: 'ec_order.serp_picking_id', laravel: 'Owner', odoo: '—' },
+            { data: 'preselect_orders.serp_picking_id', laravel: 'Owner', odoo: '—' },
             { data: 'items.cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
             { data: 'component_orders.cost_unit', laravel: 'Owner (written by SERP)', odoo: '—' },
           ],
@@ -891,6 +893,11 @@
             {
               table: 'ec_order (ADD columns)',
               purpose: 'Link to SERP inventory operations',
+              columns: 'serp_picking_id (BIGINT), serp_state (VARCHAR 20)',
+            },
+            {
+              table: 'preselect_orders (ADD same columns as ec_order)',
+              purpose: 'Link to SERP inventory operations — same SERP columns as ec_order',
               columns: 'serp_picking_id (BIGINT), serp_state (VARCHAR 20)',
             },
             {
@@ -938,7 +945,7 @@
             'Week 6: Integration testing against live SERP APIs with real inventory data',
           ],
           keyPoint:
-            'Laravel developer task (parallel with Phase 1). Builds queue processor for CUSTOM BRANDING ONLY. Phase 6 expands to all orders.',
+            'Laravel developer task (parallel with Phase 1). Builds queue processor for CUSTOM BRANDING ONLY. Migrations add same SERP columns to preselect_orders as ec_order (prep for Phase 7). Phase 7 expands to all orders including preselects.',
         },
         {
           id: 3,
@@ -1136,13 +1143,13 @@
       const migrationEvents = [
         {
           phase: 1,
-          week: 1,
+          week: 9,
           name: 'Custom Branding Setup',
-          desc: 'Create custom branding products and initial inventory in SERP. No Odoo import - built from scratch.',
+          desc: 'Create custom branding products and initial inventory in SERP. No Odoo import — built from scratch for the custom branding order queue.',
           tables: [
-            'components (custom branding)',
-            'stock_quant (custom inventory)',
-            'stock_location (warehouse bins)',
+            'components (custom branding products — created manually, not imported)',
+            'stock_quant (initial custom branding inventory)',
+            'stock_location (warehouse bins for custom branding storage)',
           ],
           color: '#e67e22',
         },
@@ -1150,13 +1157,14 @@
           phase: 3,
           week: 4,
           name: 'Import PO/Supplier Data',
-          desc: 'After schema design finalized, import PO and supplier data into SERP tables. Development continues against real data.',
+          desc: 'After schema design finalized, import PO and supplier data from Odoo into SERP tables. Development continues against real data. All Odoo FKs mapped to SERP equivalents.',
           tables: [
-            'purchase_order (1.8K)',
-            'purchase_order_line (16K)',
-            'res_partner (289 suppliers)',
-            'product_supplierinfo (2.6K)',
-            'account_move (vendor bills only)',
+            'Odoo purchase_order (1.8K) → SERP purchase_orders',
+            'Odoo purchase_order_line (16K) → SERP purchase_order_line',
+            'Odoo res_partner (289 suppliers) → SERP suppliers',
+            'Odoo product_supplierinfo (2.6K) → SERP product_supplierinfo',
+            'Odoo account_move (vendor bills only) → SERP account_move',
+            'Odoo account_move_line (bill lines) → SERP account_move_line',
           ],
           color: '#198754',
         },
@@ -1164,12 +1172,12 @@
           phase: 3,
           week: 8,
           name: 'Run Migration Scripts',
-          desc: 'Execute data cleanup, transformation, and validation scripts. Link SERP components to Odoo products.',
+          desc: 'Execute data cleanup, transformation, and validation scripts. Reconcile calculated vs stored values, link SERP components to Odoo products, match bill lines to PO lines.',
           tables: [
-            'Data cleanup',
-            'qty_received/qty_invoiced',
-            'supplier-product links',
-            'bill line matching',
+            'Recalculate qty_received/qty_invoiced from line-level data',
+            'Link supplier-product relationships (product_supplierinfo)',
+            'Match bill lines to PO lines via account_move_line references',
+            'Validate all FK references resolve correctly across migrated tables',
           ],
           color: '#198754',
         },
