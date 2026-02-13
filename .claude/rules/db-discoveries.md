@@ -1,5 +1,12 @@
 # Database Discovery Documentation
 
+## ⚠️ CURRENTLY DISABLED — Do NOT call add_discovery automatically
+
+Discovery logging is turned off. Do NOT call `mcp__discoveries__add_discovery()` after database queries unless Jack explicitly asks you to save a discovery.
+
+You can still **search** discoveries (`search_discoveries`, `get_table_notes`) — just don't create new ones automatically.
+
+<!-- ORIGINAL RULE (re-enable by uncommenting):
 ## ⛔ MANDATORY: Save Discoveries After ANY DB Learning
 
 **STOP. After ANY `mcp__db__*` tool call, ask yourself:**
@@ -9,6 +16,7 @@
 If YES → Call `mcp__discoveries__add_discovery()` IMMEDIATELY, before responding to the user.
 
 **This is not optional.** Every piece of knowledge gained should be saved for future sessions.
+-->
 
 ---
 
