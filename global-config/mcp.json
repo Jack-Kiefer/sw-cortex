@@ -2,42 +2,42 @@
   "mcpServers": {
     "db": {
       "command": "npx",
-      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/db/index.ts"],
-      "cwd": "/home/jackk/sw-cortex",
+      "args": ["tsx", "/Users/jackkiefer/sw-cortex/src/mcp-servers/db/index.ts"],
+      "cwd": "/Users/jackkiefer/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "/Users/jackkiefer/sw-cortex/.env"
       }
     },
     "github": {
       "command": "npx",
-      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/github/index.ts"],
-      "cwd": "/home/jackk/sw-cortex",
+      "args": ["tsx", "/Users/jackkiefer/sw-cortex/src/mcp-servers/github/index.ts"],
+      "cwd": "/Users/jackkiefer/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "/Users/jackkiefer/sw-cortex/.env"
       }
     },
     "discoveries": {
       "command": "npx",
-      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/discoveries/index.ts"],
-      "cwd": "/home/jackk/sw-cortex",
+      "args": ["tsx", "/Users/jackkiefer/sw-cortex/src/mcp-servers/discoveries/index.ts"],
+      "cwd": "/Users/jackkiefer/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "/Users/jackkiefer/sw-cortex/.env"
       }
     },
     "slack-search": {
       "command": "npx",
-      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/slack-search/index.ts"],
-      "cwd": "/home/jackk/sw-cortex",
+      "args": ["tsx", "/Users/jackkiefer/sw-cortex/src/mcp-servers/slack-search/index.ts"],
+      "cwd": "/Users/jackkiefer/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "/Users/jackkiefer/sw-cortex/.env"
       }
     },
     "logs": {
       "command": "npx",
-      "args": ["tsx", "/home/jackk/sw-cortex/src/mcp-servers/logs/index.ts"],
-      "cwd": "/home/jackk/sw-cortex",
+      "args": ["tsx", "/Users/jackkiefer/sw-cortex/src/mcp-servers/logs/index.ts"],
+      "cwd": "/Users/jackkiefer/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "/home/jackk/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "/Users/jackkiefer/sw-cortex/.env"
       }
     }
   }

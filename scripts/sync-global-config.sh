@@ -114,10 +114,26 @@ push_config() {
         fi
     done
 
-    # Merge MCP config
+    # Expand and merge MCP config template
     echo ""
     echo "MCP Config:"
-    if [ -f "$GLOBAL_CONFIG/mcp.json" ]; then
+    if [ -f "$GLOBAL_CONFIG/mcp.json.template" ]; then
+        # Detect home directory (works on both macOS and Linux)
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            SW_HOME="/Users/jackkiefer"
+        else
+            SW_HOME="/home/jackk"
+        fi
+
+        # Expand template
+        TEMP_MCP=$(mktemp)
+        sed "s|{{HOME}}|$SW_HOME|g" "$GLOBAL_CONFIG/mcp.json.template" > "$TEMP_MCP"
+
+        # Merge with existing config
+        merge_mcp_json "$TEMP_MCP" ~/.mcp.json
+        rm "$TEMP_MCP"
+    elif [ -f "$GLOBAL_CONFIG/mcp.json" ]; then
+        # Fallback to static file if template doesn't exist
         merge_mcp_json "$GLOBAL_CONFIG/mcp.json" ~/.mcp.json
     fi
 

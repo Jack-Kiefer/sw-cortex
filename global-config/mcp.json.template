@@ -2,42 +2,42 @@
   "mcpServers": {
     "db": {
       "command": "npx",
-      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/db/index.ts"],
-      "cwd": "{{PROJECT_ROOT}}",
+      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/db/index.ts"],
+      "cwd": "{{HOME}}/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
       }
     },
     "github": {
       "command": "npx",
-      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/github/index.ts"],
-      "cwd": "{{PROJECT_ROOT}}",
+      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/github/index.ts"],
+      "cwd": "{{HOME}}/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
       }
     },
     "discoveries": {
       "command": "npx",
-      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/discoveries/index.ts"],
-      "cwd": "{{PROJECT_ROOT}}",
+      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/discoveries/index.ts"],
+      "cwd": "{{HOME}}/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
       }
     },
     "slack-search": {
       "command": "npx",
-      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/slack-search/index.ts"],
-      "cwd": "{{PROJECT_ROOT}}",
+      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/slack-search/index.ts"],
+      "cwd": "{{HOME}}/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
       }
     },
     "logs": {
       "command": "npx",
-      "args": ["tsx", "{{PROJECT_ROOT}}/src/mcp-servers/logs/index.ts"],
-      "cwd": "{{PROJECT_ROOT}}",
+      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/logs/index.ts"],
+      "cwd": "{{HOME}}/sw-cortex",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{PROJECT_ROOT}}/.env"
+        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
       }
     }
   }
