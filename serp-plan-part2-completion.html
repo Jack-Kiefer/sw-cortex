@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SERP Migration Plan - Part 2: Completion — 16 Weeks (Manufacturing, Inventory, Final Cutover)</title>
+    <title>SERP Migration Plan - Part 2: Completion — 14 Weeks (Manufacturing, Inventory, Final Cutover)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -461,11 +461,17 @@
     <div class="container">
       <header>
         <div>
-          <h1>SERP Migration Plan - Part 2: Completion — 16 Weeks (Manufacturing, Inventory, Final Cutover)</h1>
+          <h1>SERP Migration Plan - Part 2: Completion — 14 Weeks (Manufacturing, Inventory, Final Cutover)</h1>
           <div class="meta" id="meta"></div>
         </div>
       </header>
       <div class="summary-cards" id="summary"></div>
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px;padding:10px 16px;background:#fff;border-radius:8px;border:1px solid #e9ecef;font-size:0.85em">
+        <strong style="color:#495057">Owner Legend:</strong>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#3498db"></span> Jack</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#e67e22"></span> Laravel Dev(s)</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#8e44ad"></span> Both</span>
+      </div>
       <div class="timeline-container">
         <div class="timeline-header">
           <div class="timeline-label">Phase</div>
@@ -707,7 +713,8 @@
     <script>
       // Part 2 starts when Part 1 Phase 3 ends (Feb 16 + 9w Phase 1 + 8w Phase 3 = Jun 15)
       // Phase 5 (Kits, 8w) runs parallel with Phase 4, both start Jun 15
-      const PROJECT_START = '2026-06-15';
+      // Part 2 starts when Part 1 Phase 3 ends (Feb 16 + 9w Phase 1 + 7w Phase 3 = Jun 8)
+      const PROJECT_START = '2026-06-08';
       const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
 
       const phases = [
@@ -715,12 +722,12 @@
           id: 4,
           name: 'Manufacturing, Adjustments, BOMs, Locations & Products',
           shortName: 'MO+Adj+BOMs+Loc+Prod',
-          weeks: 10,
+          weeks: 8,
           deps: [3],
           parallelWith: [5],
           color: '#9b59b6',
           milestone: 'MO, Adjustments, BOMs, Locations & Products Live',
-          goal: 'Product UI first, then import ALL Odoo products into SERP. Then build remaining Odoo features. Users switch to SERP UI, which dual-writes to both Odoo (XML-RPC) and SERP tables (stock_quants). Incremental by feature.',
+          goal: 'Product UI first, then import ALL Odoo products into SERP. Then build remaining Odoo features. Users switch to SERP UI, which dual-writes to both Odoo (XML-RPC) and SERP tables (stock_quants). Incremental by feature. Laravel Dev handles product import + MO/BOM/location migration scripts in parallel.',
           goals: [
             'FIRST: Build product management UI in SERP so all products can be managed there',
             'Import ALL Odoo products (~3,900 missing) into SERP via product UI — raw materials, packed products, labels, cartons, etc. Currently only ~598 exist (packaging only). Every Odoo product_id in BOMs/MOs/stock_quant must have a SERP equivalent before migration.',
@@ -733,27 +740,30 @@
             'Track COGS correctly throughout transition',
           ],
           tasks: [
-            { name: 'Build product management UI with cost tracking', startWeek: 1, duration: 2 },
+            { name: 'Build product management UI with cost tracking', owner: 'Jack', startWeek: 1, duration: 2 },
             {
-              name: 'Import ~3,900 missing Odoo products into SERP via product UI (raw materials, packed products, labels, cartons, etc.)',
+              name: 'Import ~3,900 missing Odoo products into SERP (Laravel Dev runs pre-built scripts)',
+              owner: 'Laravel Dev',
               startWeek: 3,
               duration: 1,
             },
-            { name: 'Backfill real Odoo product_product.id mapping (SKU match + update odoo_id)', startWeek: 3, duration: 1 },
-            { name: 'Cutover products: SERP becomes SOT for product management', startWeek: 4, duration: 1 },
+            { name: 'Backfill real Odoo product_product.id mapping (SKU match + update odoo_id)', owner: 'Laravel Dev', startWeek: 3, duration: 1 },
+            { name: 'Cutover products: SERP becomes SOT for product management', owner: 'Both', startWeek: 3, duration: 1 },
             {
               name: 'Build MO UI, creation/tracking/completion/scrapping',
-              startWeek: 4,
+              owner: 'Jack',
+              startWeek: 3,
               duration: 2,
             },
-            { name: 'Build inventory adjustments + stock moves with COGS tracking', startWeek: 4, duration: 2 },
-            { name: 'Build BOM management UI (normal BOMs only — kit/phantom BOMs in Phase 5)', startWeek: 5, duration: 2 },
-            { name: 'Build stock_locations and location UI', startWeek: 6, duration: 2 },
-            { name: 'Migrate MOs, BOMs, locations from Odoo', startWeek: 7, duration: 2 },
-            { name: 'Cutover MO + adjustments + BOMs + locations: users switch to SERP', startWeek: 9, duration: 1 },
+            { name: 'Build inventory adjustments + stock moves with COGS tracking', owner: 'Jack', startWeek: 3, duration: 2 },
+            { name: 'Build BOM management UI (normal BOMs only — kit/phantom BOMs in Phase 5)', owner: 'Jack', startWeek: 5, duration: 2 },
+            { name: 'Build stock_locations and location UI', owner: 'Jack', startWeek: 5, duration: 2 },
+            { name: 'Migrate MOs, BOMs, locations from Odoo (Laravel Dev runs migration scripts)', owner: 'Laravel Dev', startWeek: 6, duration: 1 },
+            { name: 'Cutover MO + adjustments + BOMs + locations: users switch to SERP', owner: 'Both', startWeek: 7, duration: 1 },
             {
               name: 'End-to-end testing, COGS validation, stabilization',
-              startWeek: 10,
+              owner: 'Both',
+              startWeek: 8,
               duration: 1,
             },
           ],
@@ -796,7 +806,7 @@
             { data: 'Valuation layers (COGS)', laravel: 'Owner', odoo: '—' },
           ],
           implementation: [
-            '--- PRODUCT UI + IMPORT (Weeks 1-3) ---',
+            '--- PRODUCT UI + IMPORT (Weeks 1-3, Laravel Dev handles import scripts) ---',
             '• Build product management UI first so all products are managed in SERP',
             '• Laravel components table currently has ~598 records (mostly packaging: boxes, inserts, shippers)',
             '• Odoo has ~4,300 active storable products with SKUs referenced in BOMs/MOs/stock_quant',
@@ -836,7 +846,7 @@
             'Operations team - BOM management and product info',
           ],
           keyPoint:
-            'Product UI built FIRST (Weeks 1-2), then import ~3,900 missing Odoo products via SERP (Week 3). Then build remaining features: MO, adjustments, BOMs, locations. Dual-writes to Odoo throughout. stock_quants is independent (not linked to component inventory yet).',
+            'Product UI built FIRST (Weeks 1-2), then Laravel Dev imports ~3,900 missing Odoo products via pre-built scripts (Week 3) while Jack starts MO/adjustment UI in parallel. Remaining features: BOMs, locations. Dual-writes to Odoo throughout. stock_quants is independent (not linked to component inventory yet).',
         },
 {
           id: 6,
@@ -857,31 +867,37 @@
           tasks: [
             {
               name: 'Build financial reports (Valuation, Roll Forward, FIFO COGS)',
+              owner: 'Jack',
               startWeek: 1,
               duration: 1,
             },
             {
               name: 'Prepare inventory view migration for ALL systems (SERP, Laravel, n8n, Retool, WishDesk, Lambda)',
+              owner: 'Both',
               startWeek: 1,
               duration: 1,
             },
             {
               name: '⚡ PARALLEL RUN: compare SERP vs Odoo inventory daily',
+              owner: 'Jack',
               startWeek: 2,
               duration: 3,
             },
             {
               name: 'Build + test ALL migration scripts: stock_quant, valuation layers, scrap, landed costs, COGS backfill — dry-run against staging',
+              owner: 'Laravel Dev',
               startWeek: 2,
               duration: 2,
             },
             {
               name: 'Freeze Odoo, migrate inventory + FIFO layers + historical COGS backfill to SERP',
+              owner: 'Laravel Dev',
               startWeek: 5,
               duration: 1,
             },
             {
               name: 'Physical count, reconcile, validate with Ric + go-live',
+              owner: 'Both',
               startWeek: 6,
               duration: 1,
             },
@@ -945,7 +961,7 @@
               'valuation layer script: export active SVL (~3.7K rows, remaining_qty > 0) → SERP stock_valuation_layer, preserve FIFO chain',
               'scrap/landed cost scripts: stock_scrap (1.4K), stock_landed_cost (87), stock_landed_cost_lines (88)',
               'COGS backfill script: sale_order.sw_id → stock_move → SVL → write cost_unit + stock_move_id to items/component_orders (~2M orders)',
-              'All scripts use product mapping from Phase 4 Week 3 (Odoo product_id → SERP component_id)',
+              'All scripts use product mapping from Phase 4 Week 3 — Laravel Dev\'s import (Odoo product_id → SERP component_id)',
               '--- DRY-RUN AGAINST STAGING ---',
               'Run all scripts against Odoo staging → Laravel staging (not production)',
               'Validate row counts: expected vs actual for every table',
@@ -1027,16 +1043,19 @@
           tasks: [
             {
               name: 'Expand order detection to all ec_order types + preselect_orders',
+              owner: 'Laravel Devs',
               startWeek: 1,
               duration: 2,
             },
             {
               name: 'Add receiver product mapping (items.product_sku → reserve)',
+              owner: 'Laravel Devs',
               startWeek: 2,
               duration: 1,
             },
             {
               name: 'Parallel run with all order types + stabilization',
+              owner: 'Laravel Devs',
               startWeek: 3,
               duration: 2,
             },
@@ -1078,8 +1097,8 @@
 {
           phase: 4,
           week: 3,
-          name: 'Import ALL Odoo Products into SERP (via Product UI)',
-          desc: 'Product management UI built in Weeks 1-2. Now import ~3,900 missing Odoo products into SERP via bulk import. Currently ~598 components exist (packaging only). Missing: raw materials, packed products, labels, cartons, gift sets, etc. Match by SKU (components.sku = product_product.default_code). Set odoo_id = "800" + component.id per existing convention. Without this, no BOM/MO/stock_quant migration can proceed.',
+          name: 'Import ALL Odoo Products into SERP — Laravel Dev',
+          desc: 'Product management UI built in Weeks 1-2. Laravel Dev runs pre-built import scripts to bring ~3,900 missing Odoo products into SERP. Currently ~598 components exist (packaging only). Missing: raw materials, packed products, labels, cartons, gift sets, etc. Match by SKU (components.sku = product_product.default_code). Set odoo_id = "800" + component.id per existing convention. Without this, no BOM/MO/stock_quant migration can proceed.',
           tables: [
             'Odoo product_product (4,300 active storable with SKUs) → import into SERP via product UI',
             'SKU matching: product_product.default_code = components.sku',
@@ -1091,9 +1110,9 @@
         },
 {
           phase: 4,
-          week: 7,
-          name: 'Import MO/BOM/Location Data',
-          desc: 'Import manufacturing orders, normal BOMs (kit/phantom BOMs in Phase 5), and locations from Odoo. Product mapping already complete from Week 3.',
+          week: 6,
+          name: 'Import MO/BOM/Location Data — Laravel Dev',
+          desc: 'Laravel Dev runs migration scripts for manufacturing orders, normal BOMs (kit/phantom BOMs in Phase 5), and locations from Odoo. Product mapping already complete from Week 3.',
           tables: [
             'mrp_production (26K) → SERP mrp_production',
             'mrp_bom (2K normal) → SERP mrp_bom',
@@ -1295,12 +1314,25 @@
           html += `<div class="week-col">W${w}<br><span class="week-dates">${fmt(weekStart)}</span></div>`;
         }
         html += `</div></div>`;
+        const ownerColors = { Jack: '#3498db', 'Laravel Devs': '#e67e22', 'Laravel Dev': '#e67e22', Both: '#8e44ad' };
+        const ownerBg = { Jack: '#ebf5fb', 'Laravel Devs': '#fef5e7', 'Laravel Dev': '#fef5e7', Both: '#f4ecf7' };
+        let lastOwner = null;
         p.tasks.forEach((task) => {
+          if (task.owner && task.owner !== lastOwner) {
+            lastOwner = task.owner;
+            const oc = ownerColors[task.owner] || p.color;
+            const ob = ownerBg[task.owner] || '#f8f9fa';
+            html += `<div class="gantt-row" style="min-height:28px;background:${ob};border-top:2px solid ${oc}">`;
+            html += `<div class="task-label" style="font-weight:700;color:${oc};font-size:0.9em">${task.owner}</div>`;
+            html += `<div class="task-track" style="background:${ob}"></div></div>`;
+          }
           const left = ((task.startWeek - 1) / p.weeks) * 100;
           const width = (task.duration / p.weeks) * 100;
-          html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
+          const barColor = ownerColors[task.owner] || p.color;
+          const ownerBadge = task.owner ? `<span style="display:inline-block;background:${barColor};color:#fff;border-radius:3px;padding:1px 6px;font-size:0.75em;margin-right:6px;white-space:nowrap">${task.owner}</span>` : '';
+          html += `<div class="gantt-row"><div class="task-label">${ownerBadge}${task.name}</div>`;
           html += `<div class="task-track">${Array(p.weeks).fill('<div class="task-cell"></div>').join('')}`;
-          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${p.color}">${task.duration}w</div></div></div>`;
+          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${barColor}">${task.owner ? task.owner + ' · ' : ''}${task.duration}w</div></div></div>`;
         });
         html += `</div></div>`;
 

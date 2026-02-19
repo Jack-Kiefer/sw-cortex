@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SERP Migration Plan - Part 1: Foundation — 17 Weeks (Custom Branding, POs)</title>
+    <title>SERP Migration Plan - Part 1: Foundation — 16 Weeks (Custom Branding, POs)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -346,8 +346,8 @@
         background: #f8f9fa;
       }
       .task-label {
-        width: 280px;
-        min-width: 280px;
+        width: 360px;
+        min-width: 360px;
         padding: 6px 10px;
         font-size: 0.85em;
         color: #495057;
@@ -493,11 +493,62 @@
     <div class="container">
       <header>
         <div>
-          <h1>SERP Migration Plan - Part 1: Foundation — 17 Weeks (Custom Branding, POs)</h1>
+          <h1>SERP Migration Plan - Part 1: Foundation — 16 Weeks (Custom Branding, POs)</h1>
           <div class="meta" id="meta"></div>
         </div>
       </header>
       <div class="summary-cards" id="summary"></div>
+      <div
+        style="
+          display: flex;
+          gap: 16px;
+          align-items: center;
+          margin-bottom: 20px;
+          padding: 10px 16px;
+          background: #fff;
+          border-radius: 8px;
+          border: 1px solid #e9ecef;
+          font-size: 0.85em;
+        "
+      >
+        <strong style="color: #495057">Owner Legend:</strong>
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #3498db;
+            "
+          ></span>
+          Jack</span
+        >
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #e67e22;
+            "
+          ></span>
+          Laravel Dev(s)</span
+        >
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #8e44ad;
+            "
+          ></span>
+          Both</span
+        >
+      </div>
       <div class="timeline-container">
         <div class="timeline-header">
           <div class="timeline-label">Phase</div>
@@ -551,36 +602,43 @@
           tasks: [
             {
               name: 'Create migrations 001-010: database schema (POs, inventory, bills, views)',
+              owner: 'Jack',
               startWeek: 1,
               duration: 3,
             },
             {
               name: 'Send finalized migrations to Laravel team',
+              owner: 'Jack',
               startWeek: 3,
               duration: 1,
             },
             {
               name: 'Build PO services (create, send, receive, bill)',
+              owner: 'Jack',
               startWeek: 4,
               duration: 2,
             },
             {
               name: 'Build inventory services (adjust, reserve, deduct, FIFO)',
+              owner: 'Jack',
               startWeek: 4,
               duration: 2,
             },
             {
               name: 'Build order APIs: /api/orders/reserve, /ship, /cancel',
+              owner: 'Jack',
               startWeek: 6,
               duration: 2,
             },
             {
               name: 'Build minimal UI: PO management, vendor bills (3-way match), inventory adjustments',
+              owner: 'Jack',
               startWeek: 6,
               duration: 2,
             },
             {
               name: 'End-to-end testing: APIs + UI + custom branding workflow',
+              owner: 'Jack',
               startWeek: 8,
               duration: 2,
             },
@@ -862,21 +920,25 @@
           tasks: [
             {
               name: 'Design: Review SERP migrations, design integration approach',
+              owner: 'Laravel Devs',
               startWeek: 1,
               duration: 2,
             },
             {
               name: 'Implement: Laravel migrations + order detection logic',
+              owner: 'Laravel Devs',
               startWeek: 3,
               duration: 3,
             },
             {
               name: 'Implement: SERP integration + response handling',
+              owner: 'Laravel Devs',
               startWeek: 6,
               duration: 2,
             },
             {
               name: 'Testing: Integration testing with SERP + edge cases',
+              owner: 'Laravel Devs',
               startWeek: 8,
               duration: 2,
             },
@@ -961,60 +1023,68 @@
           id: 3,
           name: 'Complete UI + Odoo Sync + Data Migration',
           shortName: 'UI+Sync',
-          weeks: 8,
+          weeks: 7,
           deps: [1, 2],
           color: '#198754',
           milestone: 'PO + Bill System Live',
-          goal: 'Replace Phase 1 basic UI with complete, polished UI. Add receiving workflow UI, email notifications, activity logging. Implement Odoo XML-RPC sync. Migrate existing PO data from Odoo. Backend services already built in Phase 1.',
+          goal: 'Replace Phase 1 basic UI with complete, polished UI. Add receiving workflow UI, email notifications, activity logging. Implement Odoo XML-RPC sync. Migrate existing PO data from Odoo. Backend services already built in Phase 1. Laravel Dev preps migration scripts during Phases 1-2, runs them at end of Phase 3.',
           goals: [
             'Complete PO UI: polish create/edit/list, add full receiving workflow (dock → inspect → receipt)',
             'Complete vendor bill UI: polish 3-way matching, add approval workflow',
             'Complete inventory adjustment UI: full audit trail and approval',
             'Implement Odoo XML-RPC sync service + sync queue',
-            'Migrate existing data: 1.8K POs + 16K lines + 1.6K bills from Odoo',
+            'Migrate existing data: 1.8K POs + 16K lines + 1.6K bills from Odoo (Laravel Dev preps scripts during Phases 1-2)',
             'Add email notifications for supplier communication',
             'Integrate activity logging (mail_message) into UI',
             'Train purchasing team and run parallel validation',
           ],
           tasks: [
             {
-              name: 'Migrate Odoo data: suppliers, components, POs, bills',
+              name: 'Build Odoo XML-RPC sync service + sync queue',
+              owner: 'Jack',
               startWeek: 1,
               duration: 2,
             },
             {
-              name: 'Build Odoo XML-RPC sync service + sync queue',
-              startWeek: 2,
-              duration: 2,
-            },
-            {
               name: 'Complete PO UI: polish views, add receiving workflow (dock → inspect → receipt)',
-              startWeek: 3,
+              owner: 'Jack',
+              startWeek: 1,
               duration: 2,
             },
             {
               name: 'Complete vendor bill UI: polish 3-way matching, add approval workflow',
-              startWeek: 5,
+              owner: 'Jack',
+              startWeek: 3,
               duration: 2,
             },
             {
               name: 'Complete inventory adjustment UI: audit trail + approvals',
-              startWeek: 5,
+              owner: 'Jack',
+              startWeek: 3,
               duration: 1,
             },
             {
               name: 'Add email notifications + activity log integration',
-              startWeek: 6,
+              owner: 'Jack',
+              startWeek: 4,
+              duration: 1,
+            },
+            {
+              name: 'Run migration scripts: import suppliers, components, POs, bills from Odoo (scripts prepped during Phases 1-2)',
+              owner: 'Laravel Dev',
+              startWeek: 5,
               duration: 1,
             },
             {
               name: 'Train purchasing team + parallel run validation',
-              startWeek: 7,
+              owner: 'Both',
+              startWeek: 6,
               duration: 1,
             },
             {
               name: 'Cutover + stabilization',
-              startWeek: 8,
+              owner: 'Both',
+              startWeek: 7,
               duration: 1,
             },
           ],
@@ -1061,9 +1131,9 @@
           ],
           implementation: [
             '--- NOTE: Backend services (PO/inventory/FIFO) already built in Phase 1 ---',
-            '--- DATA MIGRATION (export from Odoo, import to SERP) ---',
-            'Week 1-2: Import historical data FIRST (POs, suppliers, bills) — no sync needed for old data',
-            'Week 2-3: Build Odoo sync service for ONGOING operations (new POs going forward)',
+            '--- DATA MIGRATION (Laravel Dev preps scripts during Phases 1-2, runs at end of Phase 3) ---',
+            'Week 1-2: Build Odoo sync service + complete UI in parallel',
+            "Week 5: Run Laravel Dev's pre-built migration scripts to import historical data (POs, suppliers, bills)",
             'Inventory quantities (stock_quant) stay in Odoo for Part 1 — migrated in a later part when SERP becomes inventory owner',
             'Export suppliers (res_partner) with vendor_rank > 0',
             'Export components (product_product + product_template) with type=product',
@@ -1146,7 +1216,7 @@
             'Finance team - bill approval and finalization process',
           ],
           keyPoint:
-            'Completes the basic UI from Phase 1 with full-featured PO, receiving, bill, and inventory adjustment UI. Adds Odoo XML-RPC sync + data migration. Backend services already built in Phase 1.',
+            'Completes the basic UI from Phase 1 with full-featured PO, receiving, bill, and inventory adjustment UI. Adds Odoo XML-RPC sync + data migration. Backend services already built in Phase 1. Laravel Dev preps migration scripts during Phases 1-2, runs them at end of Phase 3.',
         },
       ];
 
@@ -1166,9 +1236,9 @@
         },
         {
           phase: 3,
-          week: 4,
-          name: 'Import PO/Supplier Data',
-          desc: 'After schema design finalized, import PO and supplier data from Odoo into SERP tables. Development continues against real data. All Odoo FKs mapped to SERP equivalents.',
+          week: 5,
+          name: 'Import PO/Supplier Data (Laravel Dev)',
+          desc: "Run Laravel Dev's pre-built migration scripts to import PO and supplier data from Odoo into SERP tables. Scripts prepped during Phases 1-2. UI and sync service built in weeks 1-4. All Odoo FKs mapped to SERP equivalents.",
           tables: [
             'Odoo purchase_order (1.8K) → SERP purchase_orders',
             'Odoo purchase_order_line (16K) → SERP purchase_order_line',
@@ -1181,7 +1251,7 @@
         },
         {
           phase: 3,
-          week: 8,
+          week: 7,
           name: 'Run Migration Scripts',
           desc: 'Execute data cleanup, transformation, and validation scripts. Reconcile calculated vs stored values, link SERP components to Odoo products, match bill lines to PO lines.',
           tables: [
@@ -1362,12 +1432,37 @@
           html += `<div class="week-col">W${w}<br><span class="week-dates">${fmt(weekStart)}</span></div>`;
         }
         html += `</div></div>`;
+        const ownerColors = {
+          Jack: '#3498db',
+          'Laravel Devs': '#e67e22',
+          'Laravel Dev': '#e67e22',
+          Both: '#8e44ad',
+        };
+        const ownerBg = {
+          Jack: '#ebf5fb',
+          'Laravel Devs': '#fef5e7',
+          'Laravel Dev': '#fef5e7',
+          Both: '#f4ecf7',
+        };
+        let lastOwner = null;
         p.tasks.forEach((task) => {
+          if (task.owner && task.owner !== lastOwner) {
+            lastOwner = task.owner;
+            const oc = ownerColors[task.owner] || p.color;
+            const ob = ownerBg[task.owner] || '#f8f9fa';
+            html += `<div class="gantt-row" style="min-height:28px;background:${ob};border-top:2px solid ${oc}">`;
+            html += `<div class="task-label" style="font-weight:700;color:${oc};font-size:0.9em">${task.owner}</div>`;
+            html += `<div class="task-track" style="background:${ob}"></div></div>`;
+          }
           const left = ((task.startWeek - 1) / p.weeks) * 100;
           const width = (task.duration / p.weeks) * 100;
-          html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
+          const barColor = ownerColors[task.owner] || p.color;
+          const ownerBadge = task.owner
+            ? `<span style="display:inline-block;background:${barColor};color:#fff;border-radius:3px;padding:1px 6px;font-size:0.75em;margin-right:6px;white-space:nowrap">${task.owner}</span>`
+            : '';
+          html += `<div class="gantt-row"><div class="task-label">${ownerBadge}${task.name}</div>`;
           html += `<div class="task-track">${Array(p.weeks).fill('<div class="task-cell"></div>').join('')}`;
-          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${p.color}">${task.duration}w</div></div></div>`;
+          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${barColor}">${task.owner ? task.owner + ' · ' : ''}${task.duration}w</div></div></div>`;
         });
         html += `</div></div>`;
 

@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SERP Migration Plan — Data Migration Guide</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      header {
+        padding: 20px 0;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 30px;
+      }
+      h1 {
+        color: #212529;
+        font-size: 1.8em;
+      }
+      .meta {
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-top: 4px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      h2 {
+        color: #495057;
+        font-size: 1.3em;
+        margin-bottom: 16px;
+      }
+      h3 {
+        color: #495057;
+        font-size: 1.05em;
+        margin: 16px 0 8px;
+      }
+      h4 {
+        font-size: 0.95em;
+        color: #495057;
+        margin: 12px 0 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 0.88em;
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+      th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      }
+      .warn {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 12px 16px;
+        margin: 12px 0;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.9em;
+      }
+      .danger {
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 12px 16px;
+        margin: 12px 0;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.9em;
+      }
+      .info {
+        background: #d1ecf1;
+        border-left: 4px solid #0dcaf0;
+        padding: 12px 16px;
+        margin: 12px 0;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.9em;
+      }
+      ul {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+      li {
+        margin: 4px 0;
+      }
+      .owner-jack {
+        color: #3498db;
+        font-weight: 600;
+      }
+      .owner-dev {
+        color: #e67e22;
+        font-weight: 600;
+      }
+      .owner-both {
+        color: #8e44ad;
+        font-weight: 600;
+      }
+      .phase-tag {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-weight: 600;
+        color: white;
+        margin-right: 6px;
+      }
+      .migration-card {
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        overflow: hidden;
+      }
+      .migration-header {
+        padding: 16px 20px;
+        border-left: 5px solid;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .migration-header:hover {
+        background: #f8f9fa;
+      }
+      .migration-header h3 {
+        margin: 0 0 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .migration-header .toggle {
+        font-size: 0.8em;
+        color: #6c757d;
+        transition: transform 0.2s;
+        transform: rotate(90deg);
+      }
+      .migration-header.collapsed .toggle {
+        transform: rotate(0deg);
+      }
+      .migration-meta {
+        color: #6c757d;
+        font-size: 0.85em;
+      }
+      .migration-body {
+        padding: 0 20px 20px;
+        border-top: 1px solid #e9ecef;
+      }
+      .migration-body.hide {
+        display: none;
+      }
+      .dep-arrow {
+        color: #6c757d;
+        font-size: 1.2em;
+        text-align: center;
+        margin: 8px 0;
+      }
+
+      /* Gantt */
+      .gantt {
+        overflow-x: auto;
+      }
+      .gantt-table {
+        width: 100%;
+        min-width: 900px;
+        border-collapse: collapse;
+      }
+      .gantt-table th,
+      .gantt-table td {
+        padding: 0;
+        text-align: center;
+      }
+      .gantt-table thead th {
+        background: #f8f9fa;
+        font-size: 0.72em;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #e9ecef;
+        padding: 6px 2px;
+      }
+      .gantt-table thead th:first-child {
+        text-align: left;
+        padding-left: 12px;
+        min-width: 340px;
+        width: 340px;
+      }
+      .gantt-table thead th:nth-child(2) {
+        min-width: 55px;
+        width: 55px;
+        text-align: left;
+        padding-left: 6px;
+      }
+      .gantt-table .week-cell {
+        border-left: 1px solid #f1f3f5;
+        width: 26px;
+        min-width: 26px;
+        position: relative;
+      }
+      .gantt-table .month-header {
+        border-left: 2px solid #dee2e6;
+        background: #eef1f4;
+      }
+      .phase-group td {
+        background: #f8f9fa;
+        font-weight: 600;
+        font-size: 0.82em;
+        color: #495057;
+        padding: 8px 12px;
+        text-align: left;
+        border-top: 2px solid #dee2e6;
+      }
+      .task-row td {
+        border-bottom: 1px solid #f1f3f5;
+        height: 30px;
+      }
+      .task-row:hover td {
+        background: #f8f9fa;
+      }
+      .task-row td:first-child {
+        text-align: left;
+        padding: 4px 12px 4px 20px;
+        font-size: 0.8em;
+        color: #495057;
+        white-space: normal;
+        word-wrap: break-word;
+        max-width: 340px;
+      }
+      .bar {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        left: 1px;
+        right: 1px;
+        border-radius: 3px;
+        opacity: 0.85;
+      }
+      .bar-start {
+        border-top-left-radius: 3px;
+        border-bottom-left-radius: 3px;
+      }
+      .bar-end {
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
+      }
+      .bar-mid {
+        left: 0;
+        right: 0;
+        border-radius: 0;
+      }
+      .prep-bar {
+        opacity: 0.4;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82em;
+        color: #495057;
+      }
+      .legend-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+      }
+
+      .checklist {
+        list-style: none;
+        padding-left: 0;
+      }
+      .checklist li {
+        padding: 4px 0;
+        padding-left: 24px;
+        position: relative;
+      }
+      .checklist li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #adb5bd;
+        border-radius: 3px;
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        .migration-body {
+          display: block !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>SERP Migration Plan — Data Migration Guide</h1>
+        <div class="meta">
+          All data migrations from Odoo to SERP &bull; Prep time, execution, dependencies, and
+          gotchas
+        </div>
+      </header>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px">
+        <a
+          href="serp-plan-summary.html"
+          style="
+            padding: 8px 16px;
+            background: #198754;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Summary & Gantt</a
+        >
+        <a
+          href="serp-plan-migrations.html"
+          style="
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Data Migration Guide (this page)</a
+        >
+        <a
+          href="serp-plan-part1-foundation.html"
+          style="
+            padding: 8px 16px;
+            background: #e67e22;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Part 1: Foundation</a
+        >
+        <a
+          href="serp-plan-part2-completion.html"
+          style="
+            padding: 8px 16px;
+            background: #9b59b6;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Part 2: Completion</a
+        >
+        <a
+          href="serp-plan-kits.html"
+          style="
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Phase 5: Kits</a
+        >
+      </div>
+
+      <!-- Summary -->
+      <div class="card">
+        <h2>Migration Timeline Overview</h2>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #e67e22; opacity: 0.4"></div>
+            Dev Prep (build scripts)
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #e67e22"></div>
+            Dev Execute Migration
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #3498db"></div>
+            Jack (schema/APIs)
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #8e44ad"></div>
+            Both (validate)
+          </div>
+        </div>
+        <div class="gantt" id="ganttContainer"></div>
+      </div>
+
+      <!-- Migration Dependency Chain -->
+      <div class="card">
+        <h2>Migration Dependency Chain</h2>
+        <div
+          style="
+            font-size: 0.88em;
+            line-height: 1.8;
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre;
+          "
+        >
+          Schema Migrations 001-010 (Jack, Phase 1 Wk 1-3) | v Custom Branding Setup (Jack, Phase 1
+          Wk 9) -- manual entry, no Odoo import | v Import PO/Supplier Data (Dev, Phase 3 Wk 5) |
+          Requires: migration scripts prepped during Phases 1-2 | Does NOT include stock_quant
+          (stays in Odoo until Phase 6) v Data Cleanup + Validation (Both, Phase 3 Wk 7) | |=====
+          Part 2 starts ====================================== | v Import ALL Odoo Products (Dev,
+          Phase 4 Wk 3) <-- PREREQUISITE for everything below | +-------------------------------+ |
+          | v v Import MO/BOM/Locations Import Kit (Phantom) BOMs (Dev, Phase 4 Wk 6) (Dev, Phase 5
+          Wk 7) | MUST skip phantom BOMs | Run at go-live (fresh data) | (~2K normal BOMs) | (~265
+          phantom BOMs) | | +-------------------------------+ | v Test Inventory Import -- dry run
+          (Dev, Phase 6 Wk 4) OPTIONAL | v *** INVENTORY CUTOVER *** (Dev, Phase 6 Wk 5) | Freeze
+          Odoo, migrate stock_quant + FIFO layers | COGS backfill: ~2M orders from 13M SVL rows v
+          Odoo Deprecated -- read-only archive (Phase 6 Wk 6)
+        </div>
+      </div>
+
+      <!-- Each Migration Detail -->
+      <div id="migrations"></div>
+
+      <!-- Gotchas & Warnings -->
+      <div class="card">
+        <h2>Critical Gotchas & Warnings</h2>
+
+        <div class="danger">
+          <strong>odoo_id has TWO meanings.</strong> Current <code>components.odoo_id</code> =
+          <code>"800" + component.id</code> (external ref, NOT real Odoo ID). Real Odoo
+          <code>product_product.id</code> needed for FK resolution. Phase 4 must backfill by SKU
+          match. Only 5 components (IDs 646-650) currently have real Odoo IDs.
+        </div>
+
+        <div class="danger">
+          <strong>stock_quant stays in Odoo through Phase 5.</strong> Do NOT migrate inventory
+          quantities before Phase 6. The plan explicitly defers this to the final cutover.
+        </div>
+
+        <div class="danger">
+          <strong>Phase 4 + Phase 5 BOM coordination.</strong> Both import BOMs in parallel. Phase 4
+          MUST filter: <code>WHERE type != 'phantom'</code> to avoid duplicating Phase 5's phantom
+          BOMs.
+        </div>
+
+        <div class="warn">
+          <strong>Phantom BOM migration must happen at go-live, not early.</strong> Phase 5 script
+          is built in Week 1 but held until Week 7 to capture latest Odoo BOM state.
+        </div>
+
+        <div class="warn">
+          <strong>Double-counting risk with kits.</strong> During transition, components can appear
+          in BOTH a Laravel kit AND an Odoo BOM. The additive logic in
+          <code>updateInsertKit()</code> must deduplicate carefully. (Documented incident: soap dish
+          deducted twice.)
+        </div>
+
+        <div class="warn">
+          <strong>All systems must update inventory reads before Phase 6 cutover.</strong> SERP,
+          Laravel, n8n, Retool, WishDesk, and Lambda must all JOIN the new inventory views.
+          <code>inventory_qty</code> columns kept as backup for 2 weeks post-cutover.
+        </div>
+
+        <div class="warn">
+          <strong>Missing box SKUs in Laravel.</strong> Jack flagged (Jan 9, 2026) that Laravel is
+          missing many box SKUs from Odoo BOMs. Every <code>mrp_bom_line.product_id</code> must map
+          to a Laravel component before BOM migration can work. Resolve before Phase 5.
+        </div>
+
+        <div class="info">
+          <strong>COGS backfill is the most complex operation.</strong> Covers ~2M orders, sourced
+          from 13M SVL rows. Batch at ~50K orders/batch by <code>order_id</code> range. Edge cases:
+          null-SKU phantom parents (skip), pre-Odoo orders (<code>cost_unit = NULL</code>),
+          cancelled orders with fulfilled stock_moves (include).
+        </div>
+
+        <div class="info">
+          <strong>All migration scripts need dry-run mode + rollback.</strong> Run against staging
+          (Odoo staging -> Laravel staging) before production. Row count validation and FK integrity
+          checks after every script.
+        </div>
+
+        <div class="info">
+          <strong>Inactive phantom BOMs: deactivate in Odoo, do NOT delete.</strong> After Phase 5
+          validation, set <code>active=false</code> on migrated phantom BOMs. Keep for audit trail.
+          Phase in batches.
+        </div>
+      </div>
+
+      <!-- Dev Prep Time Requirements -->
+      <div class="card">
+        <h2>Dev Prep Time Requirements</h2>
+        <p style="color: #6c757d; font-size: 0.9em; margin-bottom: 16px">
+          Each migration needs script development time BEFORE execution. Here's when scripts must be
+          built.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Migration</th>
+              <th>Script Prep Window</th>
+              <th>Execution</th>
+              <th>Prep Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>PO/Supplier Import</td>
+              <td><span class="owner-dev">Phase 1-2, Wk 1-8</span></td>
+              <td>Phase 3 Wk 5</td>
+              <td>
+                8 weeks to build. Needs finalized schema (available Wk 3). Map 6 Odoo tables to SERP
+                equivalents.
+              </td>
+            </tr>
+            <tr>
+              <td>Product Import (~3,900)</td>
+              <td><span class="owner-dev">Phase 4, Wk 1-2</span></td>
+              <td>Phase 4 Wk 3</td>
+              <td>2 weeks to build. SKU matching logic. Handle "800" prefix vs real Odoo IDs.</td>
+            </tr>
+            <tr>
+              <td>MO/BOM/Location Import</td>
+              <td><span class="owner-dev">Phase 4, Wk 3-5</span></td>
+              <td>Phase 4 Wk 6</td>
+              <td>
+                3 weeks to build. Depends on product mapping from Wk 3. MUST filter phantom BOMs.
+              </td>
+            </tr>
+            <tr>
+              <td>Kit (Phantom BOM) Import</td>
+              <td><span class="owner-dev">Phase 5, Wk 1</span></td>
+              <td>Phase 5 Wk 7</td>
+              <td>
+                1 week to build. Script ready early, held until go-live for fresh data. ~265 BOMs,
+                ~738 lines.
+              </td>
+            </tr>
+            <tr>
+              <td>Inventory Cutover + COGS</td>
+              <td><span class="owner-dev">Phase 6, Wk 1-3</span></td>
+              <td>Phase 6 Wk 5</td>
+              <td>
+                3 weeks to build + test. Most complex migration. Dry-run on staging in Wk 4. COGS
+                backfill joins across sale_order -> stock_move -> SVL.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pre-Cutover Checklist -->
+      <div class="card">
+        <h2>Phase 6 Cutover Checklist</h2>
+        <p style="color: #6c757d; font-size: 0.9em; margin-bottom: 12px">
+          All must be TRUE before the inventory cutover in Phase 6 Week 5.
+        </p>
+        <ul class="checklist">
+          <li>3-week parallel run complete — SERP and Odoo inventory match daily</li>
+          <li>All migration scripts tested against staging (dry-run passed)</li>
+          <li>Physical count completed and reconciled</li>
+          <li>SERP code updated to use inventory views</li>
+          <li>Laravel code updated to use inventory views</li>
+          <li>n8n workflow SQL nodes updated</li>
+          <li>Retool apps and workflows updated</li>
+          <li>WishDesk code updated</li>
+          <li>Lambda functions updated</li>
+          <li>
+            Laravel <code>cost_unit</code> + <code>stock_move_id</code> columns on
+            <code>items</code> and <code>component_orders</code>
+          </li>
+          <li>
+            Rollback plan documented — <code>inventory_qty</code> columns kept as backup for 2 weeks
+          </li>
+          <li>Ric (warehouse) sign-off on inventory accuracy</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      const PROJECT_START = new Date('2026-02-16');
+      const TOTAL_WEEKS = 31;
+
+      function weekToDate(week) {
+        const d = new Date(PROJECT_START);
+        d.setDate(d.getDate() + week * 7);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      // Migration tasks for the Gantt — includes prep time
+      const PHASES = [
+        {
+          name: 'Phase 1: Schema Migrations (Jack)',
+          color: '#3498db',
+          tasks: [
+            {
+              name: 'Build SERP schema migrations 001-010',
+              owner: 'Jack',
+              start: 0,
+              dur: 3,
+              color: '#3498db',
+            },
+            {
+              name: 'Send finalized migrations to Dev team',
+              owner: 'Jack',
+              start: 2,
+              dur: 1,
+              color: '#3498db',
+            },
+          ],
+        },
+        {
+          name: 'Phase 1-2: Dev Prep — PO/Supplier Migration Scripts',
+          color: '#e67e22',
+          tasks: [
+            {
+              name: 'Build PO/supplier import scripts (after schema available Wk 3)',
+              owner: 'Dev',
+              start: 3,
+              dur: 5,
+              color: '#e67e22',
+              prep: true,
+            },
+          ],
+        },
+        {
+          name: 'Phase 3: PO/Supplier Data Migration',
+          color: '#198754',
+          tasks: [
+            {
+              name: 'Run PO/supplier import (289 suppliers, 1,846 POs, 16K lines, 1,569 bills)',
+              owner: 'Dev',
+              start: 13,
+              dur: 1,
+              color: '#e67e22',
+            },
+            {
+              name: 'Data cleanup + FK validation + qty recalculation',
+              owner: 'Both',
+              start: 14,
+              dur: 1,
+              color: '#8e44ad',
+            },
+            { name: 'Cutover + stabilization', owner: 'Both', start: 15, dur: 1, color: '#8e44ad' },
+          ],
+        },
+        {
+          name: 'Phase 4: Product + MO/BOM/Location Migration',
+          color: '#9b59b6',
+          tasks: [
+            {
+              name: 'Build product import scripts + SKU matching',
+              owner: 'Dev',
+              start: 16,
+              dur: 2,
+              color: '#e67e22',
+              prep: true,
+            },
+            {
+              name: 'Run product import (~3,900 products) + backfill odoo_id mapping',
+              owner: 'Dev',
+              start: 18,
+              dur: 1,
+              color: '#e67e22',
+            },
+            {
+              name: 'Cutover products: SERP becomes SOT for product management',
+              owner: 'Both',
+              start: 18,
+              dur: 1,
+              color: '#8e44ad',
+            },
+            {
+              name: 'Build MO/BOM/location migration scripts (MUST skip phantom BOMs)',
+              owner: 'Dev',
+              start: 19,
+              dur: 2,
+              color: '#e67e22',
+              prep: true,
+            },
+            {
+              name: 'Run MO/BOM/location import (26K MOs, 2K BOMs, 2.7K locations)',
+              owner: 'Dev',
+              start: 21,
+              dur: 1,
+              color: '#e67e22',
+            },
+            {
+              name: 'Cutover MO + BOMs + locations to SERP',
+              owner: 'Both',
+              start: 22,
+              dur: 1,
+              color: '#8e44ad',
+            },
+            {
+              name: 'E2E testing + COGS validation',
+              owner: 'Both',
+              start: 23,
+              dur: 1,
+              color: '#8e44ad',
+            },
+          ],
+        },
+        {
+          name: 'Phase 5: Kit (Phantom BOM) Migration',
+          color: '#3498db',
+          tasks: [
+            {
+              name: 'Build phantom BOM migration script',
+              owner: 'Dev',
+              start: 16,
+              dur: 1,
+              color: '#e67e22',
+              prep: true,
+            },
+            {
+              name: 'Joint testing: order expansion + Odoo sync E2E',
+              owner: 'Both',
+              start: 18,
+              dur: 3,
+              color: '#8e44ad',
+            },
+            {
+              name: 'Disable Odoo phantom BOM lookups',
+              owner: 'Dev',
+              start: 21,
+              dur: 1,
+              color: '#e67e22',
+            },
+            {
+              name: 'Run phantom BOM migration at go-live (~265 BOMs, ~738 lines)',
+              owner: 'Dev',
+              start: 22,
+              dur: 1,
+              color: '#e67e22',
+            },
+          ],
+        },
+        {
+          name: 'Phase 6: Inventory Cutover',
+          color: '#dc3545',
+          tasks: [
+            {
+              name: 'Build ALL inventory migration scripts',
+              owner: 'Dev',
+              start: 24,
+              dur: 2,
+              color: '#e67e22',
+              prep: true,
+            },
+            {
+              name: 'Parallel run: compare SERP vs Odoo inventory daily',
+              owner: 'Jack',
+              start: 25,
+              dur: 3,
+              color: '#3498db',
+            },
+            {
+              name: 'Dry-run inventory import against staging',
+              owner: 'Dev',
+              start: 27,
+              dur: 1,
+              color: '#e67e22',
+              prep: true,
+            },
+            {
+              name: 'FREEZE ODOO — migrate stock_quant + FIFO + COGS backfill',
+              owner: 'Dev',
+              start: 28,
+              dur: 1,
+              color: '#dc3545',
+            },
+            {
+              name: 'Physical count, reconcile, validate + go-live',
+              owner: 'Both',
+              start: 29,
+              dur: 1,
+              color: '#8e44ad',
+            },
+          ],
+        },
+      ];
+
+      // Render Gantt
+      const ganttEl = document.getElementById('ganttContainer');
+      let html = '<table class="gantt-table"><thead><tr><th>Task</th><th>Owner</th>';
+      let lastMonth = '';
+      for (let w = 0; w < TOTAL_WEEKS; w++) {
+        const d = new Date(PROJECT_START);
+        d.setDate(d.getDate() + w * 7);
+        const month = d.toLocaleDateString('en-US', { month: 'short' });
+        const isNewMonth = month !== lastMonth;
+        lastMonth = month;
+        html += `<th class="week-cell${isNewMonth ? ' month-header' : ''}" title="Week ${w + 1}: ${weekToDate(w)}">${isNewMonth ? month : ''}</th>`;
+      }
+      html += '</tr><tr><th></th><th></th>';
+      for (let w = 0; w < TOTAL_WEEKS; w++) {
+        const d = new Date(PROJECT_START);
+        d.setDate(d.getDate() + w * 7);
+        html += `<th class="week-cell" style="font-size:0.58em;color:#6c757d;padding:2px;white-space:nowrap">${d.getMonth() + 1}/${d.getDate()}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      const OWNER_COLORS = { Jack: '#3498db', Dev: '#e67e22', Both: '#8e44ad' };
+
+      PHASES.forEach((p) => {
+        html += `<tr class="phase-group"><td colspan="${TOTAL_WEEKS + 2}" style="border-left:4px solid ${p.color}">${p.name}</td></tr>`;
+        p.tasks.forEach((t) => {
+          const end = t.start + t.dur;
+          const ownerColor = OWNER_COLORS[t.owner] || '#6c757d';
+          const tip = `${t.name} | ${t.owner} | ${weekToDate(t.start)} - ${weekToDate(end)} (${t.dur}w)`;
+          const badge = `<span style="display:inline-block;background:${ownerColor};color:#fff;border-radius:3px;padding:0 5px;font-size:0.7em;white-space:nowrap">${t.owner}</span>`;
+          html += `<tr class="task-row"><td title="${tip}">${t.name}</td><td style="font-size:0.72em;padding-left:6px;text-align:left;white-space:nowrap">${badge}</td>`;
+          for (let w = 0; w < TOTAL_WEEKS; w++) {
+            const inBar = w >= t.start && w < end;
+            const isStart = w === t.start;
+            const isEnd = w === end - 1;
+            let inner = '';
+            if (inBar) {
+              let cls = 'bar';
+              if (isStart) cls += ' bar-start';
+              if (isEnd) cls += ' bar-end';
+              if (!isStart && !isEnd) cls += ' bar-mid';
+              if (t.prep) cls += ' prep-bar';
+              inner = `<div class="${cls}" style="background:${t.color || p.color}" title="${tip}"></div>`;
+            }
+            html += `<td class="week-cell" style="position:relative">${inner}</td>`;
+          }
+          html += '</tr>';
+        });
+      });
+      html += '</tbody></table>';
+      ganttEl.innerHTML = html;
+
+      // Migration detail cards
+      const MIGRATIONS = [
+        {
+          id: 'm1',
+          phase: 'Phase 1',
+          phaseColor: '#e67e22',
+          week: 'Wk 9',
+          date: weekToDate(8),
+          name: 'Custom Branding Setup',
+          owner: 'Jack',
+          ownerClass: 'owner-jack',
+          type: 'Manual entry — no Odoo import',
+          tables: [
+            {
+              from: '(manual)',
+              to: 'components',
+              desc: 'Custom branding products — created from scratch',
+            },
+            { from: '(manual)', to: 'stock_quant', desc: 'Initial custom branding inventory' },
+            { from: '(manual)', to: 'stock_location', desc: 'Warehouse bins for custom branding' },
+          ],
+          deps: ['Schema migrations 001-010 complete'],
+          warnings: [],
+          notes: 'No Odoo data involved. Purely new data to test Phase 1 infrastructure.',
+        },
+        {
+          id: 'm2',
+          phase: 'Phase 3',
+          phaseColor: '#198754',
+          week: 'Wk 5',
+          date: weekToDate(13),
+          name: 'Import PO/Supplier Data',
+          owner: 'Dev',
+          ownerClass: 'owner-dev',
+          type: 'Automated scripts (pre-built during Phases 1-2)',
+          tables: [
+            {
+              from: 'res_partner (vendor_rank > 0)',
+              to: 'suppliers',
+              desc: '289 suppliers — map odoo_partner_id',
+              vol: '289 rows',
+            },
+            {
+              from: 'product_supplierinfo',
+              to: 'product_supplierinfo',
+              desc: 'Supplier-product pricing + lead times',
+              vol: '2,600 rows',
+            },
+            {
+              from: 'purchase_order',
+              to: 'purchase_orders',
+              desc: 'PO headers — map odoo_id, dates',
+              vol: '1,846 rows',
+            },
+            {
+              from: 'purchase_order_line',
+              to: 'purchase_order_line',
+              desc: 'PO lines — qty_received, qty_invoiced',
+              vol: '16,139 rows',
+            },
+            {
+              from: 'account_move (vendor bills)',
+              to: 'account_move',
+              desc: 'Vendor bills — journal, supplier, state',
+              vol: '1,569 rows',
+            },
+            {
+              from: 'account_move_line',
+              to: 'account_move_line',
+              desc: 'Bill lines — linked to PO lines + components',
+              vol: '~5K rows',
+            },
+          ],
+          deps: [
+            'Schema migrations 001-010 complete',
+            'Phase 1 + Phase 2 complete',
+            'Migration scripts prepped (8 weeks of dev time)',
+          ],
+          warnings: [
+            'All Odoo FK references must be mapped to SERP equivalents before import',
+            'Audit over-receipted lines and cancelled POs with active moves',
+            'stock_quant is NOT migrated here — stays in Odoo until Phase 6',
+          ],
+          notes:
+            'Dev team has 8 weeks (Phase 1-2) to build these scripts after receiving finalized schema in Week 3.',
+        },
+        {
+          id: 'm3',
+          phase: 'Phase 3',
+          phaseColor: '#198754',
+          week: 'Wk 7',
+          date: weekToDate(15),
+          name: 'Data Cleanup + Validation',
+          owner: 'Both',
+          ownerClass: 'owner-both',
+          type: 'Transformation + FK validation scripts',
+          tables: [],
+          deps: ['PO/Supplier import complete'],
+          warnings: [],
+          notes:
+            'Recalculate qty_received/qty_invoiced. Link supplier-product relationships. Match bill lines to PO lines. Validate all FK references resolve.',
+        },
+        {
+          id: 'm4',
+          phase: 'Phase 4',
+          phaseColor: '#9b59b6',
+          week: 'Wk 3',
+          date: weekToDate(18),
+          name: 'Import ALL Odoo Products',
+          owner: 'Dev',
+          ownerClass: 'owner-dev',
+          type: 'Automated script — PREREQUISITE for all later migrations',
+          tables: [
+            {
+              from: 'product_product (~4,300 active)',
+              to: 'components',
+              desc: 'All storable products with SKUs — raw materials, packed products, labels, cartons, gift sets',
+              vol: '~3,900 new rows',
+            },
+          ],
+          deps: ['Product management UI built (Jack, Wk 1-2)', 'Scripts prepped (Dev, Wk 1-2)'],
+          warnings: [
+            'Current components.odoo_id = "800" + id (fake). Must backfill with REAL Odoo product_product.id via SKU match',
+            'Only 5 components (IDs 646-650) currently have real Odoo IDs',
+            '~160 Odoo products without SKUs are skipped (junk: copies, freight)',
+            'This is a HARD PREREQUISITE for BOM, MO, and stock_quant migrations',
+          ],
+          notes:
+            'Match by: product_product.default_code = components.sku. Currently ~598 components exist in SERP (packaging only). After import: ~4,500 total.',
+        },
+        {
+          id: 'm5',
+          phase: 'Phase 4',
+          phaseColor: '#9b59b6',
+          week: 'Wk 6',
+          date: weekToDate(21),
+          name: 'Import MO/BOM/Location Data',
+          owner: 'Dev',
+          ownerClass: 'owner-dev',
+          type: 'Automated scripts — NORMAL BOMs only (not phantom)',
+          tables: [
+            {
+              from: 'mrp_production',
+              to: 'mrp_production',
+              desc: 'Manufacturing orders',
+              vol: '26,000 rows',
+            },
+            {
+              from: 'mrp_bom (type != phantom)',
+              to: 'mrp_bom',
+              desc: 'Normal BOMs only',
+              vol: '~2,000 rows',
+            },
+            {
+              from: 'mrp_bom_line',
+              to: 'mrp_bom_line',
+              desc: 'BOM component lines (normal only)',
+              vol: '~6,500 rows',
+            },
+            {
+              from: 'mrp_unbuild',
+              to: 'mrp_unbuild',
+              desc: 'Unbuild/disassembly records',
+              vol: '190 rows',
+            },
+            {
+              from: 'stock_location',
+              to: 'stock_location',
+              desc: 'Warehouse locations',
+              vol: '2,700 rows',
+            },
+            {
+              from: 'stock_picking_type',
+              to: 'stock_picking_type',
+              desc: 'Operation types',
+              vol: '135 rows',
+            },
+            {
+              from: 'uom_category + uom_uom',
+              to: 'uom_category + uom_uom',
+              desc: 'Units of measure (seed data)',
+              vol: '34 rows',
+            },
+          ],
+          deps: [
+            'Product import + odoo_id backfill complete (Phase 4 Wk 3)',
+            'Scripts prepped (Dev, Wk 3-5)',
+          ],
+          warnings: [
+            "MUST filter: WHERE type != 'phantom' to avoid duplicating Phase 5 phantom BOMs",
+            'Depends on product mapping — every product_id in BOMs/MOs must resolve to a SERP component',
+          ],
+          notes: 'Dev has 3 weeks (Wk 3-5) to build scripts after product mapping is available.',
+        },
+        {
+          id: 'm6',
+          phase: 'Phase 5',
+          phaseColor: '#3498db',
+          week: 'Wk 7',
+          date: weekToDate(22),
+          name: 'Import Kit (Phantom) BOMs',
+          owner: 'Dev',
+          ownerClass: 'owner-dev',
+          type: 'Automated script — run at GO-LIVE only (not early)',
+          tables: [
+            {
+              from: 'mrp_bom (type=phantom, active=true)',
+              to: 'mrp_bom',
+              desc: 'Phantom/kit BOMs',
+              vol: '~265 rows',
+            },
+            {
+              from: 'mrp_bom_line (phantom only)',
+              to: 'mrp_bom_line',
+              desc: 'Kit component lines',
+              vol: '~738 rows',
+            },
+          ],
+          deps: [
+            'Product import + odoo_id backfill complete',
+            'Migration script built (Phase 5 Wk 1)',
+            'Joint testing passed (Wk 2-5)',
+          ],
+          warnings: [
+            'Script built in Week 1 but HELD until Week 7 — must capture latest Odoo BOM state',
+            '~511 inactive BOMs are NOT migrated',
+            'Zero-qty consumables (tape, labels) preserved with qty=0',
+            'Missing even one phantom BOM = incorrect component deductions',
+            "After validation: set active=false on Odoo phantom BOMs (don't delete)",
+          ],
+          notes:
+            'Line matching: mrp_bom_line.product_id -> components.odoo_id. All 265 BOMs must be imported and verified.',
+        },
+        {
+          id: 'm7',
+          phase: 'Phase 6',
+          phaseColor: '#dc3545',
+          week: 'Wk 5',
+          date: weekToDate(28),
+          name: 'INVENTORY CUTOVER + COGS Backfill',
+          owner: 'Dev',
+          ownerClass: 'owner-dev',
+          type: 'THE CRITICAL MIGRATION — Odoo is frozen, no going back easily',
+          tables: [
+            {
+              from: 'stock_quant (LIVE)',
+              to: 'stock_quant',
+              desc: 'Current on-hand inventory',
+              vol: '14,000 rows',
+            },
+            {
+              from: 'stock_valuation_layer (remaining_qty > 0)',
+              to: 'stock_valuation_layer',
+              desc: 'Active FIFO cost layers only',
+              vol: '~3,700 rows',
+            },
+            { from: 'stock_scrap', to: 'stock_scrap', desc: 'Scrap records', vol: '1,400 rows' },
+            {
+              from: 'stock_landed_cost',
+              to: 'stock_landed_cost',
+              desc: 'Landed cost headers',
+              vol: '87 rows',
+            },
+            {
+              from: 'stock_landed_cost_lines',
+              to: 'stock_landed_cost_lines',
+              desc: 'Landed cost line items',
+              vol: '88 rows',
+            },
+            {
+              from: 'stock_valuation_layer (13M rows)',
+              to: 'items.cost_unit + component_orders.cost_unit',
+              desc: 'COGS backfill for ~2M historical orders',
+              vol: '~2M updates',
+            },
+          ],
+          deps: [
+            '3-week parallel run complete — SERP matches Odoo',
+            'All migration scripts dry-run tested on staging',
+            'Physical count completed',
+            'ALL systems updated to inventory views (SERP, Laravel, n8n, Retool, WishDesk, Lambda)',
+            'Laravel cost_unit + stock_move_id columns on items and component_orders',
+          ],
+          warnings: [
+            'This is irreversible once Odoo is frozen',
+            'Full 13.4M SVL rows are NOT migrated — only used as COGS source data',
+            'COGS backfill join: sale_order.sw_id -> sale_order_line -> stock_move -> SVL (unit_cost)',
+            'Batch at ~50K orders/batch by order_id range',
+            'Null-SKU phantom parents: skip. Pre-Odoo orders: cost_unit = NULL. Cancelled orders with stock_moves: include.',
+            'inventory_qty columns kept as backup for 2 weeks post-cutover',
+          ],
+          notes: 'Dev has 3 weeks (Wk 1-3) to build + 1 week dry-run (Wk 4) before execution.',
+        },
+      ];
+
+      const migrationsEl = document.getElementById('migrations');
+      MIGRATIONS.forEach((m) => {
+        let tablesHtml = '';
+        if (m.tables.length > 0) {
+          tablesHtml = `<h4>Tables & Volumes</h4><table>
+            <thead><tr><th>Odoo Source</th><th>SERP Target</th><th>Description</th><th>Volume</th></tr></thead>
+            <tbody>${m.tables
+              .map(
+                (t) => `<tr>
+              <td><code>${t.from}</code></td>
+              <td><code>${t.to}</code></td>
+              <td>${t.desc}</td>
+              <td>${t.vol || '-'}</td>
+            </tr>`
+              )
+              .join('')}</tbody></table>`;
+        }
+
+        let warningsHtml =
+          m.warnings.length > 0
+            ? m.warnings.map((w) => `<div class="warn">${w}</div>`).join('')
+            : '';
+
+        let depsHtml =
+          m.deps.length > 0
+            ? `<h4>Prerequisites</h4><ul>${m.deps.map((d) => `<li>${d}</li>`).join('')}</ul>`
+            : '';
+
+        migrationsEl.innerHTML += `
+          <div class="migration-card">
+            <div class="migration-header" style="border-left-color:${m.phaseColor}" onclick="toggleMigration('${m.id}')">
+              <h3>
+                <span class="toggle">&#9654;</span>
+                <span class="phase-tag" style="background:${m.phaseColor}">${m.phase}</span>
+                ${m.name}
+              </h3>
+              <div class="migration-meta">
+                ${m.date} (${m.week}) &bull; Owner: <span class="${m.ownerClass}">${m.owner}</span> &bull; ${m.type}
+              </div>
+            </div>
+            <div class="migration-body" id="${m.id}">
+              ${m.notes ? `<p style="margin:12px 0;color:#495057;font-size:0.9em">${m.notes}</p>` : ''}
+              ${depsHtml}
+              ${tablesHtml}
+              ${warningsHtml}
+            </div>
+          </div>`;
+      });
+
+      function toggleMigration(id) {
+        const body = document.getElementById(id);
+        const header = body.previousElementSibling;
+        body.classList.toggle('hide');
+        header.classList.toggle('collapsed');
+      }
+    </script>
+  </body>
+</html>

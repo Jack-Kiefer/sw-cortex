@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SERP Migration Plan - Phase 5: Kits — 8 Weeks (Phantom BOMs)</title>
+    <title>SERP Migration Plan - Phase 5: Kits — 7 Weeks (Phantom BOMs)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -493,11 +493,62 @@
     <div class="container">
       <header>
         <div>
-          <h1>SERP Migration Plan - Phase 5: Kits — 8 Weeks (Phantom BOMs)</h1>
+          <h1>SERP Migration Plan - Phase 5: Kits — 7 Weeks (Phantom BOMs)</h1>
           <div class="meta" id="meta"></div>
         </div>
       </header>
       <div class="summary-cards" id="summary"></div>
+      <div
+        style="
+          display: flex;
+          gap: 16px;
+          align-items: center;
+          margin-bottom: 20px;
+          padding: 10px 16px;
+          background: #fff;
+          border-radius: 8px;
+          border: 1px solid #e9ecef;
+          font-size: 0.85em;
+        "
+      >
+        <strong style="color: #495057">Owner Legend:</strong>
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #3498db;
+            "
+          ></span>
+          Jack</span
+        >
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #e67e22;
+            "
+          ></span>
+          Laravel Dev(s)</span
+        >
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #8e44ad;
+            "
+          ></span>
+          Both</span
+        >
+      </div>
 
       <div
         style="
@@ -760,7 +811,7 @@
               What Odoo-side dev work is needed to ingest component data that's currently only in
               BOMs?
             </td>
-            <td style="padding: 10px 12px; color: #198754; font-weight: 600">Jack + Manish</td>
+            <td style="padding: 10px 12px; color: #198754; font-weight: 600">Jack + Laravel Dev</td>
             <td style="padding: 10px 12px; color: #495057">
               Some components (like production paper) exist in Odoo BOMs but aren't tracked in the
               old system. Need to determine: (a) which components need to be added to Laravel, (b)
@@ -774,7 +825,7 @@
               Will preps and receiver orders correctly pick up from the new BOM kits?
             </td>
             <td style="padding: 10px 12px; color: #198754; font-weight: 600">
-              Jack + Manish + Bilal
+              Jack + Laravel Dev + Bilal
             </td>
             <td style="padding: 10px 12px; color: #495057">
               Pending follow-up meeting. Need to confirm that when SERP sends pre-exploded component
@@ -1710,8 +1761,8 @@
       <div id="phases-detail"></div>
     </div>
     <script>
-      // Kits starts when Part 1 Phase 3 ends (Feb 16 + 9w Phase 1 + 8w Phase 3 = Jun 15)
-      const PROJECT_START = '2026-06-15';
+      // Kits starts when Part 1 Phase 3 ends (Feb 16 + 9w Phase 1 + 7w Phase 3 = Jun 8)
+      const PROJECT_START = '2026-06-08';
       const project = { startDate: PROJECT_START, preparedBy: 'Jack Kiefer' };
 
       const phases = [
@@ -1719,14 +1770,14 @@
           id: 5,
           name: 'Kits (Phantom BOMs)',
           shortName: 'Kits',
-          weeks: 8,
+          weeks: 7,
           deps: [3],
           parallelWith: [4],
           color: '#3498db',
           milestone: 'Kit Migration Complete',
-          goal: 'Runs parallel with Phase 4. Migrate phantom BOMs from Odoo to SERP mrp_bom tables (created in Part 1 Migration 002). Build kit editing UI in SERP so Carolyn can manage kits directly. ADDITIVE logic: use BOTH existing kits AND SERP BOMs together.',
+          goal: 'Runs parallel with Phase 4. Migrate phantom BOMs from Odoo to SERP mrp_bom tables (created in Part 1 Migration 002). Build kit editing UI in SERP so Carolyn can manage kits directly. ADDITIVE logic: use BOTH existing kits AND SERP BOMs together. Laravel Dev builds migration script, freeing Jack to focus on APIs/UI from week 1.',
           goals: [
-            'Build migration script early (week 1), run it at go-live (week 8) to populate mrp_bom + mrp_bom_line with latest Odoo data',
+            'Laravel Dev builds migration script (week 1), runs it at go-live (week 7) to populate mrp_bom + mrp_bom_line with latest Odoo data',
             '[Laravel Devs] Modify updateInsertKit() to query BOTH existing kits AND SERP mrp_bom (additive logic)',
             'Match buyer_products.sku → mrp_bom.code for lookup',
             'Create ComponentOrders from BOTH sources - union of kit components + BOM components',
@@ -1738,29 +1789,30 @@
             'NOTE: Phase 4 full BOM migration will skip phantom BOMs already imported here',
           ],
           tasks: [
-            // --- Jack: SERP side (migration script, API, UI) ---
+            // --- Laravel Dev: migration script ---
             {
               name: 'Build migration script: export Odoo phantom BOMs → SERP mrp_bom tables',
-              owner: 'Jack',
+              owner: 'Laravel Dev',
               startWeek: 1,
               duration: 1,
             },
+            // --- Jack: SERP side (API, UI) — starts W1 since Laravel Dev owns migration ---
             {
               name: 'SERP API endpoints for kit BOM CRUD (Next.js routes)',
               owner: 'Jack',
-              startWeek: 2,
+              startWeek: 1,
               duration: 2,
             },
             {
               name: 'Build Kit BOM list page + CreateKitBOMModal in SERP',
               owner: 'Jack',
-              startWeek: 2,
+              startWeek: 1,
               duration: 1,
             },
             {
               name: 'Build Kit BOM detail page with inline component editing in SERP',
               owner: 'Jack',
-              startWeek: 3,
+              startWeek: 2,
               duration: 1,
             },
             // --- Laravel Devs: Laravel code changes ---
@@ -1773,26 +1825,26 @@
             {
               name: 'Disable Odoo phantom BOM lookups (after validation)',
               owner: 'Laravel Devs',
-              startWeek: 7,
+              startWeek: 6,
               duration: 1,
             },
             // --- Joint: testing + cutover ---
             {
               name: 'Joint testing: validate order expansion + Odoo sync end-to-end',
               owner: 'Both',
-              startWeek: 4,
+              startWeek: 3,
               duration: 3,
             },
             {
               name: 'Run migration: load ~265 BOMs + ~738 lines into SERP (go-live data)',
-              owner: 'Jack',
-              startWeek: 8,
+              owner: 'Laravel Dev',
+              startWeek: 7,
               duration: 1,
             },
             {
               name: 'Cutover: go live with SERP kit management, retire Odoo BOMs',
               owner: 'Both',
-              startWeek: 8,
+              startWeek: 7,
               duration: 1,
             },
           ],
@@ -1864,13 +1916,13 @@
               '--- TABLES ALREADY EXIST (Part 1 Migration 002) ---',
               'mrp_bom and mrp_bom_line tables are created by Part 1 Phase 1 Migration 002',
               'This phase POPULATES them with phantom BOM data — no new migrations needed',
-              '--- MIGRATION SCRIPT (build in week 1, run at go-live week 8) ---',
+              '--- MIGRATION SCRIPT (Laravel Dev builds in week 1, runs at go-live week 7) ---',
               'Build script early so it can be tested and refined during development',
               'Export from Odoo: mrp_bom JOIN mrp_bom_line WHERE type=phantom AND active=true',
               'Transform: map product_id → components.odoo_id for each line',
               'Load into SERP mrp_bom + mrp_bom_line tables',
               'Validate: count records, verify component mappings exist',
-              'Run at go-live to capture latest BOM state from Odoo (not stale data from weeks earlier)',
+              'Laravel Dev runs at go-live to capture latest BOM state from Odoo (not stale data from weeks earlier)',
               '--- PHASE 4 COORDINATION ---',
               'Phase 4 migrates ALL remaining BOM types (~976 normal BOMs + 6.5K lines)',
               'Phase 4 migration script MUST skip phantom BOMs already imported by this phase',
@@ -1985,9 +2037,9 @@
       const migrationEvents = [
         {
           phase: 5,
-          week: 8,
-          name: 'Import Kit BOMs (go-live)',
-          desc: 'Run migration script (built in week 1) to populate mrp_bom + mrp_bom_line with live Odoo phantom BOM data. Done at go-live time to capture latest BOM state.',
+          week: 7,
+          name: 'Import Kit BOMs — Laravel Dev (go-live)',
+          desc: 'Laravel Dev runs migration script (built in week 1) to populate mrp_bom + mrp_bom_line with live Odoo phantom BOM data. Done at go-live time to capture latest BOM state.',
           tables: ['mrp_bom (~265 phantom)', 'mrp_bom_line (~738 kit components)'],
           color: '#3498db',
         },
@@ -2117,8 +2169,18 @@
         }
 
         // Owner colors
-        const ownerColors = { Jack: '#3498db', 'Laravel Devs': '#e67e22', Both: '#8e44ad' };
-        const ownerBg = { Jack: '#ebf5fb', 'Laravel Devs': '#fef5e7', Both: '#f4ecf7' };
+        const ownerColors = {
+          Jack: '#3498db',
+          'Laravel Devs': '#e67e22',
+          'Laravel Dev': '#e67e22',
+          Both: '#8e44ad',
+        };
+        const ownerBg = {
+          Jack: '#ebf5fb',
+          'Laravel Devs': '#fef5e7',
+          'Laravel Dev': '#fef5e7',
+          Both: '#f4ecf7',
+        };
 
         // Timeline
         html += `<div class="section"><h3 style="border-color:${p.color}">Timeline — Who Does What</h3>`;
@@ -2148,9 +2210,12 @@
           const left = ((task.startWeek - 1) / p.weeks) * 100;
           const width = (task.duration / p.weeks) * 100;
           const barColor = ownerColors[task.owner] || p.color;
-          html += `<div class="gantt-row"><div class="task-label">${task.name}</div>`;
+          const ownerBadge = task.owner
+            ? `<span style="display:inline-block;background:${barColor};color:#fff;border-radius:3px;padding:1px 6px;font-size:0.75em;margin-right:6px;white-space:nowrap">${task.owner}</span>`
+            : '';
+          html += `<div class="gantt-row"><div class="task-label">${ownerBadge}${task.name}</div>`;
           html += `<div class="task-track">${Array(p.weeks).fill('<div class="task-cell"></div>').join('')}`;
-          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${barColor}">${task.duration}w</div></div></div>`;
+          html += `<div class="task-bar" style="left:${left}%;width:${width}%;background:${barColor}">${task.owner ? task.owner + ' · ' : ''}${task.duration}w</div></div></div>`;
         });
         html += `</div></div>`;
 

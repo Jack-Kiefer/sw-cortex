@@ -1,12 +1,24 @@
 #!/bin/bash
 # Sync global Claude config between sw-cortex and ~/.claude
 # Merges configurations rather than overwriting
+# Supports both macOS and Linux with cross-platform path handling
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 GLOBAL_CONFIG="$REPO_DIR/global-config"
+
+# Get the sw-cortex home directory for the current platform
+get_sw_home() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "/Users/jackkiefer"
+    else
+        echo "/home/jackk"
+    fi
+}
+
+SW_HOME="$(get_sw_home)"
 
 usage() {
     echo "Usage: $0 [push|pull|status]"
@@ -118,14 +130,9 @@ push_config() {
     echo ""
     echo "MCP Config:"
     if [ -f "$GLOBAL_CONFIG/mcp.json.template" ]; then
-        # Detect home directory (works on both macOS and Linux)
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            SW_HOME="/Users/jackkiefer"
-        else
-            SW_HOME="/home/jackk"
-        fi
+        echo "  Platform: $(uname -s) → SW_HOME=$SW_HOME"
 
-        # Expand template
+        # Expand template with platform-specific path
         TEMP_MCP=$(mktemp)
         sed "s|{{HOME}}|$SW_HOME|g" "$GLOBAL_CONFIG/mcp.json.template" > "$TEMP_MCP"
 
@@ -183,12 +190,11 @@ pull_config() {
         fi
     done 2>/dev/null || echo "  (none found)"
 
-    # Merge MCP config (pull existing servers into repo)
+    # MCP Config - template is source of truth, don't pull
     echo ""
     echo "MCP Config:"
-    if [ -f ~/.mcp.json ]; then
-        merge_mcp_json ~/.mcp.json "$GLOBAL_CONFIG/mcp.json"
-    fi
+    echo "  (skipped - mcp.json.template is source of truth)"
+    echo "  Template uses {{HOME}} placeholder, expanded on push"
 
     # Copy global CLAUDE.md
     echo ""
@@ -232,11 +238,19 @@ show_status() {
 
     echo ""
     echo "=== MCP Servers ==="
+    echo "Template (mcp.json.template):"
+    if [ -f "$GLOBAL_CONFIG/mcp.json.template" ]; then
+        node -e "const j=JSON.parse(require('fs').readFileSync('$GLOBAL_CONFIG/mcp.json.template','utf8')); console.log(Object.keys(j.mcpServers||{}).map(k=>'  '+k).join('\n'))" 2>/dev/null || echo "  (parse error)"
+        echo "  ({{HOME}} expands to $SW_HOME on this machine)"
+    else
+        echo "  (template not found)"
+    fi
+    echo ""
+    echo "Deployed (~/.mcp.json):"
     if [ -f ~/.mcp.json ]; then
-        echo "In repo:"
-        node -e "const j=require('$GLOBAL_CONFIG/mcp.json'); console.log(Object.keys(j.mcpServers||{}).map(k=>'  '+k).join('\n'))" 2>/dev/null || echo "  (none)"
-        echo "In ~/.mcp.json:"
         node -e "const j=require(process.env.HOME+'/.mcp.json'); console.log(Object.keys(j.mcpServers||{}).map(k=>'  '+k).join('\n'))" 2>/dev/null || echo "  (none)"
+    else
+        echo "  (not deployed)"
     fi
 
     echo ""

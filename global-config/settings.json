@@ -124,7 +124,10 @@
       "Bash(cd:*)",
       "Bash(pushd:*)",
       "Bash(popd:*)",
-      "Bash(dirs:*)"
+      "Bash(dirs:*)",
+      "mcp__discoveries",
+      "mcp__slack-search",
+      "mcp__logs"
     ],
     "deny": []
   },

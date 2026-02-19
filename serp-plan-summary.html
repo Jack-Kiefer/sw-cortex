@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SERP Migration Plan — Full Project Summary & Gantt Chart</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 30px;
+      }
+      h1 {
+        color: #212529;
+        font-size: 1.8em;
+      }
+      .meta {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+      .summary-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      .summary-card .value {
+        font-size: 2em;
+        font-weight: 700;
+        color: #198754;
+      }
+      .summary-card .label {
+        color: #6c757d;
+        font-size: 0.85em;
+        margin-top: 5px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+      }
+      h2 {
+        color: #495057;
+        font-size: 1.3em;
+        margin-bottom: 20px;
+      }
+      h3 {
+        color: #495057;
+        font-size: 1.05em;
+        margin: 20px 0 10px;
+      }
+
+      /* Gantt Chart */
+      .gantt {
+        overflow-x: auto;
+      }
+      .gantt-table {
+        width: 100%;
+        min-width: 1100px;
+        border-collapse: collapse;
+      }
+      .gantt-table th,
+      .gantt-table td {
+        padding: 0;
+        text-align: center;
+      }
+      .gantt-table thead th {
+        background: #f8f9fa;
+        font-size: 0.75em;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #e9ecef;
+        padding: 8px 2px;
+      }
+      .gantt-table thead th:first-child {
+        text-align: left;
+        padding-left: 12px;
+        min-width: 380px;
+        width: 380px;
+      }
+      .gantt-table .week-cell {
+        border-left: 1px solid #f1f3f5;
+        width: 28px;
+        min-width: 28px;
+        position: relative;
+      }
+      .gantt-table .month-header {
+        border-left: 2px solid #dee2e6;
+        background: #eef1f4;
+      }
+      .phase-group td {
+        background: #f8f9fa;
+        font-weight: 600;
+        font-size: 0.85em;
+        color: #495057;
+        padding: 10px 12px;
+        text-align: left;
+        border-top: 2px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+      }
+      .task-row td {
+        border-bottom: 1px solid #f1f3f5;
+        height: 32px;
+      }
+      .task-row:hover td {
+        background: #f8f9fa;
+      }
+      .task-row td:first-child {
+        text-align: left;
+        padding: 4px 12px 4px 24px;
+        font-size: 0.82em;
+        color: #495057;
+        white-space: normal;
+        word-wrap: break-word;
+        max-width: 380px;
+      }
+      .bar {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        left: 1px;
+        right: 1px;
+        border-radius: 3px;
+        opacity: 0.85;
+      }
+      .bar-start {
+        left: 1px;
+        border-top-left-radius: 3px;
+        border-bottom-left-radius: 3px;
+      }
+      .bar-end {
+        right: 1px;
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
+      }
+      .bar-mid {
+        left: 0;
+        right: 0;
+        border-radius: 0;
+      }
+
+      /* Phase overview bars */
+      .phase-overview {
+        margin-bottom: 30px;
+      }
+      .phase-bar-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .phase-bar-label {
+        width: 260px;
+        min-width: 260px;
+        font-size: 0.85em;
+        font-weight: 500;
+        color: #495057;
+        padding-right: 12px;
+      }
+      .phase-bar-track {
+        flex: 1;
+        height: 36px;
+        background: #f1f3f5;
+        border-radius: 6px;
+        position: relative;
+      }
+      .phase-bar {
+        position: absolute;
+        height: 28px;
+        top: 4px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75em;
+        font-weight: 600;
+        color: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+      }
+      .today-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dc3545;
+        z-index: 5;
+      }
+
+      /* Legend */
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82em;
+        color: #495057;
+      }
+      .legend-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+      }
+
+      /* Summary list */
+      .phase-summary {
+        margin-bottom: 8px;
+        padding: 12px 16px;
+        border-left: 4px solid;
+        border-radius: 0 8px 8px 0;
+        background: #fff;
+      }
+      .phase-summary h4 {
+        font-size: 0.95em;
+        margin-bottom: 4px;
+      }
+      .phase-summary p {
+        font-size: 0.85em;
+        color: #6c757d;
+        margin: 0;
+      }
+      .phase-summary .dates {
+        font-weight: 600;
+        font-size: 0.82em;
+      }
+
+      /* Milestones */
+      .milestone-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .milestone-item:last-child {
+        border-bottom: none;
+      }
+      .milestone-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 15px;
+        flex-shrink: 0;
+      }
+      .milestone-info {
+        flex: 1;
+      }
+      .milestone-name {
+        font-weight: 500;
+        color: #212529;
+        font-size: 0.9em;
+      }
+      .milestone-phase {
+        font-size: 0.82em;
+        color: #6c757d;
+      }
+      .milestone-date {
+        font-weight: 600;
+        color: #198754;
+        font-size: 0.9em;
+      }
+
+      .parallel-note {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-top: 8px;
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        .container {
+          max-width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <h1>SERP Migration Plan — Full Project Summary</h1>
+          <div class="meta">
+            Prepared by Jack Kiefer &bull; Feb 16, 2026 &rarr; Sep 14, 2026 &bull; ~30 Weeks
+          </div>
+        </div>
+      </header>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px">
+        <a
+          href="serp-plan-summary.html"
+          style="
+            padding: 8px 16px;
+            background: #198754;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Summary (this page)</a
+        >
+        <a
+          href="serp-plan-migrations.html"
+          style="
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Data Migration Guide</a
+        >
+        <a
+          href="serp-plan-part1-foundation.html"
+          style="
+            padding: 8px 16px;
+            background: #e67e22;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Part 1: Foundation (detailed)</a
+        >
+        <a
+          href="serp-plan-part2-completion.html"
+          style="
+            padding: 8px 16px;
+            background: #9b59b6;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Part 2: Completion (detailed)</a
+        >
+        <a
+          href="serp-plan-kits.html"
+          style="
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+          "
+          >Phase 5: Kits (detailed)</a
+        >
+      </div>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="value">7</div>
+          <div class="label">Phases</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">30</div>
+          <div class="label">Weeks</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">4</div>
+          <div class="label">Plan Documents</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">51</div>
+          <div class="label">Tasks</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">7</div>
+          <div class="label">Milestones</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">Sep 14</div>
+          <div class="label">Target Completion</div>
+        </div>
+      </div>
+
+      <div
+        style="
+          display: flex;
+          gap: 16px;
+          align-items: center;
+          margin-bottom: 20px;
+          padding: 10px 16px;
+          background: #fff;
+          border-radius: 8px;
+          border: 1px solid #e9ecef;
+          font-size: 0.85em;
+        "
+      >
+        <strong style="color: #495057">Owner Legend:</strong>
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #3498db;
+            "
+          ></span>
+          Jack</span
+        >
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #e67e22;
+            "
+          ></span>
+          Dev</span
+        >
+        <span style="display: inline-flex; align-items: center; gap: 4px"
+          ><span
+            style="
+              display: inline-block;
+              width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #8e44ad;
+            "
+          ></span>
+          Both</span
+        >
+      </div>
+
+      <!-- Phase Overview -->
+      <div class="card">
+        <h2>Phase Overview Timeline</h2>
+        <div class="legend" id="legend"></div>
+        <div class="phase-overview" id="phaseOverview"></div>
+        <div class="parallel-note">
+          <strong>||</strong> = Phases run in parallel. Phases 1&2 are parallel; Phases 4&5 are
+          parallel; Phases 6&7 are parallel.
+        </div>
+      </div>
+
+      <!-- Full Gantt Chart -->
+      <div class="card">
+        <h2>Full Gantt Chart — All Tasks</h2>
+        <div class="legend" style="margin-bottom: 12px">
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #198754"></div>
+            <span style="font-weight: 600; color: #198754">Jack</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #0d6efd"></div>
+            <span style="font-weight: 600; color: #e67e22">Dev</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #6f42c1"></div>
+            <span style="font-weight: 600; color: #6f42c1">Both</span>
+          </div>
+        </div>
+        <div class="gantt" id="ganttContainer"></div>
+      </div>
+
+      <!-- Phase Summaries -->
+      <div class="card">
+        <h2>Phase Summaries</h2>
+        <div id="phaseSummaries"></div>
+      </div>
+
+      <!-- Milestones -->
+      <div class="card">
+        <h2>Key Milestones</h2>
+        <div id="milestones"></div>
+      </div>
+    </div>
+
+    <script>
+      const PROJECT_START = new Date('2026-02-16');
+      const TOTAL_WEEKS = 31; // a bit extra padding
+
+      const PHASES = [
+        {
+          id: 1,
+          name: 'Phase 1: Custom Branding Infrastructure',
+          color: '#e67e22',
+          startWeek: 0,
+          weeks: 9,
+          doc: 'Part 1',
+          summary:
+            'Database schema (migrations 001-010), PO services, inventory services, order APIs, minimal UI, and end-to-end testing for custom branding workflow.',
+          milestone: { name: 'Custom Branding Inventory Live', date: 'Apr 20, 2026' },
+          tasks: [
+            { name: 'Create migrations 001-010: database schema', owner: 'Jack', start: 0, dur: 3 },
+            { name: 'Send finalized migrations to Laravel team', owner: 'Jack', start: 2, dur: 1 },
+            {
+              name: 'Build PO services (create, send, receive, bill)',
+              owner: 'Jack',
+              start: 3,
+              dur: 2,
+            },
+            {
+              name: 'Build inventory services (adjust, reserve, deduct, FIFO)',
+              owner: 'Jack',
+              start: 3,
+              dur: 2,
+            },
+            { name: 'Build order APIs: /reserve, /ship, /cancel', owner: 'Jack', start: 5, dur: 2 },
+            {
+              name: 'Build minimal UI: PO mgmt, vendor bills, inventory adj.',
+              owner: 'Jack',
+              start: 5,
+              dur: 2,
+            },
+            {
+              name: 'End-to-end testing: APIs + UI + custom branding',
+              owner: 'Jack',
+              start: 7,
+              dur: 2,
+            },
+          ],
+        },
+        {
+          id: 2,
+          name: 'Phase 2: Laravel Order Queue (Custom Branding)',
+          color: '#f39c12',
+          startWeek: 0,
+          weeks: 9,
+          doc: 'Part 1',
+          summary:
+            'Dev team designs integration after migration plans are finalized (week 3), then implements order detection + SERP integration. Runs parallel with Phase 1.',
+          milestone: { name: 'Custom Branding Orders Auto-Process', date: 'Apr 20, 2026' },
+          tasks: [
+            {
+              name: 'Design: Review SERP migrations, design integration',
+              owner: 'Dev',
+              start: 3,
+              dur: 2,
+            },
+            {
+              name: 'Implement: Laravel migrations + order detection logic',
+              owner: 'Dev',
+              start: 5,
+              dur: 2,
+            },
+            {
+              name: 'Implement: SERP integration + response handling',
+              owner: 'Dev',
+              start: 7,
+              dur: 1,
+            },
+            {
+              name: 'Testing: Integration testing with SERP + edge cases',
+              owner: 'Dev',
+              start: 8,
+              dur: 1,
+            },
+          ],
+        },
+        {
+          id: 3,
+          name: 'Phase 3: Complete UI + Odoo Sync + Data Migration',
+          color: '#198754',
+          startWeek: 9,
+          weeks: 7,
+          doc: 'Part 1',
+          summary:
+            'Odoo XML-RPC sync service, complete PO/bill/inventory UIs, email notifications, migration scripts, team training, and cutover.',
+          milestone: { name: 'PO + Bill System Live', date: 'Jun 8, 2026' },
+          tasks: [
+            {
+              name: 'Build Odoo XML-RPC sync service + sync queue',
+              owner: 'Jack',
+              start: 0,
+              dur: 2,
+            },
+            {
+              name: 'Complete PO UI: polish views, receiving workflow',
+              owner: 'Jack',
+              start: 0,
+              dur: 2,
+            },
+            {
+              name: 'Complete vendor bill UI: 3-way matching, approvals',
+              owner: 'Jack',
+              start: 2,
+              dur: 2,
+            },
+            {
+              name: 'Complete inventory adjustment UI: audit trail',
+              owner: 'Jack',
+              start: 2,
+              dur: 1,
+            },
+            { name: 'Add email notifications + activity log', owner: 'Jack', start: 3, dur: 1 },
+            {
+              name: 'Run migration: import suppliers, components, POs, bills',
+              owner: 'Dev',
+              start: 4,
+              dur: 1,
+            },
+            {
+              name: 'Train purchasing team + parallel run validation',
+              owner: 'Both',
+              start: 5,
+              dur: 1,
+            },
+            { name: 'Cutover + stabilization', owner: 'Both', start: 6, dur: 1 },
+          ],
+        },
+        {
+          id: 4,
+          name: 'Phase 4: Manufacturing, BOMs, Locations & Products',
+          color: '#9b59b6',
+          startWeek: 16,
+          weeks: 8,
+          doc: 'Part 2',
+          summary:
+            'Product management UI, import ~3,900 Odoo products, MO UI, inventory adjustments, BOM management, stock locations, migration, and cutover.',
+          milestone: { name: 'MO, BOMs, Locations & Products Live', date: 'Aug 3, 2026' },
+          tasks: [
+            {
+              name: 'Build product management UI with cost tracking',
+              owner: 'Jack',
+              start: 0,
+              dur: 2,
+            },
+            { name: 'Import ~3,900 Odoo products into SERP', owner: 'Dev', start: 2, dur: 1 },
+            {
+              name: 'Backfill Odoo product_product.id mapping',
+              owner: 'Dev',
+              start: 2,
+              dur: 1,
+            },
+            { name: 'Cutover products: SERP becomes SOT', owner: 'Both', start: 2, dur: 1 },
+            {
+              name: 'Build MO UI: creation/tracking/completion/scrapping',
+              owner: 'Jack',
+              start: 2,
+              dur: 2,
+            },
+            {
+              name: 'Build inventory adjustments + COGS tracking',
+              owner: 'Jack',
+              start: 2,
+              dur: 2,
+            },
+            { name: 'Build BOM management UI (normal BOMs only)', owner: 'Jack', start: 4, dur: 2 },
+            { name: 'Build stock_locations and location UI', owner: 'Jack', start: 4, dur: 2 },
+            { name: 'Migrate MOs, BOMs, locations from Odoo', owner: 'Dev', start: 5, dur: 1 },
+            {
+              name: 'Cutover MO + adjustments + BOMs + locations',
+              owner: 'Both',
+              start: 6,
+              dur: 1,
+            },
+            {
+              name: 'E2E testing, COGS validation, stabilization',
+              owner: 'Both',
+              start: 7,
+              dur: 1,
+            },
+          ],
+        },
+        {
+          id: 5,
+          name: 'Phase 5: Kits (Phantom BOMs)',
+          color: '#3498db',
+          startWeek: 16,
+          weeks: 7,
+          doc: 'Kits',
+          summary:
+            'Migration script for phantom BOMs, Kit BOM CRUD APIs, Kit BOM UI pages, updateInsertKit() modification, joint testing, and go-live with ~265 BOMs.',
+          milestone: { name: 'Kit Migration Complete', date: 'Jul 27, 2026' },
+          tasks: [
+            {
+              name: 'Build migration script: Odoo phantom BOMs to SERP',
+              owner: 'Dev',
+              start: 0,
+              dur: 1,
+            },
+            { name: 'SERP API endpoints for kit BOM CRUD', owner: 'Jack', start: 0, dur: 2 },
+            {
+              name: 'Build Kit BOM list page + CreateKitBOMModal',
+              owner: 'Jack',
+              start: 0,
+              dur: 1,
+            },
+            {
+              name: 'Build Kit BOM detail page with inline editing',
+              owner: 'Jack',
+              start: 1,
+              dur: 1,
+            },
+            {
+              name: 'Modify updateInsertKit() — additive logic',
+              owner: 'Dev',
+              start: 1,
+              dur: 2,
+            },
+            {
+              name: 'Joint testing: order expansion + Odoo sync E2E',
+              owner: 'Both',
+              start: 2,
+              dur: 3,
+            },
+            { name: 'Disable Odoo phantom BOM lookups', owner: 'Dev', start: 5, dur: 1 },
+            {
+              name: 'Run migration: load ~265 BOMs + ~738 lines',
+              owner: 'Dev',
+              start: 6,
+              dur: 1,
+            },
+            { name: 'Cutover: go live, retire Odoo BOMs', owner: 'Both', start: 6, dur: 1 },
+          ],
+        },
+        {
+          id: 6,
+          name: 'Phase 6: Inventory Management',
+          color: '#dc3545',
+          startWeek: 24,
+          weeks: 6,
+          doc: 'Part 2',
+          summary:
+            'Financial reports, inventory view migration for ALL systems, 3-week parallel run comparing SERP vs Odoo, freeze Odoo, physical count, and go-live.',
+          milestone: { name: 'Full Inventory Cutover', date: 'Sep 14, 2026' },
+          tasks: [
+            {
+              name: 'Build financial reports (Valuation, Roll Forward, FIFO)',
+              owner: 'Jack',
+              start: 0,
+              dur: 1,
+            },
+            {
+              name: 'Prepare inventory view migration for ALL systems',
+              owner: 'Both',
+              start: 0,
+              dur: 1,
+            },
+            { name: 'PARALLEL RUN: compare SERP vs Odoo daily', owner: 'Jack', start: 1, dur: 3 },
+            {
+              name: 'Build + test ALL migration scripts (staging dry-run)',
+              owner: 'Dev',
+              start: 1,
+              dur: 2,
+            },
+            {
+              name: 'Freeze Odoo, migrate inventory + FIFO + COGS backfill',
+              owner: 'Dev',
+              start: 4,
+              dur: 1,
+            },
+            {
+              name: 'Physical count, reconcile, validate + go-live',
+              owner: 'Both',
+              start: 5,
+              dur: 1,
+            },
+          ],
+        },
+        {
+          id: 7,
+          name: 'Phase 7: Laravel Order Queue (All Orders)',
+          color: '#e74c3c',
+          startWeek: 24,
+          weeks: 4,
+          doc: 'Part 2',
+          summary:
+            'Expand order detection to ALL ec_order types + preselect_orders, add receiver product mapping, parallel run with all order types.',
+          milestone: { name: 'All Orders Process Through SERP', date: 'Aug 31, 2026' },
+          tasks: [
+            {
+              name: 'Expand order detection to all types + preselect',
+              owner: 'Dev',
+              start: 0,
+              dur: 2,
+            },
+            {
+              name: 'Add receiver product mapping (SKU to reserve)',
+              owner: 'Dev',
+              start: 1,
+              dur: 1,
+            },
+            {
+              name: 'Parallel run with all order types + stabilization',
+              owner: 'Dev',
+              start: 2,
+              dur: 2,
+            },
+          ],
+        },
+      ];
+
+      // Helper: week number to date string
+      function weekToDate(week) {
+        const d = new Date(PROJECT_START);
+        d.setDate(d.getDate() + week * 7);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      function weekToMonth(week) {
+        const d = new Date(PROJECT_START);
+        d.setDate(d.getDate() + week * 7);
+        return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      }
+
+      // Render legend
+      const legendEl = document.getElementById('legend');
+      PHASES.forEach((p) => {
+        legendEl.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${p.color}"></div>${p.name}</div>`;
+      });
+
+      // Render phase overview bars
+      const overviewEl = document.getElementById('phaseOverview');
+      PHASES.forEach((p) => {
+        const leftPct = ((p.startWeek / TOTAL_WEEKS) * 100).toFixed(1);
+        const widthPct = ((p.weeks / TOTAL_WEEKS) * 100).toFixed(1);
+        const startDate = weekToDate(p.startWeek);
+        const endDate = weekToDate(p.startWeek + p.weeks);
+        overviewEl.innerHTML += `
+          <div class="phase-bar-row">
+            <div class="phase-bar-label">${p.name}</div>
+            <div class="phase-bar-track">
+              <div class="phase-bar" style="left:${leftPct}%;width:${widthPct}%;background:${p.color}">
+                ${p.weeks}w
+              </div>
+            </div>
+          </div>`;
+      });
+
+      // Render full Gantt chart
+      const ganttEl = document.getElementById('ganttContainer');
+      const OWNER_COLORS = { Jack: '#3498db', Dev: '#e67e22', Both: '#8e44ad' };
+      let html =
+        '<table class="gantt-table"><thead><tr><th>Task</th><th style="min-width:70px;width:70px;text-align:left;padding-left:6px">Dates</th>';
+
+      // Week headers with month grouping
+      let lastMonth = '';
+      for (let w = 0; w < TOTAL_WEEKS; w++) {
+        const d = new Date(PROJECT_START);
+        d.setDate(d.getDate() + w * 7);
+        const month = d.toLocaleDateString('en-US', { month: 'short' });
+        const isNewMonth = month !== lastMonth;
+        lastMonth = month;
+        const cls = isNewMonth ? 'week-cell month-header' : 'week-cell';
+        html += `<th class="${cls}" title="Week ${w + 1}: ${weekToDate(w)}">${isNewMonth ? month : ''}</th>`;
+      }
+      html += '</tr><tr><th></th><th></th>';
+      for (let w = 0; w < TOTAL_WEEKS; w++) {
+        const d = new Date(PROJECT_START);
+        d.setDate(d.getDate() + w * 7);
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()}`;
+        html += `<th class="week-cell" style="font-size:0.6em;color:#6c757d;padding:2px;white-space:nowrap">${dateLabel}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      PHASES.forEach((p) => {
+        // Phase group header
+        html += `<tr class="phase-group"><td colspan="${TOTAL_WEEKS + 2}" style="border-left:4px solid ${p.color}">
+          ${p.name} <span style="font-weight:400;color:#6c757d;font-size:0.85em">&mdash; ${p.weeks} weeks (${weekToDate(p.startWeek)} &rarr; ${weekToDate(p.startWeek + p.weeks)})</span>
+        </td></tr>`;
+
+        p.tasks.forEach((t) => {
+          const absStart = p.startWeek + t.start;
+          const absEnd = absStart + t.dur;
+          const ownerColor = OWNER_COLORS[t.owner] || '#6c757d';
+          const startD = weekToDate(absStart);
+          const endD = weekToDate(absEnd);
+          const tip = `${t.name} | ${t.owner} | ${startD} → ${endD} (${t.dur}w)`;
+          const badge = `<span style="display:inline-block;background:${ownerColor};color:#fff;border-radius:3px;padding:0 5px;font-size:0.7em;margin-right:4px;white-space:nowrap">${t.owner}</span>`;
+          html += `<tr class="task-row"><td title="${tip}">${badge}${t.name}</td><td style="font-size:0.68em;color:#6c757d;padding-left:6px;text-align:left;white-space:nowrap;line-height:1.3">${startD}<br>${endD}</td>`;
+          for (let w = 0; w < TOTAL_WEEKS; w++) {
+            const inBar = w >= absStart && w < absEnd;
+            const isStart = w === absStart;
+            const isEnd = w === absEnd - 1;
+            let inner = '';
+            if (inBar) {
+              let cls = 'bar';
+              if (isStart && isEnd) cls += ' bar-start bar-end';
+              else if (isStart) cls += ' bar-start';
+              else if (isEnd) cls += ' bar-end';
+              else cls += ' bar-mid';
+              inner = `<div class="${cls}" style="background:${ownerColor}" title="${tip}"></div>`;
+            }
+            html += `<td class="week-cell" style="position:relative">${inner}</td>`;
+          }
+          html += '</tr>';
+        });
+      });
+
+      html += '</tbody></table>';
+      ganttEl.innerHTML = html;
+
+      // Render phase summaries
+      const summEl = document.getElementById('phaseSummaries');
+      PHASES.forEach((p) => {
+        const startDate = weekToDate(p.startWeek);
+        const endDate = weekToDate(p.startWeek + p.weeks);
+        summEl.innerHTML += `
+          <div class="phase-summary" style="border-left-color:${p.color}">
+            <h4 style="color:${p.color}">${p.name}</h4>
+            <div class="dates" style="color:${p.color}">${startDate} &rarr; ${endDate} &bull; ${p.weeks} weeks &bull; ${p.tasks.length} tasks &bull; Source: ${p.doc}</div>
+            <p>${p.summary}</p>
+          </div>`;
+      });
+
+      // Render milestones
+      const msEl = document.getElementById('milestones');
+      PHASES.forEach((p) => {
+        if (!p.milestone) return;
+        msEl.innerHTML += `
+          <div class="milestone-item">
+            <div class="milestone-dot" style="background:${p.color}"></div>
+            <div class="milestone-info">
+              <div class="milestone-name">${p.milestone.name}</div>
+              <div class="milestone-phase">${p.name}</div>
+            </div>
+            <div class="milestone-date">${p.milestone.date}</div>
+          </div>`;
+      });
+    </script>
+  </body>
+</html>
