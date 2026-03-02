@@ -24,6 +24,7 @@
     "qdrant:status": "tsx scripts/qdrant-status.ts",
     "slack:sync": "tsx scripts/sync-slack-encrypted.ts",
     "slack:sync-plaintext": "tsx scripts/sync-slack-messages.ts",
+    "meetings:sync": "tsx scripts/sync-meetings.ts",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\"",

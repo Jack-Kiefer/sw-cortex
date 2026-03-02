@@ -39,12 +39,13 @@ This builds institutional knowledge across all sessions.
 
 ## Global Slash Commands
 
-| Command                               | Description                      |
-| ------------------------------------- | -------------------------------- |
-| `/slack-search [query]`               | Search Slack messages            |
-| `/db query [database] [sql]`          | Query databases                  |
-| `/global-analyze [description]`       | Deep pre-implementation analysis |
-| `/global-quick-analyze [description]` | Quick codebase assessment        |
+| Command                               | Description                          |
+| ------------------------------------- | ------------------------------------ |
+| `/slack-search [query]`               | Search Slack messages                |
+| `/db query [database] [sql]`          | Query databases                      |
+| `/global-analyze [description]`       | Deep pre-implementation analysis     |
+| `/global-quick-analyze [description]` | Quick codebase assessment            |
+| `/meeting [title]`                    | Save meeting notes + index to Qdrant |
 
 ## Global Skills
 
