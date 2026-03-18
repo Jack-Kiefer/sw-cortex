@@ -23,7 +23,8 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "setup": "tsx scripts/setup.ts",
-    "generate:mcp": "tsx scripts/generate-mcp-config.ts"
+    "generate:mcp": "tsx scripts/generate-mcp-config.ts",
+    "discoveries:migrate-encrypted": "tsx scripts/migrate-discoveries-encrypted.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
