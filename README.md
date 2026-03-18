@@ -14,6 +14,7 @@ Better than searching Slack directly — it's fast and uses semantic search so y
 
 ### Prerequisites
 
+- [Claude Code](https://claude.ai/claude-code) installed
 - Node.js 18+
 - A [Qdrant Cloud](https://cloud.qdrant.io/) instance (free tier works)
 - A Slack User Token (see below)
@@ -23,9 +24,10 @@ Better than searching Slack directly — it's fast and uses semantic search so y
 
 You need a **User Token** (`xoxp-...`), not a Bot Token. This is what lets the sync read your personal message history.
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) and create a new app (or use an existing one)
-2. Go to **OAuth & Permissions**
-3. Under **User Token Scopes**, add these scopes:
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App** → **From scratch**
+2. Name it whatever you want and select your workspace
+3. Go to **OAuth & Permissions**
+4. Under **User Token Scopes**, add these scopes:
    - `channels:history` — Read messages in public channels
    - `channels:read` — List public channels
    - `groups:history` — Read messages in private channels you're in
@@ -35,8 +37,8 @@ You need a **User Token** (`xoxp-...`), not a Bot Token. This is what lets the s
    - `mpim:history` — Read group DMs
    - `mpim:read` — List group DMs
    - `users:read` — Resolve user IDs to names
-4. **Install the app** to your workspace
-5. Copy the **User OAuth Token** (starts with `xoxp-`)
+5. **Install the app** to your workspace
+6. Copy the **User OAuth Token** (starts with `xoxp-`)
 
 ### Setup
 
@@ -61,6 +63,18 @@ QDRANT_URL=https://your-instance.cloud.qdrant.io
 QDRANT_API_KEY=your-qdrant-api-key
 ```
 
+Generate an encryption key for local Slack message storage:
+
+```bash
+openssl rand -hex 32
+```
+
+Add it to your `.env`:
+
+```
+SLACK_ENCRYPTION_KEY=your-generated-key
+```
+
 ### Setting Up Qdrant
 
 1. Sign up at [cloud.qdrant.io](https://cloud.qdrant.io/) (free tier gives you 1GB)
@@ -80,23 +94,21 @@ npm run qdrant:init
 npm run slack:sync
 ```
 
-This pulls your Slack messages, generates embeddings via OpenAI, and stores them in Qdrant. Run it periodically to keep things up to date, or set it up on a cron/PM2 schedule.
+This pulls your Slack messages, generates embeddings via OpenAI, and stores them in Qdrant. The first sync will take a while depending on how many messages you have. Subsequent syncs are incremental and much faster.
 
-### Export MCP Tools to Global Config
+Run it periodically to keep things up to date, or set it up on a cron/PM2 schedule.
 
-The MCP servers in this repo (Slack search, discoveries, etc.) can be exported to your global Claude Code config so they're available in every project:
+### Make It Available in All Your Projects
+
+The whole point is having Slack search available everywhere in Claude Code, not just in this repo. Export the MCP tools to your global config:
 
 ```bash
 bash scripts/sync-global-config.sh push
 ```
 
-This syncs the contents of `global-config/` to `~/.claude/`, including MCP server definitions, slash commands, and skills. Restart Claude Code after pushing to pick up changes.
+This copies MCP server definitions, slash commands, and skills from `global-config/` to `~/.claude/`. **Restart Claude Code after running this** to pick up the new tools.
 
-To pull external changes back into the repo:
-
-```bash
-bash scripts/sync-global-config.sh pull
-```
+After this, Claude will have access to the `slack-search` MCP tools in any project. You can ask things like "search Slack for what we discussed about the deployment last week" from any repo.
 
 ## Key Commands
 
