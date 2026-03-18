@@ -193,10 +193,10 @@ QDRANT_API_KEY=your-api-key
 
 Collections are defined in `src/qdrant/schemas/` with TypeScript types and Zod validation.
 
-| Collection       | Alias                    | Vector Size | Purpose              |
-| ---------------- | ------------------------ | ----------- | -------------------- |
-| `slack_messages` | `slack_messages_current` | 1536        | Slack message search |
-| `discoveries`    | `discoveries_current`    | 1536        | Knowledge base       |
+| Collection                 | Alias                              | Vector Size | Purpose                          |
+| -------------------------- | ---------------------------------- | ----------- | -------------------------------- |
+| `slack_messages_encrypted` | `slack_messages_encrypted_current` | 1536        | Slack message search (encrypted) |
+| `discoveries_encrypted`    | `discoveries_enc_current`          | 1536        | Knowledge base (encrypted)       |
 
 ### Adding New Collections
 
@@ -356,6 +356,7 @@ Core variables for Slack search:
 
 ```
 SLACK_USER_TOKEN=     # Slack user token (xoxp-*)
+ENCRYPTION_KEY=       # AES-256-GCM key for Qdrant data (openssl rand -hex 32)
 OPENAI_API_KEY=       # For generating embeddings
 QDRANT_URL=           # Qdrant Cloud URL
 QDRANT_API_KEY=       # Qdrant API key

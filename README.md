@@ -77,7 +77,7 @@ openssl rand -hex 32
 Add it to your `.env`:
 
 ```
-SLACK_ENCRYPTION_KEY=your-generated-key
+ENCRYPTION_KEY=your-generated-key
 ```
 
 ### Setting Up Qdrant
