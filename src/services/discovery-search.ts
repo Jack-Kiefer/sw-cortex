@@ -9,15 +9,55 @@
 
 import * as crypto from 'crypto';
 import { generateEmbedding } from './embeddings';
-import { getQdrantClient, DiscoveryPayloadSchema, DiscoveriesCollection } from '../qdrant';
-import type { DiscoveryPayload, DiscoveryType } from '../qdrant';
+import { encrypt, decrypt, encryptField, decryptField } from './encryption';
+import {
+  getQdrantClient,
+  DiscoveryEncryptedPayloadSchema,
+  DiscoveriesEncryptedCollection,
+} from '../qdrant';
+import type { DiscoveryEncryptedPayload, DiscoveryType } from '../qdrant';
 
-// Re-export types
-export type { DiscoveryPayload, DiscoveryType };
+// Re-export types — keep the old names for API compatibility
+export type { DiscoveryType };
+export type DiscoveryPayload = DiscoveryEncryptedPayload;
 export { DISCOVERY_TYPE } from '../qdrant';
 
 // Collection alias for all operations
-const COLLECTION = DiscoveriesCollection.alias;
+const COLLECTION = DiscoveriesEncryptedCollection.alias;
+
+// Encrypt sensitive fields before writing to Qdrant
+function encryptPayload(payload: {
+  title: string;
+  description: string | null;
+  sourceQuery: string | null;
+}): { title: string; description: string | null; sourceQuery: string | null } {
+  return {
+    title: encrypt(payload.title),
+    description: encryptField(payload.description),
+    sourceQuery: encryptField(payload.sourceQuery),
+  };
+}
+
+// Decrypt sensitive fields after reading from Qdrant
+function decryptPayload(payload: {
+  title: string;
+  description: string | null;
+  sourceQuery: string | null;
+  encrypted?: boolean;
+}): { title: string; description: string | null; sourceQuery: string | null } {
+  if (!payload.encrypted) {
+    return {
+      title: payload.title,
+      description: payload.description,
+      sourceQuery: payload.sourceQuery,
+    };
+  }
+  return {
+    title: decrypt(payload.title),
+    description: decryptField(payload.description) ?? null,
+    sourceQuery: decryptField(payload.sourceQuery) ?? null,
+  };
+}
 
 // Generate unique discovery ID (UUID format)
 export function generateDiscoveryId(): string {
@@ -63,15 +103,23 @@ export interface AddDiscoveryInput {
 }
 
 // Full discovery with ID and timestamps
-export interface Discovery extends DiscoveryPayload {
+export interface Discovery extends DiscoveryEncryptedPayload {
   id: string; // Alias for discoveryId
 }
 
 // Convert payload to Discovery type (adds id alias)
-function payloadToDiscovery(payload: DiscoveryPayload): Discovery {
+function payloadToDiscovery(payload: Record<string, unknown>): Discovery {
+  const typed = payload as DiscoveryEncryptedPayload & { encrypted?: boolean };
+  const decrypted = decryptPayload({
+    title: typed.title,
+    description: typed.description ?? null,
+    sourceQuery: typed.sourceQuery ?? null,
+    encrypted: typed.encrypted,
+  });
   return {
-    ...payload,
-    id: payload.discoveryId,
+    ...typed,
+    ...decrypted,
+    id: typed.discoveryId,
   };
 }
 
@@ -81,14 +129,30 @@ export async function addDiscovery(data: AddDiscoveryInput): Promise<Discovery> 
   const now = Date.now();
   const discoveryId = generateDiscoveryId();
 
-  // Build payload
-  const payload = DiscoveryPayloadSchema.parse({
-    discoveryId,
+  // Build plaintext payload first (for embedding generation)
+  const plaintextFields = {
     title: data.title,
     description: data.description || null,
+    sourceQuery: data.sourceQuery || null,
+  };
+
+  // Generate embedding from PLAINTEXT (before encryption)
+  const text = formatDiscoveryForEmbedding(
+    plaintextFields.title,
+    plaintextFields.description,
+    plaintextFields.sourceQuery
+  );
+  const embedding = await generateEmbedding(text);
+
+  // Encrypt sensitive fields
+  const encrypted = encryptPayload(plaintextFields);
+
+  // Build full payload with encrypted fields
+  const payload = DiscoveryEncryptedPayloadSchema.parse({
+    discoveryId,
+    ...encrypted,
     source: data.source,
     sourceDatabase: data.sourceDatabase || null,
-    sourceQuery: data.sourceQuery || null,
     tableName: data.tableName || null,
     columnName: data.columnName || null,
     type: data.type || 'insight',
@@ -96,26 +160,18 @@ export async function addDiscovery(data: AddDiscoveryInput): Promise<Discovery> 
     tags: data.tags || [],
     createdAt: now,
     updatedAt: now,
-    version: 1,
+    version: 2,
+    encrypted: true,
   });
-
-  // Generate embedding from content
-  const text = formatDiscoveryForEmbedding(payload.title, payload.description, payload.sourceQuery);
-  const embedding = await generateEmbedding(text);
 
   // Upsert to Qdrant
   await client.upsert(COLLECTION, {
     wait: true,
-    points: [
-      {
-        id: discoveryId,
-        vector: embedding,
-        payload,
-      },
-    ],
+    points: [{ id: discoveryId, vector: embedding, payload }],
   });
 
-  return payloadToDiscovery(payload);
+  // Return plaintext to caller (payloadToDiscovery decrypts)
+  return payloadToDiscovery(payload as unknown as Record<string, unknown>);
 }
 
 // Search discoveries semantically
@@ -164,7 +220,7 @@ export async function searchDiscoveries(
 
   return results.map((result) => ({
     score: result.score,
-    discovery: payloadToDiscovery(result.payload as unknown as DiscoveryPayload),
+    discovery: payloadToDiscovery(result.payload as Record<string, unknown>),
   }));
 }
 
@@ -182,7 +238,7 @@ export async function getDiscovery(id: string): Promise<Discovery | null> {
       return null;
     }
 
-    return payloadToDiscovery(results[0].payload as unknown as DiscoveryPayload);
+    return payloadToDiscovery(results[0].payload as Record<string, unknown>);
   } catch {
     return null;
   }
@@ -221,7 +277,7 @@ export async function listDiscoveries(filters?: {
   });
 
   return results.points.map((point) =>
-    payloadToDiscovery(point.payload as unknown as DiscoveryPayload)
+    payloadToDiscovery(point.payload as Record<string, unknown>)
   );
 }
 
@@ -242,7 +298,7 @@ export async function getTableNotes(database: string, table: string): Promise<Di
   });
 
   return results.points.map((point) =>
-    payloadToDiscovery(point.payload as unknown as DiscoveryPayload)
+    payloadToDiscovery(point.payload as Record<string, unknown>)
   );
 }
 
@@ -271,53 +327,57 @@ export async function updateDiscovery(
     return null;
   }
 
-  // Merge updates (all fields now updatable for corrections)
-  const updatedPayload = DiscoveryPayloadSchema.parse({
-    ...existing,
-    title: data.title ?? existing.title,
-    description: data.description ?? existing.description,
-    type: data.type ?? existing.type,
-    priority: data.priority ?? existing.priority,
-    tags: data.tags ?? existing.tags,
-    // Source fields (previously immutable)
-    source: data.source ?? existing.source,
-    sourceDatabase:
-      data.sourceDatabase !== undefined ? data.sourceDatabase : existing.sourceDatabase,
-    sourceQuery: data.sourceQuery !== undefined ? data.sourceQuery : existing.sourceQuery,
-    tableName: data.tableName !== undefined ? data.tableName : existing.tableName,
-    columnName: data.columnName !== undefined ? data.columnName : existing.columnName,
-    updatedAt: Date.now(),
-  });
+  // Merge plaintext updates
+  const plaintextTitle = data.title ?? existing.title;
+  const plaintextDescription = data.description ?? existing.description;
+  const plaintextSourceQuery =
+    data.sourceQuery !== undefined ? data.sourceQuery : existing.sourceQuery;
 
-  // Re-generate embedding if text content changed (title, description, or sourceQuery)
+  // Re-generate embedding if text content changed
   const textChanged =
     data.title !== undefined || data.description !== undefined || data.sourceQuery !== undefined;
 
   let embedding: number[] | undefined;
   if (textChanged) {
     const text = formatDiscoveryForEmbedding(
-      updatedPayload.title,
-      updatedPayload.description,
-      updatedPayload.sourceQuery
+      plaintextTitle,
+      plaintextDescription,
+      plaintextSourceQuery
     );
     embedding = await generateEmbedding(text);
   }
 
+  // Encrypt sensitive fields for storage
+  const encrypted = encryptPayload({
+    title: plaintextTitle,
+    description: plaintextDescription ?? null,
+    sourceQuery: plaintextSourceQuery ?? null,
+  });
+
+  const updatedPayload = DiscoveryEncryptedPayloadSchema.parse({
+    discoveryId: existing.discoveryId,
+    ...encrypted,
+    source: data.source ?? existing.source,
+    sourceDatabase:
+      data.sourceDatabase !== undefined ? data.sourceDatabase : existing.sourceDatabase,
+    tableName: data.tableName !== undefined ? data.tableName : existing.tableName,
+    columnName: data.columnName !== undefined ? data.columnName : existing.columnName,
+    type: data.type ?? existing.type,
+    priority: data.priority ?? existing.priority,
+    tags: data.tags ?? existing.tags,
+    createdAt: existing.createdAt,
+    updatedAt: Date.now(),
+    version: 2,
+    encrypted: true,
+  });
+
   // Update in Qdrant
   if (embedding) {
-    // Full update with new embedding
     await client.upsert(COLLECTION, {
       wait: true,
-      points: [
-        {
-          id,
-          vector: embedding,
-          payload: updatedPayload,
-        },
-      ],
+      points: [{ id, vector: embedding, payload: updatedPayload }],
     });
   } else {
-    // Payload-only update
     await client.setPayload(COLLECTION, {
       payload: updatedPayload,
       points: [id],
@@ -325,7 +385,8 @@ export async function updateDiscovery(
     });
   }
 
-  return payloadToDiscovery(updatedPayload);
+  // Return plaintext (payloadToDiscovery decrypts)
+  return payloadToDiscovery(updatedPayload as unknown as Record<string, unknown>);
 }
 
 // Delete a discovery
@@ -450,5 +511,5 @@ export async function initializeDiscoveriesCollection(): Promise<void> {
   const { ensureCollection } = await import('../qdrant/utils');
 
   // Create collection if it doesn't exist (also creates payload indexes)
-  await ensureCollection(client, DiscoveriesCollection);
+  await ensureCollection(client, DiscoveriesEncryptedCollection);
 }
