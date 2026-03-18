@@ -4,13 +4,12 @@ Personal work intelligence platform for Jack. Answers questions, accesses databa
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript, Tailwind CSS, Vite
-- **Backend**: Express.js + TypeScript, Drizzle ORM
-- **Databases**: MySQL (WishDesk, Live SugarWish), PostgreSQL (Odoo, Retool)
+- **Language**: TypeScript
+- **Databases**: MySQL (WishDesk, Live SugarWish), PostgreSQL (Odoo, Retool), SQLite (local discoveries)
 - **Vector DB**: Qdrant (Slack message search, discoveries)
+- **Embeddings**: OpenAI
 - **Process Mgmt**: PM2
 - **Automation**: n8n (self-hosted)
-- **Notifications**: Slack
 
 ## MCP Servers
 
@@ -31,7 +30,7 @@ sw-cortex/
 ├── CLAUDE.md              # You are here
 ├── .claude/               # Claude Code configuration
 │   ├── commands/          # Slash commands (/analyze, etc.)
-│   ├── rules/             # Modular memory (auto-loaded)
+│   ├── rules/             # Modular rules (auto-loaded)
 │   └── agents/            # Subagents (code-simplifier, verify-app)
 ├── .mcp.json              # MCP server config
 ├── src/                   # Application source code
@@ -43,13 +42,11 @@ sw-cortex/
 │   │   └── github/        # GitHub access
 │   ├── services/          # Shared backend services
 │   ├── qdrant/            # Qdrant vector DB module
-│   ├── db/                # Local database schema (Drizzle)
+│   ├── db/                # Local SQLite schema (Drizzle)
 │   └── types/             # TypeScript types
-├── workflows/             # Automation configs
-│   ├── n8n/               # n8n workflow exports
-│   └── retool/            # Retool configurations
-├── knowledge/             # Vector DB data
-│   └── slack/             # Slack message index
+├── global-config/         # Global Claude config (syncs to ~/.claude)
+├── workflows/             # Automation configs (n8n, retool)
+├── knowledge/             # Local data (slack index, meetings)
 └── scripts/               # Utility scripts
 ```
 
@@ -90,13 +87,6 @@ Or use the slash command: `/add-global sync push`
 ## DX Commands
 
 ```bash
-# Development
-npm run dev              # Start Vite dev server (frontend)
-npm run dev:api          # Start Express API server
-npm run dev:all          # Start both frontend + API
-npm run build            # Build for production
-npm run typecheck        # Run TypeScript checks
-
 # Data Sync
 npm run slack:sync       # Sync Slack messages to Qdrant
 npm run meetings:sync    # Sync meeting notes to Qdrant
@@ -106,13 +96,14 @@ npm run sync:all         # Sync meetings + Slack
 npm run qdrant:init      # Initialize all registered collections
 npm run qdrant:status    # Show collection status
 
-# Testing
-npm run test             # Run all tests
-npm run test:watch       # Watch mode
-
-# Formatting & Linting
+# Code Quality
+npm run typecheck        # Run TypeScript checks
 npm run format           # Prettier format all
 npm run lint             # ESLint check
+
+# Global Config
+bash scripts/sync-global-config.sh push   # Export to ~/.claude
+bash scripts/sync-global-config.sh pull   # Import from ~/.claude
 ```
 
 ## Slash Commands
@@ -286,10 +277,10 @@ Without `ref`, tools default to the repo's default branch (usually `main`).
 ## Code Style
 
 - TypeScript strict mode
-- Prettier for formatting (runs on save via hook)
+- Prettier for formatting
 - ESLint for linting
 - Prefer functional patterns
-- Use Drizzle ORM for all database operations
+- Use Drizzle ORM for local database operations
 - Environment variables for all secrets
 
 ## Git Conventions
@@ -359,42 +350,23 @@ Spawn: Task tool with subagent_type="verify-app"
 
 ## Environment Variables
 
-Required in `.env.local` (not committed):
+Required in `.env` (not committed). See `.env.example` for all options.
+
+Core variables for Slack search:
 
 ```
-# Databases
-WISHDESK_DB_HOST=
-WISHDESK_DB_USER=
-WISHDESK_DB_PASSWORD=
-SUGARWISH_DB_HOST=
-SUGARWISH_DB_USER=
-SUGARWISH_DB_PASSWORD=
-ODOO_DB_HOST=
-ODOO_DB_USER=
-ODOO_DB_PASSWORD=
-RETOOL_DB_HOST=
-RETOOL_DB_USER=
-RETOOL_DB_PASSWORD=
+SLACK_USER_TOKEN=     # Slack user token (xoxp-*)
+OPENAI_API_KEY=       # For generating embeddings
+QDRANT_URL=           # Qdrant Cloud URL
+QDRANT_API_KEY=       # Qdrant API key
+```
 
-# SSH Tunnel
-SSH_BASTION_HOST=
-SSH_BASTION_USER=
-SSH_KEY_PATH=
+Optional for other MCP servers:
 
-# Slack
-SLACK_BOT_TOKEN=
-SLACK_SIGNING_SECRET=
-
-# Qdrant
-QDRANT_URL=
-QDRANT_API_KEY=
-
-# n8n
-N8N_HOST=
-N8N_API_KEY=
-
-# GitHub
-GITHUB_TOKEN=
+```
+GITHUB_TOKEN=         # GitHub personal access token
+WISHDESK_DB_HOST=     # Database connections (see .env.example)
+ODOO_DB_HOST=         # etc.
 ```
 
 ## Quick Reference

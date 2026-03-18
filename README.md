@@ -1,197 +1,115 @@
 # sw-cortex
 
-Personal work intelligence platform. Manage tasks, query databases, search Slack history, generate n8n workflows, and integrate with Claude Code.
+Personal work intelligence platform built around [Claude Code](https://claude.ai/claude-code). Exports your Slack history into a [Qdrant](https://qdrant.tech/) vector database and provides MCP tools so Claude can semantically search it from any project.
 
-## Features
+Better than searching Slack directly — it's fast and uses semantic search so you can find things by meaning, not just keywords.
 
-- **Task Management**: TickTick-style tasks with projects, priorities, Eisenhower matrix
-- **Database Access**: Read-only queries against MySQL/PostgreSQL databases
-- **Slack Search**: Semantic search over your Slack message history
-- **GitHub Access**: Browse and search configured repositories
-- **Discoveries**: Knowledge base for database insights and learnings
-- **n8n Workflows**: Generate workflow JSON for import into n8n
-- **Claude Code Integration**: MCP servers for AI-assisted development
+## What It Does
+
+1. **Syncs your Slack messages** into a Qdrant vector database with embeddings
+2. **Provides MCP servers** that Claude Code can use as tools (Slack search, database access, knowledge base, etc.)
+3. **Exports MCP tools to your global config** so they're available in every repo, not just this one
 
 ## Quick Start
 
-### 1. Clone and Install
+### Prerequisites
+
+- Node.js 18+
+- A [Qdrant Cloud](https://cloud.qdrant.io/) instance (free tier works)
+- A Slack User Token (not a bot token — needs your message history)
+- An OpenAI API key (for generating embeddings)
+
+### Setup
 
 ```bash
-git clone https://github.com/youruser/sw-cortex.git
+git clone https://github.com/Jack-Kiefer/sw-cortex.git
 cd sw-cortex
 npm install
 ```
 
-### 2. Run Setup
+Copy `.env.example` to `.env` and fill in your credentials:
 
 ```bash
-npm run setup
+cp .env.example .env
 ```
 
-This interactive script will:
+The key ones for Slack search:
 
-- Create `.env` from template
-- Generate `~/.mcp.json` with correct paths
-- Generate `~/CLAUDE.md` for global Claude config
-- Set up required directories
+```
+SLACK_USER_TOKEN=xoxp-your-user-token
+OPENAI_API_KEY=sk-your-openai-key
+QDRANT_URL=https://your-instance.cloud.qdrant.io
+QDRANT_API_KEY=your-qdrant-api-key
+```
 
-### 3. Configure Credentials
-
-Edit `.env` with your credentials:
+Initialize the Qdrant collections:
 
 ```bash
-# Required for database access
-WISHDESK_DB_HOST=...
-SUGARWISH_DB_HOST=...
-# etc.
-
-# Required for Slack integration
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...
-
-# Required for GitHub access
-GITHUB_TOKEN=ghp_...
-
-# Required for vector search
-QDRANT_URL=https://...
-QDRANT_API_KEY=...
+npm run qdrant:init
 ```
 
-### 4. Configure GitHub Repos (Optional)
-
-Add your repositories to `.env`:
+### Sync Your Slack Messages
 
 ```bash
-GITHUB_REPOS=[{"owner":"myorg","repo":"myapp","description":"My Application"}]
+npm run slack:sync
 ```
 
-### 5. Initialize Database
+This pulls your Slack messages, generates embeddings via OpenAI, and stores them in Qdrant. Run it periodically to keep things up to date, or set it up on a cron/PM2 schedule.
+
+### Export MCP Tools to Global Config
+
+The MCP servers in this repo (Slack search, discoveries, etc.) can be exported to your global Claude Code config so they're available in every project:
 
 ```bash
-npm run db:migrate
+bash scripts/sync-global-config.sh push
 ```
 
-### 6. Restart Claude Code
+This syncs the contents of `global-config/` to `~/.claude/`, including MCP server definitions, slash commands, and skills. Restart Claude Code after pushing to pick up changes.
 
-Restart Claude Code to pick up the new MCP configuration.
-
-### 7. Start Development
+To pull external changes back into the repo:
 
 ```bash
-npm run dev
+bash scripts/sync-global-config.sh pull
 ```
+
+## Key Commands
+
+| Command                                   | What it does                             |
+| ----------------------------------------- | ---------------------------------------- |
+| `npm run slack:sync`                      | Sync Slack messages to Qdrant            |
+| `npm run qdrant:init`                     | Initialize Qdrant collections            |
+| `npm run qdrant:status`                   | Check Qdrant collection status           |
+| `npm run sync:all`                        | Sync everything (meetings + Slack)       |
+| `bash scripts/sync-global-config.sh push` | Export MCP tools to global Claude config |
 
 ## MCP Servers
 
-Five MCP servers provide tools to Claude Code:
+This repo includes several MCP servers that Claude Code can use as tools:
 
-| Server           | Purpose                             |
-| ---------------- | ----------------------------------- |
-| **discoveries**  | Knowledge base for insights         |
-| **slack-search** | Semantic search over Slack messages |
-| **logs**         | System log search and analysis      |
-| **db**           | Database queries (read-only)        |
-| **github**       | GitHub repo access (read-only)      |
+| Server           | Purpose                                      |
+| ---------------- | -------------------------------------------- |
+| **slack-search** | Semantic search over Slack messages          |
+| **discoveries**  | Knowledge base for saving insights           |
+| **db**           | Read-only database access (MySQL/PostgreSQL) |
+| **github**       | GitHub repo access                           |
+| **logs**         | System log search and analysis               |
 
-Regenerate MCP config: `npm run generate:mcp`
+## Forking / Making It Your Own
 
-## Configuration
+Fork this repo and have Claude Code customize it for your setup. The main things you'll want to change:
 
-### Environment Variables
+- **`.env`** — Your own credentials
+- **`global-config/`** — Your own slash commands, skills, and MCP config
+- **`src/mcp-servers/`** — Add/remove MCP servers for your tools
+- **`src/services/databases.ts`** — Database connections (if you use the DB server)
 
-See `.env.example` for all available options. Key sections:
-
-- **Application**: `SW_CORTEX_USER`, `SW_CORTEX_ROOT`
-- **Databases**: MySQL and PostgreSQL connection details
-- **Slack**: Bot token, app token, user ID
-- **Qdrant**: Vector database for semantic search
-- **GitHub**: Personal access token
-- **n8n**: Automation platform credentials
-
-### Background Services
-
-#### PM2 (Recommended)
-
-```bash
-pm2 start ecosystem.config.cjs
-pm2 logs          # View logs
-pm2 restart api   # Restart API
-```
-
-#### Systemd
-
-```bash
-bash scripts/install-systemd.sh
-```
-
-This generates service files from templates with your paths.
-
-## Development
-
-```bash
-npm run dev          # Start Vite dev server
-npm run dev:api      # Start API server
-npm run typecheck    # TypeScript checks
-npm run test         # Run tests
-npm run lint         # ESLint check
-```
-
-### Database Migrations
-
-```bash
-npm run db:generate  # Generate migration from schema changes
-npm run db:migrate   # Apply pending migrations
-npm run db:push      # Push schema directly (dev only)
-npm run db:studio    # Open Drizzle Studio GUI
-```
-
-### Qdrant Vector Database
-
-```bash
-npm run qdrant:init   # Initialize collections
-npm run qdrant:status # Check collection status
-```
-
-## Project Structure
-
-```
-sw-cortex/
-├── src/
-│   ├── mcp-servers/       # MCP server implementations
-│   │   ├── discoveries/   # Knowledge base
-│   │   ├── slack-search/  # Slack message search
-│   │   ├── logs/          # Log analysis
-│   │   ├── db/            # Database access
-│   │   └── github/        # GitHub access
-│   ├── services/          # Shared backend services
-│   ├── qdrant/            # Vector DB module
-│   ├── db/                # Drizzle schema
-│   ├── config/            # Configuration modules
-│   └── web/               # React frontend
-├── scripts/               # Utility scripts
-│   ├── setup.ts           # Interactive setup
-│   ├── generate-mcp-config.ts
-│   └── systemd/           # Service templates
-├── global-config/         # Global Claude config templates
-├── workflows/             # n8n workflow exports
-└── tasks/                 # SQLite database
-```
+The Slack sync + search works standalone — you don't need the database or GitHub servers if you just want Slack search.
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript, Tailwind CSS, Vite
-- **Backend**: Express.js + TypeScript, Drizzle ORM
-- **Databases**: MySQL, PostgreSQL, SQLite (local)
-- **Vector DB**: Qdrant
-- **Process Management**: PM2
-- **Automation**: n8n
-
-## Documentation
-
-- `CLAUDE.md` - Project instructions for Claude Code
-- `global-config/CLAUDE.md.template` - Global config template
-- `.claude/rules/` - Modular Claude rules
-
-## License
-
-MIT
+- TypeScript
+- Qdrant (vector DB for semantic search)
+- OpenAI (embeddings)
+- Slack User Token API
+- MCP (Model Context Protocol) servers
+- PM2 (process management, optional)

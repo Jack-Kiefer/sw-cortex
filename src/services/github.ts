@@ -7,20 +7,29 @@
  */
 
 import { Octokit } from '@octokit/rest';
-import { getGithubRepos, type RepoConfig } from '../config/app.js';
+
+export interface RepoConfig {
+  owner: string;
+  repo: string;
+  description?: string;
+}
 
 /**
- * Get configured repositories
- * Loaded from GITHUB_REPOS environment variable
+ * Get configured repositories from GITHUB_REPOS env var
  */
 function getRepos(): RepoConfig[] {
-  const repos = getGithubRepos();
-  if (repos.length === 0) {
-    console.warn(
-      '[github] No repositories configured. Set GITHUB_REPOS in .env or run `npm run setup`.'
-    );
+  const raw = process.env.GITHUB_REPOS;
+  if (!raw) return [];
+  try {
+    const repos = JSON.parse(raw) as RepoConfig[];
+    if (repos.length === 0) {
+      console.warn('[github] No repositories configured. Set GITHUB_REPOS in .env.');
+    }
+    return repos;
+  } catch {
+    console.warn('[github] Failed to parse GITHUB_REPOS env var');
+    return [];
   }
-  return repos;
 }
 
 let octokit: Octokit | null = null;
