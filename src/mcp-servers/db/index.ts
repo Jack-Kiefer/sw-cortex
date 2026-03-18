@@ -44,14 +44,14 @@ const tools: Tool[] = [
   {
     name: 'query_database',
     description:
-      'Execute a read-only SQL query against a database (wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_staging)',
+      'Execute a read-only SQL query against a database (wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_manage)',
     inputSchema: {
       type: 'object',
       properties: {
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_staging',
+            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_manage',
         },
         query: { type: 'string', description: 'SQL query (SELECT only)' },
         limit: { type: 'number', description: 'Max rows to return' },
@@ -68,7 +68,7 @@ const tools: Tool[] = [
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_staging',
+            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_manage',
         },
       },
       required: ['database'],

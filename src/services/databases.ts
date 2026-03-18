@@ -124,14 +124,14 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       database: process.env.TESTING_DB_NAME || 'serp_local',
       // No SSH for local database
     },
-    laravel_staging: {
-      name: 'laravel_staging',
+    laravel_manage: {
+      name: 'laravel_manage',
       type: 'mysql',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '3306', 10),
-      user: process.env.DB_USER || '',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.LIVE_DB_NAME || '',
+      host: process.env.MANAGE_DB_HOST || 'localhost',
+      port: parseInt(process.env.MANAGE_DB_PORT || '3306', 10),
+      user: process.env.MANAGE_DB_USER || '',
+      password: process.env.MANAGE_DB_PASSWORD || '',
+      database: process.env.MANAGE_DB_NAME || '',
       // No SSH - direct connection to RDS
     },
   };

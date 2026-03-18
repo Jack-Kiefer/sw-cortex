@@ -1,53 +1,75 @@
 #!/usr/bin/env npx tsx
 /**
- * Meeting Notes Sync Script
+ * Knowledge Sync Script
  *
- * Reads markdown files from knowledge/meetings/, chunks them, generates embeddings,
- * encrypts content, and upserts to the slack_messages_encrypted Qdrant collection.
+ * Reads markdown files from knowledge directories and ~/.claude/plans/,
+ * chunks them, generates embeddings, encrypts content, and upserts to
+ * the slack_messages_encrypted Qdrant collection.
  *
  * Usage:
- *   npm run meetings:sync              # Sync all meeting notes
- *   npm run meetings:sync -- --verbose # With detailed logging
- *   npm run meetings:sync -- --dry-run # Preview without indexing
+ *   npm run meetings:sync                    # Sync meetings + plans
+ *   npm run meetings:sync -- --meetings-only # Sync only meetings
+ *   npm run meetings:sync -- --plans-only    # Sync only plans
+ *   npm run meetings:sync -- --verbose       # With detailed logging
+ *   npm run meetings:sync -- --dry-run       # Preview without indexing
  */
 
 import 'dotenv/config';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { generateEmbeddings } from '../src/services/embeddings';
 import { getQdrantClient } from '../src/qdrant';
 import { encrypt, validateEncryptionKey } from '../src/services/encryption';
 
 const ENCRYPTED_COLLECTION = 'slack_messages_encrypted';
-const MEETINGS_DIR = path.join(process.cwd(), 'knowledge', 'meetings');
 const CHUNK_SIZE = 2000; // characters per chunk
 const CHUNK_OVERLAP = 200; // overlap between chunks
+const BATCH_SIZE = 50;
+
+const SOURCES = {
+  meetings: {
+    dir: path.join(process.cwd(), 'knowledge', 'meetings'),
+    channelId: 'meetings',
+    channelName: 'Meeting Notes',
+    label: 'Meeting',
+    pointPrefix: 'meeting',
+  },
+  plans: {
+    dir: path.join(os.homedir(), '.claude', 'plans'),
+    channelId: 'plans',
+    channelName: 'Claude Plans',
+    label: 'Plan',
+    pointPrefix: 'plan',
+  },
+};
 
 const args = process.argv.slice(2);
 const flags = {
   verbose: args.includes('--verbose') || args.includes('-v'),
   dryRun: args.includes('--dry-run'),
+  meetingsOnly: args.includes('--meetings-only'),
+  plansOnly: args.includes('--plans-only'),
 };
 
-interface MeetingChunk {
+interface DocChunk {
+  source: keyof typeof SOURCES;
   file: string;
   title: string;
   date: string;
   chunkIndex: number;
-  totalChunks: number;
   text: string;
   timestamp: number;
 }
 
-/**
- * Parse meeting title and date from filename.
- * Expected format: YYYY-MM-DD-title.md or YYYYMMDDTHHMMSS-title.md
- */
-function parseFilename(filename: string): { title: string; date: string; timestamp: number } {
+function parseFilename(
+  dir: string,
+  filename: string
+): { title: string; date: string; timestamp: number } {
   const base = filename.replace(/\.md$/, '');
 
-  // Try ISO date prefix: 2026-03-01-meeting-name
+  // ISO date prefix: 2026-03-01-some-title
   const isoMatch = base.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
   if (isoMatch) {
     const date = isoMatch[1];
@@ -55,7 +77,7 @@ function parseFilename(filename: string): { title: string; date: string; timesta
     return { title, date, timestamp: new Date(date).getTime() / 1000 };
   }
 
-  // Try compact date prefix: 20260301-meeting-name
+  // Compact date prefix: 20260301-some-title
   const compactMatch = base.match(/^(\d{8})-(.+)$/);
   if (compactMatch) {
     const raw = compactMatch[1];
@@ -64,71 +86,63 @@ function parseFilename(filename: string): { title: string; date: string; timesta
     return { title, date, timestamp: new Date(date).getTime() / 1000 };
   }
 
-  // Fallback: use file mtime
-  const filePath = path.join(MEETINGS_DIR, filename);
-  const stat = fs.statSync(filePath);
+  // Fallback: use mtime
+  const stat = fs.statSync(path.join(dir, filename));
   const date = stat.mtime.toISOString().split('T')[0];
-  return { title: base.replace(/-/g, ' '), date, timestamp: stat.mtime.getTime() / 1000 };
+  return {
+    title: base.replace(/-/g, ' '),
+    date,
+    timestamp: stat.mtime.getTime() / 1000,
+  };
 }
 
-/**
- * Split text into overlapping chunks.
- */
-function chunkText(text: string, chunkSize: number, overlap: number): string[] {
+function chunkText(text: string): string[] {
   const chunks: string[] = [];
   let start = 0;
-
   while (start < text.length) {
-    const end = Math.min(start + chunkSize, text.length);
+    const end = Math.min(start + CHUNK_SIZE, text.length);
     chunks.push(text.slice(start, end).trim());
     if (end === text.length) break;
-    start += chunkSize - overlap;
+    start += CHUNK_SIZE - CHUNK_OVERLAP;
   }
-
-  return chunks.filter((c) => c.length > 20); // Skip tiny remnants
+  return chunks.filter((c) => c.length > 20);
 }
 
-/**
- * Generate a stable UUID from meeting file + chunk index.
- */
-function generateMeetingPointId(filename: string, chunkIndex: number): string {
-  const combined = `meeting:${filename}:chunk:${chunkIndex}`;
+function generatePointId(prefix: string, filename: string, chunkIndex: number): string {
+  const combined = `${prefix}:${filename}:chunk:${chunkIndex}`;
   const hash = crypto.createHash('md5').update(combined).digest('hex');
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
-/**
- * Load and chunk all meeting files.
- */
-function loadMeetingChunks(): MeetingChunk[] {
-  if (!fs.existsSync(MEETINGS_DIR)) {
-    console.log(`Meetings directory not found: ${MEETINGS_DIR}`);
+function loadChunksFromSource(sourceKey: keyof typeof SOURCES): DocChunk[] {
+  const source = SOURCES[sourceKey];
+  if (!fs.existsSync(source.dir)) {
+    console.log(`  Directory not found: ${source.dir}`);
     return [];
   }
 
   const files = fs
-    .readdirSync(MEETINGS_DIR)
+    .readdirSync(source.dir)
     .filter((f) => f.endsWith('.md'))
     .sort();
 
-  const allChunks: MeetingChunk[] = [];
+  const allChunks: DocChunk[] = [];
 
   for (const file of files) {
-    const filePath = path.join(MEETINGS_DIR, file);
+    const filePath = path.join(source.dir, file);
     const content = fs.readFileSync(filePath, 'utf-8').trim();
-
     if (!content) continue;
 
-    const { title, date, timestamp } = parseFilename(file);
-    const rawChunks = chunkText(content, CHUNK_SIZE, CHUNK_OVERLAP);
+    const { title, date, timestamp } = parseFilename(source.dir, file);
+    const rawChunks = chunkText(content);
 
     for (let i = 0; i < rawChunks.length; i++) {
       allChunks.push({
+        source: sourceKey,
         file,
         title,
         date,
         chunkIndex: i,
-        totalChunks: rawChunks.length,
         text: rawChunks[i],
         timestamp,
       });
@@ -142,73 +156,40 @@ function loadMeetingChunks(): MeetingChunk[] {
   return allChunks;
 }
 
-async function main() {
-  console.log('Meeting Notes Sync\n');
-
-  // Validate encryption key
-  const keyCheck = validateEncryptionKey();
-  if (!keyCheck.valid) {
-    console.error(`Encryption key error: ${keyCheck.error}`);
-    process.exit(1);
-  }
-
-  // Load chunks
-  console.log(`Loading meetings from ${MEETINGS_DIR}...`);
-  const chunks = loadMeetingChunks();
-
-  if (chunks.length === 0) {
-    console.log('No meeting notes found. Add .md files to knowledge/meetings/');
-    return;
-  }
-
-  const files = [...new Set(chunks.map((c) => c.file))];
-  console.log(`Found ${files.length} meeting files, ${chunks.length} total chunks`);
-  for (const file of files) {
-    const n = chunks.filter((c) => c.file === file).length;
-    console.log(`  ${file}: ${n} chunks`);
-  }
-
-  if (flags.dryRun) {
-    console.log('\n[DRY RUN] Would index the following:');
-    for (const file of files) {
-      const fileChunks = chunks.filter((c) => c.file === file);
-      console.log(`  ${file}: ${fileChunks.length} chunks`);
-    }
-    return;
-  }
-
-  // Connect to Qdrant
+async function syncChunks(chunks: DocChunk[]): Promise<number> {
   const client = getQdrantClient();
-  const BATCH_SIZE = 50;
   let totalIndexed = 0;
 
-  // Process in batches
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
 
-    // Format text for embedding: include title and date for context
-    const texts = batch.map((chunk) => `[Meeting: ${chunk.title}] [${chunk.date}]\n${chunk.text}`);
+    const texts = batch.map((chunk) => {
+      const src = SOURCES[chunk.source];
+      return `[${src.label}: ${chunk.title}] [${chunk.date}]\n${chunk.text}`;
+    });
 
     const embeddings = await generateEmbeddings(texts);
 
-    const points = batch.map((chunk, idx) => ({
-      id: generateMeetingPointId(chunk.file, chunk.chunkIndex),
-      vector: embeddings[idx],
-      payload: {
-        // Use meeting_ prefix for channelId so search results can identify source
-        messageId: `meeting:${chunk.file}:${chunk.chunkIndex}`,
-        channelId: 'meetings',
-        channelName: encrypt('meetings'),
-        userId: 'meeting-notes',
-        userName: encrypt('Meeting Notes'),
-        text: encrypt(`[Meeting: ${chunk.title}] [${chunk.date}]\n${chunk.text}`),
-        timestamp: chunk.timestamp,
-        threadTs: encrypt(chunk.file), // Use file as thread so all chunks group together
-        permalink: null,
-        version: 1,
-        encrypted: true,
-      },
-    }));
+    const points = batch.map((chunk, idx) => {
+      const src = SOURCES[chunk.source];
+      return {
+        id: generatePointId(src.pointPrefix, chunk.file, chunk.chunkIndex),
+        vector: embeddings[idx],
+        payload: {
+          messageId: `${src.pointPrefix}:${chunk.file}:${chunk.chunkIndex}`,
+          channelId: src.channelId,
+          channelName: encrypt(src.channelName),
+          userId: src.pointPrefix,
+          userName: encrypt(src.channelName),
+          text: encrypt(`[${src.label}: ${chunk.title}] [${chunk.date}]\n${chunk.text}`),
+          timestamp: chunk.timestamp,
+          threadTs: encrypt(chunk.file),
+          permalink: null,
+          version: 1,
+          encrypted: true,
+        },
+      };
+    });
 
     await client.upsert(ENCRYPTED_COLLECTION, { wait: true, points });
     totalIndexed += batch.length;
@@ -220,7 +201,54 @@ async function main() {
     }
   }
 
-  console.log(`\nDone. Indexed ${totalIndexed} chunks from ${files.length} meeting files.`);
+  return totalIndexed;
+}
+
+async function main() {
+  const keyCheck = validateEncryptionKey();
+  if (!keyCheck.valid) {
+    console.error(`Encryption key error: ${keyCheck.error}`);
+    process.exit(1);
+  }
+
+  const sourcesToSync: (keyof typeof SOURCES)[] = flags.plansOnly
+    ? ['plans']
+    : flags.meetingsOnly
+      ? ['meetings']
+      : ['meetings', 'plans'];
+
+  let grandTotal = 0;
+
+  for (const sourceKey of sourcesToSync) {
+    const src = SOURCES[sourceKey];
+    console.log(`\nLoading ${sourceKey} from ${src.dir}...`);
+    const chunks = loadChunksFromSource(sourceKey);
+
+    if (chunks.length === 0) {
+      console.log(`  No files found.`);
+      continue;
+    }
+
+    const files = [...new Set(chunks.map((c) => c.file))];
+    console.log(`  ${files.length} files, ${chunks.length} total chunks`);
+    for (const file of files) {
+      const n = chunks.filter((c) => c.file === file).length;
+      console.log(`    ${file}: ${n} chunks`);
+    }
+
+    if (flags.dryRun) {
+      console.log(`  [DRY RUN] Would index ${chunks.length} chunks`);
+      continue;
+    }
+
+    const indexed = await syncChunks(chunks);
+    console.log(`  Indexed ${indexed} chunks`);
+    grandTotal += indexed;
+  }
+
+  if (!flags.dryRun) {
+    console.log(`\nDone. Total indexed: ${grandTotal} chunks`);
+  }
 }
 
 main().catch((err) => {

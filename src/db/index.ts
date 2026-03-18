@@ -32,9 +32,7 @@ export function closeDb(): void {
   sqlite.close();
 }
 
-// Initialize database - runs migrations
+// Initialize database
 export function initDb(): void {
-  // Migrations are handled by drizzle-kit
-  // Run: npm run db:migrate
   console.log('Database initialized at:', DB_PATH);
 }

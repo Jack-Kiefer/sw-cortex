@@ -29,6 +29,9 @@ tasks/slack-sync-encrypted-state.json
 knowledge/slack/*.bin
 knowledge/slack/*.json
 
+# Meeting notes (synced separately)
+knowledge/meetings/
+
 # IDE
 .idea/
 .vscode/

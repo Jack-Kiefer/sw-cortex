@@ -19,7 +19,7 @@ async function main() {
     console.log('\n=== Querying Laravel Databases for PO-related tables ===\n');
 
     // Check both databases
-    const databases = ['laravel_local', 'laravel_staging'];
+    const databases = ['laravel_local', 'laravel_manage'];
 
     for (const db of databases) {
       console.log(`\n📦 ${db.toUpperCase()}`);

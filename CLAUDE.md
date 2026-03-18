@@ -91,15 +91,16 @@ Or use the slash command: `/add-global sync push`
 
 ```bash
 # Development
-npm run dev              # Start dev server
+npm run dev              # Start Vite dev server (frontend)
+npm run dev:api          # Start Express API server
+npm run dev:all          # Start both frontend + API
 npm run build            # Build for production
 npm run typecheck        # Run TypeScript checks
 
-# Database Migrations (SQLite)
-npm run db:generate      # Generate migration from schema changes
-npm run db:migrate       # Apply pending migrations
-npm run db:push          # Push schema directly (dev only)
-npm run db:studio        # Open Drizzle Studio GUI
+# Data Sync
+npm run slack:sync       # Sync Slack messages to Qdrant
+npm run meetings:sync    # Sync meeting notes to Qdrant
+npm run sync:all         # Sync meetings + Slack
 
 # Qdrant Vector Database
 npm run qdrant:init      # Initialize all registered collections
@@ -157,7 +158,7 @@ All production database access is READ-ONLY. Never run write queries against pro
 - `odoo_staging` - Odoo Staging PostgreSQL
 - `retool` - Retool PostgreSQL
 - `laravel_local` - Laravel Local MySQL
-- `laravel_staging` - Laravel Staging MySQL
+- `laravel_manage` - Laravel Staging MySQL
 
 ### MCP Tools
 

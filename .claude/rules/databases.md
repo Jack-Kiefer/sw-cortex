@@ -19,7 +19,7 @@ All production database queries MUST be read-only. Never execute:
 | Retool          | PostgreSQL | `retool`          | Analytics/dashboards  |
 | Laravel         | MySQL      | `laravel`         | **Production** (SERP) |
 | Laravel Local   | MySQL      | `laravel_local`   | Local Laravel dev     |
-| Laravel Staging | MySQL      | `laravel_staging` | Laravel staging       |
+| Laravel Staging | MySQL      | `laravel_manage`  | Laravel staging       |
 
 All databases are accessed via unified MCP tools:
 

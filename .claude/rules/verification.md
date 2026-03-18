@@ -20,12 +20,6 @@ Every significant change MUST have a verification step. This 2-3x the quality of
 - Run `npm run test` - ensure tests pass
 - Use `verify-app` subagent for end-to-end verification
 
-### Database Schema Changes
-
-- Run `npm run task:migrate` for local SQLite
-- Test queries manually before committing
-- Document schema changes in migration files
-
 ### MCP Server Changes
 
 - Test with `/mcp` command to verify server status
