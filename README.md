@@ -24,21 +24,26 @@ Better than searching Slack directly — it's fast and uses semantic search so y
 
 You need a **User Token** (`xoxp-...`), not a Bot Token. This is what lets the sync read your personal message history.
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App** → **From scratch**
-2. Name it whatever you want and select your workspace
-3. Go to **OAuth & Permissions**
-4. Under **User Token Scopes**, add these scopes:
-   - `channels:history` — Read messages in public channels
-   - `channels:read` — List public channels
-   - `groups:history` — Read messages in private channels you're in
-   - `groups:read` — List private channels
-   - `im:history` — Read DMs
-   - `im:read` — List DMs
-   - `mpim:history` — Read group DMs
-   - `mpim:read` — List group DMs
-   - `users:read` — Resolve user IDs to names
-5. **Install the app** to your workspace
+**Quickest way — create from manifest:**
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App** → **From an app manifest**
+2. Select your workspace
+3. Paste the contents of [`slack-app-manifest.yml`](slack-app-manifest.yml) from this repo
+4. Click **Create**
+5. Go to **Install App** and install it to your workspace
 6. Copy the **User OAuth Token** (starts with `xoxp-`)
+
+**Or manually:**
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
+2. Go to **OAuth & Permissions** and add these **User Token Scopes**:
+   - `channels:history`, `channels:read` — Public channels
+   - `groups:history`, `groups:read` — Private channels
+   - `im:history`, `im:read` — DMs
+   - `mpim:history`, `mpim:read` — Group DMs
+   - `users:read` — Resolve user IDs to names
+3. **Install the app** to your workspace
+4. Copy the **User OAuth Token** (starts with `xoxp-`)
 
 ### Setup
 
@@ -131,6 +136,19 @@ This repo includes several MCP servers that Claude Code can use as tools:
 | **db**           | Read-only database access (MySQL/PostgreSQL) |
 | **github**       | GitHub repo access                           |
 | **logs**         | System log search and analysis               |
+
+## Optional: GitHub Access
+
+If you want Claude to be able to browse your GitHub repos, add a personal access token:
+
+1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token (classic)**
+2. Give it `repo` scope (read access to your repos)
+3. Add to your `.env`:
+
+```
+GITHUB_TOKEN=ghp_your-token
+GITHUB_REPOS=[{"owner":"your-org","repo":"your-repo","description":"optional"}]
+```
 
 ## Forking / Making It Your Own
 

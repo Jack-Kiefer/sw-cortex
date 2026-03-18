@@ -1,0 +1,22 @@
+display_information:
+  name: Cortex Slack Sync
+  description: Syncs your Slack message history for semantic search via Claude Code
+  background_color: '#1a1a2e'
+
+oauth_config:
+  scopes:
+    user:
+      - channels:history
+      - channels:read
+      - groups:history
+      - groups:read
+      - im:history
+      - im:read
+      - mpim:history
+      - mpim:read
+      - users:read
+
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
