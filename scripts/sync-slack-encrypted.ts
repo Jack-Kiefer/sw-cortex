@@ -5,7 +5,7 @@
  * Fetches messages from Slack and indexes them in Qdrant with encryption.
  * Sensitive fields (text, userName, channelName) are encrypted with AES-256-GCM.
  *
- * IMPORTANT: Requires SLACK_ENCRYPTION_KEY environment variable.
+ * IMPORTANT: Requires ENCRYPTION_KEY environment variable.
  * Generate one with: openssl rand -hex 32
  *
  * Usage:
@@ -53,7 +53,7 @@ async function showHelp() {
   console.log(`
 Encrypted Slack Message Sync - Index Slack messages with AES-256-GCM encryption
 
-IMPORTANT: Requires SLACK_ENCRYPTION_KEY environment variable.
+IMPORTANT: Requires ENCRYPTION_KEY environment variable.
 Generate one with: openssl rand -hex 32
 
 USAGE:
@@ -115,7 +115,7 @@ async function testConnections() {
   console.log('Encryption:');
   const keyValidation = validateEncryptionKey();
   if (keyValidation.valid) {
-    console.log('  ✅ SLACK_ENCRYPTION_KEY configured (64 hex chars)');
+    console.log('  ✅ ENCRYPTION_KEY configured (64 hex chars)');
   } else {
     console.log(`  ❌ Failed: ${keyValidation.error}`);
     console.log('  💡 Generate a key with: openssl rand -hex 32');
@@ -187,7 +187,7 @@ async function runSync() {
   if (!keyValidation.valid) {
     console.error(`❌ Encryption key error: ${keyValidation.error}`);
     console.log('\n💡 Generate a key with: openssl rand -hex 32');
-    console.log('   Then add to .env.local: SLACK_ENCRYPTION_KEY=<your-key>');
+    console.log('   Then add to .env.local: ENCRYPTION_KEY=<your-key>');
     process.exit(1);
   }
 

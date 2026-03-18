@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 
-// AES-256-GCM encryption for Slack message fields
+// AES-256-GCM encryption for sensitive fields (Slack messages, discoveries, etc.)
 // Key should be 32 bytes (256 bits) hex-encoded = 64 hex chars
 
 const ALGORITHM = 'aes-256-gcm';
@@ -12,16 +12,16 @@ let _encryptionKey: Buffer | null = null;
 
 function getEncryptionKey(): Buffer {
   if (!_encryptionKey) {
-    const keyHex = process.env.SLACK_ENCRYPTION_KEY;
+    const keyHex = process.env.ENCRYPTION_KEY || process.env.SLACK_ENCRYPTION_KEY;
     if (!keyHex) {
       throw new Error(
-        'SLACK_ENCRYPTION_KEY environment variable is required. ' +
+        'ENCRYPTION_KEY environment variable is required. ' +
           'Generate one with: openssl rand -hex 32'
       );
     }
     if (keyHex.length !== 64) {
       throw new Error(
-        'SLACK_ENCRYPTION_KEY must be 64 hex characters (32 bytes). ' +
+        'ENCRYPTION_KEY must be 64 hex characters (32 bytes). ' +
           'Generate one with: openssl rand -hex 32'
       );
     }
@@ -102,16 +102,16 @@ export function decryptField(encryptedValue: string | undefined | null): string 
  * Check if encryption key is configured
  */
 export function isEncryptionConfigured(): boolean {
-  return !!process.env.SLACK_ENCRYPTION_KEY;
+  return !!(process.env.ENCRYPTION_KEY || process.env.SLACK_ENCRYPTION_KEY);
 }
 
 /**
  * Validate encryption key format without loading it
  */
 export function validateEncryptionKey(): { valid: boolean; error?: string } {
-  const keyHex = process.env.SLACK_ENCRYPTION_KEY;
+  const keyHex = process.env.ENCRYPTION_KEY || process.env.SLACK_ENCRYPTION_KEY;
   if (!keyHex) {
-    return { valid: false, error: 'SLACK_ENCRYPTION_KEY not set' };
+    return { valid: false, error: 'ENCRYPTION_KEY not set' };
   }
   if (keyHex.length !== 64) {
     return { valid: false, error: `Key must be 64 hex chars, got ${keyHex.length}` };
