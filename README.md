@@ -16,8 +16,27 @@ Better than searching Slack directly — it's fast and uses semantic search so y
 
 - Node.js 18+
 - A [Qdrant Cloud](https://cloud.qdrant.io/) instance (free tier works)
-- A Slack User Token (not a bot token — needs your message history)
+- A Slack User Token (see below)
 - An OpenAI API key (for generating embeddings)
+
+### Getting a Slack User Token
+
+You need a **User Token** (`xoxp-...`), not a Bot Token. This is what lets the sync read your personal message history.
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) and create a new app (or use an existing one)
+2. Go to **OAuth & Permissions**
+3. Under **User Token Scopes**, add these scopes:
+   - `channels:history` — Read messages in public channels
+   - `channels:read` — List public channels
+   - `groups:history` — Read messages in private channels you're in
+   - `groups:read` — List private channels
+   - `im:history` — Read DMs
+   - `im:read` — List DMs
+   - `mpim:history` — Read group DMs
+   - `mpim:read` — List group DMs
+   - `users:read` — Resolve user IDs to names
+4. **Install the app** to your workspace
+5. Copy the **User OAuth Token** (starts with `xoxp-`)
 
 ### Setup
 
@@ -42,7 +61,14 @@ QDRANT_URL=https://your-instance.cloud.qdrant.io
 QDRANT_API_KEY=your-qdrant-api-key
 ```
 
-Initialize the Qdrant collections:
+### Setting Up Qdrant
+
+1. Sign up at [cloud.qdrant.io](https://cloud.qdrant.io/) (free tier gives you 1GB)
+2. Create a cluster
+3. Get your cluster URL and API key from the dashboard
+4. Add them to your `.env`
+
+Initialize the collections:
 
 ```bash
 npm run qdrant:init
