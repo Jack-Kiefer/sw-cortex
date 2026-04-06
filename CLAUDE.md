@@ -23,6 +23,8 @@ This workspace has 5 MCP servers that provide tools for Claude to use:
 | **db**           | Database queries (read-only)        | 4 tools |
 | **github**       | GitHub repo access (read-only)      | 9 tools |
 
+See `~/CLAUDE.md` for full MCP tool documentation (synced globally).
+
 ## Project Structure
 
 ```
@@ -49,40 +51,6 @@ sw-cortex/
 ├── knowledge/             # Local data (slack index, meetings)
 └── scripts/               # Utility scripts
 ```
-
-## Global Config Management
-
-The `global-config/` directory contains commands, skills, and settings that sync to `~/.claude` for use across all projects.
-
-**IMPORTANT: Always sync before and after editing global config files.**
-
-### Editing Global Config
-
-1. **Pull first** to get any external changes:
-
-   ```bash
-   bash scripts/sync-global-config.sh pull
-   ```
-
-2. **Make your edits** to files in `global-config/`
-
-3. **Push after** to deploy changes:
-   ```bash
-   bash scripts/sync-global-config.sh push
-   ```
-
-Or use the slash command: `/add-global sync push`
-
-### Files Synced
-
-| Source                    | Destination           |
-| ------------------------- | --------------------- |
-| `global-config/commands/` | `~/.claude/commands/` |
-| `global-config/skills/`   | `~/.claude/skills/`   |
-| `global-config/CLAUDE.md` | `~/CLAUDE.md`         |
-| `global-config/mcp.json`  | `~/.mcp.json`         |
-
-**Restart Claude Code after pushing to pick up changes.**
 
 ## DX Commands
 
@@ -135,47 +103,6 @@ Every significant change should have verification. **Always spawn the `verify-ap
 
 Subagents keep the main conversation focused and produce better results.
 
-## Database Access (mcp**db**\*)
-
-### Read-Only Policy
-
-All production database access is READ-ONLY. Never run write queries against production.
-
-### Available Databases
-
-- `wishdesk` - WishDesk MySQL
-- `sugarwish` - Live SugarWish MySQL
-- `odoo` - Odoo PostgreSQL
-- `odoo_staging` - Odoo Staging PostgreSQL
-- `retool` - Retool PostgreSQL
-- `laravel_local` - Laravel Local MySQL
-- `laravel_manage` - Laravel Staging MySQL
-
-### MCP Tools
-
-```
-mcp__db__list_databases      # List available databases
-mcp__db__list_tables         # List tables in a database
-mcp__db__describe_table      # Get table schema
-mcp__db__query_database      # Execute SELECT query
-```
-
-### Example Queries
-
-```
-# List tables in WishDesk
-mcp__db__list_tables { database: "wishdesk" }
-
-# Query Odoo
-mcp__db__query_database {
-  database: "odoo",
-  query: "SELECT * FROM sale_order LIMIT 10"
-}
-
-# Describe a table
-mcp__db__describe_table { database: "sugarwish", table: "orders" }
-```
-
 ## Qdrant Vector Database
 
 Qdrant is used for semantic search over Slack messages and discoveries.
@@ -213,55 +140,6 @@ See `src/qdrant/README.md` for detailed documentation.
 
 - Bot token configured for messaging
 - Vector search via Qdrant for message history
-
-### GitHub (Read-Only)
-
-#### Repositories & Branches
-
-| Repo                  | Production | Development      | Staging       | Workflow                           |
-| --------------------- | ---------- | ---------------- | ------------- | ---------------------------------- |
-| **SERP**              | `main`     | `dev`            | -             | dev → main → auto-deploy (Jenkins) |
-| **SWAC**              | `live`     | `development`    | `staging`     | dev → staging → live               |
-| **sugarwish-odoo**    | `main`     | -                | `staging_new` | staging_new → main                 |
-| **sugarwish-laravel** | `blue`     | feature branches | -             | SUG-\* branches → blue             |
-
-**Environments**:
-
-- SWAC: `desk.sugarwish.com` (live), `desk2.sugarwish.com` (dev), `desk3.sugarwish.com` (staging)
-- SERP: Auto-deploys from `main` via Jenkins CI/CD
-
-**IMPORTANT - Always specify the correct branch**:
-
-- When exploring current/active work, use the **Development** or **Staging** branch
-- When checking production code, use the **Production** branch
-- If unsure which branch, **ask the user** or use `list_branches` to see options
-- **Never assume `main` is correct** - check the table above
-
-Use `ref` parameter to specify branch/tag/commit:
-
-```
-# Get file from specific branch
-mcp__github__get_file { repo: "sugarwish-odoo", path: "file.py", ref: "development" }
-
-# List files from staging
-mcp__github__list_files { repo: "sugarwish-odoo", path: "models", ref: "staging" }
-
-# Get commits from dev branch
-mcp__github__list_commits { repo: "SERP", branch: "dev" }
-```
-
-Without `ref`, tools default to the repo's default branch (usually `main`).
-
-#### MCP Tools
-
-- `mcp__github__list_repos` - List configured repos
-- `mcp__github__search_code` - Search code across repos
-- `mcp__github__get_file` - Get file contents (supports `ref`)
-- `mcp__github__list_files` - List directory contents (supports `ref`)
-- `mcp__github__list_branches` - List all branches in a repo
-- `mcp__github__list_commits` - List recent commits (supports `branch`)
-- `mcp__github__list_pull_requests` - List PRs
-- `mcp__github__get_pull_request` - Get PR details
 
 ### n8n
 
@@ -369,102 +247,6 @@ GITHUB_TOKEN=         # GitHub personal access token
 WISHDESK_DB_HOST=     # Database connections (see .env.example)
 ODOO_DB_HOST=         # etc.
 ```
-
-## Quick Reference
-
-### Discoveries (mcp**discoveries**\*)
-
-Save and search database/codebase insights.
-
-| Need to...         | Do this                                                  |
-| ------------------ | -------------------------------------------------------- |
-| Save a discovery   | `mcp__discoveries__add_discovery { title, source, ... }` |
-| Search discoveries | `mcp__discoveries__search_discoveries { query }`         |
-| List discoveries   | `mcp__discoveries__list_discoveries { source?, type? }`  |
-| Get discovery      | `mcp__discoveries__get_discovery { id }`                 |
-| Update discovery   | `mcp__discoveries__update_discovery { id, ... }`         |
-| Delete discovery   | `mcp__discoveries__delete_discovery { id }`              |
-| Export discoveries | `mcp__discoveries__export_discoveries { format? }`       |
-| Get table notes    | `mcp__discoveries__get_table_notes { database, table }`  |
-
-### Slack Search (mcp**slack-search**\*)
-
-Semantic search across Jack's Slack history. **Use this when:**
-
-- Looking for past discussions about a topic
-- Finding who said something or when
-- Searching for decisions, context, or background info
-- User asks "what did we discuss about X" or "find that Slack message about Y"
-
-| Need to...        | Do this                                                                  |
-| ----------------- | ------------------------------------------------------------------------ |
-| Search messages   | `mcp__slack-search__search_slack_messages { query, afterDate?, limit? }` |
-| Get context       | `mcp__slack-search__get_slack_context { channelId, timestamp }`          |
-| Get thread        | `mcp__slack-search__get_slack_thread { channelId, threadTs }`            |
-| Check sync status | `mcp__slack-search__get_slack_sync_status`                               |
-
-**Workflow**: Search first, then get context for interesting results:
-
-```
-# 1. Search for topic
-mcp__slack-search__search_slack_messages { query: "purchase order approval" }
-
-# 2. Get surrounding conversation (use channelId + timestamp from results)
-mcp__slack-search__get_slack_context { channelId: "C123", timestamp: 1704067200 }
-```
-
-### Logs (mcp**logs**\*)
-
-Search and analyze sw-cortex service logs.
-
-| Need to...     | Do this                                                        |
-| -------------- | -------------------------------------------------------------- |
-| Search logs    | `mcp__logs__search_logs { service?, level?, search?, since? }` |
-| Recent logs    | `mcp__logs__get_recent_logs { limit? }`                        |
-| Recent errors  | `mcp__logs__get_recent_errors { limit? }`                      |
-| Log statistics | `mcp__logs__get_log_stats`                                     |
-
-### Database Access (mcp**db**\*)
-
-| Need to...     | Do this                                               |
-| -------------- | ----------------------------------------------------- |
-| List databases | `mcp__db__list_databases`                             |
-| List tables    | `mcp__db__list_tables { database }`                   |
-| Describe table | `mcp__db__describe_table { database, table }`         |
-| Query database | `mcp__db__query_database { database, query, limit? }` |
-
-### GitHub Access (mcp**github**\*)
-
-| Need to...     | Do this                                              |
-| -------------- | ---------------------------------------------------- |
-| List repos     | `mcp__github__list_repos`                            |
-| Search code    | `mcp__github__search_code { query, repo? }`          |
-| Get file       | `mcp__github__get_file { repo, path, ref? }`         |
-| List files     | `mcp__github__list_files { repo, path? }`            |
-| List branches  | `mcp__github__list_branches { repo }`                |
-| List commits   | `mcp__github__list_commits { repo, branch?, path? }` |
-| List PRs       | `mcp__github__list_pull_requests { repo, state? }`   |
-| Get PR details | `mcp__github__get_pull_request { repo, pr_number }`  |
-
----
-
-## When in Doubt, Search
-
-**Always use WebSearch when uncertain about:**
-
-- Current API documentation or syntax
-- Library versions and compatibility
-- Error messages you don't recognize
-- Best practices for unfamiliar tools
-- How something works in production systems
-
-**Use Slack search for past conversations:**
-
-- "What did we discuss about X?" → `mcp__slack-search__search_slack_messages`
-- Historical context on decisions
-- Finding who said something
-
-Don't guess - search first, then act with confidence.
 
 ---
 
