@@ -13,7 +13,7 @@
     "stockLocations": 47,
     "stockQuants": 3892
   },
-  "laravel": {
+  "laravel_live": {
     "purchaseOrders": 0,
     "suppliers": 0,
     "components": 2341,

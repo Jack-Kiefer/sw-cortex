@@ -61,16 +61,17 @@ Read-only access to production databases. **Never run write queries.**
 
 #### Available Databases
 
-| Database        | Type       | MCP Name          | Purpose              |
-| --------------- | ---------- | ----------------- | -------------------- |
-| WishDesk        | MySQL      | `wishdesk`        | WishDesk ticketing   |
-| SugarWish       | MySQL      | `sugarwish`       | Production orders    |
-| Odoo            | PostgreSQL | `odoo`            | ERP data (prod)      |
-| Odoo Staging    | PostgreSQL | `odoo_staging`    | ERP data (staging)   |
-| Retool          | PostgreSQL | `retool`          | Analytics/dashboards |
-| Laravel         | MySQL      | `laravel`         | Production (SERP)    |
-| Laravel Local   | MySQL      | `laravel_local`   | Local Laravel dev    |
-| Laravel Staging | MySQL      | `laravel_staging` | Laravel staging      |
+| Database     | Type       | MCP Name       | Purpose                                            |
+| ------------ | ---------- | -------------- | -------------------------------------------------- |
+| WishDesk     | MySQL      | `wishdesk`     | WishDesk ticketing (via SSH tunnel)                |
+| WishDesk Dev | MySQL      | `wishdesk_dev` | WishDesk dev/staging                               |
+| SugarWish    | MySQL      | `sugarwish`    | Production orders                                  |
+| Odoo         | PostgreSQL | `odoo`         | ERP data (prod)                                    |
+| Odoo Staging | PostgreSQL | `odoo_staging` | ERP data (staging)                                 |
+| Retool       | PostgreSQL | `retool`       | Analytics/dashboards                               |
+| Laravel Live | MySQL      | `laravel_live` | Production (SERP)                                  |
+| Local        | MySQL      | `local`        | Local dev DB — user picks name via `LOCAL_DB_NAME` |
+| Manage       | MySQL      | `manage`       | Laravel staging                                    |
 
 #### Tools
 

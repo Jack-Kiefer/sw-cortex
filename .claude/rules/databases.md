@@ -10,16 +10,17 @@ All production database queries MUST be read-only. Never execute:
 
 ## Database Mapping
 
-| Database        | Type       | MCP Database Name | Purpose               |
-| --------------- | ---------- | ----------------- | --------------------- |
-| WishDesk        | MySQL      | `wishdesk`        | WishDesk ticketing    |
-| SugarWish       | MySQL      | `sugarwish`       | Production orders     |
-| Odoo            | PostgreSQL | `odoo`            | ERP data (prod)       |
-| Odoo Staging    | PostgreSQL | `odoo_staging`    | ERP data (staging)    |
-| Retool          | PostgreSQL | `retool`          | Analytics/dashboards  |
-| Laravel         | MySQL      | `laravel`         | **Production** (SERP) |
-| Laravel Local   | MySQL      | `laravel_local`   | Local Laravel dev     |
-| Laravel Staging | MySQL      | `laravel_manage`  | Laravel staging       |
+| Database     | Type       | MCP Database Name | Purpose                                            |
+| ------------ | ---------- | ----------------- | -------------------------------------------------- |
+| WishDesk     | MySQL      | `wishdesk`        | WishDesk ticketing (via SSH tunnel)                |
+| WishDesk Dev | MySQL      | `wishdesk_dev`    | WishDesk dev/staging                               |
+| SugarWish    | MySQL      | `sugarwish`       | Production orders                                  |
+| Odoo         | PostgreSQL | `odoo`            | ERP data (prod)                                    |
+| Odoo Staging | PostgreSQL | `odoo_staging`    | ERP data (staging)                                 |
+| Retool       | PostgreSQL | `retool`          | Analytics/dashboards                               |
+| Laravel Live | MySQL      | `laravel_live`    | **Production** (SERP)                              |
+| Local        | MySQL      | `local`           | Local dev DB — user picks name via `LOCAL_DB_NAME` |
+| Manage       | MySQL      | `manage`          | Laravel staging                                    |
 
 All databases are accessed via unified MCP tools:
 

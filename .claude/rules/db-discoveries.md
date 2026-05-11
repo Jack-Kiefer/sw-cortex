@@ -116,7 +116,7 @@ When exploring a table you've documented before:
 mcp__discoveries__add_discovery({
   title: "Brief descriptive title",
   source: "database_query",
-  sourceDatabase: "wishdesk|sugarwish|odoo|odoo_staging|retool|laravel_local|laravel_manage",
+  sourceDatabase: "wishdesk|sugarwish|odoo|odoo_staging|retool|laravel_live|local|manage",
   sourceQuery: "the SQL query that led to this",
   tableName: "table_name",           // Include for table-specific knowledge
   columnName: "column_name",         // Include for column-specific knowledge

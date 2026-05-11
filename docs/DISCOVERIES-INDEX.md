@@ -75,7 +75,7 @@ In any Claude Code session:
 mcp__discoveries__add_discovery {
   title: "Brief title",
   source: "exploration|code_review|database_query|manual",
-  sourceDatabase: "laravel_local|odoo|sugarwish|...",
+  sourceDatabase: "local|odoo|sugarwish|...",
   tableName: "table_name (optional)",
   description: "Detailed explanation",
   type: "fact|relationship|pattern|anomaly|insight",

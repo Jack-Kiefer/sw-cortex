@@ -72,10 +72,20 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.WISHDESK_DB_USER || '',
       password: process.env.WISHDESK_DB_PASSWORD || '',
       database: process.env.WISHDESK_DB_NAME || '',
-      ssh: process.env.WISHDESK_USE_SSH !== 'false' ? sshConfig : undefined,
+      ssh: process.env.WISHDESK_USE_SSH !== 'false' ? liveSshConfig : undefined,
     },
-    laravel: {
-      name: 'laravel',
+    wishdesk_dev: {
+      name: 'wishdesk_dev',
+      type: 'mysql',
+      host: process.env.WISHDESK_DEV_DB_HOST || 'localhost',
+      port: parseInt(process.env.WISHDESK_DEV_DB_PORT || '3306', 10),
+      user: process.env.WISHDESK_DEV_DB_USER || '',
+      password: process.env.WISHDESK_DEV_DB_PASSWORD || '',
+      database: process.env.WISHDESK_DEV_DB_NAME || '',
+      // Direct connection to dev host
+    },
+    laravel_live: {
+      name: 'laravel_live',
       type: 'mysql',
       host: process.env.SUGARWISH_DB_HOST || 'localhost',
       port: parseInt(process.env.SUGARWISH_DB_PORT || '3306', 10),
@@ -114,18 +124,19 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       database: process.env.ODOO_STAGING_DB_NAME || '',
       ssh: process.env.ODOO_STAGING_USE_SSH !== 'false' ? sshConfig : undefined,
     },
-    laravel_local: {
-      name: 'laravel_local',
+    local: {
+      name: 'local',
       type: 'mysql',
-      host: process.env.TEST_DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.TEST_DB_PORT || '3307', 10),
-      user: process.env.TEST_DB_USER || 'root',
-      password: process.env.TEST_DB_PASSWORD || '',
-      database: process.env.TESTING_DB_NAME || 'serp_local',
+      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
+      user: process.env.LOCAL_DB_USER || 'root',
+      password: process.env.LOCAL_DB_PASSWORD || '',
+      // User picks the actual MySQL database name (e.g. serp_local, my_laravel_dev)
+      database: process.env.LOCAL_DB_NAME || '',
       // No SSH for local database
     },
-    laravel_manage: {
-      name: 'laravel_manage',
+    manage: {
+      name: 'manage',
       type: 'mysql',
       host: process.env.MANAGE_DB_HOST || 'localhost',
       port: parseInt(process.env.MANAGE_DB_PORT || '3306', 10),

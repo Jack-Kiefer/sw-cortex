@@ -5,12 +5,13 @@
  *
  * Read-only access to:
  * - WishDesk (MySQL)
- * - Laravel (MySQL)
+ * - WishDesk Dev (MySQL)
+ * - Laravel Live (MySQL)
  * - Odoo (PostgreSQL)
  * - Odoo Staging (PostgreSQL)
  * - Retool (PostgreSQL)
- * - Laravel Local (MySQL)
- * - Laravel Staging (MySQL)
+ * - Local (MySQL) — user-chosen local DB
+ * - Manage (MySQL) — Laravel staging
  */
 
 import dotenv from 'dotenv';
@@ -44,14 +45,14 @@ const tools: Tool[] = [
   {
     name: 'query_database',
     description:
-      'Execute a read-only SQL query against a database (wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_manage)',
+      'Execute a read-only SQL query against a database (wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage)',
     inputSchema: {
       type: 'object',
       properties: {
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_manage',
+            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage',
         },
         query: { type: 'string', description: 'SQL query (SELECT only)' },
         limit: { type: 'number', description: 'Max rows to return' },
@@ -68,7 +69,7 @@ const tools: Tool[] = [
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, laravel, odoo, odoo_staging, retool, laravel_local, laravel_manage',
+            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage',
         },
       },
       required: ['database'],
