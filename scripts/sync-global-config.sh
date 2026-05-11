@@ -9,16 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 GLOBAL_CONFIG="$REPO_DIR/global-config"
 
-# Get the sw-cortex home directory for the current platform
-get_sw_home() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "/Users/jackkiefer"
-    else
-        echo "/home/jackk"
-    fi
-}
-
-SW_HOME="$(get_sw_home)"
+# Path to the sw-cortex repo (used to expand {{SW_CORTEX}} in mcp.json.template).
+# Defaults to the repo containing this script — override with SW_CORTEX_PATH env var
+# if you need to template a different location (e.g. building config for another machine).
+SW_CORTEX="${SW_CORTEX_PATH:-$REPO_DIR}"
 
 usage() {
     echo "Usage: $0 [push|pull|status]"
@@ -130,11 +124,21 @@ push_config() {
     echo ""
     echo "MCP Config:"
     if [ -f "$GLOBAL_CONFIG/mcp.json.template" ]; then
-        echo "  Platform: $(uname -s) → SW_HOME=$SW_HOME"
+        echo "  sw-cortex path: $SW_CORTEX"
 
-        # Expand template with platform-specific path
+        # Expand template with this machine's repo path, then expand ${VAR}
+        # placeholders from the repo's .env (e.g. SLACK_BOT_TOKEN). Tokens never
+        # live in the template — they come from .env at push time.
         TEMP_MCP=$(mktemp)
-        sed "s|{{HOME}}|$SW_HOME|g" "$GLOBAL_CONFIG/mcp.json.template" > "$TEMP_MCP"
+        sed "s|{{SW_CORTEX}}|$SW_CORTEX|g" "$GLOBAL_CONFIG/mcp.json.template" > "$TEMP_MCP"
+
+        if [ -f "$SW_CORTEX/.env" ]; then
+            EXPANDED=$(mktemp)
+            # Load .env vars and expand ${VAR} references in the template.
+            # `set -a` exports each var so envsubst can see them.
+            ( set -a; . "$SW_CORTEX/.env"; set +a; envsubst < "$TEMP_MCP" > "$EXPANDED" )
+            mv "$EXPANDED" "$TEMP_MCP"
+        fi
 
         # Merge with existing config
         merge_mcp_json "$TEMP_MCP" ~/.mcp.json
@@ -194,7 +198,7 @@ pull_config() {
     echo ""
     echo "MCP Config:"
     echo "  (skipped - mcp.json.template is source of truth)"
-    echo "  Template uses {{HOME}} placeholder, expanded on push"
+    echo "  Template uses {{SW_CORTEX}} placeholder, expanded on push"
 
     # Copy global CLAUDE.md
     echo ""
@@ -241,7 +245,7 @@ show_status() {
     echo "Template (mcp.json.template):"
     if [ -f "$GLOBAL_CONFIG/mcp.json.template" ]; then
         node -e "const j=JSON.parse(require('fs').readFileSync('$GLOBAL_CONFIG/mcp.json.template','utf8')); console.log(Object.keys(j.mcpServers||{}).map(k=>'  '+k).join('\n'))" 2>/dev/null || echo "  (parse error)"
-        echo "  ({{HOME}} expands to $SW_HOME on this machine)"
+        echo "  ({{SW_CORTEX}} expands to $SW_CORTEX on this machine)"
     else
         echo "  (template not found)"
     fi

@@ -2,42 +2,50 @@
   "mcpServers": {
     "db": {
       "command": "npx",
-      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/db/index.ts"],
-      "cwd": "{{HOME}}/sw-cortex",
+      "args": ["tsx", "{{SW_CORTEX}}/src/mcp-servers/db/index.ts"],
+      "cwd": "{{SW_CORTEX}}",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "{{SW_CORTEX}}/.env"
       }
     },
     "github": {
       "command": "npx",
-      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/github/index.ts"],
-      "cwd": "{{HOME}}/sw-cortex",
+      "args": ["tsx", "{{SW_CORTEX}}/src/mcp-servers/github/index.ts"],
+      "cwd": "{{SW_CORTEX}}",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "{{SW_CORTEX}}/.env"
       }
     },
     "discoveries": {
       "command": "npx",
-      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/discoveries/index.ts"],
-      "cwd": "{{HOME}}/sw-cortex",
+      "args": ["tsx", "{{SW_CORTEX}}/src/mcp-servers/discoveries/index.ts"],
+      "cwd": "{{SW_CORTEX}}",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "{{SW_CORTEX}}/.env"
       }
     },
     "slack-search": {
       "command": "npx",
-      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/slack-search/index.ts"],
-      "cwd": "{{HOME}}/sw-cortex",
+      "args": ["tsx", "{{SW_CORTEX}}/src/mcp-servers/slack-search/index.ts"],
+      "cwd": "{{SW_CORTEX}}",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "{{SW_CORTEX}}/.env"
       }
     },
     "logs": {
       "command": "npx",
-      "args": ["tsx", "{{HOME}}/sw-cortex/src/mcp-servers/logs/index.ts"],
-      "cwd": "{{HOME}}/sw-cortex",
+      "args": ["tsx", "{{SW_CORTEX}}/src/mcp-servers/logs/index.ts"],
+      "cwd": "{{SW_CORTEX}}",
       "env": {
-        "DOTENV_CONFIG_PATH": "{{HOME}}/sw-cortex/.env"
+        "DOTENV_CONFIG_PATH": "{{SW_CORTEX}}/.env"
+      }
+    },
+    "jack-slack": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "${JACK_SLACK_BOT_TOKEN}",
+        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
       }
     }
   }
