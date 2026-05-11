@@ -134,9 +134,17 @@ push_config() {
 
         if [ -f "$SW_CORTEX/.env" ]; then
             EXPANDED=$(mktemp)
-            # Load .env vars and expand ${VAR} references in the template.
-            # `set -a` exports each var so envsubst can see them.
-            ( set -a; . "$SW_CORTEX/.env"; set +a; envsubst < "$TEMP_MCP" > "$EXPANDED" )
+            # Only export the specific vars the template references — avoids
+            # sourcing the whole .env (which breaks on unquoted special chars
+            # in values like passwords).
+            NEEDED=$(grep -oE '\$\{[A-Z_][A-Z0-9_]*\}' "$TEMP_MCP" | tr -d '${}' | sort -u)
+            (
+                for var in $NEEDED; do
+                    value=$(grep -E "^${var}=" "$SW_CORTEX/.env" | head -1 | cut -d= -f2-)
+                    export "$var"="$value"
+                done
+                envsubst < "$TEMP_MCP" > "$EXPANDED"
+            )
             mv "$EXPANDED" "$TEMP_MCP"
         fi
 
