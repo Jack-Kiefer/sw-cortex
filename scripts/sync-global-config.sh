@@ -97,7 +97,7 @@ push_config() {
     echo "Pushing global config from sw-cortex to ~/.claude (merge mode)..."
     echo ""
 
-    mkdir -p ~/.claude/commands ~/.claude/skills
+    mkdir -p ~/.claude/commands ~/.claude/skills ~/.claude/scripts
 
     # Copy commands (add new, don't remove existing)
     echo "Commands:"
@@ -108,6 +108,19 @@ push_config() {
             echo "  + $name"
         fi
     done
+
+    # Copy helper scripts (add new, don't remove existing)
+    if [ -d "$GLOBAL_CONFIG/scripts" ]; then
+        echo ""
+        echo "Scripts:"
+        for scr in "$GLOBAL_CONFIG/scripts/"*; do
+            if [ -f "$scr" ]; then
+                name=$(basename "$scr")
+                cp "$scr" ~/.claude/scripts/
+                echo "  + $name"
+            fi
+        done
+    fi
 
     # Copy skills (add new, don't remove existing)
     echo ""
@@ -179,7 +192,7 @@ pull_config() {
     echo "Pulling global config from ~/.claude to sw-cortex (merge mode)..."
     echo ""
 
-    mkdir -p "$GLOBAL_CONFIG/commands" "$GLOBAL_CONFIG/skills"
+    mkdir -p "$GLOBAL_CONFIG/commands" "$GLOBAL_CONFIG/skills" "$GLOBAL_CONFIG/scripts"
 
     # Copy commands
     echo "Commands:"
@@ -187,6 +200,17 @@ pull_config() {
         if [ -f "$cmd" ]; then
             name=$(basename "$cmd")
             cp "$cmd" "$GLOBAL_CONFIG/commands/"
+            echo "  + $name"
+        fi
+    done 2>/dev/null || echo "  (none found)"
+
+    # Copy helper scripts
+    echo ""
+    echo "Scripts:"
+    for scr in ~/.claude/scripts/*; do
+        if [ -f "$scr" ]; then
+            name=$(basename "$scr")
+            cp "$scr" "$GLOBAL_CONFIG/scripts/"
             echo "  + $name"
         fi
     done 2>/dev/null || echo "  (none found)"

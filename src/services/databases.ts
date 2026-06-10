@@ -9,6 +9,15 @@ import { Client as SSHClient } from 'ssh2';
 import { readFileSync } from 'fs';
 import { createServer, Server as NetServer, AddressInfo } from 'net';
 
+// pg defaults parse oid 1114 (timestamp without time zone) into a JS Date by
+// interpreting the naive string as the process's local timezone. JSON.stringify
+// then calls toISOString() which shifts to UTC and appends "Z" — so a row
+// stored as naive UTC in Odoo gets returned as a value 4h ahead of the truth
+// when this MCP runs in EDT. Return the raw string so consumers see exactly
+// what Postgres stored. oid 1184 (timestamptz) keeps the default behavior
+// since those values are unambiguously tied to a zone.
+pg.types.setTypeParser(1114, (v) => v);
+
 // Database configuration with optional SSH tunnel
 export interface DatabaseConfig {
   name: string;
@@ -134,6 +143,57 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       // User picks the actual MySQL database name (e.g. serp_local, my_laravel_dev)
       database: process.env.LOCAL_DB_NAME || '',
       // No SSH for local database
+    },
+    // SERP local DBs — four side-by-side schemas on the same local Docker MySQL
+    // as `local`, plus serp_test for pytest. Connection params are shared with
+    // `local`; only the database name differs. See SERP/CLAUDE.md for the
+    // semantics of each schema.
+    serp_staging_replica: {
+      name: 'serp_staging_replica',
+      type: 'mysql',
+      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
+      user: process.env.LOCAL_DB_USER || 'root',
+      password: process.env.LOCAL_DB_PASSWORD || '',
+      database: 'serp_staging_replica',
+    },
+    serp_prod_replica: {
+      name: 'serp_prod_replica',
+      type: 'mysql',
+      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
+      user: process.env.LOCAL_DB_USER || 'root',
+      password: process.env.LOCAL_DB_PASSWORD || '',
+      database: 'serp_prod_replica',
+    },
+    serp_staging_darklaunch: {
+      name: 'serp_staging_darklaunch',
+      type: 'mysql',
+      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
+      user: process.env.LOCAL_DB_USER || 'root',
+      password: process.env.LOCAL_DB_PASSWORD || '',
+      database: 'serp_staging_darklaunch',
+    },
+    serp_prod_darklaunch: {
+      name: 'serp_prod_darklaunch',
+      type: 'mysql',
+      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
+      user: process.env.LOCAL_DB_USER || 'root',
+      password: process.env.LOCAL_DB_PASSWORD || '',
+      database: 'serp_prod_darklaunch',
+    },
+    // Live darklaunch DB on Hetzner (the future production DB; mirror of the
+    // local darklaunch schemas). Connects directly — no SSH tunnel.
+    live_darklaunch_db: {
+      name: 'live_darklaunch_db',
+      type: 'mysql',
+      host: process.env.LIVE_DARKLAUNCH_DB_HOST || '',
+      port: parseInt(process.env.LIVE_DARKLAUNCH_DB_PORT || '3306', 10),
+      user: process.env.LIVE_DARKLAUNCH_DB_USER || '',
+      password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
+      database: process.env.LIVE_DARKLAUNCH_DB_NAME || 'serp_test',
     },
     manage: {
       name: 'manage',
@@ -281,6 +341,13 @@ async function getMySQLPool(config: DatabaseConfig): Promise<mysql.Pool> {
       connectionLimit: 5,
       queueLimit: 0,
     });
+    // Server-side query abort for every shape (plain SELECT, CTE, UNION, …):
+    // set the session max_execution_time on each new physical connection so
+    // MySQL itself kills any statement still running after 30s. SELECT-only at
+    // the engine level — harmless for the read-only queries this server runs.
+    pool.on('connection', (conn) => {
+      conn.query(`SET SESSION max_execution_time = ${QUERY_TIMEOUT_MS}`);
+    });
     mysqlPools.set(key, pool);
   }
   return mysqlPools.get(key)!;
@@ -304,6 +371,13 @@ async function getPGPool(config: DatabaseConfig): Promise<pg.Pool> {
       ssl: {
         rejectUnauthorized: false, // Accept self-signed certificates
       },
+    });
+    // Server-side query abort: Postgres cancels any statement still running
+    // after 30s, so a slow query can't keep grinding on a shared box. Set on
+    // each new connection rather than via the `options` startup parameter,
+    // which the poolers in front of Odoo/Retool reject.
+    pool.on('connect', (client) => {
+      client.query(`SET statement_timeout = ${QUERY_TIMEOUT_MS}`).catch(() => {});
     });
     pgPools.set(key, pool);
   }
@@ -330,6 +404,27 @@ function validateReadOnly(query: string): void {
       throw new Error(`Write operations not allowed. Query starts with: ${keyword}`);
     }
   }
+}
+
+// Hard 30s cap on any query. Two layers enforce it:
+//   1. The DB engine aborts the query itself (MySQL session max_execution_time,
+//      Postgres statement_timeout, both set per-connection in the pool getters)
+//      — this is what stops a slow query from grinding on a shared box after
+//      we've stopped waiting.
+//   2. A JS wall-clock guard (withTimeout below) also covers connect / SSH
+//      tunnel hangs, which the engine-level timeouts can't see.
+const QUERY_TIMEOUT_MS = 30_000;
+
+// Reject if a promise hasn't settled within QUERY_TIMEOUT_MS.
+function withTimeout<T>(promise: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Query exceeded ${QUERY_TIMEOUT_MS / 1000}s timeout`)),
+      QUERY_TIMEOUT_MS
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
 }
 
 // Query result type
@@ -365,7 +460,10 @@ export async function queryDatabase(
 
   if (config.type === 'mysql') {
     const pool = await getMySQLPool(config);
-    const [rows, fields] = await pool.query(finalQuery);
+    // Engine-level abort comes from SESSION max_execution_time (set on each
+    // connection in getMySQLPool); withTimeout adds the wall-clock guard that
+    // also covers connect / SSH tunnel hangs.
+    const [rows, fields] = await withTimeout(pool.query(finalQuery));
     const rowsArray = Array.isArray(rows) ? rows : [rows];
     return {
       columns: fields ? (fields as mysql.FieldPacket[]).map((f) => f.name) : [],
@@ -374,7 +472,7 @@ export async function queryDatabase(
     };
   } else {
     const pool = await getPGPool(config);
-    const result = await pool.query(finalQuery);
+    const result = await withTimeout(pool.query(finalQuery));
     return {
       columns: result.fields.map((f) => f.name),
       rows: result.rows,

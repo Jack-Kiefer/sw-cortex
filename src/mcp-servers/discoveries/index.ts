@@ -9,7 +9,7 @@ import 'dotenv/config';
  * Stores discoveries in Qdrant with semantic search capabilities.
  *
  * Tools:
- * - add_discovery: Save a new insight
+ * - (add_discovery REMOVED: store is curated from SUPPLEMENTARY_KNOWLEDGE.md, no new entries)
  * - list_discoveries: List with filters
  * - get_discovery: Get full details
  * - update_discovery: Update existing
@@ -29,44 +29,12 @@ import {
 
 import * as discoveriesService from '../../services/discoveries.js';
 
+// NOTE: add_discovery has been intentionally REMOVED. The discoveries store is now
+// curated from SUPPLEMENTARY_KNOWLEDGE.md and is read-only for creation — no new
+// discoveries are created automatically or on request. To refresh the knowledge base,
+// rebuild SUPPLEMENTARY_KNOWLEDGE.md (e.g. via /refresh-knowledge) and re-seed.
+// (update_discovery/delete_discovery remain for curation; search/list/get remain for reads.)
 const tools: Tool[] = [
-  {
-    name: 'add_discovery',
-    description:
-      'Save an important insight or discovery from database exploration. Use this to capture knowledge for future reference.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Short title for the discovery' },
-        description: { type: 'string', description: 'Detailed description of the insight' },
-        source: {
-          type: 'string',
-          description: 'Source type: "database_query", "manual", "code_review", "exploration"',
-        },
-        sourceDatabase: {
-          type: 'string',
-          description: 'Database name if from query: wishdesk, sugarwish, odoo, retool',
-        },
-        sourceQuery: { type: 'string', description: 'The SQL query that led to this discovery' },
-        tableName: {
-          type: 'string',
-          description: 'Specific table this note is about (for table-level documentation)',
-        },
-        columnName: {
-          type: 'string',
-          description: 'Specific column this note is about (optional, requires tableName)',
-        },
-        type: {
-          type: 'string',
-          enum: ['pattern', 'anomaly', 'optimization', 'fact', 'relationship', 'insight'],
-          description: 'Type of discovery',
-        },
-        priority: { type: 'number', description: 'Priority 1-4 (1=low, 4=critical)' },
-        tags: { type: 'array', items: { type: 'string' }, description: 'Tags for categorization' },
-      },
-      required: ['title', 'source'],
-    },
-  },
   {
     name: 'list_discoveries',
     description: 'List saved discoveries with optional filters',
@@ -212,11 +180,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     let result: unknown;
 
     switch (name) {
-      case 'add_discovery':
-        result = await discoveriesService.addDiscovery(
-          args as unknown as Parameters<typeof discoveriesService.addDiscovery>[0]
-        );
-        break;
+      // add_discovery removed: the discoveries store is curated from
+      // SUPPLEMENTARY_KNOWLEDGE.md and no longer accepts new entries.
       case 'list_discoveries':
         result = await discoveriesService.listDiscoveries(
           args as Parameters<typeof discoveriesService.listDiscoveries>[0]

@@ -25,6 +25,7 @@ All production database queries MUST be read-only. Never execute:
 All databases are accessed via unified MCP tools:
 
 - `mcp__db__query_database { database: "...", query: "..." }`
+- `mcp__db__query_database_from_file { database: "...", path: "..." }` — for SQL too long to inline (reads the file off disk; must resolve under `~/Desktop/Projects`)
 - `mcp__db__list_tables { database: "..." }`
 - `mcp__db__describe_table { database: "...", table: "..." }`
 

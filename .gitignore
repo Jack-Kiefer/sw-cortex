@@ -28,6 +28,7 @@ tasks/slack-sync-encrypted-state.json
 # Vector DB data
 knowledge/slack/*.bin
 knowledge/slack/*.json
+knowledge/kb/*.json
 
 # Meeting notes (synced separately)
 knowledge/meetings/
