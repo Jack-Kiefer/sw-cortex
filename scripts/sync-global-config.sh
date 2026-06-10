@@ -99,39 +99,52 @@ push_config() {
 
     mkdir -p ~/.claude/commands ~/.claude/skills ~/.claude/scripts
 
-    # Copy commands (add new, don't remove existing)
+    # Copy commands (add new, don't remove existing).
+    # ~/.claude/commands may be a symlink into global-config — nothing to copy then.
     echo "Commands:"
-    for cmd in "$GLOBAL_CONFIG/commands/"*.md; do
-        if [ -f "$cmd" ]; then
-            name=$(basename "$cmd")
-            cp "$cmd" ~/.claude/commands/
-            echo "  + $name"
-        fi
-    done
-
-    # Copy helper scripts (add new, don't remove existing)
-    if [ -d "$GLOBAL_CONFIG/scripts" ]; then
-        echo ""
-        echo "Scripts:"
-        for scr in "$GLOBAL_CONFIG/scripts/"*; do
-            if [ -f "$scr" ]; then
-                name=$(basename "$scr")
-                cp "$scr" ~/.claude/scripts/
+    if [ ~/.claude/commands -ef "$GLOBAL_CONFIG/commands" ]; then
+        echo "  (symlinked - nothing to copy)"
+    else
+        for cmd in "$GLOBAL_CONFIG/commands/"*.md; do
+            if [ -f "$cmd" ]; then
+                name=$(basename "$cmd")
+                cp "$cmd" ~/.claude/commands/
                 echo "  + $name"
             fi
         done
     fi
 
+    # Copy helper scripts (add new, don't remove existing)
+    if [ -d "$GLOBAL_CONFIG/scripts" ]; then
+        echo ""
+        echo "Scripts:"
+        if [ ~/.claude/scripts -ef "$GLOBAL_CONFIG/scripts" ]; then
+            echo "  (symlinked - nothing to copy)"
+        else
+            for scr in "$GLOBAL_CONFIG/scripts/"*; do
+                if [ -f "$scr" ]; then
+                    name=$(basename "$scr")
+                    cp "$scr" ~/.claude/scripts/
+                    echo "  + $name"
+                fi
+            done
+        fi
+    fi
+
     # Copy skills (add new, don't remove existing)
     echo ""
     echo "Skills:"
-    for skill in "$GLOBAL_CONFIG/skills/"*/; do
-        if [ -d "$skill" ]; then
-            name=$(basename "$skill")
-            cp -r "$skill" ~/.claude/skills/
-            echo "  + $name"
-        fi
-    done
+    if [ ~/.claude/skills -ef "$GLOBAL_CONFIG/skills" ]; then
+        echo "  (symlinked - nothing to copy)"
+    else
+        for skill in "$GLOBAL_CONFIG/skills/"*/; do
+            if [ -d "$skill" ]; then
+                name=$(basename "$skill")
+                cp -r "$skill" ~/.claude/skills/
+                echo "  + $name"
+            fi
+        done
+    fi
 
     # Expand and merge MCP config template
     echo ""
@@ -173,8 +186,12 @@ push_config() {
     echo ""
     echo "CLAUDE.md:"
     if [ -f "$GLOBAL_CONFIG/CLAUDE.md" ]; then
-        cp "$GLOBAL_CONFIG/CLAUDE.md" ~/CLAUDE.md
-        echo "  Updated ~/CLAUDE.md"
+        if [ ~/CLAUDE.md -ef "$GLOBAL_CONFIG/CLAUDE.md" ]; then
+            echo "  (symlinked - nothing to copy)"
+        else
+            cp "$GLOBAL_CONFIG/CLAUDE.md" ~/CLAUDE.md
+            echo "  Updated ~/CLAUDE.md"
+        fi
     fi
 
     # Merge settings.json

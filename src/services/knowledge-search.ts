@@ -17,7 +17,7 @@ import { generateEmbedding, generateEmbeddings } from './embeddings.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const CACHE_PATH = path.join(REPO_ROOT, 'knowledge', 'kb', 'embeddings-cache.json');
-const DEFAULT_FILES = ['SUPPLEMENTARY_KNOWLEDGE.md', 'DISCOVERIES_KNOWLEDGE.md'];
+const DEFAULT_FILES = ['DICTIONARY.md'];
 const MAX_CHUNK_CHARS = 6000; // text-embedding-3-small caps at 8191 tokens; stay well under
 const CACHE_VERSION = 1;
 

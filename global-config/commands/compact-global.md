@@ -1,6 +1,6 @@
 # Command: compact-global
 
-Save a discovery summarizing what you did and the context, then stop.
+Save a session summary to persistent memory, then stop.
 
 ---
 
@@ -8,38 +8,32 @@ Save a discovery summarizing what you did and the context, then stop.
 
 **STOP all other work immediately.**
 
-### Step 1: Save a Discovery
+### Step 1: Save a Session Summary
 
-Call `mcp__discoveries__add_discovery` with:
+Write a memory file in your persistent memory directory (the per-project `memory/` dir) named `session_[brief-kebab-slug].md` with `type: project` frontmatter, containing:
 
 ```
-{
-  title: "Session: [brief 5-word description]",
-  source: "manual",
-  type: "insight",
-  priority: 3,
-  description: [Write a clear summary including]:
+## What Was Done
+List what was accomplished this session. Be specific - files changed,
+features added, bugs fixed, decisions made.
 
-    ## What Was Done
-    List what was accomplished this session. Be specific - files changed,
-    features added, bugs fixed, decisions made.
+## Context
+Background info needed to understand this work. Why it matters,
+related systems, constraints.
 
-    ## Context
-    Background info needed to understand this work. Why it matters,
-    related systems, constraints.
+## Current State
+Where things stand now. What's working, what's not, what's partial.
 
-    ## Current State
-    Where things stand now. What's working, what's not, what's partial.
+## Next Steps
+What would need to happen next if resuming this work.
 
-    ## Next Steps
-    What would need to happen next if resuming this work.
-
-    ## Key Files
-    Important files involved (paths).
-
-  tags: ["session-summary"]
-}
+## Key Files
+Important files involved (paths).
 ```
+
+Add a one-line pointer to it in `MEMORY.md`.
+
+If the session produced durable SugarWish ground truth (a gotcha, ownership fact, schema quirk — not just task state), also add it to `sw-cortex/DICTIONARY.md` so the knowledge MCP picks it up.
 
 ### Step 2: Confirm to User
 
@@ -48,9 +42,7 @@ Call `mcp__discoveries__add_discovery` with:
 
 **Summary**: [one-line description]
 
-**Discovery ID**: [id]
-
-To find later: `mcp__discoveries__search_discoveries { query: "[keywords]" }`
+**Memory file**: [filename]
 ```
 
 ### Step 3: Stop

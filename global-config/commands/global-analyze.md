@@ -54,14 +54,13 @@ Spawn with: model: "sonnet", subagent_type: "general-purpose"
 Spawn with: model: "sonnet", subagent_type: "general-purpose"
 ```
 
-**Scope**: Search Slack messages AND existing discoveries for institutional knowledge about: $ARGUMENTS
+**Scope**: Search the knowledge base AND Slack messages for institutional knowledge about: $ARGUMENTS
 
+- Use `mcp__knowledge__search_knowledge` FIRST to find documented ground truth (try 2-3 query variations); expand truncated hits with `mcp__knowledge__get_knowledge_section`
 - Use `mcp__slack-search__search_slack_messages` to find past discussions (try 2-3 query variations)
-- Use `mcp__discoveries__search_discoveries` to find documented knowledge
-- Use `mcp__discoveries__get_table_notes` if database tables are involved
-- Look for historical context, past decisions, stakeholders
+- Look for historical context, past decisions, stakeholders, documented gotchas
 
-**Constraints**: These are fast MCP calls — run your searches, summarize what you find, and report. Don't over-analyze results. If searches return nothing relevant, report "no relevant Slack/discovery results" and stop.
+**Constraints**: These are fast MCP calls — run your searches, summarize what you find, and report. Don't over-analyze results. If searches return nothing relevant, report "no relevant KB/Slack results" and stop.
 
 **When done**: Send your findings to the lead as a message.
 
@@ -94,9 +93,9 @@ Spawn with: model: "sonnet", subagent_type: "general-purpose"
 
 **Scope**: Analyze database schemas relevant to: $ARGUMENTS
 
+- Use `mcp__knowledge__search_knowledge` FIRST for documented table notes and gotchas about the tables involved
 - Use `mcp__db__list_tables` and `mcp__db__describe_table` to explore schemas
 - Document relevant table structures, relationships, and field meanings
-- Save any new discoveries with `mcp__discoveries__add_discovery`
 
 **Constraints**: Focus on the specific tables relevant to the task. Don't explore the entire database. If you identify the key tables and relationships quickly, report and stop.
 

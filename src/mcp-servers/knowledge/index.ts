@@ -5,11 +5,11 @@ import 'dotenv/config';
 /**
  * Knowledge MCP Server
  *
- * Semantic search over the markdown knowledge files (SUPPLEMENTARY_KNOWLEDGE.md,
- * DISCOVERIES_KNOWLEDGE.md by default; override with KNOWLEDGE_FILES). There is no
- * external vector DB and no ingest step: edit the markdown, and the next search
- * re-indexes only the changed sections (embeddings cached locally by chunk hash
- * in knowledge/kb/embeddings-cache.json).
+ * Semantic search over the markdown knowledge dictionary (DICTIONARY.md by
+ * default; override with KNOWLEDGE_FILES). There is no external vector DB and
+ * no ingest step: edit the markdown, and the next search re-indexes only the
+ * changed sections (embeddings cached locally by chunk hash in
+ * knowledge/kb/embeddings-cache.json).
  *
  * Tools:
  * - search_knowledge: Semantic search, returns the most relevant sections

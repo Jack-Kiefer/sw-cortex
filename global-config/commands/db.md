@@ -49,7 +49,8 @@ IMPORTANT:
 - Always include LIMIT if not present
 - Never run INSERT, UPDATE, DELETE, DROP, etc.
 
-After querying, check if this reveals new knowledge about the database structure.
-If so, save a discovery using `mcp__task-manager__add_discovery`.
+If a query reveals durable new knowledge about the database structure (a gotcha,
+a misnamed column, a non-obvious relationship), add it to
+`sw-cortex/DICTIONARY.md` — the knowledge MCP indexes it automatically.
 
 Format output as a clean table for query results.

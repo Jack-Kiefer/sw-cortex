@@ -1,13 +1,12 @@
 # Command: refresh-knowledge
 
-Refresh **SUPPLEMENTARY_KNOWLEDGE.md** — the big-picture, hard-to-derive knowledge about SugarWish and
+Refresh **DICTIONARY.md** — the big-picture, hard-to-derive knowledge about SugarWish and
 Jack's job that an AI can't get from a schema or a single file.
 
 It mines **all of these sources** and folds them into one long document:
 
 - **Claude Code chats** — every top-level transcript where Jack typed (corrections, "no it's actually…",
   repeated clarifications, intent) → the _things AI keeps getting wrong_.
-- **Discoveries MCP** — Jack's accumulated dense insights.
 - **Databases (data dictionary)** — per heavy DB (odoo, laravel_live, wishdesk, serp\_\*, retool):
   **what each table is FOR and what its columns / enum values MEAN**, plus cross-system linkage.
 - **Slack** — institutional lessons: who-knows-what, decisions, recurring glitch root-causes, business rules.
@@ -28,7 +27,7 @@ extensive fact (Jack's #1 rule).
 /refresh-knowledge status          # show last-run watermark and how much is new, do nothing else
 ```
 
-The canonical doc lives at: `~/Desktop/Projects/sw-cortex/SUPPLEMENTARY_KNOWLEDGE.md`
+The canonical doc lives at: `~/Desktop/Projects/sw-cortex/DICTIONARY.md`
 (override by passing a path as the last arg, e.g. `/refresh-knowledge full ~/some/OTHER.md`).
 
 `$ARGUMENTS` = the words after the command (may contain `full`/`status` and/or a doc path).
@@ -38,7 +37,7 @@ The canonical doc lives at: `~/Desktop/Projects/sw-cortex/SUPPLEMENTARY_KNOWLEDG
 ## What you (Claude) must do
 
 Parse `$ARGUMENTS`: detect `full` (→ `--full`), `status` (status-only), and any explicit doc path.
-Default doc = `~/Desktop/Projects/sw-cortex/SUPPLEMENTARY_KNOWLEDGE.md`.
+Default doc = `~/Desktop/Projects/sw-cortex/DICTIONARY.md`.
 
 Scripts live in `~/.claude/scripts/` (synced from `global-config/scripts/`):
 `knowledge-refresh-prep.py`, `knowledge-extract-user-msgs.py`, `knowledge-refresh-stamp.py`.
@@ -58,8 +57,8 @@ Read the JSON it prints. Note `mode`, `since`/`sinceISO`, `now`, `docExists`, `s
 
 ### Step 2 — Run the refresh workflow
 
-Launch the Workflow below. Pass `args` = the prep JSON object **plus** the slack-sync-status and
-discoveries tool-result file paths if you have them this session (otherwise the miners fetch fresh).
+Launch the Workflow below. Pass `args` = the prep JSON object **plus** the slack-sync-status
+tool-result file path if you have it this session (otherwise the miners fetch fresh).
 
 The workflow has 5 phases. On **incremental**, scope each miner to what's new/changed since `sinceISO`
 and tell it to surface only NEW/CHANGED facts vs. what the existing doc already states. On **full**, run
@@ -70,8 +69,6 @@ the full breadth below.
      `python3 ~/.claude/scripts/knowledge-extract-user-msgs.py <file>...` to get **only Jack's typed
      messages** (logs/tool-output filtered, sidechains skipped). Hunt for corrections, repeated
      clarifications, "no it's actually…", business rules, roles, intent. Incremental = new transcripts only.
-   - **Discoveries miner** — re-mine the discoveries MCP (`mcp__discoveries__list_discoveries`, read in
-     chunks). Incremental: focus on discoveries created/updated since `sinceISO`.
    - **DB data-dictionary miners** — one per heavy DB (`odoo` split into inventory/mrp + sales/purchase/acct,
      `laravel_live`, `wishdesk`, `serp_prod_replica`, `retool`). Each does `describe_table` on the important
      domain tables and cheap `GROUP BY` queries to **decode what status/enum/flag VALUES MEAN** in business
@@ -87,7 +84,7 @@ the full breadth below.
 
    Each miner returns structured candidate facts (topic, category, fact/columns, evidence, ai_misconception).
 
-2. **Merge into existing doc (no duplicates):** read the current `SUPPLEMENTARY_KNOWLEDGE.md`, treat its
+2. **Merge into existing doc (no duplicates):** read the current `DICTIONARY.md`, treat its
    existing facts as the baseline, and fold the new candidates in — **updating** an existing fact when the
    new info extends/corrects it, **adding** only genuinely new facts, **never creating a second copy**.
 3. **Synthesize** the full updated document (keep it long; preserve all prior good content; section
@@ -113,7 +110,7 @@ python3 ~/.claude/scripts/knowledge-refresh-stamp.py --doc "<DOC>" --at <PREP_no
 
 ### Step 4 — Report
 
-Tell Jack: mode, how many transcripts/discoveries/DBs/repos were in scope, how many facts were added vs.
+Tell Jack: mode, how many transcripts/DBs/repos were in scope, how many facts were added vs.
 updated, how many the fact-check pass **corrected or removed as stale**, and the doc path. Keep it short.
 
 ---
@@ -125,9 +122,9 @@ Adapt paths/args from Step 1. `args` carries the prep JSON (`P`). Sketch of the 
 ```js
 export const meta = {
   name: 'refresh-knowledge',
-  description: 'Mine chats/discoveries/DBs/Slack/codebase/n8n for SugarWish supplementary knowledge, merge into the existing doc with no duplicate facts, then fact-check that every fact is up to date',
+  description: 'Mine chats/DBs/Slack/codebase/n8n for SugarWish supplementary knowledge, merge into the existing doc with no duplicate facts, then fact-check that every fact is up to date',
   phases: [
-    { title: 'Mine',       detail: 'chat shards + discoveries + per-DB dictionary + Slack lessons + ownership + n8n' },
+    { title: 'Mine',       detail: 'chat shards + per-DB dictionary + Slack lessons + ownership + n8n' },
     { title: 'Merge',      detail: 'fold new facts into existing doc facts; dedupe; no duplicates' },
     { title: 'Synthesize', detail: 'rewrite the full long sectioned document' },
     { title: 'Critic',     detail: 'completeness pass' },
@@ -144,7 +141,6 @@ const shards = JSON.parse(/* Read(P.shardManifest) */)
 const incr = P.mode === 'incremental'
 const chat = shards.map(sh => () => agent(/* extract Jack's words via knowledge-extract-user-msgs.py; hunt corrections/roles/rules */,
   { label: `chat-shard-${sh.shard}`, phase: 'Mine', schema: FACT_SCHEMA }))
-const disc = () => agent(/* discoveries MCP; incr -> since P.sinceISO */, { label: 'discoveries', phase: 'Mine', schema: FACT_SCHEMA })
 // Heavier source miners — always on `full`; on incremental include them but ask for only NEW/CHANGED vs the doc.
 const DBS = ['odoo:inventory-mrp','odoo:sales-purchase-acct','laravel_live','wishdesk','serp_prod_replica','retool']
 const dbMiners = DBS.map(d => () => agent(/* describe_table + GROUP BY to DECODE column/enum meaning; LIMIT; link odoo_id */,
@@ -154,7 +150,7 @@ const slackMiners = SLACK_THEMES.map(t => () => agent(/* >=12 searches + get_sla
   { label: `slack:${t}`, phase: 'Mine', schema: FACT_SCHEMA }))
 const ownership = () => agent(/* per-repo what/owner/branch/ticket-prefix + who-owns-which-boundary */, { label: 'ownership', phase: 'Mine', schema: FACT_SCHEMA })
 const n8n = () => agent(/* read workflows/n8n/*.json: what/trigger/systems/why */, { label: 'n8n', phase: 'Mine', schema: FACT_SCHEMA })
-const mined = (await parallel([...chat, disc, ...dbMiners, ...slackMiners, ownership, n8n])).filter(Boolean)
+const mined = (await parallel([...chat, ...dbMiners, ...slackMiners, ownership, n8n])).filter(Boolean)
 const candidates = mined.flatMap(r => r.facts || [])
 
 // ---- Merge into existing doc (NO DUPLICATES) ----
@@ -172,13 +168,12 @@ return { document: /* final markdown */, added, updated, corrected, removedStale
 
 > The DB-dictionary miners and the FactCheck phase mirror the deep-dive build script at
 > `~/Desktop/Projects/sw-cortex/.wf-db-n8n-deepdive.js` — reuse its `DICT_SCHEMA`, `GROUP BY` decode method,
-> and `VERDICT_SCHEMA` verbatim. `full` runs all miners; incremental scopes chats/discoveries to new and asks
+> and `VERDICT_SCHEMA` verbatim. `full` runs all miners; incremental scopes chats to new and asks
 > the heavier miners for only NEW/CHANGED facts vs. the existing doc.
 
 ## Notes
 
-- **Incremental is the point.** A weekly run typically mines a handful of new transcripts + recent
-  discoveries and merges — fast and cheap. Use `full` after big changes (new DB, new repo, big refactor).
+- **Incremental is the point.** A weekly run typically mines a handful of new transcripts and merges — fast and cheap. Use `full` after big changes (new DB, new repo, big refactor).
 - **The watermark is per-doc** (`<doc-dir>/.knowledge-refresh.json`). Delete it to force a full run.
 - Subagent/workflow transcripts (under `subagents/`, `workflows/`) are intentionally **excluded** — they
   contain no human turns and would pollute the "AI keeps getting wrong" signal.
