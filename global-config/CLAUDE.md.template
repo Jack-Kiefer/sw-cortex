@@ -89,9 +89,17 @@ mcp__db__list_databases
 mcp__db__list_tables { database: "database_name" }
 mcp__db__describe_table { database, table }
 mcp__db__query_database { database, query, limit? }
+mcp__db__query_database_from_file { database, path, limit? }
 ```
 
 **Always include LIMIT.** Never run write queries.
+
+`query_database_from_file` is for SQL too long or awkward to inline (e.g. the
+20-CTE supplier-forecast queries). It reads the SQL from disk and runs it on
+the named database. The file must live under `~/Desktop/Projects` (override
+with the `MCP_DB_ALLOWED_DIRS` env var). Paths may be absolute, `~/...`, or
+relative to the MCP server cwd; `..` segments get collapsed before the
+allowlist check so traversal attempts fail safely.
 
 ### GitHub Access (`mcp__github__*`)
 
