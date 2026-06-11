@@ -21,52 +21,37 @@ Keep this session's terminal tab title showing what you're doing. Set it as soon
 ~/.claude/scripts/set-tab-title.sh "<emoji> <status> · <label>"
 ```
 
-| Emoji | When |
-| ----- | ---- |
-| 🔍 | researching / investigating / debugging |
-| 🔨 | implementing / editing files |
-| 🧪 | running tests / verifying |
-| 🙋 | about to stop and ask Jack for approval or a decision |
-| ❓ | blocked — error or missing info Jack must resolve |
-| 📦 | PR opened, awaiting merge decision |
-| ✅ | task finished |
+| Emoji | When                                                  |
+| ----- | ----------------------------------------------------- |
+| 🔍    | researching / investigating / debugging               |
+| 🔨    | implementing / editing files                          |
+| 🧪    | running tests / verifying                             |
+| 🙋    | about to stop and ask Jack for approval or a decision |
+| ❓    | blocked — error or missing info Jack must resolve     |
+| 📦    | PR opened, awaiting merge decision                    |
+| ✅    | task finished                                         |
 
 `<label>` = 1–3-word task label (kebab-case fine). Set 🙋/❓/✅ **before ending the turn** — that's the state Jack sees while the tab sits idle. The global hooks (Stop/Notification/PostToolUse → `tab-title-hook.sh`) re-stamp the latest value automatically, so only update it at transitions, never repeatedly. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
 
-## IMPORTANT: Log Discoveries Frequently
+## IMPORTANT: Search the Knowledge Base First
 
-Whenever you learn something useful, **save it as a discovery** so future sessions can benefit:
-
-```
-mcp__discoveries__add_discovery {
-  title: "Brief description",
-  source: "database_query|exploration|code_review|manual",
-  description: "What you learned and why it matters",
-  type: "fact|relationship|pattern|insight|anomaly",
-  sourceDatabase: "...",  # if database-related
-  tableName: "...",       # if table-specific
-  tags: ["..."]           # optional categorization
-}
-```
-
-**Save discoveries about:**
-
-- Database schemas, relationships, business logic
-- Codebase architecture, patterns, conventions
-- How systems integrate (Odoo, Slack, n8n, etc.)
-- Gotchas, edge cases, things that surprised you
-- Solutions that worked for tricky problems
-- Business rules and workflows
-- API behaviors, undocumented features
-- Anything Jack might need to know again
-
-**Search before asking:**
+The SugarWish institutional knowledge base — systems, database schemas, table-by-table notes, people/ownership, business rules, gotchas — is semantically searchable via the `knowledge` MCP server:
 
 ```
-mcp__discoveries__search_discoveries { query: "topic" }
+mcp__knowledge__search_knowledge { query: "how do SERP and Odoo ids join", limit?: 5 }
+mcp__knowledge__get_knowledge_section { section: "Serpy" }   # full text when a result is truncated
 ```
 
-This builds institutional knowledge across all sessions.
+**Search BEFORE:**
+
+- Reasoning about any SugarWish system, database table, or cross-system flow
+- Writing queries against `odoo` / `laravel_live` / `retool` / `wishdesk` / `serp_*` tables
+- Assuming who owns a system, what a column means, or which DB is the source of truth
+- Starting any analyze/planning task (`/analyze`, `/global-analyze`, `/global-quick-analyze`)
+
+The obvious-looking inference is often documented as **wrong** — that's what the KB exists to catch. Search it the way you'd search the web: cheap, early, often.
+
+**Updating the KB:** it indexes `sw-cortex/DICTIONARY.md` directly — edit that file and the index refreshes itself on the next search (no ingest step). `/refresh-knowledge` distills new session learnings into the doc.
 
 ## Global Slash Commands
 
@@ -77,6 +62,11 @@ This builds institutional knowledge across all sessions.
 | `/global-analyze [description]`       | Deep pre-implementation analysis     |
 | `/global-quick-analyze [description]` | Quick codebase assessment            |
 | `/meeting [title]`                    | Save meeting notes + index to Qdrant |
+| `/refresh-knowledge`                  | Update the knowledge base docs       |
+| `/draft-slack [context]`              | Draft a Slack message                |
+| `/ww [description]`                   | WishDesk work helper                 |
+| `/tab-title [name]`                   | Set/clear this terminal tab title    |
+| `/compact-global`                     | Compact + resume global context      |
 
 ## Global Skills
 
@@ -106,13 +96,13 @@ Read-only access to production databases. **Never run write queries.**
 
 #### Tools
 
-| Need to...           | Do this                                                       |
-| -------------------- | ------------------------------------------------------------- |
-| List databases       | `mcp__db__list_databases`                                     |
-| List tables          | `mcp__db__list_tables { database }`                           |
-| Describe table       | `mcp__db__describe_table { database, table }`                 |
-| Query database       | `mcp__db__query_database { database, query, limit? }`         |
-| Query from .sql file | `mcp__db__query_database_from_file { database, path, limit? }`|
+| Need to...           | Do this                                                        |
+| -------------------- | -------------------------------------------------------------- |
+| List databases       | `mcp__db__list_databases`                                      |
+| List tables          | `mcp__db__list_tables { database }`                            |
+| Describe table       | `mcp__db__describe_table { database, table }`                  |
+| Query database       | `mcp__db__query_database { database, query, limit? }`          |
+| Query from .sql file | `mcp__db__query_database_from_file { database, path, limit? }` |
 
 **Always include LIMIT.** Use specific columns when possible.
 
@@ -169,7 +159,7 @@ mcp__slack-search__search_slack_messages { query: "purchase order approval" }
 mcp__slack-search__get_slack_context { channelId: "C123", timestamp: 1704067200 }
 ```
 
-Slack syncs hourly via PM2. Manual sync: `npm run slack:sync` in sw-cortex.
+Slack message indexing is synced via `npm run slack:sync` in sw-cortex (manual / scheduled).
 
 ### GitHub Access (`mcp__github__*`)
 
@@ -177,17 +167,17 @@ Read-only access to configured repos.
 
 #### Repositories & Branches
 
-| Repo                  | Production | Development      | Staging       | Workflow                           |
-| --------------------- | ---------- | ---------------- | ------------- | ---------------------------------- |
-| **SERP**              | `main`     | `dev`            | -             | dev → main → auto-deploy (Jenkins) |
-| **SWAC**              | `live`     | `development`    | `staging`     | dev → staging → live               |
-| **sugarwish-odoo**    | `main`     | -                | `staging_new` | staging_new → main                 |
-| **sugarwish-laravel** | `blue`     | feature branches | -             | SUG-\* branches → blue             |
+| Repo                  | Production | Development      | Staging       | Workflow                   |
+| --------------------- | ---------- | ---------------- | ------------- | -------------------------- |
+| **SERP**              | `main`     | `dev`            | -             | dev → main → manual deploy |
+| **SWAC**              | `live`     | `development`    | `staging`     | dev → staging → live       |
+| **sugarwish-odoo**    | `main`     | -                | `staging_new` | staging_new → main         |
+| **sugarwish-laravel** | `blue`     | feature branches | -             | SUG-\* branches → blue     |
 
 **Environments**:
 
 - SWAC: `desk.sugarwish.com` (live), `desk2.sugarwish.com` (dev), `desk3.sugarwish.com` (staging)
-- SERP: Auto-deploys from `main` via Jenkins CI/CD
+- SERP: deploy from `main` is a **manual** `ssh … bash deploy.sh` step — it does **NOT** auto-deploy. (CI runs on push to `main`, but deploy is manual.)
 
 **IMPORTANT - Always specify the correct branch**:
 
@@ -219,20 +209,28 @@ mcp__github__list_commits { repo: "SERP", branch: "dev" }
 
 Without `ref`, tools default to the repo's default branch (usually `main`).
 
-### Discoveries (`mcp__discoveries__*`)
+### Knowledge Base (`mcp__knowledge__*`)
 
-Save and search database/codebase insights.
+Semantic search over `sw-cortex/DICTIONARY.md` — SugarWish systems, table-by-table notes, people/ownership, business rules, gotchas. See "Search the Knowledge Base First" above.
 
-| Need to...         | Do this                                                  |
-| ------------------ | -------------------------------------------------------- |
-| Save a discovery   | `mcp__discoveries__add_discovery { title, source, ... }` |
-| Search discoveries | `mcp__discoveries__search_discoveries { query }`         |
-| List discoveries   | `mcp__discoveries__list_discoveries { source?, type? }`  |
-| Get discovery      | `mcp__discoveries__get_discovery { id }`                 |
-| Update discovery   | `mcp__discoveries__update_discovery { id, ... }`         |
-| Delete discovery   | `mcp__discoveries__delete_discovery { id }`              |
-| Export discoveries | `mcp__discoveries__export_discoveries { format? }`       |
-| Get table notes    | `mcp__discoveries__get_table_notes { database, table }`  |
+| Need to...               | Do this                                              |
+| ------------------------ | ---------------------------------------------------- |
+| Search the KB            | `mcp__knowledge__search_knowledge { query, limit? }` |
+| Expand truncated section | `mcp__knowledge__get_knowledge_section { section }`  |
+
+### Slack Posting / Reading (`mcp__jack-slack__*`)
+
+Post and read Slack directly (distinct from `slack-search`, which is semantic search over history).
+
+| Need to...           | Do this                                                         |
+| -------------------- | --------------------------------------------------------------- |
+| Post a message       | `mcp__jack-slack__slack_post_message { channel, text }`         |
+| Reply in a thread    | `mcp__jack-slack__slack_reply_to_thread { channel, thread_ts }` |
+| Read channel history | `mcp__jack-slack__slack_get_channel_history { channel }`        |
+| Read thread replies  | `mcp__jack-slack__slack_get_thread_replies { channel, ts }`     |
+| List channels        | `mcp__jack-slack__slack_list_channels`                          |
+| Look up user / users | `mcp__jack-slack__slack_get_user_profile` / `slack_get_users`   |
+| Add a reaction       | `mcp__jack-slack__slack_add_reaction { channel, ts, name }`     |
 
 ### Logs (`mcp__logs__*`)
 
@@ -270,14 +268,14 @@ Or use the slash command: `/add-global sync push`
 
 ### Files Synced
 
-| Source                    | Destination           |
-| ------------------------- | --------------------- |
-| `global-config/commands/` | `~/.claude/commands/` |
-| `global-config/skills/`   | `~/.claude/skills/`   |
-| `global-config/CLAUDE.md` | `~/CLAUDE.md`         |
-| `global-config/mcp.json`  | `~/.mcp.json`         |
+| Source                            | Destination                                              |
+| --------------------------------- | -------------------------------------------------------- |
+| `global-config/commands/`         | `~/.claude/commands/`                                    |
+| `global-config/skills/`           | `~/.claude/skills/`                                      |
+| `global-config/CLAUDE.md`         | `~/CLAUDE.md` (symlink — edits are live, nothing copied) |
+| `global-config/mcp.json.template` | `~/.mcp.json` (generated/expanded on push)               |
 
-**Restart Claude Code after pushing to pick up changes.**
+`mcp.json` has no static source — it is generated from `mcp.json.template` (repo path + env vars expanded). **Restart Claude Code after pushing mcp.json changes to pick them up.**
 
 ## When in Doubt, Search
 
@@ -297,19 +295,21 @@ Or use the slash command: `/add-global sync push`
 
 Don't guess - search first, then act with confidence.
 
-## PM2 Services
+## sw-cortex Services (systemd)
 
-Running on this machine:
+The sw-cortex background services run as **systemd units** (defined in `scripts/systemd/`, installed via `scripts/install-systemd.sh`):
 
-- `api` - sw-cortex API on port 4000 (watches src/ for changes)
-- `slack-sync` - Hourly Slack message sync
+- `sw-cortex-web.service` — Web UI / API (`npx tsx --watch src/api/server.ts`)
+- `sw-cortex-slack.service` — Slack handler, Socket Mode (`scripts/slack-handler.ts`)
+- `sw-cortex-reminders.service` + `.timer` — reminder check, runs every minute
 
 ```bash
-pm2 list              # Status
-pm2 logs              # View logs
-pm2 restart api       # Restart API
+systemctl status sw-cortex-web.service     # Status
+journalctl -u sw-cortex-slack.service -f   # Follow logs
+systemctl restart sw-cortex-web.service    # Restart
 ```
 
+> Slack message indexing is synced via `npm run slack:sync` (manual / scheduled). On this Mac, the only PM2 process is `serp-smart-search` (unrelated to sw-cortex).
 
 ---
 
@@ -324,7 +324,7 @@ This is the institutional memory an AI assistant **cannot** reconstruct from sch
 - `laravel_live` is **NOT** "the SERP database" — it is SugarWish's PRODUCTION Laravel e-commerce DB that co-hosts a thin, near-empty `serp_*` bridge. Live SERP data lives in the **darklaunch** DBs. When Jack says "live" he means `laravel_live`.
 - SERP has **NO** dedicated production DB (as of June 2026) — it runs on the live Laravel/MySQL cluster. There is no `serp_prod` server.
 - `*_replica` = clean, sparse, **pure Laravel mirror with ZERO Odoo data**; `*_darklaunch` = the full live Odoo-MERGED dataset the worker writes. **Never** interchange these names.
-- `live_darklaunch_db` (MySQL `serp_test` on Hetzner `5.78.203.128:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB.
+- `live_darklaunch_db` (MySQL `serp_test` on Hetzner `5.161.233.240:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB.
 - Join SERP/darklaunch to Odoo on **`odoo_id`**, **NEVER** `id = id`. Durable origin test: `odoo_id IS NULL` = SERP-native, `IS NOT NULL` = Odoo-sourced. **NOT** any `id >= 1_000_000_000` range (that scheme was reversed the next day).
 - The Odoo sync flag column is intentionally misspelled **`oddo_synchronized`** (double-d, one o) — match it exactly. Value `3` = stuck/archived-SKU, `5` = error.
 - `stock_move`/`serp_stock_move` `state` enum is positive: `draft`,`confirmed`,`waiting`,`partially_available`,`assigned`,`done`,`cancel`. **`assigned` = stock RESERVED/ready-to-pick, NOT shipped.** `done` is the only state that moved inventory.
@@ -394,10 +394,10 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 ### Product Catalog Owners
 
-| Person                      | Slack ID      | Decides                                                                                      |
-| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
-| Clare McClaren              | `U034VB6F886` | VP Creative; ecard consolidation; coordinates annual price change                            |
-| Kelley Meiser (kelleymax)   | `U099GLS5D`   | Product-type migration; `drop_level`; tags seasonal/legacy                                   |
+| Person                    | Slack ID      | Decides                                                           |
+| ------------------------- | ------------- | ----------------------------------------------------------------- |
+| Clare McClaren            | `U034VB6F886` | VP Creative; ecard consolidation; coordinates annual price change |
+| Kelley Meiser (kelleymax) | `U099GLS5D`   | Product-type migration; `drop_level`; tags seasonal/legacy        |
 
 ### Offshore Dev / QA Team (Prixite vendor — channel `#odoo-prixite` `C07QRF6MHD4`)
 
@@ -416,7 +416,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **NOT interchangeable:** Manish = lead/Odoo+SERP; Subash = Laravel-track; Parish = SWAC-track; Aashish = junior.
 
-**Munyr** owns **Jenkins** (org-wide CI/CD for ALL platforms, `ciservice.sugarwish.com`) and the company-wide **AWS→Hetzner migration**. The `manage` MySQL cluster is already fully on Hetzner (AWS `manage` shut down ~Apr 29 2026); darklaunch MySQL at `5.78.203.128` (created ~Apr 28 2026). Jack is a consumer of infra, NOT its driver.
+**Munyr** owns **Jenkins** (org-wide CI/CD for ALL platforms, `ciservice.sugarwish.com`) and the company-wide **AWS→Hetzner migration**. The `manage` MySQL cluster is already fully on Hetzner (AWS `manage` shut down ~Apr 29 2026); darklaunch MySQL at `5.161.233.240` (created ~Apr 28 2026). Jack is a consumer of infra, NOT its driver.
 
 ### Customer Service & Other Roles
 
@@ -487,7 +487,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **SERP deploy:**
 
-- Single AWS EC2 (`34.203.231.65`, `/opt/SERP`). Not containers/k8s. Darklaunch prod DB on Hetzner (`5.78.203.128`).
+- Single AWS EC2 (`34.203.231.65`, `/opt/SERP`). Not containers/k8s. Darklaunch prod DB on Hetzner (`5.161.233.240`).
 - Deploy: `ssh -i ~/.ssh/id_ed25519 ubuntu@34.203.231.65 "cd /opt/SERP && bash deploy.sh"`. `deploy.sh`: `git checkout main` + hard reset → pip install → Next.js build (Node heap **1.5GB** cap) → `pm2 delete + start ecosystem.config.js`.
 - **PM2 caches env vars.** Changing `.env` requires `pm2 delete serp-backend` then `pm2 start … --only serp-backend`. Plain `pm2 restart/reload` does NOT pick up `.env` or script `args`.
 - PM2 over non-interactive SSH: `export PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`.
@@ -578,7 +578,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 | Code   | Location                   | `location_id` | SKU suffix | People                                               |
 | ------ | -------------------------- | ------------- | ---------- | ---------------------------------------------------- |
 | **EW** | Englewood, CO (primary/HQ) | 1             | `-E`       | Sophie, Will Meilinger, Jose Miranda, rashad.johnson |
-| **TY** | Taylor, MI                 | 2             | `-A`       | Tracy Kamin; same-day delivery       |
+| **TY** | Taylor, MI                 | 2             | `-A`       | Tracy Kamin; same-day delivery                       |
 
 - Perishables (cookies, brownies) tied to one building; carton'd shelf-stable (coffee, tea) can reship from either. Remaining 13 warehouses = partner/dropship (SGD, SGM, ST, WCC, MS, PM, CPD, CPF, LR, MSS, MC, CC, PNB).
 - **Production slips = two-slip custom flow:** Slip 1 (Laravel, product production) + Slip 2 (SERP print interface, sleeve production, appended as page 2). `preprints` deducts on slip generation, adds back on cancellation. Print cron runs ~5 min after buyer order; pre-prints filed by location code (`ENGLEWOOD-FILED-143`). Custom sleeves = CEO Jason's "biggest near-term revenue opportunity"; cost ~$2–5 each (min ~1000 @ $4.99; ~7–9 business days after art approval).
@@ -601,7 +601,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 | `serp_staging_replica`             | MySQL      | Verbatim mirror of `manage`, ZERO Odoo data — near-empty shell                                                                |
 | `serp_prod_darklaunch`             | MySQL      | Odoo PROD + `laravel_live` merged — future prod DB (lagging local snapshot)                                                   |
 | `serp_staging_darklaunch`          | MySQL      | Odoo STAGING + `manage` merged — active staging SERP DB                                                                       |
-| `live_darklaunch_db` (`serp_test`) | MySQL      | **Live PROD darklaunch** on Hetzner `5.78.203.128:3306`; canonical/most-current write target                                  |
+| `live_darklaunch_db` (`serp_test`) | MySQL      | **Live PROD darklaunch** on Hetzner `5.161.233.240:3306`; canonical/most-current write target                                 |
 | `odoo`                             | PostgreSQL | Odoo 15 ERP PROD — inventory/accounting source of truth                                                                       |
 | `odoo_staging`                     | PostgreSQL | Near-identical staging clone (lags prod ~2 weeks / ~110k orders)                                                              |
 | `retool`                           | PostgreSQL | Shared BI + SERP sync engine + auth bridge + AI observability + forecasting (~165 tables)                                     |
@@ -1098,10 +1098,10 @@ Removed/legacy: `USE_SERP_AS_LIVE`, `USE_MOCK_ODOO` (keep `LIVE_SSH_*`). `ODOO_S
 
 ### sw-cortex (Jack's Personal Tooling — NOT production)
 
-- Personal work-intelligence platform. MCP servers: db (read-only), slack-search (Qdrant, encrypted, hourly sync), discoveries KB, logs, github. `~/.mcp.json` runs via `npx tsx` — **no build step but requires Claude Code restart after editing `.ts`**.
+- Personal work-intelligence platform. MCP servers: db (read-only), slack-search (Qdrant, encrypted), knowledge (semantic search over `DICTIONARY.md`), jack-slack (Slack post/read), logs, github. `~/.mcp.json` runs via `npx tsx` — **no build step but requires Claude Code restart after editing `.ts`**.
 - 30s query timeout (MySQL `max_execution_time=30000`; PG `statement_timeout=30000`; plus JS `Promise.race`). **`limit` param caps RESULT ROWS only** — does NOT stop a slow scan. `query_database_from_file` requires file under `~/Desktop/Projects` (override `MCP_DB_ALLOWED_DIRS`).
 - `jack-slack` MCP posts as "jackbot" (uses `JACK_SLACK_BOT_TOKEN`, a Bot token not user token; bot must be invited to the channel).
-- **Discoveries auto-logging is DISABLED** (`.claude/rules/db-discoveries.md`): do NOT call `add_discovery` automatically; search freely. **This overrides the global CLAUDE.md "log frequently" instruction.**
+- **The discoveries feature is removed.** There is no `add_discovery`/`mcp__discoveries__*` server and no `.claude/rules/db-discoveries.md` rule. Institutional knowledge now lives in this file (`DICTIONARY.md`) and is searched via the `knowledge` MCP (`mcp__knowledge__search_knowledge`); `/refresh-knowledge` distills new learnings into it.
 - **Org-wide shared AI tooling (livery + SWIRL):** livery ships read-only MCP servers (`mcp-db-tool-live` with SQL keyword-blocklist + timeouts + SQLite audit log, `mcp-slack`, `mcp-wishdesk` stdio→HTTP proxy, `swim-kb` Qdrant). On the primary dev machine, live RDS / WishDesk require SSH tunnels first (live RDS → `localhost:13306`, WishDesk → `localhost:3001`). SWIRL is **symlinked** (not submoduled) into SWAC/Laravel/sw-design.
 
 ### Operational Alerting & Error Channels
@@ -1271,4 +1271,3 @@ Removed/legacy: `USE_SERP_AS_LIVE`, `USE_MOCK_ODOO` (keep `LIVE_SSH_*`). `ODOO_S
 - **manage** / `manage.sugarwish.com` = SugarWish Laravel admin/management app + DB; serves as the dev/staging SugarWish DB AND the staging SERP schema source. "Test on manage" = the Laravel manage staging environment.
 - **Livery / SWOP** = "Sugarwish Operations Platform" (`csloan-sw/livery`, Cris Sloan) — print/image-rendering for branded products + MCP-tooling backbone. **SWIRL** = Jason's org-wide knowledge platform; **SWIM** = WishDesk-embedded AI chatbot. Both separate from sw-cortex.
 - **SWAC** = WishDesk (the GitHub description "SugarWish Activity Coordinator" is misleading).
-

@@ -48,7 +48,12 @@ export interface SearchResult {
 
 function knowledgeFiles(): string[] {
   const env = process.env.KNOWLEDGE_FILES;
-  const names = env ? env.split(',').map((f) => f.trim()).filter(Boolean) : DEFAULT_FILES;
+  const names = env
+    ? env
+        .split(',')
+        .map((f) => f.trim())
+        .filter(Boolean)
+    : DEFAULT_FILES;
   return names.map((f) => (path.isAbsolute(f) ? f : path.join(REPO_ROOT, f)));
 }
 
@@ -152,17 +157,26 @@ export async function getIndex(): Promise<CacheFile> {
     return cached;
   }
 
-  const previous = new Map<string, number[]>((cached?.chunks ?? []).map((c) => [c.hash, c.embedding]));
-  const allChunks = Object.entries(contents).flatMap(([rel, content]) => chunkMarkdown(content, rel));
+  const previous = new Map<string, number[]>(
+    (cached?.chunks ?? []).map((c) => [c.hash, c.embedding])
+  );
+  const allChunks = Object.entries(contents).flatMap(([rel, content]) =>
+    chunkMarkdown(content, rel)
+  );
 
   const toEmbed = allChunks.filter((c) => !previous.has(c.hash));
-  const newEmbeddings = await generateEmbeddings(toEmbed.map((c) => `${c.breadcrumb}\n\n${c.text}`));
+  const newEmbeddings = await generateEmbeddings(
+    toEmbed.map((c) => `${c.breadcrumb}\n\n${c.text}`)
+  );
   const embedded = new Map(toEmbed.map((c, i) => [c.hash, newEmbeddings[i]]));
 
   const index: CacheFile = {
     version: CACHE_VERSION,
     files: fileHashes,
-    chunks: allChunks.map((c) => ({ ...c, embedding: previous.get(c.hash) ?? embedded.get(c.hash)! })),
+    chunks: allChunks.map((c) => ({
+      ...c,
+      embedding: previous.get(c.hash) ?? embedded.get(c.hash)!,
+    })),
   };
   writeCache(index);
   memoryIndex = index;

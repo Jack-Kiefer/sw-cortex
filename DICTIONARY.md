@@ -9,7 +9,7 @@ This is the institutional memory an AI assistant **cannot** reconstruct from sch
 - `laravel_live` is **NOT** "the SERP database" — it is SugarWish's PRODUCTION Laravel e-commerce DB that co-hosts a thin, near-empty `serp_*` bridge. Live SERP data lives in the **darklaunch** DBs. When Jack says "live" he means `laravel_live`.
 - SERP has **NO** dedicated production DB (as of June 2026) — it runs on the live Laravel/MySQL cluster. There is no `serp_prod` server.
 - `*_replica` = clean, sparse, **pure Laravel mirror with ZERO Odoo data**; `*_darklaunch` = the full live Odoo-MERGED dataset the worker writes. **Never** interchange these names.
-- `live_darklaunch_db` (MySQL `serp_test` on Hetzner `5.78.203.128:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB.
+- `live_darklaunch_db` (MySQL `serp_test` on Hetzner `5.161.233.240:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB.
 - Join SERP/darklaunch to Odoo on **`odoo_id`**, **NEVER** `id = id`. Durable origin test: `odoo_id IS NULL` = SERP-native, `IS NOT NULL` = Odoo-sourced. **NOT** any `id >= 1_000_000_000` range (that scheme was reversed the next day).
 - The Odoo sync flag column is intentionally misspelled **`oddo_synchronized`** (double-d, one o) — match it exactly. Value `3` = stuck/archived-SKU, `5` = error.
 - `stock_move`/`serp_stock_move` `state` enum is positive: `draft`,`confirmed`,`waiting`,`partially_available`,`assigned`,`done`,`cancel`. **`assigned` = stock RESERVED/ready-to-pick, NOT shipped.** `done` is the only state that moved inventory.
@@ -19,7 +19,7 @@ This is the institutional memory an AI assistant **cannot** reconstruct from sch
 - SERP is a deliberate from-scratch clone of **Odoo 15's ORM** held to line-by-line parity — divergences are **bugs to fix against Odoo 15 source**, not "best-practice" refactors.
 - Darklaunch is a dual-write VALIDATION/reconciliation system writing ONLY to a replica DB (never live Odoo / never main SERP), gated on **<1% drift** as the cutover-readiness signal — **not** a feature-flag library, and SERP has not yet replaced Odoo.
 - Pre-cutover, **Odoo is the inventory/accounting source of truth**; SERP/Serpy READ live from Odoo, so discrepancies usually originate in Odoo's data, not SERP's.
-- SERP production does **NOT** auto-deploy. CI runs on push to `main` but deploy is a manual `ssh … bash deploy.sh` step.
+- SERP production does **NOT** auto-deploy. CI runs on push to `main` but deploy is a manual step on the Hetzner K3s node: `ssh jack@5.161.95.56` then `bash deploy-k8s.sh main`. (The old AWS `deploy.sh` path is frozen legacy.)
 - `ec_order.size` is **MISNAMED** — it holds `buyer_products.id`, NOT a physical size. `sw_fulfill` = in-house vs vendor, NOT a shipment-status flag.
 - **SWAC IS WishDesk** — the GitHub description "SugarWish Activity Coordinator" is misleading.
 - Inventory has **no single source of truth**: sellable (SA) = Laravel `receiver_products.inventory_qty`; raw material (RM) = Odoo only; accounting/valuation = Odoo `stock_quant`/SVL.
@@ -79,10 +79,10 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 ### Product Catalog Owners
 
-| Person                      | Slack ID      | Decides                                                                                      |
-| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
-| Clare McClaren              | `U034VB6F886` | VP Creative; ecard consolidation; coordinates annual price change                            |
-| Kelley Meiser (kelleymax)   | `U099GLS5D`   | Product-type migration; `drop_level`; tags seasonal/legacy                                   |
+| Person                    | Slack ID      | Decides                                                           |
+| ------------------------- | ------------- | ----------------------------------------------------------------- |
+| Clare McClaren            | `U034VB6F886` | VP Creative; ecard consolidation; coordinates annual price change |
+| Kelley Meiser (kelleymax) | `U099GLS5D`   | Product-type migration; `drop_level`; tags seasonal/legacy        |
 
 ### Offshore Dev / QA Team (Prixite vendor — channel `#odoo-prixite` `C07QRF6MHD4`)
 
@@ -101,7 +101,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **NOT interchangeable:** Manish = lead/Odoo+SERP; Subash = Laravel-track; Parish = SWAC-track; Aashish = junior.
 
-**Munyr** owns **Jenkins** (org-wide CI/CD for ALL platforms, `ciservice.sugarwish.com`) and the company-wide **AWS→Hetzner migration**. The `manage` MySQL cluster is already fully on Hetzner (AWS `manage` shut down ~Apr 29 2026); darklaunch MySQL at `5.78.203.128` (created ~Apr 28 2026). Jack is a consumer of infra, NOT its driver.
+**Munyr** owns **Jenkins** (org-wide CI/CD for ALL platforms, `ciservice.sugarwish.com`) and the company-wide **AWS→Hetzner migration**. The `manage` MySQL cluster is already fully on Hetzner (AWS `manage` shut down ~Apr 29 2026); darklaunch MySQL at `5.161.233.240` (created ~Apr 28 2026). Jack is a consumer of infra, NOT its driver.
 
 ### Customer Service & Other Roles
 
@@ -172,7 +172,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **SERP deploy:**
 
-- **Production is the Hetzner K3s cluster** (node `5.161.95.56`, namespace `serp`, app root `/opt/SERP`, live host `serp.sugarwish.com` — health-check from the node, the hostname doesn't resolve from Jack's Mac). Deploy = `bash deploy-k8s.sh main` run on the node; the node tracks `main` and this is the normal, safe deploy (verified 2026-06-10 — do NOT re-flag "the script only lives on a feature branch"). Darklaunch prod DB on Hetzner (`5.78.203.128`).
+- **Production is the Hetzner K3s cluster** (node `5.161.95.56`, namespace `serp`, app root `/opt/SERP`, live host `serp.sugarwish.com` — health-check from the node, the hostname doesn't resolve from Jack's Mac). Deploy = `bash deploy-k8s.sh main` run on the node; the node tracks `main` and this is the normal, safe deploy (verified 2026-06-10 — do NOT re-flag "the script only lives on a feature branch"). Darklaunch prod DB on Hetzner (`5.161.233.240`).
 - **`serp-backend` runs `replicas: 2` safely** (since 2026-06-09): live-path refresh tokens moved from a per-process dict to **shared Redis** (`backend/crud/crud_refresh_token.py`, keys `serp:refresh_token:<hash>`; redis pod in ns `serp`), so any pod validates any token and `/api/auth/refresh` works cross-pod. `WORKERS_ENABLED=false` MUST stay set on serp-backend (workers run only in `serp-workers`, replicas 1) — it's set via the **`serp-env` secret** consumed by `envFrom`, NOT inline `env:`, so deployment-YAML inspection shows nothing; verify with `kubectl exec -- printenv WORKERS_ENABLED`.
 - **Image accumulation:** un-pruned, each deploy leaks ~1.3GB into `/var/lib/containerd` (Docker uses the containerd image store — `/var/lib/docker` looks tiny and misleads `du`); kubelet image GC force-kicks at 85% disk. `deploy-k8s.sh`'s `[7/7]` prune phase keeps current `$TAG` + `$PREV_TAG` (captured BEFORE `kubectl apply` rewrites spec images to `:latest`) + `:latest`, plus `docker builder prune --keep-storage=8GB`.
 - **Legacy AWS EC2** (`34.203.231.65`, `/opt/SERP`, PM2 + nginx, old `deploy.sh`: git reset → pip install → Next.js build with Node heap **1.5GB** cap → pm2 restart) is retained **frozen** during cutover — NOT deployed to; its workers disabled (`WORKERS_ENABLED=false`). The PM2 notes below apply to that legacy box:
@@ -265,7 +265,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 | Code   | Location                   | `location_id` | SKU suffix | People                                               |
 | ------ | -------------------------- | ------------- | ---------- | ---------------------------------------------------- |
 | **EW** | Englewood, CO (primary/HQ) | 1             | `-E`       | Sophie, Will Meilinger, Jose Miranda, rashad.johnson |
-| **TY** | Taylor, MI                 | 2             | `-A`       | Tracy Kamin; same-day delivery       |
+| **TY** | Taylor, MI                 | 2             | `-A`       | Tracy Kamin; same-day delivery                       |
 
 - Perishables (cookies, brownies) tied to one building; carton'd shelf-stable (coffee, tea) can reship from either. Remaining 13 warehouses = partner/dropship (SGD, SGM, ST, WCC, MS, PM, CPD, CPF, LR, MSS, MC, CC, PNB).
 - **Production slips = two-slip custom flow:** Slip 1 (Laravel, product production) + Slip 2 (SERP print interface, sleeve production, appended as page 2). `preprints` deducts on slip generation, adds back on cancellation. Print cron runs ~5 min after buyer order; pre-prints filed by location code (`ENGLEWOOD-FILED-143`). Custom sleeves = CEO Jason's "biggest near-term revenue opportunity"; cost ~$2–5 each (min ~1000 @ $4.99; ~7–9 business days after art approval).
@@ -273,31 +273,33 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 ---
 
-## The 13-Database Landscape
+## The 14-Database Landscape
 
-**10 MySQL, 3 PostgreSQL.** Several `serp_*` DBs are **disposable local rebuilds**, NOT peer remote servers. `retool` is a shared multi-app DB, NOT SERP-owned.
+**11 MySQL, 3 PostgreSQL.** Several `serp_*` DBs are **disposable local rebuilds**, NOT peer remote servers. `retool` is a shared multi-app DB, NOT SERP-owned.
 
-| Database (MCP key)                 | Engine     | Role                                                                                                                          |
-| ---------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `wishdesk`                         | MySQL      | WishDesk/WishWorks CS+CRM+billing (179 tables, SSH tunnel)                                                                    |
-| `wishdesk_dev`                     | MySQL      | WishDesk dev/staging (~5,121 users, partial sandbox)                                                                          |
-| `laravel_live`                     | MySQL      | SugarWish/Laravel **PROD** — orders/customers (SSH tunnel); co-hosts ~70 sparse `serp_*` tables                               |
-| `manage`                           | MySQL      | SugarWish/Laravel **STAGING** (~8% of prod); holds SERP's upstream ORM tables + `serp_res_users` auth                         |
-| `local` (→`serp_local`)            | MySQL      | SERP dev partial schema (`LOCAL_DB_NAME`); all `serp_*` + ~3,091–3,449 products; **missing** `ec_order`/`items`/`kits`/orders |
-| `serp_prod_replica`                | MySQL      | Verbatim mirror of `laravel_live`, ZERO Odoo data — near-empty shell                                                          |
-| `serp_staging_replica`             | MySQL      | Verbatim mirror of `manage`, ZERO Odoo data — near-empty shell                                                                |
-| `serp_prod_darklaunch`             | MySQL      | Odoo PROD + `laravel_live` merged — future prod DB (lagging local snapshot)                                                   |
-| `serp_staging_darklaunch`          | MySQL      | Odoo STAGING + `manage` merged — active staging SERP DB                                                                       |
-| `live_darklaunch_db` (`serp_test`) | MySQL      | **Live PROD darklaunch** on Hetzner `5.78.203.128:3306`; canonical/most-current write target                                  |
-| `odoo`                             | PostgreSQL | Odoo 15 ERP PROD — inventory/accounting source of truth                                                                       |
-| `odoo_staging`                     | PostgreSQL | Near-identical staging clone (lags prod ~2 weeks / ~110k orders)                                                              |
-| `retool`                           | PostgreSQL | Shared BI + SERP sync engine + auth bridge + AI observability + forecasting (~165 tables)                                     |
+| Database (MCP key)                 | Engine     | Role                                                                                                                                                                                          |
+| ---------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wishdesk`                         | MySQL      | WishDesk/WishWorks CS+CRM+billing (179 tables, SSH tunnel)                                                                                                                                    |
+| `wishdesk_dev`                     | MySQL      | WishDesk dev/staging (~5,121 users, partial sandbox)                                                                                                                                          |
+| `laravel_live`                     | MySQL      | SugarWish/Laravel **PROD** — orders/customers (SSH tunnel); co-hosts ~70 sparse `serp_*` tables                                                                                               |
+| `manage`                           | MySQL      | SugarWish/Laravel **STAGING** (~8% of prod); holds SERP's upstream ORM tables + `serp_res_users` auth                                                                                         |
+| `local` (→`serp_local`)            | MySQL      | SERP dev partial schema (`LOCAL_DB_NAME`); all `serp_*` + ~3,091–3,449 products; **missing** `ec_order`/`items`/`kits`/orders                                                                 |
+| `serp_prod_replica`                | MySQL      | Verbatim mirror of `laravel_live`, ZERO Odoo data — near-empty shell                                                                                                                          |
+| `serp_staging_replica`             | MySQL      | Verbatim mirror of `manage`, ZERO Odoo data — near-empty shell                                                                                                                                |
+| `serp_prod_darklaunch`             | MySQL      | Odoo PROD + `laravel_live` merged — future prod DB (lagging local snapshot)                                                                                                                   |
+| `serp_staging_darklaunch`          | MySQL      | Odoo STAGING + `manage` merged — active staging SERP DB                                                                                                                                       |
+| `live_darklaunch_db` (`serp_test`) | MySQL      | **Live PROD darklaunch** on Hetzner `5.161.233.240:3306`; canonical/most-current write target                                                                                                 |
+| `serp_app`                         | MySQL      | **Main/live SERP app DB** — same Hetzner host as `live_darklaunch_db` (`LIVE_DARKLAUNCH_DB_*`), database `serp_app`; the prod DB the SERP app reads/writes — NOT the darklaunch shadow mirror |
+| `odoo`                             | PostgreSQL | Odoo 15 ERP PROD — inventory/accounting source of truth                                                                                                                                       |
+| `odoo_staging`                     | PostgreSQL | Near-identical staging clone (lags prod ~2 weeks / ~110k orders)                                                                                                                              |
+| `retool`                           | PostgreSQL | Shared BI + SERP sync engine + auth bridge + AI observability + forecasting (~165 tables)                                                                                                     |
 
 ### Fingerprinting
 
 - **Table prefix:** `serp_stock_move` = SERP's **MySQL mirror** of an Odoo model; same name **without** `serp_` (`stock_move`, `sale_order`) = native **Odoo PostgreSQL**. SugarWish/Laravel: `giftcards_card`, `ec_order`, `cart`, `preselect_orders`, `company`. WishDesk/CRM: `swcrm_*`, `swcrm_z_gmail_*`, `design_*`, `ds_*`, `orders_*`, `sw_billing_*`.
 - **Darklaunch vs replica:** darklaunch DBs _only_ have `_migrations` + `serp_darklaunch_meta`. **Absence of `serp_darklaunch_meta` = it's a replica**, not darklaunch.
 - `live_darklaunch_db` is consistently **AHEAD** of local `serp_prod_darklaunch` (e.g. ~35,983 vs ~34,289 moves) — treat it as canonical; the local is a lagging snapshot. Rebuild via `npm run db:push:prod-darklaunch`; **pause the worker first** (`pm2 stop serp-workers`) or get MySQL **1412 "table definition changed"**. Local Docker darklaunch: `127.0.0.1:3307`, user `devuser`.
+- **`serp_app` vs `live_darklaunch_db` (same Hetzner host, different DBs):** `live_darklaunch_db` = the darklaunch shadow/validation mirror (database `serp_test`); `serp_app` = the main/live SERP app DB the app actually reads/writes (database `serp_app`). Both share the `LIVE_DARKLAUNCH_DB_*` connection params (host/port/user/password) — only the database name differs. Do **not** conflate the app DB with the darklaunch mirror.
 
 ### Two Separate Flags (do not conflate)
 
@@ -744,12 +746,12 @@ Hosted at `n8n.sugarwish.com`. All post as bot "n8n" (`U08QP0DL9L5`); messages e
 
 ### Git & Deploy (per-repo — NOT uniform)
 
-| Repo                  | Branch off    | Promotion                                             | Deploy                                                      |
-| --------------------- | ------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
-| **SERP**              | `dev`         | feature → `dev` → `main`                              | **MANUAL** `deploy.sh` over SSH — NOT auto-deploy           |
-| **SWAC/WishDesk**     | `development` | `development` → `staging` → `live`                    | Parish runs promotions                                      |
-| **sugarwish-laravel** | `development` | feature (`SUG-*`/`WW-*`) → `manage` → `blue` → `main` | Jenkins jobs for `manage`/`blue`/`live`; live runs manually |
-| **sugarwish-odoo**    | —             | `staging_new` → `main`                                | —                                                           |
+| Repo                  | Branch off    | Promotion                                             | Deploy                                                                   |
+| --------------------- | ------------- | ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| **SERP**              | `dev`         | feature → `dev` → `main`                              | **MANUAL** `deploy-k8s.sh main` over SSH (Hetzner K3s) — NOT auto-deploy |
+| **SWAC/WishDesk**     | `development` | `development` → `staging` → `live`                    | Parish runs promotions                                                   |
+| **sugarwish-laravel** | `development` | feature (`SUG-*`/`WW-*`) → `manage` → `blue` → `main` | Jenkins jobs for `manage`/`blue`/`live`; live runs manually              |
+| **sugarwish-odoo**    | —             | `staging_new` → `main`                                | —                                                                        |
 
 - `blue` = **integration branch**, NOT production (`main` is). `WW-*` tickets are NOT SWAC-exclusive; `SUG-*` is NOT Laravel-only — both span repos. `/pr-to-blue` (renamed from `/merge-to-blue`). June 2026 renamed `ww-*` slash commands to `sw-*` (**command-prefix only — WW-\* ticket prefix unchanged**).
 - **SWAC and Laravel intentionally bundle multiple unrelated features per branch/PR — do NOT suggest splitting.**
@@ -786,10 +788,10 @@ Removed/legacy: `USE_SERP_AS_LIVE`, `USE_MOCK_ODOO` (keep `LIVE_SSH_*`). `ODOO_S
 
 ### sw-cortex (Jack's Personal Tooling — NOT production)
 
-- Personal work-intelligence platform. MCP servers: db (read-only), slack-search (Qdrant, encrypted, hourly sync), discoveries KB, logs, github. `~/.mcp.json` runs via `npx tsx` — **no build step but requires Claude Code restart after editing `.ts`**.
+- Personal work-intelligence platform. MCP servers: db (read-only), slack-search (Qdrant, encrypted), knowledge (semantic search over `DICTIONARY.md`), jack-slack (Slack post/read), logs, github. `~/.mcp.json` runs via `npx tsx` — **no build step but requires Claude Code restart after editing `.ts`**.
 - 30s query timeout (MySQL `max_execution_time=30000`; PG `statement_timeout=30000`; plus JS `Promise.race`). **`limit` param caps RESULT ROWS only** — does NOT stop a slow scan. `query_database_from_file` requires file under `~/Desktop/Projects` (override `MCP_DB_ALLOWED_DIRS`).
 - `jack-slack` MCP posts as "jackbot" (uses `JACK_SLACK_BOT_TOKEN`, a Bot token not user token; bot must be invited to the channel).
-- **Discoveries auto-logging is DISABLED** (`.claude/rules/db-discoveries.md`): do NOT call `add_discovery` automatically; search freely. **This overrides the global CLAUDE.md "log frequently" instruction.**
+- **The discoveries feature is removed.** There is no `add_discovery`/`mcp__discoveries__*` server and no `.claude/rules/db-discoveries.md` rule. Institutional knowledge now lives in this file (`DICTIONARY.md`) and is searched via the `knowledge` MCP (`mcp__knowledge__search_knowledge`); `/refresh-knowledge` distills new learnings into it.
 - **Org-wide shared AI tooling (livery + SWIRL):** livery ships read-only MCP servers (`mcp-db-tool-live` with SQL keyword-blocklist + timeouts + SQLite audit log, `mcp-slack`, `mcp-wishdesk` stdio→HTTP proxy, `swim-kb` Qdrant). On the primary dev machine, live RDS / WishDesk require SSH tunnels first (live RDS → `localhost:13306`, WishDesk → `localhost:3001`). SWIRL is **symlinked** (not submoduled) into SWAC/Laravel/sw-design.
 
 ### Operational Alerting & Error Channels
@@ -992,8 +994,8 @@ The 22 highest-value, most counter-intuitive facts. If you internalize nothing e
 6. **`stock_move`/`serp_stock_move` `state` is a POSITIVE enum** (`draft,confirmed,waiting,partially_available,assigned,done,cancel`). `assigned` = stock RESERVED/ready-to-pick, **NOT shipped**; `done` is the only state that actually moved inventory.
 7. **PERF FOOTGUN:** never filter `stock_move.state` with a NEGATED predicate (`NOT IN ('done','cancel')`) on the ~15.8M-row table — it forces a seq scan and times out. Use the POSITIVE list.
 8. **`stock_picking.state`** is the Odoo picking lifecycle, NOT a payment/order status. `assigned`=reserved/ready, `done`=actually shipped.
-9. **SERP does NOT auto-deploy.** GitHub Actions CI runs on push but does NOT deploy. Deploy is a manual SSH step: `ssh ubuntu@34.203.231.65 'cd /opt/SERP && bash deploy.sh'`. A merge to `main` is not live until that runs.
-10. **`laravel_live` is NOT "the SERP database"** — it's SugarWish's PRODUCTION Laravel e-commerce DB. The real live darklaunch mirror is MySQL `serp_test` on Hetzner (`5.78.203.128`); the name "test" is a lie — it's the most-current copy.
+9. **SERP does NOT auto-deploy.** GitHub Actions CI runs on push but does NOT deploy. Deploy is a manual SSH step on the Hetzner K3s node: `ssh jack@5.161.95.56 'cd /opt/SERP && bash deploy-k8s.sh main'`. A merge to `main` is not live until that runs. (The old AWS `ssh ubuntu@34.203.231.65 ... bash deploy.sh` path is frozen legacy — not the deploy target.)
+10. **`laravel_live` is NOT "the SERP database"** — it's SugarWish's PRODUCTION Laravel e-commerce DB. The real live darklaunch mirror is MySQL `serp_test` on Hetzner (`5.161.233.240`); the name "test" is a lie — it's the most-current copy.
 11. **`*_replica` vs `*_darklaunch` are opposites:** replica = clean sparse pure-Laravel mirror with ZERO Odoo data; darklaunch = the full live Odoo-MERGED dataset the worker writes. Never swap the names.
 12. **Jason Kiefer ≠ Jack Kiefer.** Jason = Founder/CEO (Jack's dad, `jasonbkiefer` org); Jack = the SERP developer (the user, `Jack-Kiefer` org). Major design decisions route through Jason.
 13. **"Anna Kifer" is spelled with ONE e** (not "Kiefer"), is a separate person, and is Director of Software Development & QA — dev PM, QA gate, Prixite liaison, SERP sponsor.
@@ -1196,7 +1198,7 @@ SugarWish runs on a constellation of systems that overlap and feed each other. T
 #### Hosting & Infrastructure (AWS → Hetzner migration in progress)
 
 - **Production SERP app server**: the **Hetzner K3s cluster** — node `5.161.95.56`, namespace `serp`, app root `/opt/SERP`, live host `serp.sugarwish.com` (health-check from the node; the hostname doesn't resolve from Jack's Mac). Deployments: `serp-backend` (**replicas 2** — safe since 2026-06-09 because live-path refresh tokens live in shared Redis `serp:refresh_token:<hash>` instead of a per-process dict; `WORKERS_ENABLED=false` stays set via the **`serp-env` secret**/`envFrom`, invisible in inline `env:` — check `kubectl exec -- printenv`), `serp-frontend`, `serp-workers` (replicas 1, the only place workers run). Ingress/TLS via cert-manager (`k8s/ingress.yaml`). Deploy = `bash deploy-k8s.sh main` on the node: runs `migrate:serp-app` (phase [4]) before rolling pods, and its `[7/7]` prune phase prevents the ~1.3GB/deploy image leak into `/var/lib/containerd` (Docker uses the containerd store — `/var/lib/docker` misleads `du`; kubelet GC force-kicks at 85% disk). The **legacy AWS EC2** (**34.203.231.65**, PM2 + nginx + old `deploy.sh`) is retained **frozen** — NOT deployed to; workers disabled there.
-- **Production darklaunch MySQL DB**: Hetzner at **5.78.203.128**, database `serp_test` (MCP key `live_darklaunch_db`) — this is the **REAL live production darklaunch mirror**, NOT a throwaway test DB.
+- **Production darklaunch MySQL DB**: Hetzner at **5.161.233.240**, database `serp_test` (MCP key `live_darklaunch_db`) — this is the **REAL live production darklaunch mirror**, NOT a throwaway test DB.
 - **Already migrated to Hetzner** (as of ~Apr 29 2026): the `manage` cluster MySQL (AWS shut down Apr 29), Desk2/Desk3 (WishDesk), and the darklaunch DB.
 - **Still on AWS**: the frozen legacy SERP EC2 (not production traffic), AWS ALB (TLS:443 → nginx:80), ElastiCache Serverless Redis, S3 (`sw-serp` bucket for attachments/serpy-logs via boto3 `S3_ENDPOINT_URL`), and `laravel_live` MySQL (AWS RDS `database-1.cqqg1tfyyubp.us-east-1`, accessed via SSH tunnel).
 - **Hetzner caveats**: a fresh Hetzner MySQL needs `SET GLOBAL sql_mode='NO_ENGINE_SUBSTITUTION'`; Hetzner has no managed Redis (self-host), no managed ALB (use Hetzner Cloud LB + Let's Encrypt), no S3 equivalent (Hetzner Object Storage via `S3_ENDPOINT_URL`, s3v4, virtual addressing, `payload_signing_enabled=False`, no dots in bucket names). Est. cost drop ~$128/mo → ~€9-18/mo. **Munyr owns the migration** (Seth/Anna sponsors); Jack is a consumer, not infra owner.
@@ -1351,7 +1353,7 @@ There are **TWO completely separate order pipelines** plus a third merchandise w
 **The SERP 4-DB matrix:** `{prod, staging} × {replica, darklaunch}`, all MySQL with `serp_*` tables.
 
 - **REPLICA DBs** (`serp_staging_replica`, `serp_prod_replica`) — clean row-for-row mirrors of `manage`/`laravel_live` with ZERO Odoo overlay; the app reads/writes these; nearly empty shells (frozen ~2026-05-28).
-- **DARKLAUNCH DBs** (`serp_staging_darklaunch`, `serp_prod_darklaunch`) — replica PLUS Odoo overlay (normal BOMs, MOs, SVL, POs) where the worker dual-writes Odoo-style ops. `serp_prod_darklaunch` is the future production DB. The live prod darklaunch is `serp_test` on Hetzner 5.78.203.128 (consistently ahead, ~35K stock_moves vs ~34K in `serp_prod_darklaunch`).
+- **DARKLAUNCH DBs** (`serp_staging_darklaunch`, `serp_prod_darklaunch`) — replica PLUS Odoo overlay (normal BOMs, MOs, SVL, POs) where the worker dual-writes Odoo-style ops. `serp_prod_darklaunch` is the future production DB. The live prod darklaunch is `serp_test` on Hetzner 5.161.233.240 (consistently ahead, ~35K stock_moves vs ~34K in `serp_prod_darklaunch`).
 - **Fingerprints:** darklaunch DBs have `_migrations` + `serp_darklaunch_meta`; replicas lack both. There is also a **predecessor `serp_shadow`** mechanism (Hetzner `serp_shadow` DB, gated by `SERP_SHADOW_WRITES_ENABLED`, with `serp_shadow_meta`/`serp_shadow_processed_events`, `shadow_cutover_at=2026-05-08`) — distinct from darklaunch and from the local `serp_local` dev schema.
 - **Routing:** app DB via `SERP_ORM_ENV`/`ACTIVE_ODOO_DB_NAME` (default local-staging → `serp_staging_replica`); worker darklaunch via `DARKLAUNCH_DB_ENV` (e.g. `local-staging-darklaunch`, `live-darklaunch`). A single op writes the replica AND independently writes the darklaunch DB. "Empty list of Odoo entities" = a config routing issue, not a bug.
 - ❌ "Darklaunch", "replica", "shadow", and `serp_test` are FOUR distinct things — and the "compare-replica" tooling actually compares darklaunch.
@@ -1372,7 +1374,7 @@ There are **TWO completely separate order pipelines** plus a third merchandise w
 
 It turns plain-language ops (Slack `/serpy` or web UI `serp.sugarwish.com/serpy/<draft_id>`) → JSON operations → Odoo via XML-RPC behind a Slack approval flow, dual-writing **Odoo + SERP + Laravel** and keeping IDs wired. Pipeline: user message → `classify_intent` → `find_products_with_locations` → `propose_operations` → **DRAFT** (`serp_draft_operations`/`_live`) → `POST /save-raw-draft` (validates via `OpTypeRegistry` JSON schemas in `serpy/ops/types.py`) → `POST /ai-submit` (DRAFT → PENDING_APPROVAL, Slack "Operations Request", enqueue) → human approval (ops managers like Carolyn; some ops need "@James @Neal") → queued to `odoo_sync_queue` → odoo-sync worker applies. Lifecycle: DRAFT → PENDING_APPROVAL → APPROVED → EXECUTED. Drafts are numbered (e.g. "Draft #860"). Image transcription happens in `serpy/agent/transcribe.py` via a vision pass BEFORE the agent loop (agent never sees image bytes).
 
-**Op routing is per-op-type, hardcoded — not decided at runtime per attribute.** Op families by target: `odoo_*` (create/update BOM, MO, po*receipt, po_confirm, create_component_everywhere, create_odoo_product), `serp*_`(local phantom kits: serp_update_kit),`laravel\__`(manage MySQL: laravel_update_kit, laravel_update_receiver_product), plus create_product, inventory adjustment, transfer, archive, swap. A single op can write multiple systems. Retool front-end splits by DB: "Odoo Updates", "SERP Updates", "Laravel Updates", "Multi-DB Updates".`sync_target` is currently a DRAFT-level column (`odoo`/`serp`/`both`; prod is 100% `odoo`); per-operation routing is built in the backend but lacks the frontend dropdown.
+**Op routing is per-op-type, hardcoded — not decided at runtime per attribute.** Op families by target: `odoo_*` (create/update BOM, MO, po*receipt, po_confirm, create_component_everywhere, create_odoo_product), `serp*\_`(local phantom kits: serp_update_kit),`laravel\_\_`(manage MySQL: laravel_update_kit, laravel_update_receiver_product), plus create_product, inventory adjustment, transfer, archive, swap. A single op can write multiple systems. Retool front-end splits by DB: "Odoo Updates", "SERP Updates", "Laravel Updates", "Multi-DB Updates".`sync_target` is currently a DRAFT-level column (`odoo`/`serp`/`both`; prod is 100% `odoo`); per-operation routing is built in the backend but lacks the frontend dropdown.
 
 - ❌ "Draft #683: 2/3 synced to Odoo" — x/y synced means x succeeded INTO Odoo, y = total ops; a partial count = Odoo-side validation REJECTED some ops, NOT a SERP failure.
 - **Provenance bounds (product-creation go-lives):** `product_template` 2026-03-24, `create_product` 2026-04-13, `create_receiver_product_everywhere` 2026-05-05 — anything before its path's go-live cannot have been Serpy. `create_uid=55` (jack@sugarwish.com) is NOT a reliable Serpy signal (covers Serpy AND Jack's manual edits); authoritative ledger is `odoo_sync_queue_live`.
@@ -1451,7 +1453,7 @@ SugarWish runs **13 databases** across MySQL and PostgreSQL. The unified `mcp__d
 | `odoo_staging`                                    | PostgreSQL | Odoo staging (credentials rotate frequently — check `#odoo-prixite`)                                         |
 | `retool`                                          | PostgreSQL | Analytics/ops + SERP sync engine + SERP auth bridge + forecast caches (~123-165 tables; **NOT SERP-owned**)  |
 | `local` (`serp_local`)                            | MySQL      | Partial SERP dev schema (port 3307); uses predecessor "shadow" mechanism                                     |
-| `serp_test` / `live_darklaunch_db`                | MySQL      | **Live PRODUCTION darklaunch mirror** on Hetzner `5.78.203.128:3306`                                         |
+| `serp_test` / `live_darklaunch_db`                | MySQL      | **Live PRODUCTION darklaunch mirror** on Hetzner `5.161.233.240:3306`                                        |
 | `serp_prod_replica`, `serp_staging_replica`       | MySQL      | Clean Laravel mirrors (no Odoo overlay)                                                                      |
 | `serp_prod_darklaunch`, `serp_staging_darklaunch` | MySQL      | Replica + Odoo overlay (worker dual-writes Odoo-style ops)                                                   |
 
@@ -2054,7 +2056,7 @@ Odoo is the **PULLER**. Sync state is tracked on the **Laravel side** via the `o
 | **REPLICA** (`serp_staging_replica`, `serp_prod_replica`)          | Clean row-for-row mirror of `manage`/`laravel_live` — **ZERO Odoo overlay**. App reads/writes these. Nearly-empty shells (~19 SOs frozen ~2026-05-28). NO Odoo-origin/manufacturing rows.                              | NO `_migrations`, NO `serp_darklaunch_meta` |
 | **DARKLAUNCH** (`serp_staging_darklaunch`, `serp_prod_darklaunch`) | Replica PLUS Odoo overlay (normal BOMs, MOs, SVL, POs). Worker dual-writes Odoo-style ops here. `serp_prod_darklaunch` is the future production DB (~10.2k SOs, ~2k POs, ~5.5k pickings, ~34k stock_moves at cutover). | HAS `_migrations` + `serp_darklaunch_meta`  |
 
-- **`live_darklaunch_db`** (MCP key) = MySQL `serp_test` on **Hetzner `5.78.203.128:3306`** — the REAL live PRODUCTION darklaunch mirror (NOT a throwaway test DB), the canonical prod write target for the worker. Consistently _ahead_ of `serp_prod_darklaunch` (~35K moves vs ~34K). TZ = `America/Denver`.
+- **`live_darklaunch_db`** (MCP key) = MySQL `serp_test` on **Hetzner `5.161.233.240:3306`** — the REAL live PRODUCTION darklaunch mirror (NOT a throwaway test DB), the canonical prod write target for the worker. Consistently _ahead_ of `serp_prod_darklaunch` (~35K moves vs ~34K). TZ = `America/Denver`.
 - **"compare-replica" tooling actually compares darklaunch.**
 - **Routing:** app DB via `SERP_ORM_ENV` / `ACTIVE_ODOO_DB_NAME` (default `local-staging` → `serp_staging_replica`); worker darklaunch via `DARKLAUNCH_DB_ENV` (`local-staging-darklaunch`, `live-darklaunch`). A single op writes to the normal replica AND independently to the darklaunch DB. An "empty list" of Odoo entities = config routing issue, NOT a bug.
 
@@ -2605,15 +2607,15 @@ This is the highest-value section for an AI assistant working in SugarWish's sta
 
 #### SERP does NOT auto-deploy
 
-⚠️ **SERP auto-deploy myth:** AI assumes SERP auto-deploys from `main` via Jenkins. **Wrong** — GitHub Actions CI runs on push but does **NOT** deploy. Deploy is a manual SSH step:
+⚠️ **SERP auto-deploy myth:** AI assumes SERP auto-deploys from `main` via Jenkins. **Wrong** — GitHub Actions CI runs on push but does **NOT** deploy. Deploy is a manual SSH step on the Hetzner K3s node:
 
 ```
-ssh -i ~/.ssh/id_ed25519 ubuntu@34.203.231.65 'cd /opt/SERP && bash deploy.sh'
+ssh jack@5.161.95.56 'cd /opt/SERP && bash deploy-k8s.sh main'
 ```
 
-A push/merge to `main` is **not live** until `deploy.sh` runs.
+A push/merge to `main` is **not live** until `deploy-k8s.sh main` runs on the node. (The old AWS path `ssh ubuntu@34.203.231.65 ... bash deploy.sh` is **frozen legacy — NOT the deploy target**.)
 
-⚠️ **Two SERP servers, not one:** SERP app server is **AWS EC2 `34.203.231.65`** (`/opt/SERP`); darklaunch MySQL is a **separate Hetzner machine `5.78.203.128` / `serp_test`**.
+⚠️ **Two SERP machines, not one:** the **production SERP app server is the Hetzner K3s cluster** (node `5.161.95.56`, namespace `serp`, `/opt/SERP`; deploy `bash deploy-k8s.sh main`). The old **AWS EC2 `34.203.231.65`** (`/opt/SERP`, PM2 + nginx) is retained **frozen legacy — NOT deployed to**. The darklaunch MySQL is a **separate Hetzner machine `5.161.233.240` / `serp_test`** (unchanged).
 
 ⚠️ **PM2 over SSH:** Inline `pm2 reload` fails — must export `PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`. **Before rebuilding the darklaunch DB you MUST `pm2 stop serp-workers`** or you get MySQL 1412 "table definition changed" errors that kill in-flight shipments; resume after.
 
@@ -2633,7 +2635,7 @@ A push/merge to `main` is **not live** until `deploy.sh` runs.
 
 ⚠️ **Gunicorn restart loses in-flight sync items:** the sync worker is an asyncio Task in the FastAPI lifespan; on restart, items in `processing` state are **never recovered** (no heartbeat/TTL/startup sweeper). Typical sync 20–70s; gunicorn timeout 120s, `max_requests=1000`.
 
-⚠️ **EC2 `i-0a0de24d0845c6341` resource exhaustion:** SERP backend returns 504s under load (recommend t3.medium+). Forecast 500s correlated with 3.7GB RAM exhaustion + `sa_projections` timeout + missing indexes.
+⚠️ **SERP backend resource exhaustion (historical, on the now-frozen AWS EC2 `i-0a0de24d0845c6341`):** under load the SERP backend returned 504s; forecast 500s correlated with ~3.7GB RAM exhaustion + `sa_projections` timeout + missing indexes. _(Symptoms recorded pre-Hetzner; production now runs on the Hetzner K3s cluster — the AWS box is frozen, so the `t3.medium+` resize is no longer the remediation. The query/index footguns still apply.)_
 
 ---
 
@@ -2689,7 +2691,7 @@ A push/merge to `main` is **not live** until `deploy.sh` runs.
 | `serp_*_replica` (staging/prod) | Clean row-for-row mirror of manage/laravel*live, **zero Odoo overlay**, nearly empty shells | — |
 | `serp*\*\_darklaunch`(staging/prod) | Replica **plus** Odoo overlay (normal BOMs, MOs, SVL, POs) where the worker dual-writes |`SERP_DARKLAUNCH_ENABLED`|
 |`serp_shadow`(Hetzner) | Predecessor prod-traffic handler validation |`SERP_SHADOW_WRITES_ENABLED`|
-|`serp_test`(Hetzner`5.78.203.128`) | **REAL live PRODUCTION darklaunch mirror** (not a throwaway), MCP key `live_darklaunch_db`, consistently ~ahead of `serp_prod_darklaunch` | — |
+|`serp_test`(Hetzner`5.161.233.240`) | **REAL live PRODUCTION darklaunch mirror** (not a throwaway), MCP key `live_darklaunch_db`, consistently ~ahead of `serp_prod_darklaunch` | — |
 
 - **Fingerprints:** darklaunch has `_migrations` + `serp_darklaunch_meta`; replicas have neither and no Odoo-owned/manufacturing tables.
 - "**compare-replica**" tooling actually compares **darklaunch**, not the replica.
@@ -3284,7 +3286,7 @@ There are **two different box-SKU vocabularies** — do not conflate them:
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **SERP**           | SugarWish's in-house ERP (Jack Kiefer's build, Next.js + FastAPI/Python or Laravel-MySQL Odoo-mirror depending on layer), incrementally replacing Odoo. Live transactional data lives in `*_darklaunch` DBs, not the embedded `serp_*` tables in laravel_live/manage. App reads/writes the manage cluster. NOT the same as "Serpy".                                                                                                                                                                                                                                                                                                                                                      |
 | **Serpy**          | SERP's **AI ops agent** (Slack bot `U096P936NQ7` "SERPY Dev" + web UI `serp.sugarwish.com/serpy/<draft_id>`). Plain-language ops → JSON operations → Odoo/SERP/Laravel via XML-RPC behind a Slack approval flow. Generates numbered "Drafts" (e.g. "Draft #683"). "x/y synced" = x succeeded INTO Odoo, y = total ops (partial = Odoo-side validation rejected some, NOT a SERP failure). **NOT a person and NOT a typo for SERP.** "Replace SKU X with Y" should mean a kit **component swap** (remove old + add new across all kits), not archive-old/activate-new.                                                                                                                    |
-| **darklaunch**     | SERP's parallel Odoo-shadow validation system. SERP and Odoo run side-by-side, dual-write via Serpy + one-way Odoo→SERP sync, gated for cutover at "<1% drift, stable 2 weeks." Live prod darklaunch DB = `serp_test` on Hetzner `5.78.203.128`. Cutover timestamp in `serp_darklaunch_meta.darklaunch_cutover_at` (prod 2026-06-04 09:27:20, staging 2026-06-03 11:52). The worker is **isolated** — never reads Odoo _values_ at runtime (only ID resolution for `odoo_id` stamping). "compare-replica" tooling actually compares darklaunch.                                                                                                                                          |
+| **darklaunch**     | SERP's parallel Odoo-shadow validation system. SERP and Odoo run side-by-side, dual-write via Serpy + one-way Odoo→SERP sync, gated for cutover at "<1% drift, stable 2 weeks." Live prod darklaunch DB = `serp_test` on Hetzner `5.161.233.240`. Cutover timestamp in `serp_darklaunch_meta.darklaunch_cutover_at` (prod 2026-06-04 09:27:20, staging 2026-06-03 11:52). The worker is **isolated** — never reads Odoo _values_ at runtime (only ID resolution for `odoo_id` stamping). "compare-replica" tooling actually compares darklaunch.                                                                                                                                         |
 | **manage**         | The Laravel admin/management app **and** its staging MySQL database (`manage.sugarwish.com`). Renamed 2026-05-11 from "laravel staging". Near-identical schema to `laravel_live` (~8% of prod volume). Hosts SERP's upstream ORM tables; Serpy writes `receiver_products` here (NOT prod `laravel_live`). "Test on manage" = the Laravel staging environment. Its embedded `serp_*` tables are stale (NOT live SERP data).                                                                                                                                                                                                                                                               |
 | **livery / SWOP**  | Cris (Criston) Sloan's repo (`csloan-sw/livery`, branded "SWOP"). Dual-natured: (1) the warehouse **custom-shop print station / sleeve imposition** backbone (generates sleeve & custom-shop-slip PDFs), and (2) an **MCP ops-tooling suite** (`mcp-db-tool`, `mcp-slack`, `mcp-wishdesk`, `swim-kb`, `custom-shop-slip`). **Reads the mug image from `ec_order.merchandise_selections.items[N].design_selected.print_image_url`** (matched by `item_id`), NOT `branding_records.merchandise`. Caches PDFs by `orderId` ONLY and never invalidates on branding edits — after a data fix the operator MUST click "Regenerate" (POST `/reset-status/:orderId`) then re-run generate-batch. |
 | **WishDesk**       | SugarWish's CS/CRM/design/billing platform. The product brand for the **SWAC** repo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

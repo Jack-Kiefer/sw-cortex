@@ -18,6 +18,7 @@
  *   - serp_staging_darklaunch — manage + Odoo staging merge
  *   - serp_prod_darklaunch — live + Odoo prod merge
  * - live_darklaunch_db (MySQL) — live darklaunch DB on Hetzner (LIVE_DARKLAUNCH_DB_*)
+ * - serp_app (MySQL) — SERP app DB on the same Hetzner host as live_darklaunch_db
  */
 
 import dotenv from 'dotenv';
@@ -57,14 +58,14 @@ const tools: Tool[] = [
   {
     name: 'query_database',
     description:
-      'Execute a read-only SQL query against a database (wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db)',
+      'Execute a read-only SQL query against a database (wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db, serp_app)',
     inputSchema: {
       type: 'object',
       properties: {
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db',
+            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db, serp_app',
         },
         query: { type: 'string', description: 'SQL query (SELECT only)' },
         limit: { type: 'number', description: 'Max rows to return' },
@@ -84,7 +85,7 @@ const tools: Tool[] = [
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db',
+            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db, serp_app',
         },
         path: {
           type: 'string',
@@ -105,7 +106,7 @@ const tools: Tool[] = [
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db',
+            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, local, manage, serp_staging_replica, serp_prod_replica, serp_staging_darklaunch, serp_prod_darklaunch, live_darklaunch_db, serp_app',
         },
       },
       required: ['database'],

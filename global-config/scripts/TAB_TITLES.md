@@ -30,7 +30,7 @@ global hooks (Stop, Notification, PostToolUse) run tab-title-hook.sh
 ```
 
 The `sleep 1 &` is the load-bearing trick: Claude Code writes its own title
-on the same transitions the hooks fire on, and its write lands *after* the
+on the same transitions the hooks fire on, and its write lands _after_ the
 hook's. Deferring ours by 1s reverses the ordering, so the custom name is
 what survives. PostToolUse (no bell) keeps the name asserted during active
 work; Stop/Notification (with `--bell`) re-assert it at idle and also ring
@@ -42,15 +42,15 @@ are harmless and get reused/overwritten when the tty number is reissued).
 
 ## Components
 
-| Piece | Path | Role |
-|---|---|---|
-| Setter | `~/.claude/scripts/set-tab-title.sh` | `"NAME"` sets, `--clear` removes; resolves tty, writes the file, stamps once |
-| Hook | `~/.claude/scripts/tab-title-hook.sh` | Bell (`--bell` only) + deferred re-stamp if a title file exists |
-| Hook wiring | `~/.claude/settings.json` → `hooks.Stop` / `hooks.Notification` (with `--bell`), `hooks.PostToolUse` (without) | Fires the hook script |
-| Slash command | `~/.claude/commands/tab-title.md` | `/tab-title <name>` / `/tab-title --clear` in any session |
-| State | `~/.claude/tab-titles/<tty>` | One file per tab, plain text title |
-| /analyze integration | `SERP/.claude/commands/analyze.md` ("Tab status" section) | Emoji status map stamped at each phase transition |
-| Global standard | `~/CLAUDE.md` "Terminal Tab Status" (source: `sw-cortex/global-config/CLAUDE.md`) | EVERY session in every project sets/updates its status (🔍🔨🧪🙋❓📦✅) — not just /analyze |
+| Piece                | Path                                                                                                           | Role                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Setter               | `~/.claude/scripts/set-tab-title.sh`                                                                           | `"NAME"` sets, `--clear` removes; resolves tty, writes the file, stamps once                |
+| Hook                 | `~/.claude/scripts/tab-title-hook.sh`                                                                          | Bell (`--bell` only) + deferred re-stamp if a title file exists                             |
+| Hook wiring          | `~/.claude/settings.json` → `hooks.Stop` / `hooks.Notification` (with `--bell`), `hooks.PostToolUse` (without) | Fires the hook script                                                                       |
+| Slash command        | `~/.claude/commands/tab-title.md`                                                                              | `/tab-title <name>` / `/tab-title --clear` in any session                                   |
+| State                | `~/.claude/tab-titles/<tty>`                                                                                   | One file per tab, plain text title                                                          |
+| /analyze integration | `SERP/.claude/commands/analyze.md` ("Tab status" section)                                                      | Emoji status map stamped at each phase transition                                           |
+| Global standard      | `~/CLAUDE.md` "Terminal Tab Status" (source: `sw-cortex/global-config/CLAUDE.md`)                              | EVERY session in every project sets/updates its status (🔍🔨🧪🙋❓📦✅) — not just /analyze |
 
 ## Changing it
 

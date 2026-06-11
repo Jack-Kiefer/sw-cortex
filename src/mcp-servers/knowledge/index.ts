@@ -56,7 +56,8 @@ const tools: Tool[] = [
       properties: {
         section: {
           type: 'string',
-          description: 'Substring of the section breadcrumb, e.g. "Serpy" or "13-Database Landscape"',
+          description:
+            'Substring of the section breadcrumb, e.g. "Serpy" or "13-Database Landscape"',
         },
       },
       required: ['section'],
@@ -64,10 +65,7 @@ const tools: Tool[] = [
   },
 ];
 
-const server = new Server(
-  { name: 'knowledge', version: '1.0.0' },
-  { capabilities: { tools: {} } }
-);
+const server = new Server({ name: 'knowledge', version: '1.0.0' }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 

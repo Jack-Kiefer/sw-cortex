@@ -127,10 +127,7 @@
       "mcp__slack-search",
       "mcp__logs"
     ],
-    "deny": [
-      "Bash(git stash:*)",
-      "Bash(git stash)"
-    ]
+    "deny": ["Bash(git stash:*)", "Bash(git stash)"]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,

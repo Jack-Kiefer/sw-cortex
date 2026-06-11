@@ -9,7 +9,7 @@ This is the institutional memory an AI assistant **cannot** reconstruct from sch
 - `laravel_live` is **NOT** "the SERP database" — it is SugarWish's PRODUCTION Laravel e-commerce DB that co-hosts a thin, near-empty `serp_*` bridge. Live SERP data lives in the **darklaunch** DBs. When Jack says "live" he means `laravel_live`.
 - SERP has **NO** dedicated production DB (as of June 2026) — it runs on the live Laravel/MySQL cluster. There is no `serp_prod` server.
 - `*_replica` = clean, sparse, **pure Laravel mirror with ZERO Odoo data**; `*_darklaunch` = the full live Odoo-MERGED dataset the worker writes. **Never** interchange these names.
-- `live_darklaunch_db` (MySQL `serp_test` on Hetzner `5.78.203.128:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB.
+- `live_darklaunch_db` (MySQL `serp_test` on Hetzner `5.161.233.240:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB.
 - Join SERP/darklaunch to Odoo on **`odoo_id`**, **NEVER** `id = id`. Durable origin test: `odoo_id IS NULL` = SERP-native, `IS NOT NULL` = Odoo-sourced. **NOT** any `id >= 1_000_000_000` range (that scheme was reversed the next day).
 - The Odoo sync flag column is intentionally misspelled **`oddo_synchronized`** (double-d, one o) — match it exactly. Value `3` = stuck/archived-SKU, `5` = error.
 - `stock_move`/`serp_stock_move` `state` enum is positive: `draft`,`confirmed`,`waiting`,`partially_available`,`assigned`,`done`,`cancel`. **`assigned` = stock RESERVED/ready-to-pick, NOT shipped.** `done` is the only state that moved inventory.
@@ -79,10 +79,10 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 ### Product Catalog Owners
 
-| Person                      | Slack ID      | Decides                                                                                      |
-| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
-| Clare McClaren              | `U034VB6F886` | VP Creative; ecard consolidation; coordinates annual price change                            |
-| Kelley Meiser (kelleymax)   | `U099GLS5D`   | Product-type migration; `drop_level`; tags seasonal/legacy                                   |
+| Person                    | Slack ID      | Decides                                                           |
+| ------------------------- | ------------- | ----------------------------------------------------------------- |
+| Clare McClaren            | `U034VB6F886` | VP Creative; ecard consolidation; coordinates annual price change |
+| Kelley Meiser (kelleymax) | `U099GLS5D`   | Product-type migration; `drop_level`; tags seasonal/legacy        |
 
 ### Offshore Dev / QA Team (Prixite vendor — channel `#odoo-prixite` `C07QRF6MHD4`)
 
@@ -101,7 +101,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **NOT interchangeable:** Manish = lead/Odoo+SERP; Subash = Laravel-track; Parish = SWAC-track; Aashish = junior.
 
-**Munyr** owns **Jenkins** (org-wide CI/CD for ALL platforms, `ciservice.sugarwish.com`) and the company-wide **AWS→Hetzner migration**. The `manage` MySQL cluster is already fully on Hetzner (AWS `manage` shut down ~Apr 29 2026); darklaunch MySQL at `5.78.203.128` (created ~Apr 28 2026). Jack is a consumer of infra, NOT its driver.
+**Munyr** owns **Jenkins** (org-wide CI/CD for ALL platforms, `ciservice.sugarwish.com`) and the company-wide **AWS→Hetzner migration**. The `manage` MySQL cluster is already fully on Hetzner (AWS `manage` shut down ~Apr 29 2026); darklaunch MySQL at `5.161.233.240` (created ~Apr 28 2026). Jack is a consumer of infra, NOT its driver.
 
 ### Customer Service & Other Roles
 
@@ -172,7 +172,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **SERP deploy:**
 
-- Single AWS EC2 (`34.203.231.65`, `/opt/SERP`). Not containers/k8s. Darklaunch prod DB on Hetzner (`5.78.203.128`).
+- Single AWS EC2 (`34.203.231.65`, `/opt/SERP`). Not containers/k8s. Darklaunch prod DB on Hetzner (`5.161.233.240`).
 - Deploy: `ssh -i ~/.ssh/id_ed25519 ubuntu@34.203.231.65 "cd /opt/SERP && bash deploy.sh"`. `deploy.sh`: `git checkout main` + hard reset → pip install → Next.js build (Node heap **1.5GB** cap) → `pm2 delete + start ecosystem.config.js`.
 - **PM2 caches env vars.** Changing `.env` requires `pm2 delete serp-backend` then `pm2 start … --only serp-backend`. Plain `pm2 restart/reload` does NOT pick up `.env` or script `args`.
 - PM2 over non-interactive SSH: `export PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`.
@@ -263,7 +263,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 | Code   | Location                   | `location_id` | SKU suffix | People                                               |
 | ------ | -------------------------- | ------------- | ---------- | ---------------------------------------------------- |
 | **EW** | Englewood, CO (primary/HQ) | 1             | `-E`       | Sophie, Will Meilinger, Jose Miranda, rashad.johnson |
-| **TY** | Taylor, MI                 | 2             | `-A`       | Tracy Kamin; same-day delivery       |
+| **TY** | Taylor, MI                 | 2             | `-A`       | Tracy Kamin; same-day delivery                       |
 
 - Perishables (cookies, brownies) tied to one building; carton'd shelf-stable (coffee, tea) can reship from either. Remaining 13 warehouses = partner/dropship (SGD, SGM, ST, WCC, MS, PM, CPD, CPF, LR, MSS, MC, CC, PNB).
 - **Production slips = two-slip custom flow:** Slip 1 (Laravel, product production) + Slip 2 (SERP print interface, sleeve production, appended as page 2). `preprints` deducts on slip generation, adds back on cancellation. Print cron runs ~5 min after buyer order; pre-prints filed by location code (`ENGLEWOOD-FILED-143`). Custom sleeves = CEO Jason's "biggest near-term revenue opportunity"; cost ~$2–5 each (min ~1000 @ $4.99; ~7–9 business days after art approval).
@@ -286,7 +286,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 | `serp_staging_replica`             | MySQL      | Verbatim mirror of `manage`, ZERO Odoo data — near-empty shell                                                                |
 | `serp_prod_darklaunch`             | MySQL      | Odoo PROD + `laravel_live` merged — future prod DB (lagging local snapshot)                                                   |
 | `serp_staging_darklaunch`          | MySQL      | Odoo STAGING + `manage` merged — active staging SERP DB                                                                       |
-| `live_darklaunch_db` (`serp_test`) | MySQL      | **Live PROD darklaunch** on Hetzner `5.78.203.128:3306`; canonical/most-current write target                                  |
+| `live_darklaunch_db` (`serp_test`) | MySQL      | **Live PROD darklaunch** on Hetzner `5.161.233.240:3306`; canonical/most-current write target                                 |
 | `odoo`                             | PostgreSQL | Odoo 15 ERP PROD — inventory/accounting source of truth                                                                       |
 | `odoo_staging`                     | PostgreSQL | Near-identical staging clone (lags prod ~2 weeks / ~110k orders)                                                              |
 | `retool`                           | PostgreSQL | Shared BI + SERP sync engine + auth bridge + AI observability + forecasting (~165 tables)                                     |
@@ -956,4 +956,3 @@ Removed/legacy: `USE_SERP_AS_LIVE`, `USE_MOCK_ODOO` (keep `LIVE_SSH_*`). `ODOO_S
 - **manage** / `manage.sugarwish.com` = SugarWish Laravel admin/management app + DB; serves as the dev/staging SugarWish DB AND the staging SERP schema source. "Test on manage" = the Laravel manage staging environment.
 - **Livery / SWOP** = "Sugarwish Operations Platform" (`csloan-sw/livery`, Cris Sloan) — print/image-rendering for branded products + MCP-tooling backbone. **SWIRL** = Jason's org-wide knowledge platform; **SWIM** = WishDesk-embedded AI chatbot. Both separate from sw-cortex.
 - **SWAC** = WishDesk (the GitHub description "SugarWish Activity Coordinator" is misleading).
-

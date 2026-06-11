@@ -195,6 +195,17 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
       database: process.env.LIVE_DARKLAUNCH_DB_NAME || 'serp_test',
     },
+    // SERP app DB — same Hetzner host as live_darklaunch_db; only the database
+    // name differs (serp_app). Connects directly — no SSH tunnel.
+    serp_app: {
+      name: 'serp_app',
+      type: 'mysql',
+      host: process.env.LIVE_DARKLAUNCH_DB_HOST || '',
+      port: parseInt(process.env.LIVE_DARKLAUNCH_DB_PORT || '3306', 10),
+      user: process.env.LIVE_DARKLAUNCH_DB_USER || '',
+      password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
+      database: process.env.SERP_APP_DB_NAME || 'serp_app',
+    },
     manage: {
       name: 'manage',
       type: 'mysql',
