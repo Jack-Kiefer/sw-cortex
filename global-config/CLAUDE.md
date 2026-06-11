@@ -334,7 +334,7 @@ This is the institutional memory an AI assistant **cannot** reconstruct from sch
 - SERP is a deliberate from-scratch clone of **Odoo 15's ORM** held to line-by-line parity — divergences are **bugs to fix against Odoo 15 source**, not "best-practice" refactors.
 - Darklaunch is a dual-write VALIDATION/reconciliation system writing ONLY to a replica DB (never live Odoo / never main SERP), gated on **<1% drift** as the cutover-readiness signal — **not** a feature-flag library, and SERP has not yet replaced Odoo.
 - Pre-cutover, **Odoo is the inventory/accounting source of truth**; SERP/Serpy READ live from Odoo, so discrepancies usually originate in Odoo's data, not SERP's.
-- SERP production does **NOT** auto-deploy. CI runs on push to `main` but deploy is a manual `ssh … bash deploy.sh` step.
+- SERP production runs on the **Hetzner K3s cluster** (node `5.161.95.56`, namespace `serp`), **NOT** the AWS EC2. It does **NOT** auto-deploy — CI runs on push to `main` but deploy is a manual step on that node: `ssh jack@5.161.95.56` then `bash deploy-k8s.sh main`. A merge to `main` is NOT live until that runs. The old AWS EC2 `34.203.231.65` (`bash deploy.sh`, PM2+nginx) is **frozen legacy — never deploy to it.**
 - `ec_order.size` is **MISNAMED** — it holds `buyer_products.id`, NOT a physical size. `sw_fulfill` = in-house vs vendor, NOT a shipment-status flag.
 - **SWAC IS WishDesk** — the GitHub description "SugarWish Activity Coordinator" is misleading.
 - Inventory has **no single source of truth**: sellable (SA) = Laravel `receiver_products.inventory_qty`; raw material (RM) = Odoo only; accounting/valuation = Odoo `stock_quant`/SVL.
@@ -487,23 +487,24 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **SERP deploy:**
 
-- Single AWS EC2 (`34.203.231.65`, `/opt/SERP`). Not containers/k8s. Darklaunch prod DB on Hetzner (`5.161.233.240`).
-- Deploy: `ssh -i ~/.ssh/id_ed25519 ubuntu@34.203.231.65 "cd /opt/SERP && bash deploy.sh"`. `deploy.sh`: `git checkout main` + hard reset → pip install → Next.js build (Node heap **1.5GB** cap) → `pm2 delete + start ecosystem.config.js`.
-- **PM2 caches env vars.** Changing `.env` requires `pm2 delete serp-backend` then `pm2 start … --only serp-backend`. Plain `pm2 restart/reload` does NOT pick up `.env` or script `args`.
-- PM2 over non-interactive SSH: `export PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`.
+- **Production is the Hetzner K3s cluster** (node `5.161.95.56`, namespace `serp`, app root `/opt/SERP`, live host `serp.sugarwish.com`). Deployments: `serp-backend` (replicas 2 — safe since live-path refresh tokens moved to shared Redis `serp:refresh_token:<hash>`), `serp-frontend`, `serp-workers` (replicas 1 — the ONLY place workers run). Darklaunch prod DB on Hetzner (`5.161.233.240`). The AWS EC2 `34.203.231.65` (`/opt/SERP`, PM2 + nginx, old `deploy.sh`) is **FROZEN LEGACY — NOT production, never deploy to it.**
+- Deploy (manual): `ssh jack@5.161.95.56` then `cd /opt/SERP && bash deploy-k8s.sh main`. A merge to `main` is NOT live until this runs. `deploy-k8s.sh` runs the `migrate:serp-app` phase before rolling pods.
+- **K3s deploy footgun:** each un-pruned deploy leaks ~1.3GB into `/var/lib/containerd` (Docker uses the containerd image store — `/var/lib/docker` looks tiny and misleads `du`); kubelet image GC force-kicks at 85% disk. `deploy-k8s.sh`'s final prune phase keeps current+prev `$TAG` + `:latest`.
+- **AWS↔Hetzner split (post ~Apr 29 2026):** migrated to Hetzner = SERP app (K3s), darklaunch MySQL (`5.161.233.240`), `manage` cluster, Desk2/Desk3. **Still on AWS** = frozen legacy SERP EC2, ALB, ElastiCache Redis, S3 (`sw-serp` bucket), and **`laravel_live` MySQL** (RDS `database-1…us-east-1`, reached via **SSH tunnel** — that's why `laravel_live` queries need the bastion).
+- **(Legacy AWS EC2 only)** PM2 caches env vars (`pm2 restart/reload` does NOT pick up `.env`; needed `pm2 delete serp-backend` then `pm2 start … --only serp-backend`); PM2 over non-interactive SSH needed `export PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`. On Hetzner K3s prod there is **no app-side PM2** — env comes from the `serp-env` K8s secret (`envFrom`); changing it requires re-applying the secret + rolling the deployment.
 - Local dev: backend `:8000`, frontend `:3002`; login `jack@sugarwish.com` / `localdev123`. Slack interactivity locally needs ngrok.
-- **`deploy.sh` does NOT run migrations against prod `manage` RDS.** New `serp_*` tables/columns must be applied to live `manage` RDS manually (by Manish + DBA) **BEFORE** code ships.
+- **`deploy.sh`/`deploy-k8s.sh` do NOT run schema migrations against the prod `manage` cluster (now on Hetzner, not AWS RDS).** New `serp_*` tables/columns must be applied to the live `manage` DB manually (by Manish + DBA) **BEFORE** code ships.
 
-**SERP workers** — three PM2 apps:
+**SERP workers** — three K3s deployments:
 
-| PM2 app         | What                        | `WORKERS_ENABLED` |
-| --------------- | --------------------------- | ----------------- |
-| `serp-backend`  | gunicorn, 2 uvicorn workers | **false**         |
-| `serp-frontend` | Next.js                     | —                 |
-| `serp-workers`  | single fork, `instances:1`  | **true**          |
+| K3s deployment  | What                      | `WORKERS_ENABLED` |
+| --------------- | ------------------------- | ----------------- |
+| `serp-backend`  | gunicorn, uvicorn workers | **false**         |
+| `serp-frontend` | Next.js                   | —                 |
+| `serp-workers`  | replicas 1 — only worker  | **true**          |
 
-- All background workers share **one asyncio event loop** in `serp-workers`. No row-level locking — running in multi-worker gunicorn would double-fire Slack pings / emails / pickings.
-- **Worker can silently hang forever** on idle-dropped sockets (`asyncpg pool.acquire()`, `xmlrpc.client`, PyMySQL) — PM2 shows "online" while wedged. Fixes: bounded `pool.acquire()` + `asyncio.wait_for` watchdog; supervisor restarts wedged workers (added 2026-05-29). Recovery: `pm2 restart`.
+- All background workers share **one asyncio event loop** in `serp-workers` (replicas **1** — the ONLY place workers run). No row-level locking — a second worker replica (or multi-worker gunicorn) would double-fire Slack pings / emails / pickings. `WORKERS_ENABLED=false` on `serp-backend` is set via the `serp-env` K8s secret/`envFrom`, **invisible in inline `env:`** — check `kubectl exec -- printenv`.
+- **Worker can silently hang forever** on idle-dropped sockets (`asyncpg pool.acquire()`, `xmlrpc.client`, PyMySQL) — the pod shows "Running" while wedged. Fixes: bounded `pool.acquire()` + `asyncio.wait_for` watchdog; supervisor restarts wedged workers (added 2026-05-29). Recovery: roll the `serp-workers` deployment.
 
 ### Darklaunch
 
@@ -1056,12 +1057,12 @@ Hosted at `n8n.sugarwish.com`. All post as bot "n8n" (`U08QP0DL9L5`); messages e
 
 ### Git & Deploy (per-repo — NOT uniform)
 
-| Repo                  | Branch off    | Promotion                                             | Deploy                                                      |
-| --------------------- | ------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
-| **SERP**              | `dev`         | feature → `dev` → `main`                              | **MANUAL** `deploy.sh` over SSH — NOT auto-deploy           |
-| **SWAC/WishDesk**     | `development` | `development` → `staging` → `live`                    | Parish runs promotions                                      |
-| **sugarwish-laravel** | `development` | feature (`SUG-*`/`WW-*`) → `manage` → `blue` → `main` | Jenkins jobs for `manage`/`blue`/`live`; live runs manually |
-| **sugarwish-odoo**    | —             | `staging_new` → `main`                                | —                                                           |
+| Repo                  | Branch off    | Promotion                                             | Deploy                                                                                             |
+| --------------------- | ------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **SERP**              | `dev`         | feature → `dev` → `main`                              | **MANUAL** on Hetzner K3s node: `ssh jack@5.161.95.56 → bash deploy-k8s.sh main` — NOT auto-deploy |
+| **SWAC/WishDesk**     | `development` | `development` → `staging` → `live`                    | Parish runs promotions                                                                             |
+| **sugarwish-laravel** | `development` | feature (`SUG-*`/`WW-*`) → `manage` → `blue` → `main` | Jenkins jobs for `manage`/`blue`/`live`; live runs manually                                        |
+| **sugarwish-odoo**    | —             | `staging_new` → `main`                                | —                                                                                                  |
 
 - `blue` = **integration branch**, NOT production (`main` is). `WW-*` tickets are NOT SWAC-exclusive; `SUG-*` is NOT Laravel-only — both span repos. `/pr-to-blue` (renamed from `/merge-to-blue`). June 2026 renamed `ww-*` slash commands to `sw-*` (**command-prefix only — WW-\* ticket prefix unchanged**).
 - **SWAC and Laravel intentionally bundle multiple unrelated features per branch/PR — do NOT suggest splitting.**

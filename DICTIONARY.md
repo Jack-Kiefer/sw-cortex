@@ -148,10 +148,10 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 ### SERP — The Odoo-Replacement ERP
 
-- Live at `serp.sugarwish.com`. Target launch **~early Aug 2026** (before Q4/Halloween peak). Timelines have slipped repeatedly — treat all SERP dates as **soft**.
+- Live at `serp.sugarwish.com`. Target launch **~Sept 15, 2026** (mandated by Anna Kifer, ~6–8 weeks production testing before the Q4/Halloween peak). Slipped repeatedly (2025 → Jan/Feb 2026 → ~early Aug → Sept 15) — treat all SERP dates as **soft**; Odoo stays live past stated dates.
 - **NOT** a dashboard/replica — SERP **re-computes** Odoo's logic locally on MySQL; intended to **replace Odoo entirely**.
 - Two frontend apps: **red sidebar** = ERP (POs, kits, suppliers); **teal sidebar** = Forecast (isolated subsystem).
-- **4 phases:** (1) Purchase Orders, (2) Bills, (3) Raw Materials/Components/Kits/BOMs, (4) Manufacturing Orders & Inventory. Odoo sunset target ~Jul 2026. Product-line rollout order: Popcorn/EW → cupped products → all.
+- **4 phases:** (1) Purchase Orders, (2) Bills, (3) Raw Materials/Components/Kits/BOMs, (4) Manufacturing Orders & Inventory. Odoo sunset is **post-cutover and gated** — full deprecation comes after the Sept 15 2026 full SERP release + 6–8 weeks production testing (the older "~Jul 2026 sunset" was a stale soft target; Odoo stays live past it, and a v15→v17 upgrade looms ~Oct 2026 if SERP isn't ready). Product-line rollout order: Popcorn/EW → cupped products → all.
 - ~25–50% complete as of Jan 2026. Viable only after Seth reframed it into sequential pieces (POs first) with Odoo dual-running. **No "do nothing" option** — if SERP stalls, Odoo 15 must still be upgraded v15→v17 before deprecation.
 
 **SERP schema & code:**
@@ -179,7 +179,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 - **PM2 caches env vars.** Changing `.env` requires `pm2 delete serp-backend` then `pm2 start … --only serp-backend`. Plain `pm2 restart/reload` does NOT pick up `.env` or script `args`.
 - PM2 over non-interactive SSH: `export PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`.
 - Local dev: backend `:8000`, frontend `:3002`; login `jack@sugarwish.com` / `localdev123`. Slack interactivity locally needs ngrok.
-- **`deploy.sh` does NOT run migrations against prod `manage` RDS.** New `serp_*` tables/columns must be applied to live `manage` RDS manually (by Manish + DBA) **BEFORE** code ships.
+- **`deploy.sh` does NOT run migrations against the prod `manage` cluster (now on Hetzner, not AWS RDS).** New `serp_*` tables/columns must be applied to the live `manage` DB manually (by Manish + DBA) **BEFORE** code ships.
 
 **SERP workers** — three PM2 apps:
 
@@ -299,7 +299,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 - **Table prefix:** `serp_stock_move` = SERP's **MySQL mirror** of an Odoo model; same name **without** `serp_` (`stock_move`, `sale_order`) = native **Odoo PostgreSQL**. SugarWish/Laravel: `giftcards_card`, `ec_order`, `cart`, `preselect_orders`, `company`. WishDesk/CRM: `swcrm_*`, `swcrm_z_gmail_*`, `design_*`, `ds_*`, `orders_*`, `sw_billing_*`.
 - **Darklaunch vs replica:** darklaunch DBs _only_ have `_migrations` + `serp_darklaunch_meta`. **Absence of `serp_darklaunch_meta` = it's a replica**, not darklaunch.
 - `live_darklaunch_db` is consistently **AHEAD** of local `serp_prod_darklaunch` (e.g. ~35,983 vs ~34,289 moves) — treat it as canonical; the local is a lagging snapshot. Rebuild via `npm run db:push:prod-darklaunch`; **pause the worker first** (`pm2 stop serp-workers`) or get MySQL **1412 "table definition changed"**. Local Docker darklaunch: `127.0.0.1:3307`, user `devuser`.
-- **`serp_app` vs `live_darklaunch_db` (same Hetzner host, different DBs):** `live_darklaunch_db` = the darklaunch shadow/validation mirror (database `serp_test`); `serp_app` = the main/live SERP app DB the app actually reads/writes (database `serp_app`). Both share the `LIVE_DARKLAUNCH_DB_*` connection params (host/port/user/password) — only the database name differs. Do **not** conflate the app DB with the darklaunch mirror.
+- **`serp_app` vs `live_darklaunch_db` (same Hetzner host, different DBs):** `live_darklaunch_db` = the darklaunch shadow/validation mirror (database `serp_test`); `serp_app` = the main/live SERP app DB the app actually reads/writes (database `serp_app`). Both share the `LIVE_DARKLAUNCH_DB_*` connection params (host/port/user/password) — only the database name differs. Do **not** conflate the app DB with the darklaunch mirror. **`serp_app` is wired in `src/services/databases.ts` + the db MCP enum but the running MCP must be restarted before it is queryable** (until then only `live_darklaunch_db`/`serp_test` is addressable on that host).
 
 ### Two Separate Flags (do not conflate)
 
@@ -1111,7 +1111,7 @@ The 22 highest-value, most counter-intuitive facts. If you internalize nothing e
 | **SERP** (`Jack-Kiefer/SERP`)                                                   | In-house ERP (Next.js + FastAPI/MySQL)                                | **Jack Kiefer** (sole); Manish = secondary lead on migration scripts                                    | Bridges Laravel ↔ Odoo. Sponsored by Matthew Patrick; PM'd by Anna; strategy reframed by Seth. |
 | **Odoo** (PostgreSQL, cloud on Odoo.sh)                                         | ERP / inventory / accounting source-of-truth                          | **Seth Finley** (repo `sugarwish-odoo`); Prixite (Manish/Zain) for code; Jack for 2026 SERP-era changes | Being phased out post-cutover. Admin access: Kellen Evans, Nora Stein.                         |
 | **sugarwish-laravel** (`sethfinley/sugarwish-laravel`)                          | Main e-commerce app & order domain                                    | **Seth Finley** (CTO, owner); Manish = lead engineer                                                    | Primary devs: Subash (Laravel), Parish (SWAC), Manish (lead/Odoo).                             |
-| **SWAC / WishDesk** (`jasonbkiefer/SWAC`)                                       | CS/CRM/design/billing platform                                        | **Seth Finley** (owner); **Parish Shrestha** = release engineer/merger                                  | Contributors: Madison Parks, Payton Castaneda, Jaypee.                                         |
+| **SWAC / WishDesk** (`jasonbkiefer/SWAC`)                                       | CS/CRM/design/billing platform                                        | **Jason Kiefer** (`jasonbkiefer` org owner); **Parish Shrestha** = release engineer/merger              | Contributors: Madison Parks, Payton Castaneda, Jaypee.                                         |
 | **SWIRL / sw-design / SWAC repos**                                              | Knowledge platform + design/config                                    | **Jason Kiefer** (`jasonbkiefer`)                                                                       | SWIRL = (1) AI knowledge library, (2) WishWorks datastore.                                     |
 | **livery / SWOP** (`csloan-sw/livery`)                                          | Branded print station + MCP ops tooling                               | **Cris (Criston) Sloan**                                                                                | Reports to COO. NOT SERP.                                                                      |
 | **Retool**                                                                      | Analytics/ops (PostgreSQL); SERP sync engine + auth + forecast caches | Shared multi-app DB; **NOT SERP-owned**; Retool experts: Munyr, Haseeb, Aima                            | ~165 tables; SERP touches ~40.                                                                 |
@@ -1210,7 +1210,7 @@ SugarWish runs on a constellation of systems that overlap and feed each other. T
   - ❌ AI assumes SERP auto-deploys from `main` via Jenkins → ✅ Reality: deployment is a manual step on the Hetzner K3s node: `ssh jack@5.161.95.56` then `cd /opt/SERP && bash deploy-k8s.sh main`. A push/merge to `main` is NOT live until `deploy-k8s.sh` runs. (The old AWS `deploy.sh` path is frozen legacy.)
 - **PM2 over SSH** requires explicit exports: `PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`. Inline `pm2 reload` fails without them.
 - **Before rebuilding the darklaunch DB you MUST `pm2 stop serp-workers`** or get MySQL `1412 'table definition changed'` errors that kill in-flight shipments; resume after.
-- **`deploy.sh` does NOT run schema migrations against prod `manage` RDS** (`npm run migrate` is local-only; `seeding/migrations/*.sql` are deleted at HEAD; deploy hardcodes the docker `serp_staging_darklaunch`). New `serp_*` tables/columns need **manual RDS migration BEFORE code ships** (Manish + DBA) or you get "table doesn't exist" in production.
+- **`deploy.sh` does NOT run schema migrations against the prod `manage` cluster (now on Hetzner, not AWS RDS)** (`npm run migrate` is local-only; `seeding/migrations/*.sql` are deleted at HEAD; deploy hardcodes the docker `serp_staging_darklaunch`). New `serp_*` tables/columns need **manual migration of the live `manage` DB BEFORE code ships** (Manish + DBA) or you get "table doesn't exist" in production.
 - Local dev: backend on 8000, Next.js on 3002 (some sources 3000); local login `jack@sugarwish.com` / `localdev123` (alt creds `jack@sugarwish.com` / `UZ(8!C5Q2Y1f`). E2E uses isolated ports (backend 8888, frontend 3333) with database `serp_e2e`.
 
 #### Auth Layers — TWO independent layers (confuses users into thinking login is broken)
@@ -1241,7 +1241,7 @@ SugarWish runs on a constellation of systems that overlap and feed each other. T
 
 #### SERP Connection Pools (a known mess)
 
-SERP runs **6+ independent connection pools** with heavy duplication. Retool PG alone has THREE pools (asyncpg max=5 + psycopg2 sync max=15 + SQLAlchemy asyncpg 5+5). The SERP ORM pool (`serp_orm/db.py`, custom PyMySQL, size=5/overflow=8 = 13 max, `pool_recycle=60s` aggressive) is held idle for the entire 200-320s forecast request, so only ~13 concurrent requests exhaust it. The `ForecastDatabaseConnector` singleton holds 3 pools (Odoo asyncpg, Live SERP SQLAlchemy MySQL via SSH tunnel, Retool asyncpg; min_size=2, max_size=15, timeout=90s). The EC2 instance (`i-0a0de24d0845c6341`) gets overwhelmed under load (504s, resource exhaustion).
+SERP runs **6+ independent connection pools** with heavy duplication. Retool PG alone has THREE pools (asyncpg max=5 + psycopg2 sync max=15 + SQLAlchemy asyncpg 5+5). The SERP ORM pool (`serp_orm/db.py`, custom PyMySQL, size=5/overflow=8 = 13 max, `pool_recycle=60s` aggressive) is held idle for the entire 200-320s forecast request, so only ~13 concurrent requests exhaust it. The `ForecastDatabaseConnector` singleton holds 3 pools (Odoo asyncpg, Live SERP SQLAlchemy MySQL via SSH tunnel, Retool asyncpg; min_size=2, max_size=15, timeout=90s). On the now-frozen AWS EC2 (`i-0a0de24d0845c6341`, `34.203.231.65`) this overwhelmed the box under load (504s, resource exhaustion); production now runs on the Hetzner K3s cluster, but the same pool/index footguns still apply.
 
 #### SERP's Permanent, Intentional Divergences from Odoo
 
@@ -1439,9 +1439,9 @@ When SERP-origin and Odoo-origin data collide on a natural key, **SERP usually w
 
 This section is the per-database, per-table, per-column reference for SugarWish's data landscape. Name tables and columns EXACTLY as written. Enum values, ID conventions, and SQL gotchas are load-bearing — do not paraphrase them away.
 
-### The 13-Database Landscape & How to Fingerprint a Table
+### The 14-Database Landscape & How to Fingerprint a Table
 
-SugarWish runs **13 databases** across MySQL and PostgreSQL. The unified `mcp__db__*` tools address them by these MCP names (from `.claude/rules/databases.md`):
+SugarWish runs **14 databases** across MySQL and PostgreSQL (the 14th, `serp_app`, is wired in code but becomes queryable only after the db MCP server is restarted — until then `mcp__db__list_databases` returns 13). The unified `mcp__db__*` tools address them by these MCP names (from `.claude/rules/databases.md`):
 
 | MCP name                                          | Engine     | Role                                                                                                         |
 | ------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
@@ -2238,7 +2238,7 @@ The per-table **`values:` line** is the only meaningful signal: `'K rows, C colu
 
 #### Deploy/migration footgun
 
-⚠️ `deploy.sh` does NOT run schema migrations against prod manage RDS (`npm run migrate` is local-only; `seeding/migrations/*.sql` deleted at HEAD; deploy hardcodes Docker `serp_staging_darklaunch`). New `serp_*` tables/columns need a **manual RDS migration BEFORE code ships** (Manish + DBA) or you get "table doesn't exist" in production. All ~40+ `serp_*` ORM tables exist ONLY in `laravel_local`; `laravel_staging`/`live_staging` have only `serp_audit_logs` and `serp_users`.
+⚠️ `deploy.sh` does NOT run schema migrations against the prod manage cluster (now on Hetzner, not AWS RDS) (`npm run migrate` is local-only; `seeding/migrations/*.sql` deleted at HEAD; deploy hardcodes Docker `serp_staging_darklaunch`). New `serp_*` tables/columns need a **manual migration of the live manage DB BEFORE code ships** (Manish + DBA) or you get "table doesn't exist" in production. All ~40+ `serp_*` ORM tables exist ONLY in `laravel_local`; `laravel_staging`/`live_staging` have only `serp_audit_logs` and `serp_users`.
 
 ---
 
@@ -2619,7 +2619,7 @@ A push/merge to `main` is **not live** until `deploy-k8s.sh main` runs on the no
 
 ⚠️ **PM2 over SSH:** Inline `pm2 reload` fails — must export `PATH=/home/ubuntu/.nvm/versions/node/v20.20.1/bin:$PATH; PM2_HOME=/home/ubuntu/.pm2`. **Before rebuilding the darklaunch DB you MUST `pm2 stop serp-workers`** or you get MySQL 1412 "table definition changed" errors that kill in-flight shipments; resume after.
 
-⚠️ **SERP `deploy.sh` does NOT run schema migrations against prod manage RDS.** `npm run migrate` is local-only; `seeding/migrations/*.sql` are deleted at HEAD; deploy hardcodes the docker `serp_staging_darklaunch`. New `serp_*` tables/columns need a **manual RDS migration BEFORE code ships** (Manish + DBA) or you get "table doesn't exist" in production.
+⚠️ **SERP `deploy.sh` does NOT run schema migrations against the prod manage cluster (now on Hetzner, not AWS RDS).** `npm run migrate` is local-only; `seeding/migrations/*.sql` are deleted at HEAD; deploy hardcodes the docker `serp_staging_darklaunch`. New `serp_*` tables/columns need a **manual migration of the live manage DB BEFORE code ships** (Manish + DBA) or you get "table doesn't exist" in production.
 
 ⚠️ **SERP `serp_*` tables exist ONLY in `laravel_local`** (local dev). `laravel_staging` and `live_staging` have only `serp_audit_logs` and `serp_users` — **no Alembic migrations were ever applied to staging.** The full ORM table set is local-only.
 
