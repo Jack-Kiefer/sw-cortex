@@ -471,8 +471,10 @@ def _put_ticket_file(path, content, sha, branch, token, message):
         return json.load(r)
 
 def archive_ticket(ticket_id, archive_reason, archived_by, branch, token, extra_fm=None, body_section=None):
-    """Archive a ticket: update frontmatter (status=archived, bucket=—, priority=—,
-    archive_reason=...) + history → PUT to archive/<year>-q<quarter>/ → DELETE from active/.
+    """Archive a ticket: update frontmatter (status=archived, archive_reason=...) + history
+    → PUT to archive/<year>-q<quarter>/ → DELETE from active/.
+    Note: archiving NEVER adds a `bucket` field (board-task concept, not in the ticket schema)
+    and NEVER changes `priority` — those are weekly-board archive behaviors, not ticket ones.
     PUT to archive FIRST (ticket never absent from both places).
 
     Args:
@@ -502,8 +504,6 @@ def archive_ticket(ticket_id, archive_reason, archived_by, branch, token, extra_
     now_ts = now.strftime("%Y-%m-%d %H:%M")
     fm_updates = {
         "status": "archived",
-        "bucket": "—",
-        "priority": "—",
         "archive_reason": archive_reason,
     }
     if extra_fm:
@@ -1355,6 +1355,17 @@ Based on the type and track, collect these fields conversationally. Ask for the 
 
 **Bugs also need:**
 - `requestor_urgency` — Critical, High, Medium, Low, or "I'm not sure"
+- `priority` — **required for every bug, on every track. ALWAYS ASK — this is a mandatory question that must never be auto-filled, assumed, or skipped, even though a default is offered.** Bug priority uses a **Critical / High / Medium** scale (bugs have no `Low` — Medium is the floor). Never write a bug with an empty `priority`, and never silently set it from urgency and move on — you MUST put the question to the creator and **WAIT for their reply** before continuing to the duplicate check or the "Ready to create" summary. Compute a suggested default from the urgency they just gave, present it, and let them accept or override:
+
+  | `requestor_urgency` | suggested `priority` |
+  |---|---|
+  | Critical | Critical |
+  | High | High |
+  | Medium | Medium |
+  | Low | Medium |
+  | "I'm not sure" / blank | Medium |
+
+  Ask it as its own distinct step and then STOP, e.g. *"Urgency is High — what priority should this bug be? I'd suggest **High**. Reply Critical / High / Medium, or say 'yes'/'that's fine' to take the suggestion."* Do not show the ticket preview until they answer. Store exactly what the creator chooses (one of Critical/High/Medium) — only treat the suggested default as the value once they explicitly accept it. This applies to Wishdesk, Laravel, and all other bug tracks — see the Laravel/React/Shipping note below so you don't prompt twice.
 - `who_affected` — optional: Specific Customer/Order, General System Issue, or Me
 - Steps to Reproduce (as a body section) — recommended but not required
 
@@ -1370,7 +1381,7 @@ Based on the type and track, collect these fields conversationally. Ask for the 
 
 **Laravel, React Receiver, and Shipping Labels tickets (all types) — collected at creation:**
 - `estimate` — hours (e.g., `4h`, `8h`). Max 8h per ticket — if over 8h, must be broken into child tickets. Required for stories, tasks, AND bugs on these three tracks.
-- `priority` — Critical, High, Medium, or Low. Required for all types.
+- `priority` — Critical, High, Medium, or Low. Required for **stories and tasks** on these tracks. (**Bugs** collect priority via the "Bugs also need" rule above — bug scale Critical/High/Medium, defaulted from urgency — so don't prompt for priority twice on a Laravel/React/Shipping bug.)
 - `component` / `sub_component` — **Laravel only.** Direct the developer to review the component matrix at https://desk2.sugarwish.com/component-matrix/ and ask them to provide the **sub-component** that best fits their ticket (e.g., "buyer orders", "gift cards", "proposals"). Match their answer against the sub-components in `wishworks/_config/component-matrix.json` to fill in both the `component` (parent) and `sub_component` fields. If no match, ask them to clarify or leave blank. **React Receiver and Shipping Labels have no component taxonomy — skip this question and leave both fields blank.**
 
 
@@ -1384,7 +1395,7 @@ Based on the type and track, collect these fields conversationally. Ask for the 
 
 **Step 4: Set starting status and folder**
 
-All tickets (every track) start at `backlog` in `active/`. Laravel, React Receiver, and Shipping Labels tickets still collect estimate and priority at creation (Laravel also collects component) — set those fields in frontmatter from the values collected in Step 2.
+All tickets (every track) start at `backlog` in `active/`. Laravel, React Receiver, and Shipping Labels tickets still collect estimate and priority at creation (Laravel also collects component) — set those fields in frontmatter from the values collected in Step 2. **Every bug ticket (any track) also has `priority` set at creation** from the bug-priority rule in Step 2 — never write a bug with an empty `priority`.
 
 **Step 5: Build the ticket file**
 
@@ -1448,7 +1459,7 @@ For non-Laravel tickets:
 ```
 Ready to create:
   WW-??? (Wishdesk Bug) — "Proposal page not loading for guest users"
-  Requestor: Bilal (Platform) | Urgency: High
+  Requestor: Bilal (Platform) | Urgency: High | Priority: High
   Component: Proposals | Assignee: Bilal | Status: backlog
 
 Create this ticket? (y/n)
@@ -1809,6 +1820,8 @@ This rule applies to **any** action that sets environment to a pre-release envir
 
 **Valid values:** `Critical`, `High`, `Medium`, `Low` (all ticket types, all tracks)
 
+**Bugs:** `Critical` / `High` / `Medium` only — no `Low` (Medium is the floor). Priority is **required at creation for every bug** and is defaulted from `requestor_urgency` (Critical→Critical, High→High, Medium→Medium, Low→Medium, "I'm not sure"/blank→Medium), with the creator confirming or changing it. See the bug-priority rule in the create flow ("Bugs also need").
+
 **Cascading:** When priority is set on a parent ticket, cascade to all children. Skip setting `Low` on child bugs.
 
 ## Estimate Rules
@@ -1976,7 +1989,7 @@ If Retool-task creation fails, the bug is already safely archived with its spec 
 - Child type defaults to the same type as the parent unless the developer specifies otherwise
 - Child starts at `backlog` (all tracks), placed in `active/`
 - **Build the child ticket using the full template** from the ticket format guide for the child's track+type — include ALL frontmatter fields (blank if not set)
-- Collect required fields for the child's type (e.g., `requestor_urgency` for bugs, `department_priority` for stories, `justification` + `estimate` for tasks) — inherit what makes sense from parent, ask for the rest
+- Collect required fields for the child's type (e.g., `requestor_urgency` for bugs, `department_priority` for stories, `justification` + `estimate` for tasks) — inherit what makes sense from parent, ask for the rest. **Child bugs still need a non-empty `priority`** (Critical/High/Medium): cascade it from the parent when the parent has a priority set (per the Cascading rule — but never cascade `Low` onto a bug; use Medium instead), otherwise apply the bug-priority rule above (default from `requestor_urgency`, creator confirms).
 - **Laravel children** must include the Release Actions checklist section
 - Increment `counter.txt` after creating
 - Update parent's history

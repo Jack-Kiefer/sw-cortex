@@ -89,7 +89,7 @@ async function main() {
   printStep(3, 'MCP Server Configuration');
 
   const mcpServers: Record<string, object> = {};
-  const serverDirs = ['db', 'github', 'discoveries', 'slack-search', 'logs'];
+  const serverDirs = ['db', 'github', 'knowledge', 'slack-search', 'logs'];
 
   for (const server of serverDirs) {
     const serverPath = resolve(projectRoot, `src/mcp-servers/${server}/index.ts`);

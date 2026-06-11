@@ -2,23 +2,38 @@
   "mcpServers": {
     "github": {
       "command": "npx",
-      "args": ["tsx", "src/mcp-servers/github/index.ts"]
+      "args": [
+        "tsx",
+        "src/mcp-servers/github/index.ts"
+      ]
     },
     "db": {
       "command": "npx",
-      "args": ["tsx", "src/mcp-servers/db/index.ts"]
-    },
-    "discoveries": {
-      "command": "npx",
-      "args": ["tsx", "src/mcp-servers/discoveries/index.ts"]
+      "args": [
+        "tsx",
+        "src/mcp-servers/db/index.ts"
+      ]
     },
     "slack-search": {
       "command": "npx",
-      "args": ["tsx", "src/mcp-servers/slack-search/index.ts"]
+      "args": [
+        "tsx",
+        "src/mcp-servers/slack-search/index.ts"
+      ]
     },
     "logs": {
       "command": "npx",
-      "args": ["tsx", "src/mcp-servers/logs/index.ts"]
+      "args": [
+        "tsx",
+        "src/mcp-servers/logs/index.ts"
+      ]
+    },
+    "knowledge": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "src/mcp-servers/knowledge/index.ts"
+      ]
     }
   }
 }

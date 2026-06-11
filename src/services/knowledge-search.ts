@@ -141,19 +141,18 @@ export async function getIndex(): Promise<CacheFile> {
     fileHashes[rel] = sha256(content);
   }
 
-  const upToDate = (idx: CacheFile | null): idx is CacheFile =>
-    !!idx &&
+  const upToDate = (idx: CacheFile): boolean =>
     Object.keys(fileHashes).length === Object.keys(idx.files).length &&
     Object.entries(fileHashes).every(([f, h]) => idx.files[f] === h);
 
-  if (upToDate(memoryIndex)) return memoryIndex;
+  if (memoryIndex && upToDate(memoryIndex)) return memoryIndex;
   const cached = readCache();
-  if (upToDate(cached)) {
+  if (cached && upToDate(cached)) {
     memoryIndex = cached;
     return cached;
   }
 
-  const previous = new Map((cached?.chunks ?? []).map((c) => [c.hash, c.embedding]));
+  const previous = new Map<string, number[]>((cached?.chunks ?? []).map((c) => [c.hash, c.embedding]));
   const allChunks = Object.entries(contents).flatMap(([rel, content]) => chunkMarkdown(content, rel));
 
   const toEmbed = allChunks.filter((c) => !previous.has(c.hash));

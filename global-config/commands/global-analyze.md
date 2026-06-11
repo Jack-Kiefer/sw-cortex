@@ -125,20 +125,11 @@ Combine all findings into:
 
 ---
 
-## Step 4: Save Discoveries
+## Step 4: Save Key Insights
 
-Save key insights using `mcp__discoveries__add_discovery`:
-
-```
-mcp__discoveries__add_discovery({
-  title: "Brief title",
-  source: "exploration",
-  description: "What was learned",
-  type: "fact|relationship|pattern|insight",
-  tags: ["relevant", "tags"],
-  priority: 2
-})
-```
+If the research surfaced durable SugarWish ground truth (a gotcha, ownership fact,
+schema quirk), add it to `sw-cortex/DICTIONARY.md` — the knowledge MCP indexes it
+automatically. Skip this for task-specific findings.
 
 ---
 
@@ -157,7 +148,7 @@ mcp__discoveries__add_discovery({
 
 **Codebase**: [key files, patterns, architecture insights]
 
-**Institutional Knowledge**: [Slack discussions, existing discoveries]
+**Institutional Knowledge**: [Slack discussions, knowledge-base findings]
 
 **External Patterns**: [best practices, libraries, approaches from the web]
 

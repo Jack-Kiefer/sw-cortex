@@ -7,11 +7,9 @@
     "typecheck": "tsc --noEmit",
     "github:serve": "tsx src/mcp-servers/github/index.ts",
     "db:serve": "tsx src/mcp-servers/db/index.ts",
-    "discoveries:serve": "tsx src/mcp-servers/discoveries/index.ts",
     "slack-search:serve": "tsx src/mcp-servers/slack-search/index.ts",
     "logs:serve": "tsx src/mcp-servers/logs/index.ts",
     "qdrant:init": "tsx scripts/qdrant-init.ts",
-    "qdrant:init-discoveries": "tsx scripts/init-discoveries-collection.ts",
     "qdrant:status": "tsx scripts/qdrant-status.ts",
     "slack:sync": "tsx scripts/sync-slack-encrypted.ts",
     "slack:sync-plaintext": "tsx scripts/sync-slack-messages.ts",
@@ -23,8 +21,7 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "setup": "tsx scripts/setup.ts",
-    "generate:mcp": "tsx scripts/generate-mcp-config.ts",
-    "discoveries:migrate-encrypted": "tsx scripts/migrate-discoveries-encrypted.ts"
+    "generate:mcp": "tsx scripts/generate-mcp-config.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

@@ -53,15 +53,6 @@ const ALLOWED_BASE_DIRS: string[] = process.env.MCP_DB_ALLOWED_DIRS
       .map((p) => resolve(p))
   : DEFAULT_ALLOWED_DIRS;
 
-// Lazy load discoveries service to avoid startup issues
-let discoveriesService: typeof import('../../services/discoveries.js') | null = null;
-async function getDiscoveriesService() {
-  if (!discoveriesService) {
-    discoveriesService = await import('../../services/discoveries.js');
-  }
-  return discoveriesService;
-}
-
 const tools: Tool[] = [
   {
     name: 'query_database',
@@ -195,24 +186,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const table = (args as { database: string; table: string }).table;
         const columns = await dbService.describeTable(database, table);
 
-        // Try to fetch table notes (async since discoveries uses Qdrant)
-        let notes: Array<{ title: string; description: string | null; type: string | null }> = [];
-        try {
-          const discoveries = await getDiscoveriesService();
-          const tableNotes = await discoveries.getTableNotes(database, table);
-          notes = tableNotes.map((n) => ({
-            title: n.title,
-            description: n.description,
-            type: n.type,
-          }));
-        } catch {
-          // Discoveries service may not be available, continue without notes
-        }
-
-        result = {
-          columns,
-          notes: notes.length > 0 ? notes : undefined,
-        };
+        result = { columns };
         break;
       }
       case 'list_databases':

@@ -2,8 +2,6 @@ import { z } from 'zod';
 import { DistanceMetric } from './config';
 import { SlackMessagesCollection } from './schemas/slack-messages';
 import { SlackMessagesEncryptedCollection } from './schemas/slack-messages-encrypted';
-import { DiscoveriesCollection } from './schemas/discoveries';
-import { DiscoveriesEncryptedCollection } from './schemas/discoveries-encrypted';
 
 // Payload index types supported by Qdrant
 export type PayloadIndexType =
@@ -49,8 +47,6 @@ export interface CollectionDefinition<T extends z.ZodType = z.ZodType> {
 export const COLLECTIONS = {
   slackMessages: SlackMessagesCollection,
   slackMessagesEncrypted: SlackMessagesEncryptedCollection,
-  discoveries: DiscoveriesCollection,
-  discoveriesEncrypted: DiscoveriesEncryptedCollection,
 } as const;
 
 // Type-safe collection names

@@ -23,7 +23,6 @@
   "permissions": {
     "defaultMode": "acceptEdits",
     "allow": [
-      "mcp__discoveries",
       "mcp__slack-search",
       "mcp__logs",
       "mcp__db",
@@ -34,7 +33,6 @@
       "mcp__playwright",
       "mcp__jira-ticket",
       "mcp__test-runner",
-      "mcp__discoveries-tracker",
       "mcp__ide",
       "mcp__serp-database",
       "WebSearch",

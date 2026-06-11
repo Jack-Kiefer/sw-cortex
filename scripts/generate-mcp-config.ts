@@ -33,9 +33,9 @@ const mcpServers: Record<string, object> = {
       DOTENV_CONFIG_PATH: envPath,
     },
   },
-  discoveries: {
+  knowledge: {
     command: 'npx',
-    args: ['tsx', resolve(projectRoot, 'src/mcp-servers/discoveries/index.ts')],
+    args: ['tsx', resolve(projectRoot, 'src/mcp-servers/knowledge/index.ts')],
     cwd: projectRoot,
     env: {
       DOTENV_CONFIG_PATH: envPath,

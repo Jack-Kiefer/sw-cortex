@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 
-// AES-256-GCM encryption for sensitive fields (Slack messages, discoveries, etc.)
+// AES-256-GCM encryption for sensitive fields (Slack messages, etc.)
 // Key should be 32 bytes (256 bits) hex-encoded = 64 hex chars
 
 const ALGORITHM = 'aes-256-gcm';

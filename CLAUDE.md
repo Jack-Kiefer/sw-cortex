@@ -5,8 +5,8 @@ Personal work intelligence platform for Jack. Answers questions, accesses databa
 ## Tech Stack
 
 - **Language**: TypeScript
-- **Databases**: MySQL (WishDesk, Live SugarWish), PostgreSQL (Odoo, Retool), SQLite (local discoveries)
-- **Vector DB**: Qdrant (Slack message search, discoveries)
+- **Databases**: MySQL (WishDesk, Live SugarWish), PostgreSQL (Odoo, Retool), SQLite (local)
+- **Vector DB**: Qdrant (Slack message search)
 - **Embeddings**: OpenAI
 - **Process Mgmt**: PM2
 - **Automation**: n8n (self-hosted)
@@ -17,7 +17,7 @@ This workspace has 5 MCP servers that provide tools for Claude to use:
 
 | Server           | Purpose                             | Tools   |
 | ---------------- | ----------------------------------- | ------- |
-| **discoveries**  | Knowledge base for insights         | 8 tools |
+| **knowledge**    | Semantic search over DICTIONARY.md  | 2 tools |
 | **slack-search** | Semantic search over Slack messages | 4 tools |
 | **logs**         | System log search and analysis      | 4 tools |
 | **db**           | Database queries (read-only)        | 4 tools |
@@ -37,7 +37,7 @@ sw-cortex/
 ├── .mcp.json              # MCP server config
 ├── src/                   # Application source code
 │   ├── mcp-servers/       # Custom MCP servers
-│   │   ├── discoveries/   # Knowledge base management
+│   │   ├── knowledge/     # Semantic search over DICTIONARY.md
 │   │   ├── slack-search/  # Slack message search
 │   │   ├── logs/          # Log analysis
 │   │   ├── db/            # Database access
@@ -105,7 +105,7 @@ Subagents keep the main conversation focused and produce better results.
 
 ## Qdrant Vector Database
 
-Qdrant is used for semantic search over Slack messages and discoveries.
+Qdrant is used for semantic search over Slack messages.
 
 ### Configuration
 
@@ -123,7 +123,6 @@ Collections are defined in `src/qdrant/schemas/` with TypeScript types and Zod v
 | Collection                 | Alias                              | Vector Size | Purpose                          |
 | -------------------------- | ---------------------------------- | ----------- | -------------------------------- |
 | `slack_messages_encrypted` | `slack_messages_encrypted_current` | 1536        | Slack message search (encrypted) |
-| `discoveries_encrypted`    | `discoveries_enc_current`          | 1536        | Knowledge base (encrypted)       |
 
 ### Adding New Collections
 

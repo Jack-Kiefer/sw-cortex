@@ -20,22 +20,6 @@ export {
   SlackMessageEncryptedPayloadSchema,
 } from './schemas/slack-messages-encrypted';
 export type { SlackMessageEncryptedPayload } from './schemas/slack-messages-encrypted';
-export {
-  DiscoveriesCollection,
-  DiscoveryPayloadSchema,
-  DISCOVERY_TYPE,
-} from './schemas/discoveries';
-export type { DiscoveryPayload, DiscoveryType } from './schemas/discoveries';
-export {
-  DiscoveriesEncryptedCollection,
-  DiscoveryEncryptedPayloadSchema,
-  DISCOVERY_ENCRYPTED_TYPE,
-} from './schemas/discoveries-encrypted';
-export type {
-  DiscoveryEncryptedPayload,
-  DiscoveryEncryptedType,
-} from './schemas/discoveries-encrypted';
-
 // Utilities
 export {
   collectionExists,

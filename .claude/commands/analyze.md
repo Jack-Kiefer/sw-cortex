@@ -75,7 +75,7 @@ Analyze the existing codebase:
 - Find similar implementations that could serve as templates
 - Map dependencies and integration points
 
-### 1.3 Slack & Discoveries Search
+### 1.3 Slack & Knowledge Base Search
 
 Search for institutional knowledge related to this task:
 
@@ -86,7 +86,7 @@ Search for institutional knowledge related to this task:
 - Find any decisions or requirements discussed previously
 - Identify stakeholders who have been involved in related work
 
-**Discoveries** (use `mcp__discoveries__search_discoveries`):
+**Knowledge Base** (use `mcp__knowledge__search_knowledge`):
 
 - Search for any documented database insights related to this task
 - Look for patterns, relationships, or gotchas previously captured
@@ -102,7 +102,7 @@ If the task involves database operations:
 - Then DESCRIBE relevant tables to understand schema
 - Document field names, relationships, and constraints
 - Identify any migration requirements
-- **Check `mcp__discoveries__get_table_notes`** for any existing documentation on relevant tables
+- **Search `mcp__knowledge__search_knowledge`** for any existing documentation on relevant tables
 
 ## Phase 2: Synthesis & Analysis
 
@@ -170,8 +170,8 @@ Present your analysis in this conversation. Do not create any files.
 - **Key Stakeholders**: [people who have worked on related things]
 - **Historical Context**: [why things are the way they are]
 
-#### Discoveries Found
-- [Any relevant discoveries from the knowledge base]
+#### Knowledge Base Findings
+- [Any relevant findings from the knowledge base]
 
 #### Data Considerations
 - [Schema impacts, if any]
