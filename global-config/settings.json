@@ -178,6 +178,15 @@
             "command": "input=$(cat); cmd=$(echo \"$input\" | jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -qE '(^|[^a-zA-Z0-9_-])git[[:space:]]+stash([[:space:]]|$)'; then jq -n '{hookSpecificOutput: {hookEventName: \"PreToolUse\", permissionDecision: \"deny\", permissionDecisionReason: \"Blocked: `git stash` is forbidden in this codebase (CLAUDE.md). Use `git show HEAD:path/to/file` or `git diff HEAD -- path` to compare against HEAD. To check if a test failure is pre-existing, run the test on a clean checkout or trust that if your diff does not touch related code, the failure is not yours. Never stash, even briefly, even with explicit paths.\"}}'; fi"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/repo-write-guard.sh"
+          }
+        ]
       }
     ]
   },

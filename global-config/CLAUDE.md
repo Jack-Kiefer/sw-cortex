@@ -13,6 +13,18 @@ How Jack wants Claude to work. These override the urge to be "helpful" by doing 
 - **Verify before claiming done.** Editing a file is not the same as changing the behavior. Before reporting a UI or data fix complete, observe the changed result yourself — reload the page, re-run the query, diff the output. Watch for caches, paginated slices, and stale builds that mask "no change." If you can't verify, say so instead of asserting it works.
 - **No scratch files, minimal comments.** Don't create summary/scratch `.md` files or add explanatory comments unless asked. Keep output minimal and inline.
 
+## Orchestrator / Repo Routing (hub model)
+
+sw-cortex is the **single Claude Code hub** Jack launches (open only sw-cortex in VS Code; `.vscode/settings.json` pins new terminals to its root; run `claude` once, cwd never changes). `/analyze <task>` is the **one entry point** — it auto-detects the involved repo(s), loads only their rules, presents a plan, then executes. There is no `/work` command and no repo-pick prompt.
+
+- **Writable from the hub: SERP, SWAC, sw-cortex only.** All other repos (`sugarwish-laravel`, `livery`, `sw-design`, `swirl`, `sugarwish-infrastructure`) are **read-only** — read/search them freely to diagnose, but never edit. When a fix belongs in one of them, print a **hand-off note** (what's wrong + file/line + the owner to ask, from the ownership table above) instead of editing.
+- **This is mechanically enforced.** A PreToolUse hook (`~/.claude/scripts/repo-write-guard.sh`) hard-DENIES any Edit/Write or `git`/`gh` commit·push·merge·worktree·PR whose resolved repo root (via `git rev-parse --git-common-dir`, so worktrees map to their owner) is not SERP/SWAC/sw-cortex. Reads are never blocked.
+- **Repo roots:** SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `…/SWAC` · sw-cortex `…/sw-cortex` · laravel `…/sugarwish-laravel` · livery `…/livery` · sw-design `…/sw-design` · swirl `…/swirl` · infra `…/sugarwish-infrastructure`.
+- **Per-repo VCS:** always `git -C <root> …`; never run git from the hub cwd against another repo. Only SERP and sw-cortex have a `.claude/rules/` dir — for the others state "CLAUDE.md only", don't imply rules loaded. Each repo's conventions (SWAC `<username>/<desc>` branches + dev→staging→live; SERP Odoo-parity; sw-cortex plan-mode/verify-app) apply ONLY to that repo.
+- **Worktrees:** address by absolute path; never `cd` a long-lived terminal into one. NEVER prune/remove/rm/reset the locked SERP worktrees (`SERP/.claude/worktrees/wf_817b7ab1-a1b-*`, agent worktree) or the sibling `serp-hotfix-mo-grounding` — they back active jobs.
+- **SERP app run/test fallback:** SERP's live tooling (`mcp__serp-prod`, `mcp__serp-orm`, `mcp__python`, playwright) is unreachable from the hub. For run/test/verify, open a dedicated SERP session: `cd /Users/jackkief/Desktop/Projects/SERP && claude`. The hub does edits/git/DB/orchestration; SERP work needing live tooling goes in a SERP-cwd session.
+- **Deploy:** `/deploy SERP` ships `origin/dev`→`main` to Hetzner K3s (from a `/tmp` worktree). Only SERP deploys from the hub.
+
 ## Terminal Tab Status (every session, every project)
 
 Keep this session's terminal tab title showing what you're doing. Set it as soon as the first real task starts, and update it at every status change:
@@ -55,18 +67,19 @@ The obvious-looking inference is often documented as **wrong** — that's what t
 
 ## Global Slash Commands
 
-| Command                               | Description                          |
-| ------------------------------------- | ------------------------------------ |
-| `/slack-search [query]`               | Search Slack messages                |
-| `/db query [database] [sql]`          | Query databases                      |
-| `/global-analyze [description]`       | Deep pre-implementation analysis     |
-| `/global-quick-analyze [description]` | Quick codebase assessment            |
-| `/meeting [title]`                    | Save meeting notes + index to Qdrant |
-| `/refresh-knowledge`                  | Update the knowledge base docs       |
-| `/draft-slack [context]`              | Draft a Slack message                |
-| `/ww [description]`                   | WishDesk work helper                 |
-| `/tab-title [name]`                   | Set/clear this terminal tab title    |
-| `/compact-global`                     | Compact + resume global context      |
+| Command                               | Description                                   |
+| ------------------------------------- | --------------------------------------------- |
+| `/start-day`                          | Morning routine: sync → tickets → KB → triage |
+| `/slack-search [query]`               | Search Slack messages                         |
+| `/db query [database] [sql]`          | Query databases                               |
+| `/global-analyze [description]`       | Deep pre-implementation analysis              |
+| `/global-quick-analyze [description]` | Quick codebase assessment                     |
+| `/meeting [title]`                    | Save meeting notes + index to Qdrant          |
+| `/refresh-knowledge`                  | Update the knowledge base docs                |
+| `/draft-slack [context]`              | Draft a Slack message                         |
+| `/ww [description]`                   | WishDesk work helper                          |
+| `/tab-title [name]`                   | Set/clear this terminal tab title             |
+| `/compact-global`                     | Compact + resume global context               |
 
 ## Global Skills
 
