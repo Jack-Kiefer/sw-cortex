@@ -96,15 +96,23 @@ function processFile(filePath) {
 
   term.show(false);
 
+  // A marker file the launch script writes its OWN tty into — deterministic, so the
+  // auto-close watcher knows exactly which title file to watch (no fragile PID→tty guess).
+  const ttyMarker = path.join(
+    os.tmpdir(),
+    `go-tty-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+  );
+
   // Run the launch sequence from a temp script so the terminal echoes only one short
   // line (which `clear` then wipes) instead of the whole command + prompt. The script
-  // clears the screen first, then runs the title-set + claude, then removes itself.
+  // records its tty, clears the screen, runs the title-set + claude, then removes itself.
   try {
     const ls = path.join(
       os.tmpdir(),
       `go-launch-${Date.now()}-${Math.floor(Math.random() * 1e6)}.sh`
     );
-    fs.writeFileSync(ls, `clear\n${parts.join('\n')}\n`);
+    const body = `basename "$(tty)" > ${shq(ttyMarker)} 2>/dev/null\nclear\n${parts.join('\n')}\n`;
+    fs.writeFileSync(ls, body);
     term.sendText(`source ${shq(ls)} ; rm -f ${shq(ls)}`, true);
   } catch {
     term.sendText(parts.join(' ; '), true); // fallback
@@ -112,37 +120,12 @@ function processFile(filePath) {
 
   // Auto-close THIS /go-created tab ~5s after its title shows "✅ done". Only the
   // terminal this extension created is ever closed (we dispose this exact handle);
-  // the hub and any tab you opened yourself are never touched. "✅ done" is detected
-  // from the title file set-tab-title.sh writes at ~/.claude/tab-titles/<tty>.
-  watchForDone(term);
+  // the hub and any tab you opened yourself are never touched. The tty comes from the
+  // marker the launch script wrote, so we watch the exact ~/.claude/tab-titles/<tty>.
+  watchForDone(term, ttyMarker);
 }
 
-const { execFile } = require('child_process');
-
-function ttyForPid(pid) {
-  return new Promise((resolve) => {
-    execFile('ps', ['-o', 'tty=', '-p', String(pid)], (err, stdout) => {
-      if (err) return resolve(null);
-      const t = (stdout || '').trim();
-      resolve(t && t !== '??' ? t : null);
-    });
-  });
-}
-
-async function watchForDone(term) {
-  let pid;
-  try {
-    pid = await term.processId;
-  } catch {
-    return;
-  }
-  if (!pid) return;
-
-  let tty = await ttyForPid(pid);
-  if (tty && !tty.startsWith('tty')) tty = 'tty' + tty; // ps may report "s008"
-  if (!tty) return;
-  const titleFile = path.join(os.homedir(), '.claude', 'tab-titles', path.basename(tty));
-
+function watchForDone(term, ttyMarker) {
   const DONE_RE = /✅\s*done/;
   let elapsed = 0;
   const INTERVAL = 3000;
@@ -152,8 +135,20 @@ async function watchForDone(term) {
     elapsed += INTERVAL;
     if (elapsed > MAX || !vscode.window.terminals.includes(term)) {
       clearInterval(timer);
+      try {
+        fs.unlinkSync(ttyMarker);
+      } catch {}
       return;
     }
+    // Resolve the tty from the marker the launch script wrote (retry until it appears).
+    let tty = '';
+    try {
+      tty = fs.readFileSync(ttyMarker, 'utf8').trim();
+    } catch {
+      return;
+    }
+    if (!tty) return;
+    const titleFile = path.join(os.homedir(), '.claude', 'tab-titles', tty);
     let title = '';
     try {
       title = fs.readFileSync(titleFile, 'utf8');
@@ -162,6 +157,9 @@ async function watchForDone(term) {
     }
     if (DONE_RE.test(title)) {
       clearInterval(timer);
+      try {
+        fs.unlinkSync(ttyMarker);
+      } catch {}
       // Close fast (~5s after done) per Jack's choice.
       setTimeout(() => {
         if (vscode.window.terminals.includes(term)) term.dispose();
