@@ -36,23 +36,10 @@ fi
 
 TITLE="$1"
 
-# Auto-prepend the repo so a session in a spoke repo always shows which repo it's in,
-# even after Claude re-stamps its own status (e.g. "[SERP] 🔍 researching · drift").
-# Only for repos OTHER than sw-cortex (the hub doesn't label itself). Resolve the repo
-# from cwd via git-common-dir so worktrees map to their owner. Skip if already prefixed
-# (e.g. the launcher's "[SERP]") to avoid doubling.
-common=$(git rev-parse --git-common-dir 2>/dev/null)
-if [ -n "$common" ]; then
-  case "$common" in /*) : ;; *) common="$PWD/$common" ;; esac
-  root=$(cd "$(dirname "$common")" 2>/dev/null && pwd -P)
-  repo=$(basename "$root" 2>/dev/null)
-  if [ -n "$repo" ] && [ "$repo" != "sw-cortex" ]; then
-    case "$TITLE" in
-      "[$repo]"*) : ;;                       # already prefixed
-      *) TITLE="[$repo] $TITLE" ;;
-    esac
-  fi
-fi
+# The title is whatever the caller passes — a description of what the session is doing
+# (e.g. "🔍 researching · darklaunch-drift"). No repo prefix: the task description itself
+# conveys context, and the repo is inferable from it. (Repo-prefixing was removed per
+# Jack's request to make titles describe the work, not the repo.)
 
 printf '%s' "$TITLE" > "$DIR/$tty"
 # Stamp immediately via the tty device path (works even without a controlling tty)

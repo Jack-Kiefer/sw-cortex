@@ -25,6 +25,27 @@ function shq(s) {
   return "'" + String(s).replace(/'/g, "'\\''") + "'";
 }
 
+// Turn the /go prompt into a descriptive tab name (what the session is doing).
+// Strips a leading slash-command, drops parenthetical/bracketed asides and trailing
+// punctuation noise, then takes a clean run of words truncated at a word boundary.
+function taskSlug(prompt) {
+  let t = String(prompt || '').trim();
+  if (!t) return 'session';
+  t = t.replace(/^\/[a-z-]+\s+/i, ''); // drop leading "/analyze " etc.
+  t = t.replace(/\([^)]*\)/g, ' '); // drop "(Odoo prod ↔ ...)" asides
+  t = t.replace(/\[[^\]]*\]/g, ' '); // drop "[...]" asides
+  t = t.replace(/\s+/g, ' ').trim(); // collapse whitespace/newlines
+  if (!t) return 'session';
+  const MAX = 48;
+  if (t.length <= MAX) return t;
+  // Truncate at the last word boundary within MAX, then ellipsis.
+  let slug = t
+    .slice(0, MAX)
+    .replace(/\s+\S*$/, '')
+    .replace(/[\s,.;:–—-]+$/, '');
+  return (slug || t.slice(0, MAX)) + '…';
+}
+
 function processFile(filePath) {
   let raw;
   try {
@@ -46,21 +67,16 @@ function processFile(filePath) {
     return;
   }
 
-  const label = path.basename(repo);
-  // Give the terminal a NEUTRAL name (not the repo) so VS Code's "name + shell-title"
-  // display doesn't show "SERP SERP". The repo identity comes solely from the shell
-  // title, which set-tab-title.sh stamps as "[SERP] ...". Using a space keeps VS Code
-  // from falling back to a default like "zsh".
+  // Neutral terminal name so VS Code's "name + shell-title" display doesn't double up.
   const term = vscode.window.createTerminal({ name: ' ', cwd: repo });
 
-  // Set the initial tab title to a clean status; set-tab-title.sh auto-prepends [repo],
-  // yielding "[SERP] 🔨 starting" (no redundant repo label). Then launch claude.
-  // The prompt goes via a TEMP FILE so the terminal doesn't echo the whole prompt as a
-  // giant stuck-at-top line.
+  // Initial title = a short description of the task, so the tab says what the session is
+  // DOING (not the repo). The running session updates it further as it works.
   const titleScript = shScript('set-tab-title.sh');
   const parts = [];
   if (fs.existsSync(titleScript)) {
-    parts.push(`${shq(titleScript)} '🔨 starting' >/dev/null 2>&1`);
+    const initial = '🔨 ' + taskSlug(prompt);
+    parts.push(`${shq(titleScript)} ${shq(initial)} >/dev/null 2>&1`);
   }
 
   if (prompt && prompt.trim()) {

@@ -96,12 +96,12 @@ So the initial prompt passed to the launcher is the analyze command + the task, 
 ~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> --label <LABEL> "<analyze-command> <task>"
 ```
 
-It opens a new VS Code terminal tab titled `[<repo>]` and starts `claude` there with that prompt — so the session comes up and immediately runs the repo-appropriate analyze on your task.
+It opens a new VS Code terminal tab — titled with a short **description of the task** (not the repo), e.g. `🔨 make SERPY require an MO date` — and starts `claude` there with that prompt, so the session immediately runs the repo-appropriate analyze. (The running session updates the title as it works: `🔍 researching`, `🙋 approve?`, `✅ done`.)
 
 ## Step 4 — Report
 
-- **One line**: which repo you routed to and why (e.g. "Routed to **SERP** — forecast/darklaunch; opening a SERP session running `/analyze`.").
-- A new `[<repo>]` terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility). Tell Jack to switch to it; it's running the analyze with that repo's full native tooling. This hub session stays put.
+- **One line**: which repo you routed to and why (e.g. "Routed to **SERP** — forecast/darklaunch; opening a session running `/analyze`.").
+- A new terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility), titled with the task. It auto-closes ~5s after it reaches `✅ done`. Tell Jack to switch to it; it's running the analyze with that repo's full native tooling. This hub session stays put.
 - **Multiple at once:** to launch several (e.g. "launch a go for each issue"), call the launcher once per item — each drops its own request file and the extension opens a separate tab for each. They don't clobber.
 - If no tab appears, the extension may not be loaded yet (needs a VS Code reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
 
