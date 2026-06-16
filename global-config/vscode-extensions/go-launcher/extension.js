@@ -47,16 +47,20 @@ function processFile(filePath) {
   }
 
   const label = path.basename(repo);
-  const term = vscode.window.createTerminal({ name: label, cwd: repo });
+  // Give the terminal a NEUTRAL name (not the repo) so VS Code's "name + shell-title"
+  // display doesn't show "SERP SERP". The repo identity comes solely from the shell
+  // title, which set-tab-title.sh stamps as "[SERP] ...". Using a space keeps VS Code
+  // from falling back to a default like "zsh".
+  const term = vscode.window.createTerminal({ name: ' ', cwd: repo });
 
-  // Name the tab (set-tab-title.sh auto-prepends [repo]) then launch claude.
-  // Pass the prompt via a TEMP FILE rather than as a visible argument, so the terminal
-  // doesn't echo the whole prompt as a giant stuck-at-top line. The echoed command
-  // stays short; the file is removed right after claude reads it.
+  // Set the initial tab title to a clean status; set-tab-title.sh auto-prepends [repo],
+  // yielding "[SERP] 🔨 starting" (no redundant repo label). Then launch claude.
+  // The prompt goes via a TEMP FILE so the terminal doesn't echo the whole prompt as a
+  // giant stuck-at-top line.
   const titleScript = shScript('set-tab-title.sh');
   const parts = [];
   if (fs.existsSync(titleScript)) {
-    parts.push(`${shq(titleScript)} ${shq(label)} >/dev/null 2>&1`);
+    parts.push(`${shq(titleScript)} '🔨 starting' >/dev/null 2>&1`);
   }
 
   if (prompt && prompt.trim()) {
