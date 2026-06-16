@@ -28,7 +28,7 @@ Examples:
 If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex, case-insensitive) with no task, open that repo's session **bare — no analyze, no prompt**:
 
 ```bash
-~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> --label <LABEL>
+~/.claude/scripts/launch-repo-session.sh <REPO_ROOT>
 ```
 
 (`wishdesk` → SWAC.) Report which repo opened, tell Jack to switch to the new tab, done. Skip the rest.
@@ -72,11 +72,11 @@ Choose exactly ONE of SERP / SWAC / sw-cortex. Read-only repos (Odoo, sugarwish-
 
 If a request truly can't be placed (e.g. "fix the Vinebox drop-ship" — could be Laravel/livery with no clear SERP/SWAC angle), say so in one line and ask which repo rather than guessing. If genuinely split across two writable repos, pick the primary and mention the other.
 
-Repo roots & labels:
+Repo roots:
 
-- SERP → `/Users/jackkief/Desktop/Projects/SERP` · label `SERP`
-- SWAC → `/Users/jackkief/Desktop/Projects/SWAC` · label `SWAC`
-- sw-cortex → `/Users/jackkief/Desktop/Projects/sw-cortex` · label `sw-cortex`
+- SERP → `/Users/jackkief/Desktop/Projects/SERP`
+- SWAC → `/Users/jackkief/Desktop/Projects/SWAC`
+- sw-cortex → `/Users/jackkief/Desktop/Projects/sw-cortex`
 
 ## Step 2 — Build the analyze prompt for that repo
 
@@ -93,10 +93,10 @@ So the initial prompt passed to the launcher is the analyze command + the task, 
 ## Step 3 — Launch
 
 ```bash
-~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> --label <LABEL> "<analyze-command> <task>"
+~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> "<analyze-command> <task>"
 ```
 
-It opens a new VS Code terminal tab — titled with a short **description of the task** (not the repo), e.g. `🔨 make SERPY require an MO date` — and starts `claude` there with that prompt, so the session immediately runs the repo-appropriate analyze. (The running session updates the title as it works: `🔍 researching`, `🙋 approve?`, `✅ done`.)
+Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher queues the request and the Go Launcher extension opens the tab, deriving a descriptive name from the task prompt automatically (e.g. `🔨 make SERPY require an MO date`). The running session then updates the title as it works (`🔍 researching` → `🙋 approve?` → `✅ done`, after which the tab auto-closes). Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the queue and produces a bare `SERP` title.
 
 ## Step 4 — Report
 
