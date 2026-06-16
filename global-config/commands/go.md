@@ -100,9 +100,9 @@ It opens a new VS Code terminal tab titled `[<repo>]` and starts `claude` there 
 
 ## Step 4 — Report
 
-- **One line**: which repo you routed to and why (e.g. "Routed to **SERP** — forecast/darklaunch; opening a SERP tab running `/analyze`.").
-- **On success** ("Opened a new VS Code terminal tab (…)"): tell Jack to switch to the new `[<repo>]` tab — that's where it's analyzing, with full native tooling. This hub session stays put.
-- **On failure** (Accessibility fallback printed): relay the paste-able command verbatim; note he can grant VS Code Accessibility (System Settings → Privacy & Security → Accessibility) and re-run, or paste it himself. Never claim it launched if it didn't.
+- **One line**: which repo you routed to and why (e.g. "Routed to **SERP** — forecast/darklaunch; staged a SERP session running `/analyze`.").
+- Then tell Jack: **press `Cmd+Shift+Enter`** to open it — that fires the VS Code task which opens a new `[<repo>]` terminal tab running the analyze with SERP's full native tooling. (Alternative: Cmd+Shift+P → "Tasks: Run Task" → "go: launch repo session".) This hub session stays put.
+- The launcher writes the request to `~/.claude/.go-pending`; the task consumes it. If Jack says nothing happened on the keypress, have him run the task from the menu, or check the task/keybinding exist (`.vscode/tasks.json`, `keybindings.json`).
 
 `/go` does NOT do the work itself — it routes, launches, and starts the analyze. The real work happens in the project session.
 
