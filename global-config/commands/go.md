@@ -35,18 +35,42 @@ If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex
 
 ## Step 1 — Otherwise, pick the writable repo (no questions; decide and go)
 
-Choose exactly ONE of SERP / SWAC / sw-cortex from the task. Read-only repos resolve to the writable repo that owns the change:
+Choose exactly ONE of SERP / SWAC / sw-cortex. Read-only repos (Odoo, sugarwish-laravel, livery, sw-design, swirl, infra) resolve to the writable repo that owns the change you'd make. Match the task against these — pick by the strongest signal:
 
-| Task is about…                                                                                                               | Repo          |
-| ---------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| forecast, supplier, kits, Odoo BOM/parity, darklaunch, SERPY, inventory ERP, sync queue, MO/PO/costing                       | **SERP**      |
-| anything in **Odoo** or **sugarwish-laravel** (read-only) you'd fix on your side — order sync, `serp_*` ingestion, ERP logic | **SERP**      |
-| sleeve **resolution**, proposals, WishDesk CS/CRM, receiver app, mug-image review                                            | **SWAC**      |
-| sleeve/slip **PDF imposition/printing** in **livery** (read-only) — the part you'd touch is the data/resolution feeding it   | **SWAC**      |
-| ecard/box/genie design assets in **sw-design** (read-only) — the part you'd touch is how SWAC consumes them                  | **SWAC**      |
-| this tooling, the hub, MCP servers, global config, n8n exports, the slash commands themselves                                | **sw-cortex** |
+### → SERP (the in-house ERP: forecasting, inventory, Odoo-parity, sync)
 
-If genuinely split across two writable repos, pick the primary and mention the other in your one-line note. Only ask Jack if it's truly 50/50 and consequential.
+- **Forecasting:** supplier forecast, live-products / ecard-inventory / dashboard views, SA/RM/days-of-inventory, `size_projections`, redemption curve, demand redistribution, the teal-sidebar app.
+- **Inventory & ops:** drop levels, auto-disable, `operation_levels`, core/seasonal/legacy classification (`sku_type`/`is_core`), inventory counts, beginning-inventory snapshots, oversell/negative-inventory.
+- **SERPY:** the AI inventory-ops agent, drafts, op types, kit/component swaps via SERPY, draft approval flow.
+- **Odoo parity / ORM:** anything about `serp_*` tables matching Odoo, `/check-odoo-alignment`, divergences, costing/SVL/FIFO, MOs/POs/BOMs, `call_kw`, fat ORM models.
+- **Darklaunch & sync:** drift reports, `compare-darklaunch`/`compare-orders`/`compare-costing`, `odoo_sync_queue`, the darklaunch order worker, `odoo_id_stamper`, the workers pod, dual-write.
+- **Cross-system data flow you fix on YOUR side:** an order not syncing Odoo→SERP, `serp_*` ingestion, the sync queue, `oddo_synchronized` handling, ec_order→serp_sale_order bridging. (Odoo & sugarwish-laravel are read-only — but the part you'd change lives in SERP.)
+- **SERP infra/app:** SERP deploy, K3s, SERP auth/JWT, the red-sidebar ERP UI, SERP migrations.
+
+### → SWAC / WishDesk (CS desk, proposals, receiver flows, sleeve resolution)
+
+- **Sleeves & branding (the resolution/data side):** `branding_records`, `physical_branding`, sleeve resolution (`sleeve-resolution.ts`), "missing/wrong sleeve" bugs, proposal→branding mirroring, mug-image review. (livery RENDERS the PDF and is read-only — but the resolution/data feeding it is SWAC.)
+- **Proposals:** the proposal builder, `proposals` table, revision chains, locked versions.
+- **CS / CRM / desk:** WishDesk admin console, `swcrm_*`, tickets (`orders_tickets`/`sw_billing_tickets`/`swcrm_actions`), Gmail/SWIM email assistant, the receiver app, customer-facing flows.
+- **WishDesk app behavior:** auth/sessions, agent-vs-admin route guards, the Drizzle/Express backend, desk2/desk3 environments.
+- **Design assets you fix on YOUR side:** ecard/box/genie configs live in sw-design (read-only) — but how WishDesk CONSUMES them (sync-in, `system_settings`, quiz-config) is SWAC.
+
+### → sw-cortex (this hub & personal tooling)
+
+- The hub itself, `/go`/`/analyze`/`/deploy` and other slash commands, `global-config`, the write-guard, MCP servers (db/github/slack/knowledge/logs/jack-slack), the DICTIONARY/knowledge base, n8n workflow exports under this repo, tab-title/launch scripts, Qdrant/Slack-sync code.
+
+### Read-only repos → where they route
+
+| If the task seems to be about… (read-only)                   | Route to                        | Because                                                 |
+| ------------------------------------------------------------ | ------------------------------- | ------------------------------------------------------- |
+| **Odoo** (ERP data, crons, modules)                          | SERP                            | your work is the SERP-side parity/sync                  |
+| **sugarwish-laravel** (e-commerce app, `ec_order`, checkout) | SERP                            | your side is the sync/ingestion; you don't edit Laravel |
+| **livery** (sleeve/slip PDF imposition, printers)            | SWAC                            | the data/resolution feeding it is SWAC's                |
+| **sw-design** (design pipeline, `design_*`, box/genie JSON)  | SWAC                            | how WishDesk consumes the assets is SWAC's              |
+| **swirl** (SWIRL KB, WishWorks tickets)                      | sw-cortex (tooling) or hand-off | not usually a code change you make                      |
+| **sugarwish-infrastructure**                                 | hand-off (Munyr)                | you don't deploy infra                                  |
+
+If a request truly can't be placed (e.g. "fix the Vinebox drop-ship" — could be Laravel/livery with no clear SERP/SWAC angle), say so in one line and ask which repo rather than guessing. If genuinely split across two writable repos, pick the primary and mention the other.
 
 Repo roots & labels:
 

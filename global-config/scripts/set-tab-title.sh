@@ -34,7 +34,27 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-printf '%s' "$1" > "$DIR/$tty"
+TITLE="$1"
+
+# Auto-prepend the repo so a session in a spoke repo always shows which repo it's in,
+# even after Claude re-stamps its own status (e.g. "[SERP] 🔍 researching · drift").
+# Only for repos OTHER than sw-cortex (the hub doesn't label itself). Resolve the repo
+# from cwd via git-common-dir so worktrees map to their owner. Skip if already prefixed
+# (e.g. the launcher's "[SERP]") to avoid doubling.
+common=$(git rev-parse --git-common-dir 2>/dev/null)
+if [ -n "$common" ]; then
+  case "$common" in /*) : ;; *) common="$PWD/$common" ;; esac
+  root=$(cd "$(dirname "$common")" 2>/dev/null && pwd -P)
+  repo=$(basename "$root" 2>/dev/null)
+  if [ -n "$repo" ] && [ "$repo" != "sw-cortex" ]; then
+    case "$TITLE" in
+      "[$repo]"*) : ;;                       # already prefixed
+      *) TITLE="[$repo] $TITLE" ;;
+    esac
+  fi
+fi
+
+printf '%s' "$TITLE" > "$DIR/$tty"
 # Stamp immediately via the tty device path (works even without a controlling tty)
-{ printf '\033]0;%s\007' "$1" > "/dev/$tty"; } 2>/dev/null
-echo "tab ($tty) titled: $1"
+{ printf '\033]0;%s\007' "$TITLE" > "/dev/$tty"; } 2>/dev/null
+echo "tab ($tty) titled: $TITLE"
