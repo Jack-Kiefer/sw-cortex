@@ -83,12 +83,23 @@ function processFile(filePath) {
   }
 
   if (prompt && prompt.trim()) {
+    // The extension sets the launch title once (desc, above); from then on it's the
+    // running session's job to ADVANCE the tab as it works. A bare `/go <task>` doesn't
+    // run /analyze (which is the only place that scripting lives), so without this the
+    // title froze on the launch name. Prepend a standing directive so EVERY /go session
+    // drives its own tab via set-tab-title.sh — the setter+hook chain already re-asserts it.
+    const statusDirective =
+      "Keep this terminal tab's status current as you work: run " +
+      '`~/.claude/scripts/set-tab-title.sh "<emoji> <status> · <slug>"` at each phase ' +
+      'transition (🔍 researching → 🔨 implementing → 🧪 verifying → 🙋 approve? / ❓ blocked ' +
+      '→ 📦 PR / ✅ done), per ~/CLAUDE.md "Terminal Tab Status". Set 🙋/❓/✅ before ending a ' +
+      'turn so the idle tab shows the right state.\n\n';
     const pf = path.join(os.tmpdir(), `go-prompt-${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
     try {
-      fs.writeFileSync(pf, prompt);
+      fs.writeFileSync(pf, statusDirective + prompt);
       parts.push(`claude "$(cat ${shq(pf)})" ; rm -f ${shq(pf)}`);
     } catch {
-      parts.push(`claude ${shq(prompt)}`); // fallback: inline (rare)
+      parts.push(`claude ${shq(statusDirective + prompt)}`); // fallback: inline (rare)
     }
   } else {
     parts.push('claude');
