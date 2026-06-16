@@ -1,0 +1,20 @@
+{
+  "name": "go-launcher",
+  "displayName": "Go Launcher",
+  "description": "Watches ~/.claude/go-queue and opens a Claude Code terminal per /go request (no Accessibility, fully automatic).",
+  "version": "0.0.3",
+  "publisher": "jackkief",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {},
+  "__metadata": {
+    "installedTimestamp": 1781644192172,
+    "targetPlatform": "undefined",
+    "size": 4249
+  }
+}
