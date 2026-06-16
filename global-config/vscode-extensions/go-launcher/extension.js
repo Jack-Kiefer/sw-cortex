@@ -67,15 +67,18 @@ function processFile(filePath) {
     return;
   }
 
-  // Neutral terminal name so VS Code's "name + shell-title" display doesn't double up.
-  const term = vscode.window.createTerminal({ name: ' ', cwd: repo });
+  // Name the terminal after the task (descriptive), so the VS Code tab list shows what
+  // the session is doing — not "SERP". The running session re-titles it via escape codes.
+  const desc = '🔨 ' + taskSlug(prompt);
+  const term = vscode.window.createTerminal({ name: desc, cwd: repo });
 
-  // Initial title = a short description of the task, so the tab says what the session is
-  // DOING (not the repo). The running session updates it further as it works.
+  // Write the ENTIRE launch sequence to a temp shell script and run just that one short
+  // path. This keeps the terminal from echoing the whole command/prompt as a wall of
+  // text at the top — only "source <shortpath>" is typed, and the script clears itself.
   const titleScript = shScript('set-tab-title.sh');
   const parts = [];
   if (fs.existsSync(titleScript)) {
-    const initial = '🔨 ' + taskSlug(prompt);
+    const initial = desc;
     parts.push(`${shq(titleScript)} ${shq(initial)} >/dev/null 2>&1`);
   }
 
@@ -92,7 +95,20 @@ function processFile(filePath) {
   }
 
   term.show(false);
-  term.sendText(parts.join(' ; '), true);
+
+  // Run the launch sequence from a temp script so the terminal echoes only one short
+  // line (which `clear` then wipes) instead of the whole command + prompt. The script
+  // clears the screen first, then runs the title-set + claude, then removes itself.
+  try {
+    const ls = path.join(
+      os.tmpdir(),
+      `go-launch-${Date.now()}-${Math.floor(Math.random() * 1e6)}.sh`
+    );
+    fs.writeFileSync(ls, `clear\n${parts.join('\n')}\n`);
+    term.sendText(`source ${shq(ls)} ; rm -f ${shq(ls)}`, true);
+  } catch {
+    term.sendText(parts.join(' ; '), true); // fallback
+  }
 
   // Auto-close THIS /go-created tab ~5s after its title shows "✅ done". Only the
   // terminal this extension created is ever closed (we dispose this exact handle);
