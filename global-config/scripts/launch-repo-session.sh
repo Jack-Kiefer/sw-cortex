@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # launch-repo-session.sh — open a NEW VS Code integrated terminal tab and start a
 # real Claude Code session cd'd into a target repo (with its full native commands +
-# project MCP servers). Used by the /go (and /serp) slash commands.
+# project MCP servers). Used by the /go slash command.
 #
 # Usage: launch-repo-session.sh <repo-root> [--label <tab-label>] [initial prompt...]
 # Example: launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --label SERP "fix the forecast zeros"
