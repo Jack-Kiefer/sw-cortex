@@ -100,9 +100,10 @@ It opens a new VS Code terminal tab titled `[<repo>]` and starts `claude` there 
 
 ## Step 4 — Report
 
-- **One line**: which repo you routed to and why (e.g. "Routed to **SERP** — forecast/darklaunch; staged a SERP session running `/analyze`.").
-- Then tell Jack: **press `Cmd+Shift+Enter`** to open it — that fires the VS Code task which opens a new `[<repo>]` terminal tab running the analyze with SERP's full native tooling. (Alternative: Cmd+Shift+P → "Tasks: Run Task" → "go: launch repo session".) This hub session stays put.
-- The launcher writes the request to `~/.claude/.go-pending`; the task consumes it. If Jack says nothing happened on the keypress, have him run the task from the menu, or check the task/keybinding exist (`.vscode/tasks.json`, `keybindings.json`).
+- **One line**: which repo you routed to and why (e.g. "Routed to **SERP** — forecast/darklaunch; opening a SERP session running `/analyze`.").
+- A new `[<repo>]` terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility). Tell Jack to switch to it; it's running the analyze with that repo's full native tooling. This hub session stays put.
+- **Multiple at once:** to launch several (e.g. "launch a go for each issue"), call the launcher once per item — each drops its own request file and the extension opens a separate tab for each. They don't clobber.
+- If no tab appears, the extension may not be loaded yet (needs a VS Code reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
 
 `/go` does NOT do the work itself — it routes, launches, and starts the analyze. The real work happens in the project session.
 
