@@ -46,9 +46,22 @@ That flag tells the launcher to leave `CLOSE_TTY` empty, so the Go Launcher exte
 
 ### Difference 2 — one terminal PER fix when given multiple
 
-When the request covers **several issues/fixes** — `/launch fixes for those`, `/launch fix X ; add Y`, "launch a session for each of these", "spin up sessions for A, B, and C" — launch **one terminal per fix**, NOT one session bundling them all. Even when the fixes are related (same repo, same surface), each gets its own tab so they build, PR, and merge independently. **Route and classify each fix on its own** (each may land in a different repo / mode), then **call the launcher once per fix** — each drops its own request file and the extension opens a separate tab. They don't clobber. Run them in one batch (parallel `Bash` calls) and don't babysit any of them.
+When the request covers **several issues/fixes** — `/launch fixes for those`, `/launch fix X ; add Y`, "launch a session for each of these", "spin up sessions for A, B, and C" — launch **one terminal per fix**, NOT one session bundling them all. Each gets its own tab so they build, PR, and merge independently. **Route and classify each fix on its own** (each may land in a different repo / mode), then **call the launcher once per fix** — each drops its own request file and the extension opens a separate tab. They don't clobber. Run them in one batch (parallel `Bash` calls) and don't babysit any of them.
 
-> ⚠️ The instinct to "combine two related fixes into one `/analyze` session" is **wrong here.** "Launch fixes for those" with two issues = **two terminals**. One fix per tab.
+> ⚠️ The instinct to "combine two related fixes into one `/analyze` session" is **wrong here.** "Launch fixes for those" with N issues = **N terminals** — UNLESS two of them edit the same file(s), in which case those specific ones coalesce (see below).
+
+#### EXCEPTION — coalesce fixes that touch the same file(s) into ONE session
+
+"One terminal per fix" is the default, but **fixes that would edit the same file(s) must NOT be launched as separate parallel sessions.** Separate sessions edit in parallel and then both try to land on `dev` — they collide at merge (and, in a shared clone, cross-apply mid-edit). So **group by file overlap first, then launch one session per group:**
+
+1. **Before launching, name the file(s) each fix will touch.** From the research that produced these fixes you usually already have the `file:line` per issue. If a fix's target file is unknown, do a quick `grep`/read to resolve it — don't guess.
+2. **Union the fixes into groups** where any two fixes sharing **at least one file** land in the same group. (Transitively: A↔B share `stock_move.py`, B↔C share `mrp_production.py` → A, B, C are one group.)
+3. **Launch one session per group.** A solo fix (no file overlap with any other) → its own tab, as before. A group of 2+ overlapping fixes → **one tab** whose prompt lists all of them, to be done **sequentially in that one session** (one branch, one worktree, one PR — or staged commits). Disjoint groups still run in parallel tabs.
+4. In the grouped prompt, tell the session to do the fixes **in sequence** and explain they were bundled because they share files (so it doesn't try to parallelize internally).
+
+> Rule of thumb: **same file → same session (sequential); different files → different tabs (parallel).** This is exactly what prevents the 6-sessions-on-one-clone collision — overlapping edits never run concurrently.
+
+So `/launch fixes for those` with fixes A (`stock_move.py`), B (`stock_move.py`), C (`stock_quant.py`) → **two** tabs: one session doing A then B (shared file), one doing C.
 
 ```bash
 ~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement cap the darklaunch copier: ORDER BY ... DESC + COPY_LIMIT 2000→8000, regression test pinning cap > window and DESC ordering"

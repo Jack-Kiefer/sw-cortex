@@ -38,21 +38,12 @@ If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex
 
 ## Step 0.5 — Options-first intake (ALWAYS, before routing)
 
-**Jack should rarely have to type an open-ended task.** Unless Step 0 already handled it (bare repo name), use the **`AskUserQuestion`** tool to turn whatever he typed into a few pickable options BEFORE you route or launch — even if his input is a full sentence. Do the cheap reconnaissance first (route the task per Step 1, glance at the KB / the relevant repo) so the options are concrete and specific, not generic.
+Unless Step 0 already handled it (bare repo name), **invoke the `options-first-intake` skill** and follow it (the AskUserQuestion mechanics + the 5 shared rules + fold-picks) BEFORE you route or launch. Do the cheap recon first — route the task per Step 1 and glance at the KB / the relevant repo — so the options are concrete.
 
-Ask 1–3 questions. Since `/go` always launches a **research** session (not a fix), scope the **investigation**, not a fix path:
+`/go`-specific rider — **the second axis is ANGLE, not APPROACH.** `/go` always launches a **research** session (not a fix), so scope the **investigation**, never a fix path:
 
-- **SCOPE — _what_ he means:** the specific area / page / system / table / SKU-family the task touches. Turn a vague phrase into concrete targets (e.g. for "fix the forecast zeros" → "live-products view", "ecard-inventory simulation", "CSV export", "dashboard").
 - **ANGLE — _where_ to look first:** which subsystem/file/table/flow the research should start from, or which interpretation of the task he means (e.g. for "fix the forecast zeros" → "trace the converter/pipeline", "check the Pydantic schema", "check the SQL source"; for "how does the redemption curve work" → "the curve math itself", "where it feeds size_projections", "the data source it reads").
-
-Don't phrase options as "apply fix A vs fix B" — `/go` doesn't fix; it investigates. The fix paths get decided later, after research, when you launch `/implement`.
-
-Rules for the options:
-
-- Make the **first option your recommended one** and append " (Recommended)" to its label.
-- Options must be **specific to this task and repo** — derived from the actual routing + a quick look, not boilerplate. Bad: "Frontend / Backend / Both". Good: names the real view, worker, table, or file.
-- Jack can always pick "Other" to type freely — that's the escape hatch, not the default path.
-- Keep it to 1–3 questions. If after a genuine look the task is already fully specified AND single-approach (nothing meaningful to choose), skip asking and say so in one line — but default to asking.
+- Don't phrase options as "apply fix A vs fix B" — `/go` doesn't fix; it investigates. Fix paths get decided later, after research, when you `/launch` the fix.
 
 Fold Jack's picks into the task string you pass to the launcher so the new session starts already-scoped. THEN continue to Step 1 (routing is likely already done from the recon above) → Step 2 → Step 3.
 

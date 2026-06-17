@@ -1,628 +1,134 @@
 ---
-name: n8n-workflow
-description: Generate n8n workflow JSON files for automation. Use when user wants to create a workflow, automation, data sync job, scheduled task, or integration for n8n. Produces valid JSON that can be imported directly into n8n.
+name: research-team
+description: Standing rulebook for a research/analysis swarm — parallelize across a TEAM by default, choose the roster from what the task needs (at least 2 agents, never a fixed set), time-box every researcher, and TaskStop any that runs long. Use when running the research/plan phase of an analyze flow (or any task that means spawning a team of researchers to investigate in parallel). Repo-specific tooling/gates layer on top via that repo's analyze-extras skill.
+disable-model-invocation: false
 ---
 
-# n8n Workflow Generator
-
-Generate valid n8n workflow JSON files that can be imported into n8n.sugarwish.com.
-
-## When to Use This Skill
-
-- User asks to create an n8n workflow
-- User wants to automate a task with scheduling
-- User needs a data sync between databases
-- User wants Slack notifications for events
-- User describes an automation workflow
-
-## Output Location
-
-Save generated workflows to: `/home/jackk/sw-cortex/workflows/n8n/[Workflow_Name].json`
-
-Use underscores in filename, matching the workflow name with spaces replaced.
-
----
-
-## n8n Workflow JSON Structure
-
-Every workflow MUST have this exact structure:
-
-```json
-{
-  "name": "Workflow Display Name",
-  "nodes": [
-    // Array of node objects (see Node Types below)
-  ],
-  "connections": {
-    // Maps source node names to destinations (see Connections below)
-  },
-  "pinData": {},
-  "active": false,
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "versionId": "generate-uuid-here",
-  "meta": {
-    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
-  },
-  "id": "generate-short-id",
-  "tags": []
-}
-```
-
-### Required Fields
-
-| Field             | Type    | Description                                                             |
-| ----------------- | ------- | ----------------------------------------------------------------------- |
-| `name`            | string  | Display name for the workflow                                           |
-| `nodes`           | array   | Array of node definitions (cannot be empty)                             |
-| `connections`     | object  | Node connection graph                                                   |
-| `pinData`         | object  | Usually empty `{}`                                                      |
-| `active`          | boolean | Set to `false` for new workflows                                        |
-| `settings`        | object  | Must include `executionOrder: "v1"`                                     |
-| `versionId`       | string  | UUID (generate fresh)                                                   |
-| `meta.instanceId` | string  | Use: `c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56` |
-| `id`              | string  | Short alphanumeric ID                                                   |
-| `tags`            | array   | Optional tags like `["odoo", "sync"]`                                   |
-
----
-
-## Node Structure
-
-Every node MUST have:
-
-```json
-{
-  "id": "unique-uuid",
-  "name": "1. Descriptive Name",
-  "type": "n8n-nodes-base.nodeType",
-  "typeVersion": 2.0,
-  "position": [-12000, 200],
-  "parameters": {
-    // Node-specific configuration
-  }
-}
-```
-
-### Node Naming Convention
-
-Use numbered prefixes for clarity: `"1. Query Database"`, `"2. Transform Data"`, `"3. Send Notification"`
-
-### Position Guidelines
-
-- Start at approximately `[-12400, 200]`
-- Increment X by 240-300 for each subsequent node
-- Use Y offset of ~200 for parallel branches
-- Error branches typically at Y + 200
-
----
-
-## Available Node Types
-
-### 1. Schedule Trigger
-
-**Cron Expression (specific times):**
-
-```json
-{
-  "id": "uuid-here",
-  "name": "Daily at Midnight",
-  "type": "n8n-nodes-base.scheduleTrigger",
-  "typeVersion": 1.2,
-  "position": [-12400, 200],
-  "parameters": {
-    "rule": {
-      "interval": [
-        {
-          "field": "cronExpression",
-          "expression": "0 0 * * *"
-        }
-      ]
-    }
-  }
-}
-```
-
-**Interval (recurring):**
-
-```json
-{
-  "parameters": {
-    "rule": {
-      "interval": [
-        {
-          "field": "hours",
-          "triggerAtMinute": 20
-        }
-      ]
-    }
-  }
-}
-```
-
-Common cron expressions:
-
-- `* * * * *` - Every minute
-- `0 * * * *` - Every hour
-- `0 0 * * *` - Daily at midnight
-- `0 8 * * 1-5` - Weekdays at 8 AM
-
-### 2. PostgreSQL (Odoo)
-
-```json
-{
-  "id": "uuid-here",
-  "name": "1. Query Odoo",
-  "type": "n8n-nodes-base.postgres",
-  "typeVersion": 2.5,
-  "position": [-12160, 200],
-  "parameters": {
-    "operation": "executeQuery",
-    "query": "SELECT id, name FROM product_product LIMIT 10",
-    "options": {}
-  },
-  "credentials": {
-    "postgres": {
-      "id": "Cj4x3zqOHw9ecZst",
-      "name": "Odoo_read"
-    }
-  }
-}
-```
-
-### 3. MySQL (SugarWish)
-
-```json
-{
-  "id": "uuid-here",
-  "name": "2. Query SugarWish",
-  "type": "n8n-nodes-base.mySql",
-  "typeVersion": 2.4,
-  "position": [-11920, 200],
-  "parameters": {
-    "operation": "executeQuery",
-    "query": "SELECT * FROM orders WHERE status = 'pending' LIMIT 100",
-    "options": {}
-  },
-  "credentials": {
-    "mySql": {
-      "id": "IUf07KHTTBdglTB2",
-      "name": "sw_live_creds"
-    }
-  }
-}
-```
-
-**With executeOnce (run once regardless of input items):**
-
-```json
-{
-  "executeOnce": true,
-  ...
-}
-```
-
-### 4. Code Node (JavaScript)
-
-```json
-{
-  "id": "uuid-here",
-  "name": "3. Transform Data",
-  "type": "n8n-nodes-base.code",
-  "typeVersion": 2,
-  "position": [-11680, 200],
-  "parameters": {
-    "jsCode": "// Get all input items\nconst items = $input.all();\n\n// Process data\nconst results = items.map(item => ({\n  id: item.json.id,\n  processed: true\n}));\n\n// Return as n8n format\nreturn results.map(r => ({ json: r }));"
-  }
-}
-```
-
-**Accessing other nodes:**
-
-```javascript
-// Get data from specific node
-const odooData = $('1. Query Odoo').all();
-const firstItem = $('1. Query Odoo').first().json;
-
-// Get current input
-const currentItems = $input.all();
-```
-
-**Return format (CRITICAL):**
-
-```javascript
-// Always return array of { json: {...} }
-return [{ json: { field: 'value' } }];
-
-// For multiple items
-return items.map((item) => ({ json: item }));
-```
-
-### 5. Conditional (IF)
-
-```json
-{
-  "id": "uuid-here",
-  "name": "4. Has Results?",
-  "type": "n8n-nodes-base.if",
-  "typeVersion": 2.2,
-  "position": [-11440, 200],
-  "parameters": {
-    "conditions": {
-      "options": {
-        "caseSensitive": true,
-        "leftValue": "",
-        "typeValidation": "loose",
-        "version": 2
-      },
-      "conditions": [
-        {
-          "id": "condition-uuid",
-          "leftValue": "={{ $json.count }}",
-          "rightValue": 0,
-          "operator": {
-            "type": "number",
-            "operation": "gt"
-          }
-        }
-      ],
-      "combinator": "and"
-    },
-    "options": {}
-  }
-}
-```
-
-**Operators:**
-
-- Number: `gt`, `lt`, `gte`, `lte`, `equals`
-- String: `equals`, `contains`, `startsWith`, `endsWith`, `regex`
-- Boolean: `true`, `false`
-- Existence: `exists`, `notExists`
-
-### 6. Merge
-
-```json
-{
-  "id": "uuid-here",
-  "name": "Merge Inputs",
-  "type": "n8n-nodes-base.merge",
-  "typeVersion": 3,
-  "position": [-11200, 200],
-  "parameters": {
-    "mode": "combine",
-    "combinationMode": "mergeByPosition",
-    "options": {}
-  }
-}
-```
-
-**Modes:**
-
-- `append` - Combine all items from all inputs
-- `combine` - Merge items by position or key
-- `chooseBranch` - Select one input based on condition
-
-### 7. Slack Notification
-
-**Block Kit message:**
-
-```json
-{
-  "id": "uuid-here",
-  "name": "5. Slack Notification",
-  "type": "n8n-nodes-base.slack",
-  "typeVersion": 2.3,
-  "position": [-10960, 200],
-  "parameters": {
-    "select": "channel",
-    "channelId": {
-      "__rl": true,
-      "value": "ops-and-tech",
-      "mode": "name"
-    },
-    "messageType": "block",
-    "blocksUi": "={{ $json.blocks }}",
-    "otherOptions": {}
-  },
-  "credentials": {
-    "slackApi": {
-      "id": "IafsmXhPRCyykQMM",
-      "name": "Slack account"
-    }
-  }
-}
-```
-
-**Simple text message:**
-
-```json
-{
-  "parameters": {
-    "select": "channel",
-    "channelId": {
-      "__rl": true,
-      "value": "jack-test",
-      "mode": "name"
-    },
-    "messageType": "text",
-    "text": "Message with {{ $json.variable }} interpolation",
-    "otherOptions": {}
-  }
-}
-```
-
-**Building Slack Block Kit in Code Node:**
-
-```javascript
-const blocks = [
-  {
-    type: 'header',
-    text: {
-      type: 'plain_text',
-      text: 'Notification Title',
-      emoji: true,
-    },
-  },
-  {
-    type: 'section',
-    text: {
-      type: 'mrkdwn',
-      text: '*Bold* and `code` formatting',
-    },
-  },
-  {
-    type: 'divider',
-  },
-  {
-    type: 'context',
-    elements: [
-      {
-        type: 'mrkdwn',
-        text: `${new Date().toLocaleString('en-US', { timeZone: 'America/Denver' })} MT`,
-      },
-    ],
-  },
-];
-
-return [{ json: { blocks } }];
-```
-
----
-
-## Connections Structure
-
-The `connections` object maps node outputs to inputs:
-
-```json
-"connections": {
-  "Source Node Name": {
-    "main": [
-      [
-        {
-          "node": "Destination Node Name",
-          "type": "main",
-          "index": 0
-        }
-      ]
-    ]
-  }
-}
-```
-
-### Single Output to Single Input
-
-```json
-"1. Query Database": {
-  "main": [
-    [
-      { "node": "2. Transform Data", "type": "main", "index": 0 }
-    ]
-  ]
-}
-```
-
-### Conditional Branches (IF node)
-
-The IF node has two outputs: `main[0]` (true) and `main[1]` (false):
-
-```json
-"4. Has Results?": {
-  "main": [
-    [
-      { "node": "5. Process Results", "type": "main", "index": 0 }
-    ],
-    [
-      { "node": "6. Handle Empty", "type": "main", "index": 0 }
-    ]
-  ]
-}
-```
-
-### Error Handling
-
-Nodes with `"onError": "continueErrorOutput"` have error output at `main[1]`:
-
-```json
-"5. Database Update": {
-  "main": [
-    [
-      { "node": "6. Success Path", "type": "main", "index": 0 }
-    ],
-    [
-      { "node": "Error Handler", "type": "main", "index": 0 }
-    ]
-  ]
-}
-```
-
----
-
-## Credentials Reference
-
-### Available Credentials
-
-| Name            | ID                 | Type     | Use For               |
-| --------------- | ------------------ | -------- | --------------------- |
-| `Odoo_read`     | `Cj4x3zqOHw9ecZst` | postgres | Odoo database queries |
-| `sw_live_creds` | `IUf07KHTTBdglTB2` | mySql    | SugarWish production  |
-| `Slack account` | `IafsmXhPRCyykQMM` | slackApi | Slack notifications   |
-
-**IMPORTANT**: Credentials contain names and IDs only. Secrets are stored separately in n8n and are NOT exported.
-
----
-
-## Complete Workflow Example
-
-```json
-{
-  "name": "Daily Order Summary",
-  "nodes": [
-    {
-      "id": "trigger-001",
-      "name": "Daily at 8 AM",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [-12400, 200],
-      "parameters": {
-        "rule": {
-          "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }]
-        }
-      }
-    },
-    {
-      "id": "query-001",
-      "name": "1. Get Yesterday Orders",
-      "type": "n8n-nodes-base.mySql",
-      "typeVersion": 2.4,
-      "position": [-12160, 200],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as order_count, SUM(total) as revenue FROM orders WHERE DATE(created_at) = CURDATE() - INTERVAL 1 DAY",
-        "options": {}
-      },
-      "credentials": {
-        "mySql": { "id": "IUf07KHTTBdglTB2", "name": "sw_live_creds" }
-      }
-    },
-    {
-      "id": "format-001",
-      "name": "2. Format Message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [-11920, 200],
-      "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst blocks = [\n  { type: 'header', text: { type: 'plain_text', text: 'Daily Order Summary', emoji: true } },\n  { type: 'section', text: { type: 'mrkdwn', text: `*Orders:* ${data.order_count}\\n*Revenue:* $${data.revenue}` } }\n];\nreturn [{ json: { blocks } }];"
-      }
-    },
-    {
-      "id": "slack-001",
-      "name": "3. Send to Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [-11680, 200],
-      "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "value": "ops-and-tech", "mode": "name" },
-        "messageType": "block",
-        "blocksUi": "={{ $json.blocks }}",
-        "otherOptions": {}
-      },
-      "credentials": {
-        "slackApi": { "id": "IafsmXhPRCyykQMM", "name": "Slack account" }
-      }
-    }
-  ],
-  "connections": {
-    "Daily at 8 AM": {
-      "main": [[{ "node": "1. Get Yesterday Orders", "type": "main", "index": 0 }]]
-    },
-    "1. Get Yesterday Orders": {
-      "main": [[{ "node": "2. Format Message", "type": "main", "index": 0 }]]
-    },
-    "2. Format Message": {
-      "main": [[{ "node": "3. Send to Slack", "type": "main", "index": 0 }]]
-    }
-  },
-  "pinData": {},
-  "active": false,
-  "settings": { "executionOrder": "v1" },
-  "versionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "meta": { "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56" },
-  "id": "newWorkflow01",
-  "tags": ["daily", "summary"]
-}
-```
-
----
-
-## Validation Checklist
-
-Before saving workflow JSON, verify:
-
-- [ ] `name` is set and descriptive
-- [ ] `nodes` array is not empty
-- [ ] Every node has unique `id`
-- [ ] Every node has `name`, `type`, `typeVersion`, `position`, `parameters`
-- [ ] `connections` references existing node names exactly
-- [ ] Credential `id` and `name` match available credentials
-- [ ] `settings.executionOrder` is `"v1"`
-- [ ] `active` is `false` (enable manually in n8n)
-- [ ] JSON is valid (no trailing commas, proper escaping)
-
----
-
-## Common Patterns
-
-### Error Handling Branch
-
-Add `"onError": "continueErrorOutput"` to database nodes, then connect error output:
-
-```json
-{
-  "onError": "continueErrorOutput",
-  ...
-}
-```
-
-### Execute Once
-
-For nodes that should run once regardless of input count:
-
-```json
-{
-  "executeOnce": true,
-  ...
-}
-```
-
-### Webhook ID for Slack
-
-Add unique webhook ID for better tracking:
-
-```json
-{
-  "webhookId": "descriptive-webhook-id",
-  ...
-}
-```
-
----
-
-## Slack Channels
-
-Common channels:
-
-- `ops-and-tech` - Operations notifications
-- `jack-test` - Testing/development
-- `#channel-name` - Any public channel
-
----
-
-## After Generation
-
-1. Save JSON to `/home/jackk/sw-cortex/workflows/n8n/[Name].json`
-2. Import into n8n.sugarwish.com via UI
-3. Verify credentials are connected
-4. Test with manual trigger before enabling schedule
-5. Set `active: true` in n8n UI when ready
+# Research Team — parallelize the investigation, time-box every agent
+
+Fires for the research/plan phase: when the work means investigating across several
+angles before writing a plan. The default is a **team working in parallel**, not the
+lead digging serially. The lead coordinates and synthesizes — it does NOT do the bulk
+of the digging itself.
+
+> **Repo-specific layer:** this is the generic core. The repo you're in supplies its own
+> tooling, KB-gate, and roster tuning via its `*-analyze-extras` skill (e.g.
+> `serp-analyze-extras`, `wishdesk-analyze-extras`) — invoke that alongside this one when
+> the analyze command tells you to. Where this skill says "the KB"/"MCP tools" generically,
+> the extras skill names the exact tools and any hard pre-gate.
+
+## 1. Parallelize by default — at least 2 agents
+
+- **Spawn a team, not a solo lead.** A team turns a 10-minute serial sweep into a
+  ~3-minute parallel one. Spawn all researchers **in a single message** so they run
+  concurrently.
+- **Always at least 2 researchers** — codebase-researcher (always) plus ≥1 more angle.
+  Most tasks warrant 2–4.
+- **Drop to INLINE (no team) when a team would be pure overhead** — say so in one line
+  when you do. Two cases:
+  - a trivial one-file change where you already know the exact file; OR
+  - **the lead can reach the answer faster by reading source directly** (files are
+    findable by name/grep, the angles aren't independent enough to parallelize, or
+    you'll have the full picture before researchers even spin up). A team you out-run is
+    worse than no team: the idle members add nothing and then stall teardown. If you
+    catch yourself thinking "they went idle without findings, I already got it from
+    source" — that task should have been inline. Prefer 1–2 `Explore` calls or an inline
+    sweep over a `TeamCreate` whenever the investigation is findable rather than genuinely
+    multi-angle.
+- **Cap: 4 researchers.** Past that, coordination overhead outweighs the parallelism.
+  Need more angles than 4? Widen an existing agent's brief instead of adding a body.
+
+## 2. Choose the roster from THIS task — never a fixed set
+
+codebase-researcher is the only fixed member. Pick the rest by what the task actually
+needs, and state in one line why each non-codebase agent earns its slot.
+
+| Researcher              | Spawn when…                                                                                                                                                                                                                                                                                                                                                                           | subagent_type / model                           | Budget |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------ |
+| **codebase-researcher** | always                                                                                                                                                                                                                                                                                                                                                                                | `Explore` (returns conclusions, not file dumps) | ~3 min |
+| **context-researcher**  | institutional history is load-bearing (cross-team decisions, ownership) — **3–5** `mcp__knowledge__search_knowledge` queries FIRST (the task terms AND adjacent topics: neighboring systems, the cross-system flow, the data source behind it), THEN `mcp__slack-search__*`; chase any new term a hit surfaces with a follow-up query, and keep searching the KB as new terms surface | `general-purpose`, `model: haiku`               | ~90s   |
+| **db-researcher**       | DB schemas / queries / migrations / data modeling across several tables (for 1–2 tables the lead runs `describe_table` itself) — `mcp__db__list_tables`/`describe_table` on the relevant tables only                                                                                                                                                                                  | `general-purpose`, `model: haiku`               | ~90s   |
+| **web-researcher**      | external libraries / third-party APIs / unfamiliar tech — never for internal plumbing the KB/codebase already covers — 2–4 `WebSearch` + 2–3 `WebFetch`                                                                                                                                                                                                                               | `general-purpose`, `model: sonnet`              | ~3 min |
+
+When a task needs two angles of the same kind (two distinct subsystems to map, codebase
+
+- a separate integration surface), give a second researcher of that type its own scoped
+  brief rather than overloading one — still within the cap of 4.
+
+## 3. Time-box every researcher — no agent runs unbounded
+
+- **Create one task per researcher** (`TaskCreate`) before/at spawn — this is what makes
+  each agent pollable via `TaskList`/`TaskGet` and stoppable via `TaskStop`.
+- **Note the spawn wall-clock** for each agent so you can tell when its budget (table
+  above) has elapsed. `Date.now()` isn't available in inline reasoning — read the clock
+  from a tool result or just track elapsed roughly.
+- **Poll, don't block.** Check `TaskList`/`TaskGet` and integrate findings as each
+  reports in; start drafting after 2–3 core reports.
+- **When a researcher blows its budget:** send ONE status ping via `SendMessage`. If it
+  still hasn't reported within ~30s of the ping, **`TaskStop` it and proceed without
+  it** — fold the missing angle into Risks & Open Questions, and run a single cheap
+  verification yourself if it's load-bearing.
+- **Overall Phase 1 budget: ~5 min wall-clock** spawn → presented analysis. Per-agent
+  budgets keep any one researcher from eating the whole window. A stopped agent with a
+  noted gap beats a stalled run — never sit idle on a wedged agent.
+
+## 4. Found the answer early? Shut the team down — silently, then move on
+
+If you find what you need while teammates are still out, **shut them ALL down
+immediately** and cancel obsolete tasks. Don't wait for or integrate late corroborating
+reports — skim one line for contradictions and move on. A wrong detail in a late report
+costs more time correcting than it adds.
+
+**Teardown order — `TaskStop` BEFORE `TeamDelete`:** an idle/running member blocks
+`TeamDelete`, so `TaskStop` every member first, _then_ `TeamDelete`. This is the bug that
+stalls cleanup when you skip it.
+
+**Teardown is best-effort and SILENT — it must never delay or clutter the presentation:**
+
+- Do the teardown **before** you present the analysis, not after. The approval turn ends
+  on the plan/approval block (the `presenting-analysis` skill owns this) — never on
+  cleanup narration.
+- If `TeamDelete` still won't complete (members slow to stop), **leave the idle team to be
+  reaped and move on in the SAME turn.** Idle agents consume nothing. Do NOT retry
+  `TeamDelete` in a loop, and do NOT emit status lines about it ("teammates went idle…",
+  "the team won't delete…", "I won't keep retrying…") — that chatter is exactly what
+  buries the plan. One silent attempt, then proceed regardless of the result.
+
+## 5. Every researcher brief ends with the same hard cap
+
+> HARD CAP: report ≤25 lines, conclusions only — no per-row tables, no raw SQL output,
+> no full schema dumps. One line per non-load-bearing fact. Only cover entities named in
+> the task. Budget: \<Ns\> — if you can't finish, report what you have and stop; the lead
+> may stop you at the deadline.
+
+## Search the knowledge base aggressively — broad, recurring, and FIRST
+
+The SugarWish dictionary is not preloaded into context, so
+`mcp__knowledge__search_knowledge` is the lead's and every researcher's only access to
+ground-truth (systems, tables, columns, cross-system flows, owners, gotchas). The KB
+exists to catch the wrong-but-plausible inference, and the trap is usually filed under a
+topic adjacent to what you literally searched. So search a LOT, not once:
+
+- **First, before reasoning.** A researcher whose brief touches any SugarWish entity runs
+  KB queries before it greps or reads. Don't reason about a table/system/flow you haven't
+  searched. (Your repo's analyze-extras skill may make this a hard pre-gate — honor it.)
+- **Broad, not literal.** Each KB search round covers the task terms PLUS adjacent
+  topics — the systems one layer up/down, the cross-system flow the change sits in, the
+  data source behind it, neighboring features sharing its tables. Vary the wording; one
+  query per distinct angle. Default to **3–5** queries, more when several systems are in play.
+- **Recurring, not one-shot.** Search again whenever a NEW term surfaces mid-research — a
+  table name a researcher reports, a system the codebase touches, a gotcha a memory hints
+  at. A ~200ms `mcp__knowledge__search_knowledge` call that corrects a framing is far
+  cheaper than building on a wrong assumption. Keep checking the whole run as the picture
+  sharpens.
+- **Chase the thread.** When a hit names something you hadn't searched, run a follow-up
+  query on it before moving on. Expand truncated hits with `get_knowledge_section` when
+  load-bearing. Searching too much is not the failure mode here; searching too little is.
+
+## Synthesis
+
+Compress, never re-paste — teammate reports are raw material; the presented analysis
+carries only distilled conclusions and the file:line map. Run cheap verifications
+yourself (one SQL query, one grep, one read, **one KB search on a term that just
+surfaced**) only for facts that change the recommendation — never spin up a new teammate
+or a new research round for them.

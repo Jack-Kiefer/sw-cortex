@@ -37,14 +37,20 @@ Keep this session's terminal tab title showing what you're doing. Set it as soon
 | Emoji | When                                                  |
 | ----- | ----------------------------------------------------- |
 | 🔍    | researching / investigating / debugging               |
-| 🔨    | implementing / editing files                          |
-| 🧪    | running tests / verifying                             |
+| 📋    | planning — designing the fix, before approval         |
 | 🙋    | about to stop and ask Jack for approval or a decision |
+| 🔨    | applying the fix / implementing / editing files       |
+| 🧪    | running tests / verifying                             |
+| 📝    | committing                                            |
+| ⬆️    | pushing                                               |
 | ❓    | blocked — error or missing info Jack must resolve     |
 | 📦    | PR opened, awaiting merge decision                    |
+| 🚀    | merged                                                |
 | ✅    | task finished                                         |
 
-`<label>` = 1–3-word task label (kebab-case fine). Set 🙋/❓/✅ **before ending the turn** — that's the state Jack sees while the tab sits idle. The global hooks (Stop/Notification/SubagentStop → `tab-title-hook.sh`) re-stamp the latest value automatically, so only update it at transitions, never repeatedly. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
+These are the steps a full `/implement` session moves through, in order: `🔍 researching → 📋 planning → 🙋 approve? → 🔨 applying fix → 🧪 verifying → 📝 committing → ⬆️ pushing → 📦 PR open → 🚀 merged → ✅ done`. Not every task hits every step (a pure research `/go` stops at `🙋`/`✅`); emit the ones that apply, in this order. Set 🙋/❓/📦/✅ — the **idle** states — **before ending the turn**, since that's what Jack sees while the tab sits.
+
+`<label>` = 1–3-word task label (kebab-case fine). The global hooks (Stop/Notification/SubagentStop → `tab-title-hook.sh`) re-stamp the latest value automatically, so only update it at transitions, never repeatedly. **Auto-flip on reply:** when Jack replies to a tab sitting in a waiting state (🙋 or ❓), the `UserPromptSubmit` hook automatically demotes the leading emoji to 🔨 (keeping the label) — so a tab only says "approve?"/"blocked" while it's _actually_ waiting on him. You don't need to clear 🙋/❓ yourself on the next turn; just set the next real status (🔨/🧪/📝/…) when you reach it. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
 
 ## IMPORTANT: Search the Knowledge Base First
 

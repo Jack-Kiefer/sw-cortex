@@ -17,6 +17,25 @@ F="$DIR/$sid"
 # A title already exists → leave it (the model owns the status); just re-assert it.
 if [ -f "$F" ]; then
   title=$(sed -E 's/^\[[^]]+\] //' "$F")
+  # On UserPromptSubmit ONLY (caller passes "--prompt"): if the tab is currently in a
+  # WAITING state — 🙋 (approve?) or ❓ (blocked) — Jack just replied, so the session is
+  # no longer waiting on him. Demote the leading emoji to 🔨 (working) and keep the
+  # "· label" intact, then persist it so the next re-assert keeps the working state.
+  # SessionStart (no "--prompt") never demotes — it only re-asserts verbatim.
+  if [ "$1" = "--prompt" ]; then
+    case "$title" in
+      "🙋 "*|"❓ "*)
+        # Rebuild as "🔨 <label>". If the title has a "· " separator, the label is what
+        # follows it ("🙋 approve? · merge-quants" → "🔨 applying fix · merge-quants");
+        # otherwise just swap the leading emoji ("🙋 approve?" → "🔨 applying fix").
+        case "$title" in
+          *"· "*) title="🔨 applying fix · ${title##*· }" ;;
+          *) title="🔨 applying fix" ;;
+        esac
+        printf '%s' "$title" > "$F"
+        ;;
+    esac
+  fi
 else
   # /go-launched sessions export CLAUDE_GO_TITLE (the descriptive launch name). Seed the floor
   # from it so the tab keeps that name from boot — instead of regressing to "🔍 <repo> · session"

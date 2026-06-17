@@ -215,7 +215,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/jackkief/.claude/scripts/tab-title-default.sh"
+            "command": "/Users/jackkief/.claude/scripts/tab-title-default.sh --prompt"
           }
         ]
       }

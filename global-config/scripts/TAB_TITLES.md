@@ -59,15 +59,17 @@ because the default no-ops once a title file exists.
 
 ## Components
 
-| Piece           | Path                                     | Role                                                                                                           |
-| --------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Setter          | `~/.claude/scripts/set-tab-title.sh`     | `"NAME"` sets / `--clear` removes; writes session-id state + stamps the tab                                    |
-| Re-assert hook  | `~/.claude/scripts/tab-title-hook.sh`    | Emits the stored title via `terminalSequence`; `--bell` adds BEL + ✅ notify                                   |
-| Default hook    | `~/.claude/scripts/tab-title-default.sh` | Floor: titles a session that never called the setter (`🔍 <repo> · session`)                                   |
-| Hook wiring     | `~/.claude/settings.json` → `hooks.*`    | SessionStart/UserPromptSubmit → default; Stop/Notification(`--bell`)+SubagentStop → re-assert; SessionEnd → GC |
-| State           | `~/.claude/tab-titles/<session_id>`      | One plain-text file per session                                                                                |
-| Slash command   | `~/.claude/commands/tab-title.md`        | `/tab-title <name>` / `/tab-title --clear`                                                                     |
-| Global standard | `~/CLAUDE.md` "Terminal Tab Status"      | Every session sets/updates 🔍🔨🧪🙋❓📦✅ status                                                               |
+| Piece           | Path                                     | Role                                                                                                                                                                          |
+| --------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setter          | `~/.claude/scripts/set-tab-title.sh`     | `"NAME"` sets / `--clear` removes; writes session-id state + stamps the tab                                                                                                   |
+| Re-assert hook  | `~/.claude/scripts/tab-title-hook.sh`    | Emits the stored title via `terminalSequence`; `--bell` adds BEL + ✅ notify                                                                                                  |
+| Default hook    | `~/.claude/scripts/tab-title-default.sh` | Floor: titles a session that never called the setter (`🔍 <repo> · session`). With `--prompt` (UserPromptSubmit) it ALSO demotes a leading 🙋/❓ → 🔨 — see "Auto-flip" below |
+| Hook wiring     | `~/.claude/settings.json` → `hooks.*`    | SessionStart → default; UserPromptSubmit → default `--prompt`; Stop/Notification(`--bell`)+SubagentStop → re-assert; SessionEnd → GC                                          |
+| State           | `~/.claude/tab-titles/<session_id>`      | One plain-text file per session                                                                                                                                               |
+| Slash command   | `~/.claude/commands/tab-title.md`        | `/tab-title <name>` / `/tab-title --clear`                                                                                                                                    |
+| Global standard | `~/CLAUDE.md` "Terminal Tab Status"      | Every session sets/updates the 🔍📋🙋🔨🧪📝⬆️❓📦🚀✅ status (steps in that order)                                                                                            |
+
+**Auto-flip on reply (waiting → working).** A tab only shows a _waiting_ status (🙋 approve? / ❓ blocked) while it's actually waiting on Jack. The moment he replies, the `UserPromptSubmit` hook fires `tab-title-default.sh --prompt`, which — if the stored title leads with 🙋 or ❓ — rewrites just the leading emoji to 🔨 (keeping the `· label`) and persists it. SessionStart calls the same script WITHOUT `--prompt`, so it only re-asserts and never demotes. To change the flip target (e.g. 🔍 instead of 🔨) or which emojis count as "waiting", edit the `--prompt` `case` block in `tab-title-default.sh`.
 
 ## Changing it
 
