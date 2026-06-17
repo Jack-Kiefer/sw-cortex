@@ -19,8 +19,64 @@ Four steps, run **in this exact sequence** — step 4 (Slack triage) is **wrong*
 ## What you (Claude) must do
 
 Set the tab title at the start: `~/.claude/scripts/set-tab-title.sh "🔨 starting · start-day"`.
-Update it as you move between steps. Run the four steps **in order**. After each step, print a
-one-line `✅ Step N done` so Jack can see progress. End with the **Morning Briefing** (below).
+Update it as you move between steps. First run **Step 0** (the setup health-check), then the four
+numbered steps **in order**. After each step, print a one-line `✅ Step N done` so Jack can see
+progress. End with the **Morning Briefing** (below).
+
+### Step 0 — Setup health-check (NON-BLOCKING — always continue to Step 1)
+
+Before the routine proper, confirm the hub's plumbing is intact and surface anything broken. This
+step **never blocks** — run every check, render a `### 🩺 Setup health` panel with one ✅/⚠️ line
+per item (each ⚠️ gets a one-line remedy), then proceed to Step 1 regardless of results. It's
+purely advisory: don't restart anything, don't reinstall anything, don't remove any worktree — just
+report. Speed: batch the file/env/git checks into **one** Bash call, and fire the MCP probes as
+parallel tool calls (a slow/erroring probe is a ⚠️, not something to wait on — keep timeouts tight,
+~5s).
+
+Run these seven checks:
+
+1. **MCP servers reachable (6).** These can only be probed from inside the session via the tools
+   themselves (a shell can't see MCP state). Call one cheap read-only tool per server and mark ✅ if
+   it returns, ⚠️ if it errors/times out:
+   - `mcp__db__list_databases` (db)
+   - `mcp__github__list_repos` (github)
+   - `mcp__slack-search__get_slack_sync_status` (slack-search)
+   - `mcp__jack-slack__slack_list_channels` (jack-slack)
+   - `mcp__logs__get_log_stats` (logs)
+   - `mcp__knowledge__search_knowledge { query: "ping", limit: 1 }` (knowledge)
+
+   Report `✅ N/6 MCP servers reachable` (or list the down ones). ⚠️ remedy: "restart Claude Code /
+   check that server's env in `~/.mcp.json`; `.ts` edits need a Claude Code restart."
+
+2. **Default model pinned.** `grep '"model"' ~/.claude/settings.json` — expect `claude-opus-4-8[1m]`.
+   ✅ if present and matches; ⚠️ if the pin is missing or changed (config-only — no API call). Report
+   the value found. ⚠️ remedy: "re-add `\"model\": \"claude-opus-4-8[1m]\"` to `~/.claude/settings.json`."
+
+3. **`SWIRL_GITHUB_TOKEN` set.** `[ -n "$SWIRL_GITHUB_TOKEN" ]`. Step 2 (tickets) depends on it. ✅ if
+   set; ⚠️ remedy: "`export SWIRL_GITHUB_TOKEN=…` in `~/.zshrc` — Step 2 will SKIP without it."
+
+4. **SSH tunnel / bastion reachable.** Reachability only — **do not run a DB query** (heavy live hit).
+   Read `LIVE_SSH_HOST` / `LIVE_SSH_TUNNEL_PORT` from `~/Desktop/Projects/sw-cortex/.env` and probe
+   with a short-timeout `nc -z -w5 "$LIVE_SSH_HOST" 22` (or `ssh -o BatchMode=yes -o ConnectTimeout=5`
+   using `LIVE_SSH_KEY_PATH`/`LIVE_SSH_USER`, running just `true`). ✅ if reachable; ⚠️ remedy:
+   "bastion unreachable — `laravel_live`/WishDesk DB queries will fail until it's back (check VPN/host)."
+
+5. **Stale/dead worktrees (report-only).** `git -C "$SERP" worktree list` (SERP =
+   `/Users/jackkief/Desktop/Projects/SERP`). Flag any worktree whose path no longer exists on disk
+   (a `git worktree prune` candidate). **NEVER remove or prune anything** — and explicitly skip /
+   never flag the protected ones: the locked `SERP/.claude/worktrees/wf_817b7ab1-a1b-*` set, the
+   agent worktree, and the sibling `serp-hotfix-mo-grounding`. ✅ if clean; ⚠️ just lists the dead
+   paths with remedy "stale worktree metadata — Jack can `git -C \$SERP worktree prune` if he wants
+   (don't do it for him)."
+
+6. **go-launcher extension installed.** `[ -d ~/.vscode/extensions/go-launcher ]`. This is what makes
+   `/go` actually open tabs. ✅ if present; ⚠️ remedy: "`/go` will silently queue requests that never
+   open a tab — reinstall the Go Launcher extension and reload the VS Code window."
+
+7. **go-queue dir exists.** `[ -d ~/.claude/go-queue ]` (the launcher `mkdir -p`s it, so this is
+   informational). ✅ if present; ⚠️ is benign — "will be created on first `/go`."
+
+Render the panel, print `✅ Step 0 done`, and continue to Step 1 even if items are ⚠️.
 
 ### Step 1 — Sync Slack (BLOCKING — must finish before Step 4)
 
@@ -50,6 +106,34 @@ list, sorted by priority. If `SWIRL_GITHUB_TOKEN` is unset (the flow prints SKIP
 Jack to `export SWIRL_GITHUB_TOKEN=...` in `~/.zshrc` — don't fall back to a DB guess.
 
 Summarize: ticket id, title, priority/status, one-line "what's left." Keep it tight.
+
+### Step 2b — Open PRs & deploy status (SERP)
+
+A quick read-only pass over SERP's repo state — what's awaiting Jack on the PR/deploy side. SERP is
+the repo he owns and merges; this stays SERP-only.
+
+**Open PRs awaiting Jack.** List open `Jack-Kiefer/SERP` PRs that involve him — authored by, assigned
+to, or review-requested of Jack. Use `mcp__github__list_pull_requests { repo: "SERP", state: "open" }`
+(or `gh pr list --repo Jack-Kiefer/SERP --state open`). One line each: `#<num> · <title> · (yours,
+<mergeable?> / review requested)`. If `gh`/the github MCP errors, note it and move on (don't block).
+
+**Deploy status (light count only).** Show how far SERP's `dev` is ahead of `main` — the queue for
+the next deploy — without running any gate:
+
+```bash
+SERP="/Users/jackkief/Desktop/Projects/SERP"
+git -C "$SERP" fetch origin --prune --quiet
+AHEAD=$(git -C "$SERP" rev-list --count origin/main..origin/dev)
+BEHIND=$(git -C "$SERP" rev-list --count origin/dev..origin/main)
+echo "AHEAD=$AHEAD BEHIND=$BEHIND"
+```
+
+Report `SERP: dev is <AHEAD> commits ahead of main → run /pending-deploy SERP to review + gate`. If
+`BEHIND > 0`, flag drift (`main` has commits not on `dev` — hotfix not merged back?). **Do NOT run
+lint/tests here** — the readiness gate is `/pending-deploy SERP`'s job; this is just the count + a
+pointer to it. If `AHEAD = 0` and `BEHIND = 0`, say "in sync — nothing pending."
+
+Print `✅ Step 2b done`.
 
 ### Step 3 — Light KB touch-up (just yesterday's learnings)
 
@@ -141,9 +225,16 @@ Pull the three substantive steps into one briefing. Keep it scannable:
 ```
 ## ☀️ Morning Briefing — <today's date>
 
+### 🩺 Setup health
+- <one-line summary, e.g. "6/6 MCP · bastion · token · queue all ✅"; list any ⚠️ with its remedy>
+
 ### 🎫 WishDesk — what's left
 - WW-### · <title> · <priority> — <what's left>
 - ...
+
+### 🚀 Deploy & PRs (SERP)
+- dev is <N> commits ahead of main → `/pending-deploy SERP` to review + gate  (or "in sync")
+- #<num> · <title> · (yours / review requested)   — open PRs awaiting you, or "no open PRs"
 
 ### 📚 Knowledge base (living doc)
 - <N facts updated / M added in DICTIONARY.md, or "nothing new to fold in">
@@ -161,8 +252,15 @@ before ending the turn.
 
 ## Notes
 
-- **Order is load-bearing:** sync (1) before triage (4). Steps 2 and 3 can run anytime, but keep
-  the printed order so Jack reads tickets → KB → triage top-to-bottom.
+- **Step 0 is non-blocking and report-only.** It surfaces broken plumbing (MCP down, missing
+  go-launcher extension, bastion unreachable, etc.) but never restarts, reinstalls, prunes a
+  worktree, or stops the routine — always continue to Step 1. The worktree check in particular is
+  list-and-flag only, and never touches the protected/locked worktrees.
+- **Order is load-bearing:** sync (1) before triage (4). Step 0, Step 2/2b, and Step 3 can run
+  anytime, but keep the printed order so Jack reads health → tickets → deploy/PRs → KB → triage
+  top-to-bottom.
+- **Step 2b (deploy/PRs) stays SERP-only and gate-free** — it's a light dev→main count plus a pointer
+  to `/pending-deploy SERP`, which owns the real lint+test readiness gate. Don't run tests here.
 - **`DICTIONARY.md` is a living document.** Step 3 keeps it current with small daily edits —
   fold in / correct yesterday's learnings, never duplicate. The heavy reconcile stays with the
   weekly `/refresh-knowledge`; the daily pass deliberately does **not** touch its watermark, so the

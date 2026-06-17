@@ -30,10 +30,21 @@ PROMPT="$*"
 QUEUE_DIR="$HOME/.claude/go-queue"
 mkdir -p "$QUEUE_DIR"
 
+# Resolve the tty of the tab this /go was launched FROM, so the extension can close that
+# exact tab once the new one opens (Jack: "any tab I run /go in closes after launch").
+# Walk up the process tree to the claude process — it holds the tab's tty (the bash-tool
+# shell running this script is detached and reports "??"). Same walk as set-tab-title.sh.
+pid=$$; CLOSE_TTY=
+while [ -n "$pid" ] && [ "$pid" -gt 1 ] 2>/dev/null; do
+  t=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')
+  if [ -n "$t" ] && [ "$t" != "??" ]; then CLOSE_TTY="$t"; break; fi
+  pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+done
+
 # Unique per-request file (so concurrent /go's don't overwrite). Line 1 = repo root;
-# line 2+ = prompt. mktemp gives uniqueness without needing date/random.
+# line 2 = "CLOSE_TTY=<tty>" control line (empty value if unresolved); line 3+ = prompt.
 REQ="$(mktemp "$QUEUE_DIR/req.XXXXXX")"
-{ printf '%s\n' "$REPO"; printf '%s' "$PROMPT"; } > "$REQ"
+{ printf '%s\n' "$REPO"; printf 'CLOSE_TTY=%s\n' "$CLOSE_TTY"; printf '%s' "$PROMPT"; } > "$REQ"
 
 echo "go: opening a [$LABEL] session — a new terminal tab will appear automatically."
 if [ -n "$PROMPT" ]; then

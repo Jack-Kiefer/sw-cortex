@@ -13,6 +13,7 @@ const vscode = require('vscode');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const cp = require('child_process');
 
 const QUEUE_DIR = path.join(os.homedir(), '.claude', 'go-queue');
 
@@ -58,9 +59,16 @@ function processFile(filePath) {
     fs.unlinkSync(filePath);
   } catch {}
 
-  const nl = raw.indexOf('\n');
-  const repo = (nl === -1 ? raw : raw.slice(0, nl)).trim();
-  const prompt = nl === -1 ? '' : raw.slice(nl + 1);
+  // Request file: line 1 = repo root; line 2 = "CLOSE_TTY=<tty>" control line;
+  // line 3+ = the (possibly multi-line) prompt.
+  const nl1 = raw.indexOf('\n');
+  const repo = (nl1 === -1 ? raw : raw.slice(0, nl1)).trim();
+  const rest = nl1 === -1 ? '' : raw.slice(nl1 + 1);
+  const nl2 = rest.indexOf('\n');
+  const line2 = (nl2 === -1 ? rest : rest.slice(0, nl2)).trim();
+  const prompt = nl2 === -1 ? '' : rest.slice(nl2 + 1);
+  // The tty of the tab /go was run from — close it once the new tab is open.
+  const closeTty = line2.startsWith('CLOSE_TTY=') ? line2.slice('CLOSE_TTY='.length).trim() : '';
 
   if (!repo || !fs.existsSync(repo)) {
     vscode.window.showWarningMessage(`go-launcher: invalid repo in request: "${repo}"`);
@@ -75,108 +83,69 @@ function processFile(filePath) {
   // Write the ENTIRE launch sequence to a temp shell script and run just that one short
   // path. This keeps the terminal from echoing the whole command/prompt as a wall of
   // text at the top — only "source <shortpath>" is typed, and the script clears itself.
-  const titleScript = shScript('set-tab-title.sh');
-  const parts = [];
-  if (fs.existsSync(titleScript)) {
-    const initial = desc;
-    parts.push(`${shq(titleScript)} ${shq(initial)} >/dev/null 2>&1`);
-  }
-
+  // NOTE: the launch title is stamped by the launch BODY (below), which resolves the tty
+  // once from the interactive shell and writes ~/.claude/tab-titles/<tty> directly. We do
+  // NOT stamp via set-tab-title.sh here: that walks the process tree and, during shell
+  // init / on a reused tab, can resolve "??" and fail silently (errors were swallowed),
+  // leaving the PREVIOUS session's stale title in place. Writing the file inline, after a
+  // deterministic tty resolve, guarantees the stale title is cleared on every relaunch.
+  // The prompt is passed to claude UNMODIFIED so a leading slash command (e.g.
+  // "/analyze <task>") stays at offset 0 and actually dispatches. /analyze itself
+  // drives the progress title via set-tab-title.sh — no prose directive needed.
+  let cmd;
   if (prompt && prompt.trim()) {
-    // The extension sets the launch title once (desc, above); from then on it's the
-    // running session's job to ADVANCE the tab as it works. A bare `/go <task>` doesn't
-    // run /analyze (which is the only place that scripting lives), so without this the
-    // title froze on the launch name. Prepend a standing directive so EVERY /go session
-    // drives its own tab via set-tab-title.sh — the setter+hook chain already re-asserts it.
-    const statusDirective =
-      "Keep this terminal tab's status current as you work: run " +
-      '`~/.claude/scripts/set-tab-title.sh "<emoji> <status> · <slug>"` at each phase ' +
-      'transition (🔍 researching → 🔨 implementing → 🧪 verifying → 🙋 approve? / ❓ blocked ' +
-      '→ 📦 PR / ✅ done), per ~/CLAUDE.md "Terminal Tab Status". Set 🙋/❓/✅ before ending a ' +
-      'turn so the idle tab shows the right state.\n\n';
-    const pf = path.join(os.tmpdir(), `go-prompt-${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
-    try {
-      fs.writeFileSync(pf, statusDirective + prompt);
-      parts.push(`claude "$(cat ${shq(pf)})" ; rm -f ${shq(pf)}`);
-    } catch {
-      parts.push(`claude ${shq(statusDirective + prompt)}`); // fallback: inline (rare)
-    }
+    cmd = `claude ${shq(prompt)}`;
   } else {
-    parts.push('claude');
+    cmd = 'claude';
   }
 
   term.show(false);
 
-  // A marker file the launch script writes its OWN tty into — deterministic, so the
-  // auto-close watcher knows exactly which title file to watch (no fragile PID→tty guess).
-  const ttyMarker = path.join(
-    os.tmpdir(),
-    `go-tty-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
-  );
-
-  // Run the launch sequence from a temp script so the terminal echoes only one short
-  // line (which `clear` then wipes) instead of the whole command + prompt. The script
-  // records its tty, clears the screen, runs the title-set + claude, then removes itself.
+  // Stamp the launch title once, then run claude. The launch runs from the interactive
+  // shell, so $(tty) resolves to this tab's real device — write the title file (so the
+  // hook keeps re-asserting it) and stamp the live tab now, OVERWRITING any stale title
+  // a reused tty inherited. `clear` wipes the one echoed `source` line for a clean tab.
+  const titleDir = path.join(os.homedir(), '.claude', 'tab-titles');
   try {
     const ls = path.join(
       os.tmpdir(),
       `go-launch-${Date.now()}-${Math.floor(Math.random() * 1e6)}.sh`
     );
-    const body = `basename "$(tty)" > ${shq(ttyMarker)} 2>/dev/null\nclear\n${parts.join('\n')}\n`;
+    const body =
+      `__t="$(basename "$(tty 2>/dev/null)" 2>/dev/null)"\n` +
+      `if [ -n "$__t" ] && [ "$__t" != "??" ] && [ "$__t" != "not" ]; then\n` +
+      `  mkdir -p ${shq(titleDir)} 2>/dev/null\n` +
+      `  printf '%s' ${shq(desc)} > ${shq(titleDir)}/"$__t" 2>/dev/null\n` + // OVERWRITE stale title
+      `  printf '\\033]0;%s\\007' ${shq(desc)} > /dev/"$__t" 2>/dev/null\n` + // stamp the live tab now
+      `else\n` +
+      `  ${shq(shScript('set-tab-title.sh'))} ${shq(desc)} >/dev/null 2>&1 || true\n` +
+      `fi\n` +
+      `clear\n${cmd}\n`;
     fs.writeFileSync(ls, body);
     term.sendText(`source ${shq(ls)} ; rm -f ${shq(ls)}`, true);
   } catch {
-    term.sendText(parts.join(' ; '), true); // fallback
+    term.sendText(cmd, true); // fallback
   }
 
-  // Auto-close THIS /go-created tab ~5s after its title shows "✅ done". Only the
-  // terminal this extension created is ever closed (we dispose this exact handle);
-  // the hub and any tab you opened yourself are never touched. The tty comes from the
-  // marker the launch script wrote, so we watch the exact ~/.claude/tab-titles/<tty>.
-  watchForDone(term, ttyMarker);
+  // Close the tab /go was launched FROM (any tab Jack runs /go in closes once its
+  // replacement opens). Match a VS Code terminal to the launching tty by its shell PID's
+  // tty. NEVER closes a tab other than the exact one /go ran in — and never the new tab.
+  if (closeTty) closeTabByTty(closeTty, term);
 }
 
-function watchForDone(term, ttyMarker) {
-  const DONE_RE = /✅\s*done/;
-  let elapsed = 0;
-  const INTERVAL = 3000;
-  const MAX = 6 * 60 * 60 * 1000; // stop watching after 6h
-
-  const timer = setInterval(() => {
-    elapsed += INTERVAL;
-    if (elapsed > MAX || !vscode.window.terminals.includes(term)) {
-      clearInterval(timer);
-      try {
-        fs.unlinkSync(ttyMarker);
-      } catch {}
-      return;
-    }
-    // Resolve the tty from the marker the launch script wrote (retry until it appears).
-    let tty = '';
-    try {
-      tty = fs.readFileSync(ttyMarker, 'utf8').trim();
-    } catch {
-      return;
-    }
-    if (!tty) return;
-    const titleFile = path.join(os.homedir(), '.claude', 'tab-titles', tty);
-    let title = '';
-    try {
-      title = fs.readFileSync(titleFile, 'utf8');
-    } catch {
-      return;
-    }
-    if (DONE_RE.test(title)) {
-      clearInterval(timer);
-      try {
-        fs.unlinkSync(ttyMarker);
-      } catch {}
-      // Close fast (~5s after done) per Jack's choice.
-      setTimeout(() => {
-        if (vscode.window.terminals.includes(term)) term.dispose();
-      }, 2000);
-    }
-  }, INTERVAL);
+// Dispose the VS Code terminal whose shell runs on `tty`, except `keep`. The terminal's
+// processId is the shell PID; `ps -o tty=` on it yields the same tty the launcher resolved.
+function closeTabByTty(tty, keep) {
+  for (const t of vscode.window.terminals) {
+    if (t === keep) continue;
+    t.processId.then((pid) => {
+      if (!pid) return;
+      cp.execFile('ps', ['-o', 'tty=', '-p', String(pid)], (err, out) => {
+        if (err) return;
+        if (out.trim() === tty && t !== keep) t.dispose();
+      });
+    });
+  }
 }
 
 function drainExisting() {

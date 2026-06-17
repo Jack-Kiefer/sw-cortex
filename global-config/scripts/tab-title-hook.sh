@@ -20,12 +20,15 @@ while [ -n "$pid" ] && [ "$pid" -gt 1 ] 2>/dev/null; do
 done
 [ -z "$tty" ] || [ "$tty" = "??" ] && exit 0
 
-echo "$(date +%H:%M:%S) fired${1:+ $1} tty=$tty" >> "$HOME/.claude/tab-titles/.hook-log"
-
 F="$HOME/.claude/tab-titles/$tty"
 [ -f "$F" ] || exit 0
 
 # Deferred 1s so it lands AFTER Claude Code's own title write (which fires
 # on the same transitions as these hooks and would otherwise win the race).
-( sleep 1; printf '\033]0;%s\007' "$(cat "$F")" > "/dev/$tty" ) >/dev/null 2>&1 &
+# Strip a leading "[repo] " prefix so stale repo-prefixed title files (an old
+# setter wrote "[SERP] …") self-heal to the bare descriptive title.
+( sleep 1
+  t=$(sed -E 's/^\[[^]]+\] //' "$F")
+  printf '\033]0;%s\007' "$t" > "/dev/$tty"
+) >/dev/null 2>&1 &
 exit 0

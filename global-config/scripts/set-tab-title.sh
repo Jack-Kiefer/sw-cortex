@@ -45,3 +45,4 @@ printf '%s' "$TITLE" > "$DIR/$tty"
 # Stamp immediately via the tty device path (works even without a controlling tty)
 { printf '\033]0;%s\007' "$TITLE" > "/dev/$tty"; } 2>/dev/null
 echo "tab ($tty) titled: $TITLE"
+exit 0
