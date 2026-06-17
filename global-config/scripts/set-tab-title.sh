@@ -7,7 +7,8 @@
 # Usage: set-tab-title.sh "My name"   |   set-tab-title.sh --clear
 
 DIR="$HOME/.claude/tab-titles"
-mkdir -p "$DIR"
+QDIR="$HOME/.claude/title-queue"
+mkdir -p "$DIR" "$QDIR"
 
 # Walk up the process tree to the claude process — it holds the tab's tty.
 # (Bash-tool shells and their children report tty "??".)
@@ -25,6 +26,8 @@ fi
 
 if [ "$1" = "--clear" ]; then
   rm -f "$DIR/$tty"
+  # Tell the go-launcher extension to stop renaming this tab; VS Code's own title resumes.
+  printf '%s' "__CLEAR__" > "$QDIR/$tty" 2>/dev/null
   echo "cleared custom title for $tty — automatic titles resume on the next update"
   exit 0
 fi
@@ -42,7 +45,10 @@ TITLE="$1"
 # Jack's request to make titles describe the work, not the repo.)
 
 printf '%s' "$TITLE" > "$DIR/$tty"
-# Stamp immediately via the tty device path (works even without a controlling tty)
+# Ask the go-launcher extension to rename the REAL VS Code tab (authoritative — no OSC race).
+printf '%s' "$TITLE" > "$QDIR/$tty" 2>/dev/null
+# Also stamp via the tty device path: the OSC escape is the fallback when the extension
+# isn't loaded (e.g. plain terminal), and keeps non-VS-Code terminals working.
 { printf '\033]0;%s\007' "$TITLE" > "/dev/$tty"; } 2>/dev/null
 echo "tab ($tty) titled: $TITLE"
 exit 0

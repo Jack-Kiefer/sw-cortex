@@ -23,12 +23,20 @@ done
 F="$HOME/.claude/tab-titles/$tty"
 [ -f "$F" ] || exit 0
 
-# Deferred 1s so it lands AFTER Claude Code's own title write (which fires
-# on the same transitions as these hooks and would otherwise win the race).
 # Strip a leading "[repo] " prefix so stale repo-prefixed title files (an old
 # setter wrote "[SERP] …") self-heal to the bare descriptive title.
+t=$(sed -E 's/^\[[^]]+\] //' "$F")
+
+# Ask the go-launcher extension to re-assert the authoritative tab name. renameWithArg
+# overrides VS Code's own title regardless of ordering, so no deferral is needed here.
+QDIR="$HOME/.claude/title-queue"
+mkdir -p "$QDIR" 2>/dev/null
+printf '%s' "$t" > "$QDIR/$tty" 2>/dev/null
+
+# OSC fallback for terminals without the extension (plain Terminal.app, etc.). Deferred 1s
+# so it lands AFTER Claude Code's own title write (which fires on the same transitions as
+# these hooks and would otherwise win the race).
 ( sleep 1
-  t=$(sed -E 's/^\[[^]]+\] //' "$F")
   printf '\033]0;%s\007' "$t" > "/dev/$tty"
 ) >/dev/null 2>&1 &
 exit 0

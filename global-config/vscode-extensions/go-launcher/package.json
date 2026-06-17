@@ -2,7 +2,7 @@
   "name": "go-launcher",
   "displayName": "Go Launcher",
   "description": "Watches ~/.claude/go-queue and opens a Claude Code terminal per /go request (no Accessibility, fully automatic).",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "publisher": "jackkief",
   "engines": {
     "vscode": "^1.80.0"
