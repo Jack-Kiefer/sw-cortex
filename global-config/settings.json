@@ -127,7 +127,10 @@
       "mcp__slack-search",
       "mcp__logs"
     ],
-    "deny": ["Bash(git stash:*)", "Bash(git stash)"]
+    "deny": [
+      "Bash(git stash:*)",
+      "Bash(git stash)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
@@ -185,6 +188,26 @@
           {
             "type": "command",
             "command": "/Users/jackkief/.claude/scripts/repo-write-guard.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/tab-title-default.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/tab-title-default.sh"
           }
         ]
       }

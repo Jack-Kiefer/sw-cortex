@@ -1,34 +1,24 @@
 #!/bin/sh
-# Set (or clear) a sticky custom name for the Claude Code terminal tab this
-# session runs in. Writes the name to ~/.claude/tab-titles/<tty>; the
-# Stop/Notification hooks (tab-title-hook.sh) re-stamp it after Claude Code's
-# own title updates so the custom name wins whenever the session is idle.
+# Set (or clear) a sticky custom name for this Claude Code session's terminal tab.
+# Full docs: ~/.claude/scripts/TAB_TITLES.md
 #
-# Usage: set-tab-title.sh "My name"   |   set-tab-title.sh --clear
+# Usage: set-tab-title.sh "🔍 researching · slug"   |   set-tab-title.sh --clear
+#
+# State is keyed by SESSION ID (~/.claude/tab-titles/<session_id>) — stable for the
+# session's life and immune to tty reuse. tab-title-hook.sh re-asserts it on every
+# Stop/Notification/PostToolUse/UserPromptSubmit via the terminalSequence hook output.
+# This setter runs in the real interactive shell, so it ALSO stamps the tab directly
+# for instant feedback (the hook can't — hooks have no controlling terminal).
 
 DIR="$HOME/.claude/tab-titles"
-QDIR="$HOME/.claude/title-queue"
-mkdir -p "$DIR" "$QDIR"
+mkdir -p "$DIR"
 
-# Walk up the process tree to the claude process — it holds the tab's tty.
-# (Bash-tool shells and their children report tty "??".)
-pid=$$; tty=
-while [ -n "$pid" ] && [ "$pid" -gt 1 ] 2>/dev/null; do
-  tty=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')
-  [ -n "$tty" ] && [ "$tty" != "??" ] && break
-  pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-done
-
-if [ -z "$tty" ] || [ "$tty" = "??" ]; then
-  echo "error: could not resolve this session's terminal device" >&2
-  exit 1
-fi
+# The session id: set for any process under `claude` (the setter, hooks, child shells).
+sid="$CLAUDE_CODE_SESSION_ID"
 
 if [ "$1" = "--clear" ]; then
-  rm -f "$DIR/$tty"
-  # Tell the go-launcher extension to stop renaming this tab; VS Code's own title resumes.
-  printf '%s' "__CLEAR__" > "$QDIR/$tty" 2>/dev/null
-  echo "cleared custom title for $tty — automatic titles resume on the next update"
+  [ -n "$sid" ] && rm -f "$DIR/$sid"
+  echo "cleared custom title — automatic titles resume on the next update"
   exit 0
 fi
 
@@ -39,16 +29,17 @@ fi
 
 TITLE="$1"
 
-# The title is whatever the caller passes — a description of what the session is doing
-# (e.g. "🔍 researching · darklaunch-drift"). No repo prefix: the task description itself
-# conveys context, and the repo is inferable from it. (Repo-prefixing was removed per
-# Jack's request to make titles describe the work, not the repo.)
+if [ -z "$sid" ]; then
+  echo "error: CLAUDE_CODE_SESSION_ID unset — not in a Claude Code session?" >&2
+  exit 1
+fi
 
-printf '%s' "$TITLE" > "$DIR/$tty"
-# Ask the go-launcher extension to rename the REAL VS Code tab (authoritative — no OSC race).
-printf '%s' "$TITLE" > "$QDIR/$tty" 2>/dev/null
-# Also stamp via the tty device path: the OSC escape is the fallback when the extension
-# isn't loaded (e.g. plain terminal), and keeps non-VS-Code terminals working.
-{ printf '\033]0;%s\007' "$TITLE" > "/dev/$tty"; } 2>/dev/null
-echo "tab ($tty) titled: $TITLE"
+# Persist (the hook reads this back) ...
+printf '%s' "$TITLE" > "$DIR/$sid"
+
+# ... and stamp the live tab now via OSC 0, written to this shell's controlling terminal.
+# The interactive shell HAS a tty (unlike hooks); fall back silently if it doesn't.
+{ printf '\033]0;%s\007' "$TITLE" > /dev/tty; } 2>/dev/null
+
+echo "tab titled: $TITLE"
 exit 0

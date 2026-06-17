@@ -1,42 +1,51 @@
 #!/bin/sh
-# Claude Code hook: maintains custom terminal-tab titles.
+# Claude Code hook: keeps this session's terminal-tab title asserted.
 # Full docs: ~/.claude/scripts/TAB_TITLES.md
 #
-#   --bell   also ring the terminal bell (Stop/Notification use this;
-#            PostToolUse calls without it so work doesn't ding constantly)
+#   --bell   also request the terminal bell (Stop/Notification use this;
+#            PostToolUse/UserPromptSubmit omit it so work doesn't ding constantly)
 #
-# If this tab has a custom title (~/.claude/tab-titles/<tty>, set via
-# /tab-title or set-tab-title.sh), re-stamp it shortly AFTER Claude Code's
-# own title update so the custom name is what sticks.
+# Hooks run with NO controlling terminal (Claude Code v2.1.139+), so we cannot write
+# the title escape to /dev/tty ourselves. Instead we return it in the hook's JSON via
+# `terminalSequence`; Claude Code emits it on our behalf, race-free and tmux-safe.
+#
+# Title state is keyed by SESSION ID (stable for the session's life; survives tty reuse).
+# set-tab-title.sh writes ~/.claude/tab-titles/<session_id>; this hook reads it back.
 
-[ "$1" = "--bell" ] && { printf '\a' > /dev/tty; } 2>/dev/null
+input=$(cat)
 
-# Walk up to the claude process — it holds the tab's tty (children show "??").
-pid=$$; tty=
-while [ -n "$pid" ] && [ "$pid" -gt 1 ] 2>/dev/null; do
-  tty=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')
-  [ -n "$tty" ] && [ "$tty" != "??" ] && break
-  pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-done
-[ -z "$tty" ] || [ "$tty" = "??" ] && exit 0
+# Prefer the session id from the hook payload; fall back to the inherited env var.
+sid=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
+[ -n "$sid" ] || sid="$CLAUDE_CODE_SESSION_ID"
+[ -n "$sid" ] || exit 0
 
-F="$HOME/.claude/tab-titles/$tty"
+F="$HOME/.claude/tab-titles/$sid"
 [ -f "$F" ] || exit 0
 
-# Strip a leading "[repo] " prefix so stale repo-prefixed title files (an old
-# setter wrote "[SERP] …") self-heal to the bare descriptive title.
-t=$(sed -E 's/^\[[^]]+\] //' "$F")
+# Strip a legacy "[repo] " prefix so old repo-prefixed state self-heals.
+title=$(sed -E 's/^\[[^]]+\] //' "$F")
+[ -n "$title" ] || exit 0
 
-# Ask the go-launcher extension to re-assert the authoritative tab name. renameWithArg
-# overrides VS Code's own title regardless of ordering, so no deferral is needed here.
-QDIR="$HOME/.claude/title-queue"
-mkdir -p "$QDIR" 2>/dev/null
-printf '%s' "$t" > "$QDIR/$tty" 2>/dev/null
+# OSC 0 sets the tab/window title. All sequences below are on Claude Code's
+# terminalSequence allowlist; CC emits them on our behalf (hooks have no tty).
+esc=$(printf '\033]0;%s\007' "$title")
 
-# OSC fallback for terminals without the extension (plain Terminal.app, etc.). Deferred 1s
-# so it lands AFTER Claude Code's own title write (which fires on the same transitions as
-# these hooks and would otherwise win the race).
-( sleep 1
-  printf '\033]0;%s\007' "$t" > "/dev/$tty"
-) >/dev/null 2>&1 &
+# Bell + done-notification only on idle events (Stop/Notification pass --bell).
+if [ "$1" = "--bell" ]; then
+  esc="$esc$(printf '\007')" # attention bell
+  # When the session has finished (✅), also raise a desktop notification (OSC 9).
+  case "$title" in
+    *✅*)
+      # Notification body = the label. If the title has a "· " separator, take what's
+      # after it; otherwise drop just the leading emoji. (Portable: no GNU-only sed.)
+      case "$title" in
+        *"· "*) label=${title##*· } ;;
+        *) label=${title#* } ;;
+      esac
+      esc="$esc$(printf '\033]9;Claude Code — %s done\007' "${label:-session}")"
+      ;;
+  esac
+fi
+
+jq -nc --arg seq "$esc" '{terminalSequence: $seq, suppressOutput: true}'
 exit 0

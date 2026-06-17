@@ -16,17 +16,11 @@ const path = require('path');
 const cp = require('child_process');
 
 const QUEUE_DIR = path.join(os.homedir(), '.claude', 'go-queue');
-// Title requests: one file per tab, named by tty, content = the title to stamp
-// (or "__CLEAR__"). set-tab-title.sh and tab-title-hook.sh drop these so the
-// extension stamps the tab's title escape (no focus change — see processTitleRequest).
-const TITLE_QUEUE_DIR = path.join(os.homedir(), '.claude', 'title-queue');
-// Source of truth the shell side keeps writing; the done-watch reads it.
-const TITLE_STATE_DIR = path.join(os.homedir(), '.claude', 'tab-titles');
 
-// Allowed leading status emoji (the Terminal Tab Status legend in ~/CLAUDE.md).
+// Allowed leading status emoji (the Terminal Tab Status legend in ~/CLAUDE.md). Used to
+// normalize the launch tab name; titling thereafter is owned by Claude Code's
+// terminalSequence hook output (see ~/.claude/scripts/tab-title-hook.sh).
 const STATUS_EMOJI = ['🔍', '🔨', '🧪', '🙋', '❓', '📦', '✅'];
-// A title is "done" once it carries the finished marker.
-const DONE_RE = /✅/;
 
 function shScript(homeRel) {
   return path.join(os.homedir(), '.claude', 'scripts', homeRel);
@@ -142,12 +136,11 @@ function processFile(filePath) {
   // always yanked you to the new tab no matter where you were.)
   term.show(true);
 
-  // Stamp the launch title once, then run claude. The launch runs from the interactive
-  // shell, so $(tty) resolves to this tab's real device — write the title file (so the
-  // hook keeps re-asserting it) and stamp the live tab now, OVERWRITING any stale title
-  // a reused tty inherited. `clear` wipes the one echoed `source` line for a clean tab.
-  const titleDir = path.join(os.homedir(), '.claude', 'tab-titles');
-  const titleQueueDir = TITLE_QUEUE_DIR;
+  // Stamp the launch title once, then run claude. This runs in the interactive shell
+  // BEFORE claude starts (so CLAUDE_CODE_SESSION_ID isn't set yet) — so we stamp the tab
+  // directly via OSC to the real tty. Once claude starts, its SessionStart hook adopts the
+  // title and the model's set-tab-title.sh calls drive it from there (keyed by session id).
+  // `clear` wipes the one echoed `source` line for a clean tab.
   try {
     const ls = path.join(
       os.tmpdir(),
@@ -156,12 +149,7 @@ function processFile(filePath) {
     const body =
       `__t="$(basename "$(tty 2>/dev/null)" 2>/dev/null)"\n` +
       `if [ -n "$__t" ] && [ "$__t" != "??" ] && [ "$__t" != "not" ]; then\n` +
-      `  mkdir -p ${shq(titleDir)} ${shq(titleQueueDir)} 2>/dev/null\n` +
-      `  printf '%s' ${shq(desc)} > ${shq(titleDir)}/"$__t" 2>/dev/null\n` + // OVERWRITE stale title
-      `  printf '%s' ${shq(desc)} > ${shq(titleQueueDir)}/"$__t" 2>/dev/null\n` + // extension renames the real tab
-      `  printf '\\033]0;%s\\007' ${shq(desc)} > /dev/"$__t" 2>/dev/null\n` + // OSC fallback
-      `else\n` +
-      `  ${shq(shScript('set-tab-title.sh'))} ${shq(desc)} >/dev/null 2>&1 || true\n` +
+      `  printf '\\033]0;%s\\007' ${shq(desc)} > /dev/"$__t" 2>/dev/null\n` + // stamp the live tab now
       `fi\n` +
       `clear\n${cmd}\n`;
     fs.writeFileSync(ls, body);
@@ -174,89 +162,6 @@ function processFile(filePath) {
   // replacement opens). Match a VS Code terminal to the launching tty by its shell PID's
   // tty. NEVER closes a tab other than the exact one /go ran in — and never the new tab.
   if (closeTty) closeTabByTty(closeTty, term);
-
-  // Watch this /go tab's title file; pop an in-VS-Code toast once it reaches ✅.
-  watchForDone(term);
-}
-
-// Poll this terminal's title file (~/.claude/tab-titles/<tty>) and, the first time it
-// shows the ✅ finished marker, show one in-window notification. Reads the FILE (the OSC
-// title can't be read back from VS Code); the tty is resolved from the terminal's shell
-// pid, same walk closeTabByTty uses. Self-stops on match, on tab close, or after 6h.
-async function watchForDone(term) {
-  let pid;
-  try {
-    pid = await term.processId;
-  } catch {
-    return;
-  }
-  if (!pid) return;
-  cp.execFile('ps', ['-o', 'tty=', '-p', String(pid)], (err, out) => {
-    if (err) return;
-    const tty = out.trim();
-    if (!tty || tty === '??') return;
-    const titleFile = path.join(TITLE_STATE_DIR, path.basename(tty));
-    const INTERVAL = 3000;
-    let elapsed = 0;
-    const MAX = 6 * 60 * 60 * 1000; // give up after 6h so timers never leak
-    const timer = setInterval(() => {
-      elapsed += INTERVAL;
-      // Stop if the tab is gone or we've watched too long.
-      if (elapsed >= MAX || !vscode.window.terminals.includes(term)) {
-        clearInterval(timer);
-        return;
-      }
-      let title = '';
-      try {
-        title = fs.readFileSync(titleFile, 'utf8');
-      } catch {
-        return; // not written yet
-      }
-      if (DONE_RE.test(title)) {
-        clearInterval(timer);
-        const label = title.replace(/^\s*\S+\s*/, '').trim() || 'session'; // drop leading emoji
-        vscode.window.showInformationMessage(`✅ ${label} — session done`);
-      }
-    }, INTERVAL);
-  });
-}
-
-// Drain + watch the title-queue: shell-side stampers (set-tab-title.sh, the hooks) drop a
-// file named <tty> whose content is the desired title (or "__CLEAR__"). For each, stamp the
-// tab by writing the OSC title escape straight to that terminal's device (/dev/<tty>).
-//
-// We deliberately do NOT use workbench.action.terminal.renameWithArg: that command only
-// renames the ACTIVE terminal, so it requires activating the target tab first — which yanks
-// focus to whatever background session just fired a hook. The OSC write needs no activation
-// and never moves focus, so titling one tab can't jump you out of another.
-function processTitleRequest(filePath) {
-  let title;
-  try {
-    title = fs.readFileSync(filePath, 'utf8');
-  } catch {
-    return;
-  }
-  try {
-    fs.unlinkSync(filePath);
-  } catch {}
-  const reqTty = path.basename(filePath);
-  if (!reqTty || reqTty.startsWith('.')) return;
-  if (title.trim() === '__CLEAR__') return; // nothing to stamp; leave VS Code's own title
-  const name = normalizeTitle(title, '🔨');
-  // No focus change, no activation — just write the title escape to the tab's device.
-  try {
-    fs.writeFileSync(`/dev/${reqTty}`, `\x1b]0;${name}\x07`);
-  } catch {}
-}
-
-function drainTitleQueue() {
-  let files = [];
-  try {
-    files = fs.readdirSync(TITLE_QUEUE_DIR).filter((f) => !f.startsWith('.'));
-  } catch {
-    return;
-  }
-  files.forEach((f) => processTitleRequest(path.join(TITLE_QUEUE_DIR, f)));
 }
 
 // Dispose the VS Code terminal whose shell runs on `tty`, except `keep`. The terminal's
@@ -300,12 +205,10 @@ function safeMtime(p) {
 function activate(context) {
   try {
     fs.mkdirSync(QUEUE_DIR, { recursive: true });
-    fs.mkdirSync(TITLE_QUEUE_DIR, { recursive: true });
   } catch {}
 
   // 1) Anything already queued before startup.
   drainExisting();
-  drainTitleQueue();
 
   // 2) Watch for new /go requests. RelativePattern over the queue dir.
   const watcher = vscode.workspace.createFileSystemWatcher(
@@ -319,18 +222,6 @@ function activate(context) {
   watcher.onDidCreate(onNew);
   watcher.onDidChange(onNew);
   context.subscriptions.push(watcher);
-
-  // 3) Watch for title requests; the extension renames the real tab (authoritative).
-  const titleWatcher = vscode.workspace.createFileSystemWatcher(
-    new vscode.RelativePattern(vscode.Uri.file(TITLE_QUEUE_DIR), '*')
-  );
-  const onTitle = (uri) => {
-    if (path.basename(uri.fsPath).startsWith('.')) return;
-    setTimeout(() => processTitleRequest(uri.fsPath), 30);
-  };
-  titleWatcher.onDidCreate(onTitle);
-  titleWatcher.onDidChange(onTitle);
-  context.subscriptions.push(titleWatcher);
 }
 
 function deactivate() {}
