@@ -15,9 +15,11 @@ The **one command for everything.** `/go` opens a **real Claude Code session in 
 
 Examples:
 
-- `/go fix the forecast zeros on live-products` → opens SERP, runs `/analyze fix the forecast zeros…`
-- `/go the proposal sleeve isn't resolving for medium boxes` → opens SWAC, runs `/global-analyze …`
-- `/go serp` → opens a bare SERP session, nothing else
+- `/go fix the forecast zeros on live-products` → presents pickable scope+approach options → opens SERP, runs `/analyze fix the forecast zeros…` already scoped to your picks
+- `/go the proposal sleeve isn't resolving for medium boxes` → presents options → opens SWAC, runs `/global-analyze …`
+- `/go serp` → opens a bare SERP session, nothing else (no options — the repo is already an explicit pick)
+
+**Options-first:** unless you only named a repo, `/go` pops up a few pickable options (which area + which approach) before launching, so you click rather than type a paragraph. See Step 0.5.
 
 ---
 
@@ -33,7 +35,25 @@ If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex
 
 (`wishdesk` → SWAC.) Report which repo opened, tell Jack to switch to the new tab, done. Skip the rest.
 
-## Step 1 — Otherwise, pick the writable repo (no questions; decide and go)
+## Step 0.5 — Options-first intake (ALWAYS, before routing)
+
+**Jack should rarely have to type an open-ended task.** Unless Step 0 already handled it (bare repo name), use the **`AskUserQuestion`** tool to turn whatever he typed into a few pickable options BEFORE you route or launch — even if his input is a full sentence. Do the cheap reconnaissance first (route the task per Step 1, glance at the KB / the relevant repo) so the options are concrete and specific, not generic.
+
+Ask 1–3 questions whose options cover both:
+
+- **SCOPE — _what_ he means:** the specific area / page / system / table / SKU-family the task touches. Turn a vague phrase into concrete targets (e.g. for "fix the forecast zeros" → "live-products view", "ecard-inventory simulation", "CSV export", "dashboard").
+- **APPROACH — _how_ to go after it:** the candidate fix paths / angles, phrased as distinct options (e.g. "patch the converter to `float()`", "add the field to the Pydantic schema", "trace the pipeline first").
+
+Rules for the options:
+
+- Make the **first option your recommended one** and append " (Recommended)" to its label.
+- Options must be **specific to this task and repo** — derived from the actual routing + a quick look, not boilerplate. Bad: "Frontend / Backend / Both". Good: names the real view, worker, table, or file.
+- Jack can always pick "Other" to type freely — that's the escape hatch, not the default path.
+- Keep it to 1–3 questions. If after a genuine look the task is already fully specified AND single-approach (nothing meaningful to choose), skip asking and say so in one line — but default to asking.
+
+Fold Jack's picks into the task string you pass to the launcher so the new session starts already-scoped. THEN continue to Step 1 (routing is likely already done from the recon above) → Step 2 → Step 3.
+
+## Step 1 — Otherwise, pick the writable repo (decide and go; routing itself needs no question)
 
 Choose exactly ONE of SERP / SWAC / sw-cortex. Read-only repos (Odoo, sugarwish-laravel, livery, sw-design, swirl, infra) resolve to the writable repo that owns the change you'd make. Match the task against these — pick by the strongest signal:
 
@@ -57,7 +77,7 @@ Choose exactly ONE of SERP / SWAC / sw-cortex. Read-only repos (Odoo, sugarwish-
 
 ### → sw-cortex (this hub & personal tooling)
 
-- The hub itself, `/go`/`/analyze`/`/deploy` and other slash commands, `global-config`, the write-guard, MCP servers (db/github/slack/knowledge/logs/jack-slack), the DICTIONARY/knowledge base, n8n workflow exports under this repo, tab-title/launch scripts, Qdrant/Slack-sync code.
+- The hub itself, `/go` and other hub slash commands, `global-config`, the write-guard, MCP servers (db/github/slack/knowledge/logs/jack-slack), the DICTIONARY/knowledge base, n8n workflow exports under this repo, tab-title/launch scripts, Qdrant/Slack-sync code. (`/analyze` is **SERP-only**, not a hub command.)
 
 ### Read-only repos → where they route
 
@@ -78,7 +98,15 @@ Repo roots:
 - SWAC → `/Users/jackkief/Desktop/Projects/SWAC`
 - sw-cortex → `/Users/jackkief/Desktop/Projects/sw-cortex`
 
-## Step 2 — Build the analyze prompt for that repo
+## Step 1.5 — Routed to sw-cortex? Do it INLINE — do NOT launch a new terminal.
+
+The hub session you're already in **IS** a sw-cortex session — same cwd, same MCP tools, same native commands. Launching a new terminal for a sw-cortex task would spawn a second `claude` process that reloads `~/CLAUDE.md` + sw-cortex's `CLAUDE.md` from scratch — **paying the full context cost twice for nothing.**
+
+So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `launch-repo-session.sh`.** There is **no `/analyze` in sw-cortex** (it's a SERP-only command) — just do the work right here in the current session: research/diagnose the task inline (folding in any Step 0.5 picks) and proceed. Say in one line that you're handling it in the hub (no new tab, to avoid double-loading context).
+
+A new terminal is only worth it when the task needs a **different** repo's toolset/cwd (SERP or SWAC). For sw-cortex there's nothing to gain — the hub already has everything.
+
+## Step 2 — Build the analyze prompt for that repo (SERP / SWAC only)
 
 The new session should START by analyzing the task. The analyze command DIFFERS by repo:
 
@@ -86,7 +114,8 @@ The new session should START by analyzing the task. The analyze command DIFFERS 
 | ------------------- | ------------------------------------------------------- |
 | **SERP**            | `/analyze <task>` (SERP's local research-swarm analyze) |
 | **SWAC** (WishDesk) | `/global-analyze <task>`                                |
-| **sw-cortex**       | `/analyze <task>` (sw-cortex's local analyze)           |
+
+(sw-cortex is handled inline in Step 1.5 — it never reaches this step, and has no `/analyze` of its own.)
 
 So the initial prompt passed to the launcher is the analyze command + the task, e.g. for a SERP task: `/analyze fix the forecast zeros on live-products`.
 

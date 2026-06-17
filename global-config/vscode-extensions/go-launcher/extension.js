@@ -18,7 +18,7 @@ const cp = require('child_process');
 const QUEUE_DIR = path.join(os.homedir(), '.claude', 'go-queue');
 // Title requests: one file per tab, named by tty, content = the title to stamp
 // (or "__CLEAR__"). set-tab-title.sh and tab-title-hook.sh drop these so the
-// extension renames the REAL VS Code tab — authoritative, no OSC race.
+// extension stamps the tab's title escape (no focus change — see processTitleRequest).
 const TITLE_QUEUE_DIR = path.join(os.homedir(), '.claude', 'title-queue');
 // Source of truth the shell side keeps writing; the done-watch reads it.
 const TITLE_STATE_DIR = path.join(os.homedir(), '.claude', 'tab-titles');
@@ -222,9 +222,13 @@ async function watchForDone(term) {
 }
 
 // Drain + watch the title-queue: shell-side stampers (set-tab-title.sh, the hooks) drop a
-// file named <tty> whose content is the desired title (or "__CLEAR__"). For each, find the
-// live terminal whose shell runs on that tty and rename the REAL VS Code tab — authoritative,
-// so the tab name no longer depends on winning the OSC-escape race. Request file is consumed.
+// file named <tty> whose content is the desired title (or "__CLEAR__"). For each, stamp the
+// tab by writing the OSC title escape straight to that terminal's device (/dev/<tty>).
+//
+// We deliberately do NOT use workbench.action.terminal.renameWithArg: that command only
+// renames the ACTIVE terminal, so it requires activating the target tab first — which yanks
+// focus to whatever background session just fired a hook. The OSC write needs no activation
+// and never moves focus, so titling one tab can't jump you out of another.
 function processTitleRequest(filePath) {
   let title;
   try {
@@ -237,23 +241,12 @@ function processTitleRequest(filePath) {
   } catch {}
   const reqTty = path.basename(filePath);
   if (!reqTty || reqTty.startsWith('.')) return;
-  const clear = title.trim() === '__CLEAR__';
-  for (const t of vscode.window.terminals) {
-    t.processId.then((pid) => {
-      if (!pid) return;
-      cp.execFile('ps', ['-o', 'tty=', '-p', String(pid)], (err, out) => {
-        if (err) return;
-        if (out.trim() !== reqTty) return;
-        if (clear) return; // nothing to rename to; leave VS Code's own title
-        const name = normalizeTitle(title, '🔨');
-        // Reveal-less rename of THIS terminal via the built-in command.
-        t.show(true);
-        vscode.commands.executeCommand('workbench.action.terminal.renameWithArg', {
-          name,
-        });
-      });
-    });
-  }
+  if (title.trim() === '__CLEAR__') return; // nothing to stamp; leave VS Code's own title
+  const name = normalizeTitle(title, '🔨');
+  // No focus change, no activation — just write the title escape to the tab's device.
+  try {
+    fs.writeFileSync(`/dev/${reqTty}`, `\x1b]0;${name}\x07`);
+  } catch {}
 }
 
 function drainTitleQueue() {

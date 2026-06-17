@@ -10,6 +10,17 @@ description: Research using agent teams - parallel teammates with shared task li
 
 # Research Request: $ARGUMENTS
 
+## Step 0: Options-first intake (ALWAYS, before spawning the team)
+
+**Don't make Jack type an open-ended task.** Before creating the team, use the **`AskUserQuestion`** tool to turn `$ARGUMENTS` into a few pickable options — even when he wrote a full sentence. Do quick recon first (KB search, a glance at the relevant code/tables) so the options are concrete, not generic.
+
+Ask 1–3 questions covering:
+
+- **SCOPE — _what_ he means:** the specific area / page / system / table / file the task touches. Convert vague phrasing into concrete targets.
+- **APPROACH — _how_ to investigate or build:** distinct candidate angles/fixes, phrased as separate options.
+
+Rules: first option is your recommended one, suffixed " (Recommended)"; options must be specific to THIS task (derived from recon, not boilerplate like "Frontend/Backend"); "Other" is the free-text escape hatch, not the default. If after a genuine look the task is already fully specified AND single-approach, skip and say so in one line — but default to asking. Fold Jack's picks into `$ARGUMENTS` for the rest of the research.
+
 ## Model Strategy
 
 - **Lead (you)**: Opus - for coordination and synthesis

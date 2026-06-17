@@ -19,6 +19,12 @@ allowed-tools: Task, Grep, Glob, Read, Bash, mcp
 
 Think about this task and provide a focused assessment. **DO NOT make any code changes.**
 
+## Step 0: Options-first intake (ALWAYS, before assessing)
+
+**Don't make Jack type an open-ended task.** Before the scan, use the **`AskUserQuestion`** tool to turn `$ARGUMENTS` into a few pickable options — even when he wrote a full sentence. A quick Explore/KB glance first keeps the options concrete.
+
+Ask 1–2 questions covering **SCOPE** (the specific area/page/file/table) and **APPROACH** (distinct candidate angles). First option is your recommended one, suffixed " (Recommended)"; options must be specific to THIS task, not boilerplate; "Other" is the free-text escape hatch. Skip only if the task is already fully specified and single-approach — but default to asking. Fold the picks into `$ARGUMENTS`.
+
 ## Quick Assessment Process
 
 ### 1. Codebase Scan (use Explore subagent, thoroughness: medium)
