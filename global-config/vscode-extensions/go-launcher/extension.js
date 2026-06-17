@@ -106,24 +106,30 @@ function processFile(filePath) {
     return;
   }
 
-  // Name the terminal after the task (descriptive), so the VS Code tab list shows what
-  // the session is doing — not "SERP". The running session re-titles it via escape codes.
-  // normalizeTitle enforces the "<emoji> <label>" grammar even for odd prompts.
+  // Derive the descriptive launch label. normalizeTitle enforces "<emoji> <label>" grammar.
   const desc = normalizeTitle(taskSlug(prompt), '🔨');
-  const term = vscode.window.createTerminal({ name: desc, cwd: repo });
+  // CRITICAL: do NOT pass `name` to createTerminal. A name sets VS Code's TitleEventSource.Api,
+  // which sets a static title AND permanently disposes the terminal's OSC title-change listener
+  // for the terminal's whole life — so no OSC 0/2 escape (the launch-body seed below OR the
+  // running session's set-tab-title.sh / tab-title-hook.sh terminalSequence) can EVER repaint
+  // the tab. That is exactly why /go tabs froze at the launch label. Creating with NO name keeps
+  // the OSC listener live; the launch-body OSC seed (below) becomes the first ${sequence} value
+  // and the session retitles freely from there. (Requires VS Code's
+  // terminal.integrated.tabs.title = "${sequence}" — see TAB_TITLES.md step 0.)
+  const term = vscode.window.createTerminal({ cwd: repo });
 
   // Write the ENTIRE launch sequence to a temp shell script and run just that one short
   // path. This keeps the terminal from echoing the whole command/prompt as a wall of
   // text at the top — only "source <shortpath>" is typed, and the script clears itself.
   // NOTE: the launch title is stamped by the launch BODY (below), which resolves the tty
-  // once from the interactive shell and writes ~/.claude/tab-titles/<tty> directly. We do
-  // NOT stamp via set-tab-title.sh here: that walks the process tree and, during shell
-  // init / on a reused tab, can resolve "??" and fail silently (errors were swallowed),
-  // leaving the PREVIOUS session's stale title in place. Writing the file inline, after a
-  // deterministic tty resolve, guarantees the stale title is cleared on every relaunch.
-  // The prompt is passed to claude UNMODIFIED so a leading slash command (e.g.
-  // "/analyze <task>") stays at offset 0 and actually dispatches. /analyze itself
-  // drives the progress title via set-tab-title.sh — no prose directive needed.
+  // once from the interactive shell and writes an OSC 0 title escape to /dev/<tty> directly
+  // (it does NOT write any ~/.claude/tab-titles/<tty> file — that was the pre-rewrite design).
+  // That OSC seed is load-bearing: it sets VS Code's ${sequence} title before claude boots, so
+  // the tab shows the descriptive name immediately. We also export CLAUDE_GO_TITLE so the
+  // spawned session's SessionStart floor (tab-title-default.sh) adopts THIS name instead of a
+  // generic "🔍 <repo> · session". Once claude runs, its hooks drive the title (keyed by
+  // session id). The prompt is passed to claude UNMODIFIED so a leading slash command (e.g.
+  // "/analyze <task>") stays at offset 0 and actually dispatches.
   let cmd;
   if (prompt && prompt.trim()) {
     cmd = `claude ${shq(prompt)}`;
@@ -147,9 +153,10 @@ function processFile(filePath) {
       `go-launch-${Date.now()}-${Math.floor(Math.random() * 1e6)}.sh`
     );
     const body =
+      `export CLAUDE_GO_TITLE=${shq(desc)}\n` + // floor for the spawned session's SessionStart hook
       `__t="$(basename "$(tty 2>/dev/null)" 2>/dev/null)"\n` +
       `if [ -n "$__t" ] && [ "$__t" != "??" ] && [ "$__t" != "not" ]; then\n` +
-      `  printf '\\033]0;%s\\007' ${shq(desc)} > /dev/"$__t" 2>/dev/null\n` + // stamp the live tab now
+      `  printf '\\033]0;%s\\007' ${shq(desc)} > /dev/"$__t" 2>/dev/null\n` + // seed ${sequence} now
       `fi\n` +
       `clear\n${cmd}\n`;
     fs.writeFileSync(ls, body);

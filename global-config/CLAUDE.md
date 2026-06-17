@@ -44,7 +44,7 @@ Keep this session's terminal tab title showing what you're doing. Set it as soon
 | 📦    | PR opened, awaiting merge decision                    |
 | ✅    | task finished                                         |
 
-`<label>` = 1–3-word task label (kebab-case fine). Set 🙋/❓/✅ **before ending the turn** — that's the state Jack sees while the tab sits idle. The global hooks (Stop/Notification/PostToolUse → `tab-title-hook.sh`) re-stamp the latest value automatically, so only update it at transitions, never repeatedly. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
+`<label>` = 1–3-word task label (kebab-case fine). Set 🙋/❓/✅ **before ending the turn** — that's the state Jack sees while the tab sits idle. The global hooks (Stop/Notification/SubagentStop → `tab-title-hook.sh`) re-stamp the latest value automatically, so only update it at transitions, never repeatedly. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
 
 ## IMPORTANT: Search the Knowledge Base First
 
@@ -279,6 +279,26 @@ The `global-config/` directory in `sw-cortex` contains commands, skills, and set
    ```
 
 Or use the slash command: `/add-global sync push`
+
+### Editing the go-launcher VS Code extension (NOT covered by sync push)
+
+`sync-global-config.sh push` does **NOT** build or install the VS Code extension —
+it only syncs scripts/skills/settings. After editing
+`global-config/vscode-extensions/go-launcher/extension.js` (or `package.json`),
+you MUST:
+
+1. **Bump the version** in `go-launcher/package.json` (so VS Code treats it as an update).
+2. **Build + install:** `bash global-config/vscode-extensions/go-launcher/build-and-install.sh`
+3. **Reload the VS Code window** (`Cmd+Shift+P` → "Developer: Reload Window") — the
+   running extension host keeps the OLD code in memory until a full reload; an
+   extension-host restart alone is not enough.
+4. **Verify the enabled build** is the new version (`/status`, or check
+   `~/.vscode/extensions/extensions.json`) — a stale enabled build silently defeats the edit.
+
+Skipping any of these means the running extension is still the old build, so the
+change appears to "not work" even though the source is correct. (This also applies
+to `terminal.integrated.tabs.title: "${sequence}"` in VS Code user settings, which
+is outside this repo and only takes effect after a window reload.)
 
 ### Files Synced
 

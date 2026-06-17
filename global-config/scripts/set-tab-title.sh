@@ -6,9 +6,11 @@
 #
 # State is keyed by SESSION ID (~/.claude/tab-titles/<session_id>) — stable for the
 # session's life and immune to tty reuse. tab-title-hook.sh re-asserts it on every
-# Stop/Notification/PostToolUse/UserPromptSubmit via the terminalSequence hook output.
-# This setter runs in the real interactive shell, so it ALSO stamps the tab directly
-# for instant feedback (the hook can't — hooks have no controlling terminal).
+# Stop/Notification/UserPromptSubmit/SubagentStop via the terminalSequence hook output;
+# that hook path (OSC 0 through CC) is what actually paints the tab. The direct /dev/tty
+# stamp below ONLY works when this setter runs in a genuine interactive shell with a
+# controlling terminal — when the model invokes it as a Bash tool call the shell is
+# detached (tty "??") and the stamp is silently swallowed, so it is best-effort only.
 
 DIR="$HOME/.claude/tab-titles"
 mkdir -p "$DIR"

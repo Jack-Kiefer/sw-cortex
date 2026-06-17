@@ -127,10 +127,7 @@
       "mcp__slack-search",
       "mcp__logs"
     ],
-    "deny": [
-      "Bash(git stash:*)",
-      "Bash(git stash)"
-    ]
+    "deny": ["Bash(git stash:*)", "Bash(git stash)"]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
@@ -162,12 +159,22 @@
         ]
       }
     ],
-    "PostToolUse": [
+    "SubagentStop": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "/Users/jackkief/.claude/scripts/tab-title-hook.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); sid=$(printf '%s' \"$input\" | jq -r '.session_id // empty' 2>/dev/null); [ -n \"$sid\" ] || sid=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$sid\" ] && rm -f \"$HOME/.claude/tab-titles/$sid\" \"$HOME/.claude/tab-titles/$sid.notified\""
           }
         ]
       }

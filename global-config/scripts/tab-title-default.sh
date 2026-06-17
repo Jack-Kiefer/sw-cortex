@@ -18,16 +18,28 @@ F="$DIR/$sid"
 if [ -f "$F" ]; then
   title=$(sed -E 's/^\[[^]]+\] //' "$F")
 else
-  cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
-  [ -n "$cwd" ] || cwd="$PWD"
-  repo=$(basename "$cwd" 2>/dev/null)
-  [ -n "$repo" ] || repo="session"
-  title="🔍 $repo · session"
+  # /go-launched sessions export CLAUDE_GO_TITLE (the descriptive launch name). Seed the floor
+  # from it so the tab keeps that name from boot — instead of regressing to "🔍 <repo> · session"
+  # (which, under the hub model, would wrongly read the repo as the status). Fall back to repo.
+  if [ -n "$CLAUDE_GO_TITLE" ]; then
+    title="$CLAUDE_GO_TITLE"
+  else
+    cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
+    [ -n "$cwd" ] || cwd="$PWD"
+    repo=$(basename "$cwd" 2>/dev/null)
+    [ -n "$repo" ] || repo="session"
+    title="🔍 $repo · session"
+  fi
   mkdir -p "$DIR"
   printf '%s' "$title" > "$F"
 fi
 [ -n "$title" ] || exit 0
 
 esc=$(printf '\033]0;%s\007' "$title")
-jq -nc --arg seq "$esc" '{terminalSequence: $seq, suppressOutput: true}'
+if command -v jq >/dev/null 2>&1; then
+  jq -nc --arg seq "$esc" '{terminalSequence: $seq, suppressOutput: true}'
+else
+  enc=$(printf '%s' "$esc" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  printf '{"terminalSequence":"%s","suppressOutput":true}\n' "$enc"
+fi
 exit 0
