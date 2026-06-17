@@ -74,19 +74,20 @@ The obvious-looking inference is often documented as **wrong** — that's what t
 
 ## Global Slash Commands
 
-| Command                               | Description                                   |
-| ------------------------------------- | --------------------------------------------- |
-| `/start-day`                          | Morning routine: sync → tickets → KB → triage |
-| `/slack-search [query]`               | Search Slack messages                         |
-| `/db query [database] [sql]`          | Query databases                               |
-| `/global-analyze [description]`       | Deep pre-implementation analysis              |
-| `/global-quick-analyze [description]` | Quick codebase assessment                     |
-| `/meeting [title]`                    | Save meeting notes + index to Qdrant          |
-| `/refresh-knowledge`                  | Update the knowledge base docs                |
-| `/draft-slack [context]`              | Draft a Slack message                         |
-| `/ww [description]`                   | WishDesk work helper                          |
-| `/tab-title [name]`                   | Set/clear this terminal tab title             |
-| `/compact-global`                     | Compact + resume global context               |
+| Command                               | Description                                      |
+| ------------------------------------- | ------------------------------------------------ |
+| `/start-day`                          | Morning routine: sync → tickets → KB → triage    |
+| `/slack-search [query]`               | Search Slack messages                            |
+| `/db query [database] [sql]`          | Query databases                                  |
+| `/global-analyze [description]`       | Deep pre-implementation analysis                 |
+| `/global-quick-analyze [description]` | Quick codebase assessment                        |
+| `/meeting [title]`                    | Save meeting notes + index to Qdrant             |
+| `/refresh-knowledge`                  | Update the knowledge base docs                   |
+| `/draft-slack [context]`              | Draft a Slack message                            |
+| `/shutdown [repo]`                    | Remove all worktrees not in use (writable repos) |
+| `/ww [description]`                   | WishDesk work helper                             |
+| `/tab-title [name]`                   | Set/clear this terminal tab title                |
+| `/compact-global`                     | Compact + resume global context                  |
 
 ## Global Skills
 

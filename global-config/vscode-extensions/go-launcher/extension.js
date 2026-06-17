@@ -101,6 +101,15 @@ function processFile(filePath) {
   // The tty of the tab /go was run from — close it once the new tab is open.
   const closeTty = line2.startsWith('CLOSE_TTY=') ? line2.slice('CLOSE_TTY='.length).trim() : '';
 
+  // Close-only request: line 1 is the "__CLOSE__" sentinel and line 2 is "CLOSE_TTY=<tty>".
+  // A /implement or /analyze session drops this (via close-own-tab.sh) as its FINAL teardown
+  // step after a merged PR — it asks the extension to dispose the session's OWN tab. No new
+  // terminal is opened; we reuse closeTabByTty on the resolved tty and return early.
+  if (repo === '__CLOSE__') {
+    if (closeTty) closeTabByTty(closeTty, null);
+    return;
+  }
+
   if (!repo || !fs.existsSync(repo)) {
     vscode.window.showWarningMessage(`go-launcher: invalid repo in request: "${repo}"`);
     return;

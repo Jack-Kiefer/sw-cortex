@@ -46,18 +46,21 @@ That flag tells the launcher to leave `CLOSE_TTY` empty, so the Go Launcher exte
 
 ### Difference 2 — one terminal PER fix when given multiple
 
-When the request covers **several issues/fixes** — `/launch fixes for those`, `/launch fix X ; add Y`, "launch a session for each of these", "spin up sessions for A, B, and C" — launch **one terminal per fix**, NOT one session bundling them all. Each gets its own tab so they build, PR, and merge independently. **Route and classify each fix on its own** (each may land in a different repo / mode), then **call the launcher once per fix** — each drops its own request file and the extension opens a separate tab. They don't clobber. Run them in one batch (parallel `Bash` calls) and don't babysit any of them.
+When the request covers **several issues/fixes** — `/launch fixes for those`, `/launch fix X ; add Y`, "launch a session for each of these", "spin up sessions for A, B, and C" — the default is **one terminal per fix** (each gets its own tab so they build, PR, and merge independently). **But you do NOT launch straight away** — you first run the **file-overlap coalescing gate** below, which decides how many tabs there actually are. Only after the gate do you **route and classify each group on its own** (each may land in a different repo / mode) and **call the launcher once per group** (parallel `Bash` calls, don't babysit).
 
-> ⚠️ The instinct to "combine two related fixes into one `/analyze` session" is **wrong here.** "Launch fixes for those" with N issues = **N terminals** — UNLESS two of them edit the same file(s), in which case those specific ones coalesce (see below).
+> ⚠️ The instinct to "combine two related fixes into one `/analyze` session" is **wrong here.** "Launch fixes for those" with N issues = **N terminals** — UNLESS two of them edit the same file(s), in which case those specific ones coalesce (the gate below).
 
-#### EXCEPTION — coalesce fixes that touch the same file(s) into ONE session
+#### MANDATORY GATE — coalesce fixes that touch the same file(s) BEFORE launching
 
-"One terminal per fix" is the default, but **fixes that would edit the same file(s) must NOT be launched as separate parallel sessions.** Separate sessions edit in parallel and then both try to land on `dev` — they collide at merge (and, in a shared clone, cross-apply mid-edit). So **group by file overlap first, then launch one session per group:**
+**This is not an optional exception — it is a required pre-launch step for EVERY multi-fix launch.** Skipping it is exactly what caused 6 concurrent `/implement` sessions to cross-apply edits onto each other's files (`stock_move.py`, `mrp_production_actions.py`, costing models) and contend on `.git/index.lock`. Fixes that edit the same file(s) **MUST NOT** be launched as separate parallel sessions — separate sessions edit in parallel and then both try to land on `dev`, colliding at merge (and, in a shared clone, mid-edit).
 
-1. **Before launching, name the file(s) each fix will touch.** From the research that produced these fixes you usually already have the `file:line` per issue. If a fix's target file is unknown, do a quick `grep`/read to resolve it — don't guess.
-2. **Union the fixes into groups** where any two fixes sharing **at least one file** land in the same group. (Transitively: A↔B share `stock_move.py`, B↔C share `mrp_production.py` → A, B, C are one group.)
-3. **Launch one session per group.** A solo fix (no file overlap with any other) → its own tab, as before. A group of 2+ overlapping fixes → **one tab** whose prompt lists all of them, to be done **sequentially in that one session** (one branch, one worktree, one PR — or staged commits). Disjoint groups still run in parallel tabs.
-4. In the grouped prompt, tell the session to do the fixes **in sequence** and explain they were bundled because they share files (so it doesn't try to parallelize internally).
+**Run this checklist before the first `launch-repo-session.sh` call. Emit each step's result so it's visible you did it:**
+
+1. **List the file(s) each fix will touch.** From the research that produced these fixes you usually already have the `file:line` per issue. If a fix's target file is unknown, do a quick `grep`/read to resolve it — **do not guess, and do not launch a fix whose files you haven't named.**
+2. **Union the fixes into groups** where any two fixes sharing **at least one file** land in the same group. (Transitively: A↔B share `stock_move.py`, B↔C share `mrp_production.py` → A, B, C are one group.) State the resulting groups explicitly.
+3. **STOP-and-check:** if any two fixes you were about to launch as separate tabs share a file, they are in the same group — collapse them. The number of tabs = the number of groups, never the number of fixes.
+4. **Launch one session per group.** A solo fix (no file overlap with any other) → its own tab. A group of 2+ overlapping fixes → **one tab** whose prompt lists all of them, done **sequentially in that one session** (one branch, one worktree, one PR — or staged commits). Disjoint groups still run in parallel tabs.
+5. In a grouped prompt, tell the session to do the fixes **in sequence** and explain they were bundled because they share files (so it doesn't try to parallelize internally).
 
 > Rule of thumb: **same file → same session (sequential); different files → different tabs (parallel).** This is exactly what prevents the 6-sessions-on-one-clone collision — overlapping edits never run concurrently.
 

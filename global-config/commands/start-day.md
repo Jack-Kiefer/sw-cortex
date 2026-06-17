@@ -12,10 +12,11 @@ constraint: Slack triage (Step 4) reads the index that the Slack sync (Step 1) w
 /start-day skip-sync     # skip the Slack sync (use the existing index as-is)
 /start-day skip-kb       # skip the knowledge-base touch-up step (Step 3)
 /start-day skip-diagnostic   # skip the Claude-setup diagnostic step (Step 5)
+/start-day skip-shutdown # skip the worktree shutdown step (Step 6 — leave all worktrees)
 /start-day days=7        # widen the diagnostic / KB look-back window (default 3 days)
 ```
 
-`$ARGUMENTS` may contain `skip-sync`, `skip-kb`, `skip-diagnostic`, and/or `days=N`.
+`$ARGUMENTS` may contain `skip-sync`, `skip-kb`, `skip-diagnostic`, `skip-shutdown`, and/or `days=N`.
 Anything else is ignored.
 
 ---
@@ -327,6 +328,31 @@ go-launcher check).
 "biggest single win" Jack can act on today. If nothing meaningful surfaced, return "setup ran
 clean — no recurring friction."
 
+### Step 6 — Shut down not-in-use worktrees · orchestrator (the one destructive step)
+
+> **Orchestrator runs this — not a subagent — and it is the ONLY step that writes.** It removes
+> worktrees, so it must not run inside a read-only research agent. Run it **after Wave A has
+> returned** (so Step 0's worktree snapshot is already captured for the briefing) — sequence
+> doesn't otherwise matter; it touches only writable repos' worktrees, nothing the other steps read.
+
+Unless `skip-shutdown` was passed, run the **`/shutdown`** command's full logic (read
+`~/.claude/commands/shutdown.md` and follow it): sweep SERP + SWAC + sw-cortex and remove every
+worktree that is **not in use**, leaving anything in use untouched. Do **not** reimplement the rules
+here — `/shutdown` is the single source of truth for them. The load-bearing guarantees it enforces:
+
+- **Keep if in use** — dirty working tree, commits not on its upstream, a live dev server, or a
+  live claude session with its cwd inside it. Only fully-clean, idle worktrees are removed.
+- **Hard-skip the protected set** — the locked `SERP/.claude/worktrees/wf_817b7ab1-a1b-*`, the
+  `agent-*` worktree, and the sibling `serp-hotfix-mo-grounding` are **never** touched.
+- **Non-interactive** — never ask; when in doubt, keep and report.
+
+This is distinct from **Step 0's** worktree check, which stays list-and-flag-only (it flags _dead_
+worktrees whose path is gone, and never removes anything). Step 6 is the one that actually acts —
+and only on clean, idle worktrees.
+
+**Result:** the same combined summary `/shutdown` produces (removed / kept-in-use / protected), which
+the orchestrator folds into the briefing's `### 🧹 Worktrees` line.
+
 ---
 
 ## Morning Briefing (final output)
@@ -356,6 +382,9 @@ one briefing in this **printed order** — keep it scannable:
 ### 📚 Knowledge base (living doc)
 - <N facts updated / M added in DICTIONARY.md, or "nothing new to fold in">
 
+### 🧹 Worktrees
+- <N removed (clean+idle), M kept in use (dirty/unpushed/live), K protected skipped — or "none to clean">
+
 ### 💬 Needs your attention (Slack, past day)
 - [#channel](<slack-permalink>) · <person>: <the ask>  (you haven't replied)
 - ...
@@ -374,9 +403,9 @@ before ending the turn.
   serial — Step 4 waits for the sync. Spawn the Wave-A agents in a single message so they run
   concurrently. The **orchestrator owns the tab, the `DICTIONARY.md` writes, and the final
   briefing**; subagents only read + return their block.
-- **Printed order is load-bearing for reading, not execution.** The steps execute in parallel,
-  but assemble the briefing top-to-bottom: health → setup-friction → tickets → deploy/PRs → KB →
-  triage, so Jack scans it in a stable order.
+- **Printed order is load-bearing for reading, not execution.** The steps execute in parallel
+  (plus Step 6 after Wave A), but assemble the briefing top-to-bottom: health → setup-friction →
+  tickets → deploy/PRs → KB → worktrees → triage, so Jack scans it in a stable order.
 - **Step 0 is non-blocking and report-only.** It surfaces broken plumbing (MCP down, missing
   go-launcher extension, bastion unreachable, etc.) but never restarts, reinstalls, prunes a
   worktree, or stops the routine. The worktree check in particular is list-and-flag only, and
@@ -394,9 +423,13 @@ before ending the turn.
   setup (fix the config) from correct guardrails Claude fought (a behavioural note, never loosen
   the guard)**. It surfaces fixes as text — it never edits `settings.json`, `~/CLAUDE.md`,
   `.env`, or any config itself.
-- **Otherwise read-only and advisory.** Beyond the `DICTIONARY.md` touch-up, this command never
-  posts to Slack, never writes to a production DB, never archives a ticket, and never applies a
-  setup/config change. It surfaces and recommends; Jack acts.
+- **Step 6 (worktree shutdown) is the one destructive step** — it removes clean, idle worktrees
+  via `/shutdown` (orchestrator-run, never a subagent). It only ever touches writable repos'
+  worktrees, keeps anything in use, and hard-skips the protected/locked set. Skip it with
+  `skip-shutdown`. This is separate from Step 0's worktree check, which stays flag-only.
+- **Otherwise read-only and advisory.** Beyond the `DICTIONARY.md` touch-up and the Step 6 worktree
+  shutdown, this command never posts to Slack, never writes to a production DB, never archives a
+  ticket, and never applies a setup/config change. It surfaces and recommends; Jack acts.
 - This command lives in `global-config/commands/` and its helper in `global-config/scripts/`
   (`claude-setup-friction.py`). After editing either, sync with
   `bash scripts/sync-global-config.sh push` so `~/.claude/commands/start-day.md` **and**
