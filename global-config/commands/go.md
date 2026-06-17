@@ -1,28 +1,26 @@
 # Command: go
 
-The **one command for everything.** `/go` opens a **real Claude Code session in the right project** (a new VS Code terminal tab, labeled for the project, with that repo's full native commands + MCP tools) and — unless you only named a repo — kicks off the right work on your task there.
-
-`/go` first reads enough of the task to **classify it as research (a question to answer) or implementation (a change to make)**, then routes to the right writable repo and launches the session with the matching first prompt — a **research/answer** prompt for questions, or the repo's **analyze** command for changes. You don't say which it is; `/go` decides from the wording (see Step 1.6).
+The **research entry point.** `/go` opens a **real Claude Code session in the right project** (a new VS Code terminal tab, labeled for the project, with that repo's full native commands + MCP tools) and — unless you only named a repo — kicks off a **deep research pass** on your task there. **`/go` always researches first; it never implements.** It investigates, finds the issue(s), and reports them. When it finds multiple issues, it offers to **launch a separate fix session per issue** — that's `/launch` → `/implement` (see Step 2 and the `/launch`/`/implement` commands). `/go` = find the problem; `/launch` = fix it.
 
 `/go` ALWAYS lands you in a writable repo — **SERP, SWAC, or sw-cortex**. Tasks that are really about a read-only repo (livery, sugarwish-laravel, sw-design, swirl, sugarwish-infrastructure) route to the writable repo where you'd actually make the change.
 
 ## Usage
 
 ```
-/go <task description>   # detect repo → open its session → run the repo's analyze on the task
-/go serp                 # bare repo name → JUST open a SERP session, no analyze, no task
+/go <task description>   # detect repo → open its session → deep-research the task (no implementing)
+/go serp                 # bare repo name → JUST open a SERP session, no research, no task
 /go swac                 # JUST open a SWAC session
 /go cortex               # JUST open a sw-cortex session
 ```
 
 Examples:
 
-- `/go fix the forecast zeros on live-products` → **implementation** → presents pickable scope+approach options → opens SERP, runs `/analyze fix the forecast zeros…` already scoped to your picks
-- `/go the proposal sleeve isn't resolving for medium boxes` → **implementation** → presents options → opens SWAC, runs `/global-analyze …`
-- `/go how does the redemption curve feed size_projections?` → **research** → opens SERP with a plain research/answer prompt (no `/analyze`); the session investigates and reports there
+- `/go fix the forecast zeros on live-products` → opens a SERP **research** session → it diagnoses, finds the issue(s), lists each with root cause + file:line + fix, and offers "launch fixes for those" → you say that and `/launch` fires a `/implement` session per fix
+- `/go the proposal sleeve isn't resolving for medium boxes` → opens a SWAC **research** session → diagnoses + reports the issue(s) + offers to launch the fix(es)
+- `/go how does the redemption curve feed size_projections?` → opens SERP, researches, and reports the answer (a pure question — nothing to fix)
 - `/go serp` → opens a bare SERP session, nothing else (no options — the repo is already an explicit pick)
 
-**Options-first:** unless you only named a repo, `/go` pops up a few pickable options (which area + which approach) before launching, so you click rather than type a paragraph. See Step 0.5.
+**Options-first:** unless you only named a repo, `/go` pops up a few pickable options (which area + which angle to investigate) before launching, so you click rather than type a paragraph. See Step 0.5.
 
 ---
 
@@ -42,12 +40,12 @@ If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex
 
 **Jack should rarely have to type an open-ended task.** Unless Step 0 already handled it (bare repo name), use the **`AskUserQuestion`** tool to turn whatever he typed into a few pickable options BEFORE you route or launch — even if his input is a full sentence. Do the cheap reconnaissance first (route the task per Step 1, glance at the KB / the relevant repo) so the options are concrete and specific, not generic.
 
-Ask 1–3 questions. For an **implementation** task, the options cover both:
+Ask 1–3 questions. Since `/go` always launches a **research** session (not a fix), scope the **investigation**, not a fix path:
 
 - **SCOPE — _what_ he means:** the specific area / page / system / table / SKU-family the task touches. Turn a vague phrase into concrete targets (e.g. for "fix the forecast zeros" → "live-products view", "ecard-inventory simulation", "CSV export", "dashboard").
-- **APPROACH — _how_ to go after it:** the candidate fix paths / angles, phrased as distinct options (e.g. "patch the converter to `float()`", "add the field to the Pydantic schema", "trace the pipeline first").
+- **ANGLE — _where_ to look first:** which subsystem/file/table/flow the research should start from, or which interpretation of the task he means (e.g. for "fix the forecast zeros" → "trace the converter/pipeline", "check the Pydantic schema", "check the SQL source"; for "how does the redemption curve work" → "the curve math itself", "where it feeds size_projections", "the data source it reads").
 
-For a **research** task (per Step 1.6) there's no fix to scope — instead narrow the **question**: which subsystem/file/table to look in, or which interpretation of the question he means (e.g. for "how does the redemption curve work" → "the curve math itself", "where it feeds size_projections", "the data source it reads"). Don't offer fix-path options for a pure question.
+Don't phrase options as "apply fix A vs fix B" — `/go` doesn't fix; it investigates. The fix paths get decided later, after research, when you launch `/implement`.
 
 Rules for the options:
 
@@ -111,60 +109,53 @@ So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `l
 
 A new terminal is only worth it when the task needs a **different** repo's toolset/cwd (SERP or SWAC). For sw-cortex there's nothing to gain — the hub already has everything.
 
-## Step 1.6 — Classify: research (a question) or implementation (a change)?
+## Step 1.6 — `/go` is ALWAYS research-first (deep research before any change)
 
-You already know enough from routing to tell what KIND of task this is. Decide between two modes — you don't need deep certainty, just enough to route the prompt:
+**`/go` always launches a RESEARCH session — it never kicks off `/analyze`/`/global-analyze` as the first prompt.** Every `/go` opens a session that does a deep research pass first: investigate, understand, and find the issue(s). It does NOT start editing code, and it does NOT begin the implementation pipeline. Implementation is a separate, later step — you launch it explicitly via `/launch` (which fires `/implement`) once research has surfaced what to fix. (`/go` = find the problem; `/launch` = fix it.)
 
-- **RESEARCH** — the task is a **question to answer / something to understand**, no code change expected. Signals: starts with how/why/what/where/which/does/can/is, "explain", "trace", "figure out", "look into", "find out", "where does X come from", "how does X work", "what's causing Y" with no ask to fix it. The deliverable is an **answer/explanation**, not a diff.
-- **IMPLEMENTATION** — the task is a **change to make**. Signals: fix, add, change, update, make X do Y, build, wire up, remove, rename, refactor, "it's broken — fix it", "make it require…". The deliverable is a **code change** (which the repo's analyze command preps).
+You still note what KIND of task this is — but only so the research session knows how to **close**, not whether to research:
 
-If it's genuinely ambiguous (a bug report that's half "why" and half "fix it"), default to **IMPLEMENTATION** — analyze researches first anyway, so it covers the question on the way to the change. Only pick RESEARCH when the task is clearly just asking to understand/find something.
+- **Pure question** (how/why/what/where/which, "explain", "trace", "look into", "find out") → the session investigates and reports the answer. Done.
+- **Reported change / bug** ("fix X", "it's broken", "make it do Y") → the session still **researches first**: it diagnoses, finds the issue(s), and reports them — then, if it found something fixable, it surfaces the fix(es) so you can launch them (see Step 2's "finding-issues close"). It does **not** implement here.
 
-This classification decides which first prompt Step 2 builds. (sw-cortex tasks never reach here — Step 1.5 handles both research and changes inline.)
+Either way the launched prompt is a research prompt. (sw-cortex tasks never reach here — Step 1.5 handles them inline.)
 
-## Step 2 — Build the first prompt for that repo (SERP / SWAC only)
+## Step 2 — Build the (always-research) first prompt for that repo (SERP / SWAC only)
 
-The first prompt the new session runs depends on the **mode from Step 1.6** and the **repo**:
-
-| Mode               | SERP                                              | SWAC (WishDesk)                        |
-| ------------------ | ------------------------------------------------- | -------------------------------------- |
-| **Implementation** | `/analyze <task>` (SERP's research-swarm analyze) | `/global-analyze <task>`               |
-| **Research**       | a plain research/answer prompt (below)            | a plain research/answer prompt (below) |
-
-(sw-cortex is handled inline in Step 1.5 — it never reaches this step, and has no `/analyze` of its own.)
-
-**Implementation** → the initial prompt is the analyze command + the task, e.g. `/analyze fix the forecast zeros on live-products`.
-
-**Research** → do NOT use `/analyze` (it's implementation-flavored — it preps a change). Instead pass a plain instruction that tells the new session to investigate **in that repo with its full toolset** and just report the answer — no edits, no PR. Build it as:
+The new session ALWAYS runs a research prompt — for both SERP and SWAC, for both a pure question and a reported bug. Do **not** pass `/analyze` or `/global-analyze` (those implement; `/go` is research-only). Build the prompt from this template, filling in the "finding-issues close" so a bug-style task ends by offering to launch the fix(es):
 
 ```
-Research only — answer this, don't change any code: <task>. Use this repo's tools (code search, MCP, DB, KB) to investigate and report findings. Set the tab title with set-tab-title.sh as you go (🔍 while researching, ✅ when answered).
+Research only — do NOT change any code, do NOT implement, do NOT open a PR: <task>. Use this repo's full tools (code search, MCP, DB, KB) to investigate deeply and report findings. If you find one or more fixable issues, present them as a clear numbered list — each with its root cause, the file:line, and the concrete fix — and end by telling Jack he can say "launch fixes for those" (or pick specific ones) to spin up a separate /implement session per fix. Do NOT implement any of them yourself. Set the tab title with set-tab-title.sh as you go (🔍 while researching, 🙋 when presenting issues/answer, ✅ when answered).
 ```
 
-So a SERP research /go becomes a launcher prompt like:
-`Research only — answer this, don't change any code: how does the redemption curve feed size_projections? Use this repo's tools (code search, MCP, DB, KB) to investigate and report findings. Set the tab title with set-tab-title.sh as you go (🔍 while researching, ✅ when answered).`
+The **finding-issues close** is the important part: when the research finds **multiple** issues, the session lists them and explicitly offers to **launch a separate fix session per issue**. That hand-off is exactly what `/launch fixes for those` does — one terminal per fix, each running `/implement` (see the `/launch` command).
+
+So a SERP `/go` (whether "how does X work" or "fix the forecast zeros") becomes a launcher prompt like:
+`Research only — do NOT change any code, do NOT implement, do NOT open a PR: fix the forecast zeros on live-products. Use this repo's full tools (code search, MCP, DB, KB) to investigate deeply and report findings. If you find one or more fixable issues, present them as a clear numbered list — each with its root cause, the file:line, and the concrete fix — and end by telling Jack he can say "launch fixes for those" to spin up a separate /implement session per fix. Do NOT implement any of them yourself. Set the tab title with set-tab-title.sh as you go (🔍 while researching, 🙋 when presenting issues/answer, ✅ when answered).`
 
 ## Step 3 — Launch
 
 ```bash
-~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> "<first-prompt>"
+~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> "<research-prompt>"
 ```
 
-where `<first-prompt>` is what Step 2 built — `/analyze <task>` (SERP impl) / `/global-analyze <task>` (SWAC impl), or the **research/answer prompt** for a research task.
+where `<research-prompt>` is what Step 2 built (always the research/answer prompt — never `/analyze`/`/global-analyze`).
 
-Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher queues the request and the Go Launcher extension opens the tab, deriving a descriptive name from the task prompt automatically (e.g. `🔨 make SERPY require an MO date`, or `🔍 how redemption curve feeds size_projections` for research). The running session then updates the title as it works (`🔍 researching` → `🙋 approve?` / `✅ done`, after which the tab auto-closes). Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the queue and produces a bare `SERP` title.
+Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher queues the request and the Go Launcher extension opens the tab, deriving a descriptive name from the task prompt automatically (e.g. `🔍 forecast zeros on live-products`). The running session then updates the title as it works (`🔍 researching` → `🙋 presenting issues` → `✅ done`, after which the tab auto-closes). Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the queue and produces a bare `SERP` title.
 
 ## Step 4 — Report
 
-- **One line**: which repo you routed to, the **mode**, and why (e.g. "Routed to **SERP**, implementation — forecast/darklaunch; opening a session running `/analyze`." or "Routed to **SERP**, research — opening a session to investigate and answer, no code change.").
-- A new terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility), titled with the task. It auto-closes ~5s after it reaches `✅ done`. Tell Jack to switch to it; it's running the analyze (impl) or the investigation (research) with that repo's full native tooling. This hub session stays put.
-- **Multiple at once:** to launch several (e.g. "launch a go for each issue"), call the launcher once per item — each drops its own request file and the extension opens a separate tab for each. They don't clobber.
+- **One line**: which repo you routed to and that it's a research pass, e.g. "Routed to **SERP** — opening a research session to investigate the forecast zeros; it'll report the issue(s) and offer to launch fixes." Don't say "running /analyze" — `/go` no longer does that.
+- A new terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility), titled with the task. It auto-closes ~5s after it reaches `✅ done`. Tell Jack to switch to it; it's researching with that repo's full native tooling. This hub session stays put.
+- **The fix step is separate:** once the research session lists issues, Jack says **"launch fixes for those"** (or names specific ones) and `/launch` fires **one `/implement` session per fix** — see the `/launch` command. `/go` itself never implements.
 - If no tab appears, the extension may not be loaded yet (needs a VS Code reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
 
-`/go` does NOT do the work itself — it classifies, routes, launches, and starts the analyze (impl) or the research (research). The real work happens in the project session.
+`/go` does NOT do the work itself, and it does NOT implement — it classifies, routes, and launches a **research** session. Fixing happens later via `/launch` → `/implement`.
 
 ## Plain-English equivalent (no slash needed)
 
-When Jack asks conversationally — "fix X in a new go", "spin up a session for X", "open a session to do X", "look into Y in a go", "just open serp" — treat it EXACTLY like `/go`: same classify (research vs impl, Step 1.6), same routing, same bare-vs-task logic, same per-repo first prompt, run the launcher immediately, no confirmation.
+When Jack asks conversationally — "look into Y in a go", "spin up a session for X", "open a session to dig into X", "research X in a go", even "fix X in a new go", "just open serp" — treat it EXACTLY like `/go`: same routing, same bare-vs-task logic, same **research-first** launch (always the research prompt, never `/analyze`), run the launcher immediately, no confirmation. Note "fix X in a new go" still means **research** here — `/go` investigates X and offers to launch the fix; it doesn't implement. (To go straight to implementing an already-scoped fix, that's `/launch` → `/implement`, not `/go`.)
+
+**Launch the fixes after research:** when a `/go` research session has listed issues and Jack says **"launch fixes for those"** / "launch a fix for each" / names specific ones — that's the `/launch` command: route+classify each fix and fire **one `/implement` session per fix** (SERP), keeping the original tab open. One terminal per fix, never one session bundling several.
 
 **Fire-and-forget / parallel:** "launch that idea in a go and keep going", "spin that off and continue" mean: run the launcher AND immediately resume whatever you were doing in THIS session — don't block on or babysit the new session. It works in parallel; the hub stays on its thread. Acknowledge in one line, carry on.

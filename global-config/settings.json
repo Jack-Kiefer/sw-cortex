@@ -133,7 +133,8 @@
   "alwaysThinkingEnabled": false,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE": "cumulative"
+    "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE": "cumulative",
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
   },
   "enabledPlugins": {
     "ralph-wiggum@claude-plugins-official": true
