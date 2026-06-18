@@ -242,7 +242,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 - Branch flow: feature → `development` → `staging` → `live`. **Not `main`.** Branch naming `<username>/<desc>`. Ticket prefixes `WD-*` / `WW-*`.
 - Two DB pools: `server/db.ts` = WishDesk DB; `server/sugarwish-db.ts` = Sugarwish DB.
 - **All DB timestamps stored in Mountain Time, NOT UTC.**
-- Local dev auth: **cookie-based sessions** (not JWT). Needs `ENABLE_LOCAL_AUTH_BYPASS=true` + `APP_ENV=local`. Route auth: `isAgentOrAdmin` (most admin routes; **`agent` role ≠ admin**), `isAdmin`, `isAuthenticated`. Dev login fixture: `jason` / `swdev123`.
+- Local dev auth: **cookie-based sessions** (not JWT). Needs `ENABLE_LOCAL_AUTH_BYPASS=true` + `APP_ENV=local`. Route auth: `isAgentOrAdmin` (most admin routes; **`agent` role ≠ admin**), `isAdmin`, `isAuthenticated`. Dev login fixture: `admin` / `swdev123`.
 - SWAC owns sleeve **resolution** (`server/services/sleeve-resolution.ts` writes `branding_records.physical_branding`); actual PDF imposition/printing done by **livery**.
 - WishDesk MCP server must run as its own PM2 app (Jenkins deploy didn't restart it → stale code on desk2: 23 tools vs 28 local).
 
@@ -817,7 +817,7 @@ Removed/legacy: `USE_SERP_AS_LIVE`, `USE_MOCK_ODOO` (keep `LIVE_SSH_*`). `ODOO_S
 
 | Item                       | Value                                | Notes                          |
 | -------------------------- | ------------------------------------ | ------------------------------ |
-| SWAC/WishDesk dev login    | `jason` / `swdev123`                 | Non-secret fixture, `/auth`    |
+| SWAC/WishDesk dev login    | `admin` / `swdev123`                 | Non-secret fixture, `/auth`    |
 | SERP prod nginx Basic Auth | `serp_admin` / `swserp12`            | Browser-cached HTTP Basic gate |
 | SERP local login           | `jack@sugarwish.com` / `localdev123` | local dev                      |
 
