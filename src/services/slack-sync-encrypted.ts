@@ -25,6 +25,16 @@ import { encrypt, encryptField, decrypt, decryptField, validateEncryptionKey } f
 // Collection name for encrypted messages
 const ENCRYPTED_COLLECTION = 'slack_messages_encrypted';
 
+// Automated/bot-feed channels to never index (no human conversation, just alert noise).
+// These match the channels start-day triage already hard-skips. Edit to taste.
+const SKIP_CHANNELS = new Set<string>([
+  'jack-test', // SERPY darklaunch drift/reconciliation feed (hourly alerts)
+  'api-autofix', // informational auto-fix feed (Seth: no action needed)
+  'api-warnings', // routine auto-resolved alert noise
+  'avalara-alert', // routine tax-alert noise
+  'address-error', // routine address-validation alert noise
+]);
+
 // Sync state tracking (separate from original)
 interface ChannelSyncState {
   channelId: string;
@@ -32,6 +42,10 @@ interface ChannelSyncState {
   lastSyncedTs: string;
   messageCount: number;
   lastSyncTime: string;
+  // Map of thread parent ts -> last-seen latest_reply ts. Lets the incremental
+  // scan re-fetch threads that got new replies on an OLD parent (one that predates
+  // lastSyncedTs and so never reappears in conversations.history).
+  knownThreads?: Record<string, string>;
 }
 
 interface SyncState {
@@ -125,6 +139,10 @@ export interface EncryptedSyncOptions {
   includeThreads?: boolean;
   dryRun?: boolean;
   verbose?: boolean;
+  // One-time heal: ignore the per-channel cursor and re-check every thread within the
+  // recheck window, so late replies stuck on old parents (synced before knownThreads
+  // existed) get indexed and the registry is seeded. Re-runnable; only adds missing data.
+  backfillThreads?: boolean;
 }
 
 // Sync result
@@ -140,13 +158,23 @@ export interface EncryptedSyncResult {
 }
 
 // Channel data collected during pre-scan
+// A known thread to re-check for new replies (parent predates the channel cursor).
+interface ThreadRecheck {
+  parentTs: string;
+  since: string; // last-seen latest_reply ts; only pull replies newer than this
+}
+
 interface ChannelData {
   id: string;
   name: string;
   isDm: boolean;
   messages: SlackMessage[];
   threadParents: SlackMessage[];
+  recheckThreads: ThreadRecheck[];
 }
+
+// How far back (days) to keep re-checking a known thread for late replies.
+const THREAD_RECHECK_DAYS = 14;
 
 // Format duration for display
 function formatDuration(seconds: number): string {
@@ -205,29 +233,62 @@ export async function syncSlackMessagesEncrypted(
       if (!options.channels.includes(channel.id)) continue;
     }
 
+    // Skip automated/bot-feed channels entirely (no human conversation to index).
+    if (SKIP_CHANNELS.has(channel.name)) continue;
+
     scanCount++;
     const channelLabel = channel.isDm ? `DM: ${channel.name}` : `#${channel.name}`;
     process.stdout.write(`\r  Scanning [${scanCount}] ${channelLabel}...`.padEnd(60));
 
     try {
       const channelState = state.channels[channel.id];
-      const oldestTs = channelState?.lastSyncedTs;
+      const windowStart = String(Date.now() / 1000 - THREAD_RECHECK_DAYS * 86400);
+      // Backfill mode widens the fetch back to the recheck window (ignoring the cursor)
+      // so old thread parents reappear and their late replies can be healed.
+      const oldestTs = options.backfillThreads ? windowStart : channelState?.lastSyncedTs;
 
       const messages = await fetchChannelMessages(channel.id, channel.name, {
         oldest: oldestTs,
         limit: options.maxMessagesPerChannel,
       });
 
-      if (messages.length > 0) {
-        const threadParents = options.includeThreads
-          ? messages.filter((m) => m.isThreadParent)
-          : [];
+      // New thread parents seen in this scan (top-level messages that started a thread).
+      const newThreadParents = options.includeThreads
+        ? messages.filter((m) => m.isThreadParent)
+        : [];
+
+      // Re-check KNOWN threads whose parent predates oldestTs: new replies on an old
+      // parent never reappear in conversations.history, so detect them here by pulling
+      // only replies newer than the last-seen latest_reply. Bounded to recent threads.
+      const recheckThreads: ThreadRecheck[] = [];
+      const cutoff = Date.now() / 1000 - THREAD_RECHECK_DAYS * 86400;
+      if (options.backfillThreads && options.includeThreads) {
+        // Heal mode: re-check every in-window parent from the start of the thread,
+        // pulling the whole thread (dedup on upsert drops anything already indexed).
+        for (const parent of newThreadParents) {
+          if (parseFloat(parent.ts) < cutoff) continue;
+          recheckThreads.push({ parentTs: parent.ts, since: '0' });
+        }
+      } else if (options.includeThreads && channelState?.knownThreads) {
+        const newParentTs = new Set(newThreadParents.map((p) => p.ts));
+        for (const [parentTs, lastReply] of Object.entries(channelState.knownThreads)) {
+          // Already covered by this scan's new parents, or too old to bother re-checking.
+          if (newParentTs.has(parentTs)) continue;
+          if (parseFloat(parentTs) < cutoff) continue;
+          recheckThreads.push({ parentTs, since: lastReply });
+        }
+      }
+
+      if (messages.length > 0 || recheckThreads.length > 0) {
         channelsToSync.push({
           id: channel.id,
           name: channel.name,
           isDm: channel.isDm,
           messages,
-          threadParents,
+          // In backfill mode the recheck path fetches each full thread, so don't also
+          // fetch them via the normal thread loop (would double-fetch the same replies).
+          threadParents: options.backfillThreads ? [] : newThreadParents,
+          recheckThreads,
         });
       }
     } catch (error) {
@@ -383,6 +444,46 @@ export async function syncSlackMessagesEncrypted(
         console.log(`${channelData.messages.length} messages`);
       }
 
+      // Re-check known older threads for late replies (parents that predate the cursor
+      // and so never reappear in conversations.history). `since` makes each call cheap:
+      // quiet threads return zero replies in a single round-trip.
+      if (options.includeThreads && channelData.recheckThreads.length > 0) {
+        const RECHECK_CONCURRENCY = 5;
+        const rlimit = pLimit(RECHECK_CONCURRENCY);
+        let lateReplies = 0;
+        const recheckResults = await Promise.all(
+          channelData.recheckThreads.map((t) =>
+            rlimit(async () => {
+              try {
+                const replies = await fetchThreadReplies(
+                  channelData.id,
+                  channelData.name,
+                  t.parentTs,
+                  t.since
+                );
+                if (replies.length > 0) result.threadsFetched++;
+                return replies;
+              } catch (error) {
+                if (options.verbose) {
+                  console.error(`\n    Failed to re-check thread ${t.parentTs}: ${error}`);
+                }
+                return [];
+              }
+            })
+          )
+        );
+        for (const replies of recheckResults) {
+          allMessages.push(...replies);
+          lateReplies += replies.length;
+        }
+        if (lateReplies > 0) {
+          console.log(
+            `    Re-checked ${channelData.recheckThreads.length} known threads → ${lateReplies} late replies`
+          );
+          result.threadRepliesIndexed += lateReplies;
+        }
+      }
+
       result.messagesProcessed += allMessages.length;
 
       if (options.dryRun) {
@@ -423,16 +524,42 @@ export async function syncSlackMessagesEncrypted(
 
       // Update sync state
       const channelState = state.channels[channelData.id];
-      const newestMessage = channelData.messages.reduce((a, b) =>
-        parseFloat(a.ts) > parseFloat(b.ts) ? a : b
-      );
+
+      // Advance the channel cursor only if there were new top-level messages; a
+      // re-check-only pass (no new messages) must keep the existing cursor.
+      const newestMessage =
+        channelData.messages.length > 0
+          ? channelData.messages.reduce((a, b) => (parseFloat(a.ts) > parseFloat(b.ts) ? a : b))
+          : undefined;
+
+      // Track each thread's latest_reply so future scans can detect late replies on
+      // an old parent. Carry forward prior entries and update from this scan's parents.
+      const knownThreads: Record<string, string> = { ...(channelState?.knownThreads || {}) };
+      for (const parent of channelData.threadParents) {
+        // latest_reply is the freshest reply ts; fall back to the parent ts itself.
+        knownThreads[parent.ts] = parent.latestReply || parent.ts;
+      }
+      // For threads we re-checked, bump the cursor to the newest reply we just pulled.
+      for (const t of channelData.recheckThreads) {
+        const fetched = allMessages.filter((m) => m.threadTs === t.parentTs);
+        if (fetched.length > 0) {
+          const newest = fetched.reduce((a, b) => (parseFloat(a.ts) > parseFloat(b.ts) ? a : b));
+          if (parseFloat(newest.ts) > parseFloat(t.since)) knownThreads[t.parentTs] = newest.ts;
+        }
+      }
+      // Prune threads older than the re-check window so the map can't grow unbounded.
+      const pruneCutoff = Date.now() / 1000 - THREAD_RECHECK_DAYS * 86400;
+      for (const parentTs of Object.keys(knownThreads)) {
+        if (parseFloat(parentTs) < pruneCutoff) delete knownThreads[parentTs];
+      }
 
       state.channels[channelData.id] = {
         channelId: channelData.id,
         channelName: channelData.name,
-        lastSyncedTs: newestMessage.ts,
+        lastSyncedTs: newestMessage ? newestMessage.ts : channelState?.lastSyncedTs || '0',
         messageCount: (channelState?.messageCount || 0) + channelData.messages.length,
         lastSyncTime: new Date().toISOString(),
+        knownThreads,
       };
 
       result.channelsSynced++;

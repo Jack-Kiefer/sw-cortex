@@ -42,6 +42,8 @@ export interface SlackMessage {
   threadTs?: string;
   isThreadParent: boolean;
   permalink?: string;
+  latestReply?: string; // ts of the most recent reply (thread parents only)
+  replyCount?: number; // number of replies (thread parents only)
 }
 
 export interface SlackUser {
@@ -225,6 +227,8 @@ export async function fetchChannelMessages(
         threadTs: msg.thread_ts,
         isThreadParent: msg.thread_ts === msg.ts,
         permalink: undefined, // Could fetch with chat.getPermalink but expensive
+        latestReply: msg.latest_reply,
+        replyCount: msg.reply_count,
       };
 
       messages.push(message);
@@ -246,7 +250,8 @@ export async function fetchChannelMessages(
 export async function fetchThreadReplies(
   channelId: string,
   channelName: string,
-  threadTs: string
+  threadTs: string,
+  since?: string // Only return replies newer than this ts (for incremental re-checks)
 ): Promise<SlackMessage[]> {
   const client = getClient();
   const messages: SlackMessage[] = [];
@@ -255,12 +260,16 @@ export async function fetchThreadReplies(
     const result = await client.conversations.replies({
       channel: channelId,
       ts: threadTs,
+      oldest: since,
       limit: 200,
     });
 
     for (const msg of result.messages || []) {
-      // Skip the parent message (first one) and non-user messages
+      // Skip the parent message (first one) and non-user messages.
+      // With `oldest` set, Slack may still include the parent, so skip it explicitly.
       if (msg.ts === threadTs || !msg.user || !msg.text) continue;
+      // When doing an incremental re-check, skip anything at/older than the cursor.
+      if (since && parseFloat(msg.ts!) <= parseFloat(since)) continue;
 
       const user = await fetchUser(msg.user);
 

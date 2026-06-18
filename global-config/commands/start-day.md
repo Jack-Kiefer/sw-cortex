@@ -54,18 +54,21 @@ as each result lands so Jack sees progress.
 
 > **Subagent contract.** Spawn this as one Task-tool subagent in Wave A. It returns the
 > rendered `### 🩺 Setup health` panel (one ✅/⚠️ line per item, ⚠️ remedies inline) as its
-> result — nothing else. It is **non-blocking and report-only**: never restart, reinstall,
-> prune a worktree, or stop the routine. The MCP probes below are the only ones that touch
-> live servers (Step 5 deliberately does not), so they live here.
+> result — nothing else. It is **non-blocking and report-only** with ONE exception — check 8
+> (Docker + local dev DB) may auto-start those if down (Jack opted in), bounded so it can't hang
+> the routine. Otherwise: never restart, reinstall, prune a worktree, or stop the routine. The MCP
+> probes below are the only ones that touch live servers (Step 5 deliberately does not), so they
+> live here.
 
 Confirm the hub's plumbing is intact and surface anything broken. Run every check, render a
 `### 🩺 Setup health` panel with one ✅/⚠️ line per item (each ⚠️ gets a one-line remedy). It's
-purely advisory: don't restart anything, don't reinstall anything, don't remove any worktree — just
-report. Speed: batch the file/env/git checks into **one** Bash call, and fire the MCP probes as
-parallel tool calls (a slow/erroring probe is a ⚠️, not something to wait on — keep timeouts tight,
-~5s).
+advisory: don't reinstall anything, don't remove any worktree — just report. The **one exception**
+is check 8 (Docker + local dev DB), which Jack opted to let **auto-start** if down — every other
+check stays report-only. Speed: batch the file/env/git checks into **one** Bash call, and fire the
+MCP probes as parallel tool calls (a slow/erroring probe is a ⚠️, not something to wait on — keep
+timeouts tight, ~5s).
 
-Run these seven checks:
+Run these eight checks:
 
 1. **MCP servers reachable (6).** These can only be probed from inside the session via the tools
    themselves (a shell can't see MCP state). Call one cheap read-only tool per server and mark ✅ if
@@ -107,6 +110,30 @@ Run these seven checks:
 
 7. **go-queue dir exists.** `[ -d ~/.claude/go-queue ]` (the launcher `mkdir -p`s it, so this is
    informational). ✅ if present; ⚠️ is benign — "will be created on first `/go`."
+
+8. **Docker + local dev DB up (auto-start if down).** SERP's local dev stack runs in Docker
+   (Docker Desktop on this Mac — no Colima) via `SERP/docker-compose.yml`: the local MySQL is the
+   **`serp-mysql`** container on host port **3307**, alongside `serp-redis` (6379), `serp-mailpit`,
+   `serp-minio`. Unlike the other checks, this one is **allowed to start things** (Jack opted in) —
+   but it must **never hang the routine**, and this Mac has **no `timeout`/`gtimeout` binary**, so do
+   NOT wrap calls in `timeout`. Bound every step by Docker/compose's own flags + a bounded poll loop
+   instead. Sequence:
+   - **Docker daemon:** `docker info >/dev/null 2>&1`. If it fails, start Docker Desktop with
+     `open -ga Docker`, then poll readiness in a **bounded** loop (no `timeout`): up to ~12 tries of
+     `docker info >/dev/null 2>&1 && break` with `sleep 5` between — i.e. cap ~60s, then give up and
+     ⚠️ rather than wait forever. (`open -g` keeps it in the background so it doesn't steal focus.)
+   - **Local DB container:** once the daemon is up, check `serp-mysql`:
+     `docker ps --filter name=^/serp-mysql$ --filter status=running --format '{{.Names}}'`. If absent,
+     bring the stack up detached: `docker compose -f /Users/jackkief/Desktop/Projects/SERP/docker-compose.yml up -d`
+     (compose returns once containers are created; it does not block on healthchecks). Then confirm
+     port 3307 is listening: `nc -z -w5 127.0.0.1 3307`.
+   - **Report:** ✅ `Docker + serp-mysql(:3307) up` if both were already running; `🔧 started Docker
+/ serp-mysql` if this check booted them; ⚠️ with a remedy if either couldn't be brought up within
+     the bound (e.g. "Docker daemon didn't come ready in ~60s — open Docker Desktop manually" or
+     "`serp-mysql` failed to start — check `docker compose -f SERP/docker-compose.yml logs serp-mysql`").
+     Keep the daemon-boot wait bounded so a stuck Docker can't stall the morning routine — on timeout,
+     ⚠️ and move on. This is the ONLY Step 0 item permitted to start anything; everything else stays
+     report-only.
 
 **Return:** the rendered `### 🩺 Setup health` panel (the subagent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).
@@ -406,9 +433,11 @@ before ending the turn.
 - **Printed order is load-bearing for reading, not execution.** The steps execute in parallel
   (plus Step 6 after Wave A), but assemble the briefing top-to-bottom: health → setup-friction →
   tickets → deploy/PRs → KB → worktrees → triage, so Jack scans it in a stable order.
-- **Step 0 is non-blocking and report-only.** It surfaces broken plumbing (MCP down, missing
-  go-launcher extension, bastion unreachable, etc.) but never restarts, reinstalls, prunes a
-  worktree, or stops the routine. The worktree check in particular is list-and-flag only, and
+- **Step 0 is non-blocking and report-only, with one opted-in exception.** It surfaces broken
+  plumbing (MCP down, missing go-launcher extension, bastion unreachable, etc.) but never restarts,
+  reinstalls, prunes a worktree, or stops the routine — **except check 8 (Docker + local dev DB),
+  which Jack opted to let auto-start if down** (bounded poll, no `timeout` binary on this Mac, ⚠️ and
+  move on if it can't come up). The worktree check in particular stays list-and-flag only, and
   never touches the protected/locked worktrees. It owns the **only live MCP probes** — Step 5
   stays transcript-only so the two don't double-probe.
 - **Step 2b (deploy/PRs) stays SERP-only and gate-free** — it's a light dev→main count plus a pointer

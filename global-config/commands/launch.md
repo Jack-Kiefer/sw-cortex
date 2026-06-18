@@ -34,6 +34,34 @@ Follow **the entire `/go` command spec** for classification, options-first intak
 
 SWAC implementation always uses `/global-analyze` (SWAC has no separate `/implement` or `/analyze`); the `analyze` keyword is a no-op there since `/global-analyze` already researches first. Pure research tasks (a question, no fix) still use the plain research/answer prompt regardless of repo.
 
+#### SWAC-only implement flow — worktree + dev server, NO auto-PR, wait for "ship it"
+
+> ⚠️ **This is the SWAC implement contract and it differs from SERP on purpose.** SERP `/implement` builds → verifies → opens a PR in one shot. SWAC does NOT — a SWAC implement launch must work on an isolated worktree+branch, stand up a dev server so Jack can SEE the change, then STOP before any PR and wait for Jack to say "ship it" (then run `/ship-it`). Apply this to **every** SWAC implement launch (the `/global-analyze` "If User Says Implement" step), not just when asked.
+
+When the launched SWAC session reaches the **implement** step (after its `/global-analyze` research + Jack approving the build), it MUST:
+
+1. **Make a worktree + feature branch** off `development` (do NOT edit the main SWAC checkout). Branch name is `<username>/<desc>` per SWAC convention (`jack/<kebab-desc>` — derive `<desc>` from the task; use SWAC's `/create-worktree` convention). **If a WishWorks ticket ID (`WW-###`) was carried in** (a `/go <ticket>` launch — see `/go` Step 0.1), put it in the branch name: `jack/WW-###-<desc>`:
+   ```bash
+   # with a ticket:    BR=jack/WW-065-ideas-web-ui ; WT=../SWAC-WW-065
+   # without a ticket:  BR=jack/<desc>             ; WT=../SWAC-<desc>
+   git -C /Users/jackkief/Desktop/Projects/SWAC worktree add "$WT" -b "$BR" origin/development
+   cd "$WT"
+   cp /Users/jackkief/Desktop/Projects/SWAC/.env .env && npm install
+   ```
+2. **Implement the change in that worktree** (all edits land on the new branch, never on `development` or the main checkout).
+3. **Start a dev server in the background on a free port** so Jack can see it, then print the URL:
+   ```bash
+   PORT=$(node -e 'const n=require("net");const s=n.createServer();s.listen(0,()=>{console.log(s.address().port);s.close()})')
+   PORT=$PORT npm run dev   # run in the background; SWAC reads PORT from validated env (default 5004)
+   ```
+   Report the live URL (`http://localhost:<PORT>`) and tell Jack to open it to review the change.
+4. **STOP. Do NOT commit a PR, do NOT run `/ship-it`, do NOT push.** Set the tab title to `🙋 review · <desc>` and wait. Present what changed + the localhost URL and say: _"Review it at the URL — say **ship it** when you're happy and I'll run `/ship-it`."_
+5. **Only when Jack says "ship it"** (or "ship", "ship-it", "lgtm ship") does the session run SWAC's existing **`/ship-it`** command from the worktree — which commits everything, writes the change log, runs PR review, and opens the PR. Nothing ships before Jack says so. **If a `WW-###` ticket was carried in, make sure the PR title/body references it** (and `/ship-it`'s change log cites it under "Documentation / Jira tickets") — the branch already carries `WW-###`, so the PR should too.
+
+So the SWAC implement first-prompt Jack's launch builds should explicitly carry this flow. Append this rider to the SWAC implement prompt:
+
+> Implement on a NEW worktree+branch (`jack/<desc>` off `origin/development` — if this work has a `WW-###` ticket, name the branch `jack/WW-###-<desc>` and reference `WW-###` in the eventual PR), not the main SWAC checkout. After implementing, start `PORT=<free> npm run dev` in the background and give me the localhost URL so I can see it. Then STOP — do NOT open a PR, do NOT run /ship-it, do NOT push. Wait for me to say "ship it"; only then run the /ship-it command from the worktree.
+
 ### Difference 1 — pass `--keep-original` so this tab is NOT closed
 
 When you call the launcher (Step 3), **add the `--keep-original` flag**:

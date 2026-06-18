@@ -18,9 +18,9 @@ Examples:
 - `/go fix the forecast zeros on live-products` → opens a SERP **research** session → it diagnoses, finds the issue(s), lists each with root cause + file:line + fix, and offers "launch fixes for those" → you say that and `/launch` fires a `/implement` session per fix
 - `/go the proposal sleeve isn't resolving for medium boxes` → opens a SWAC **research** session → diagnoses + reports the issue(s) + offers to launch the fix(es)
 - `/go how does the redemption curve feed size_projections?` → opens SERP, researches, and reports the answer (a pure question — nothing to fix)
-- `/go serp` → opens a bare SERP session, nothing else (no options — the repo is already an explicit pick)
+- `/go serp` → opens a bare SERP session, nothing else (the repo is already an explicit pick)
 
-**Options-first:** unless you only named a repo, `/go` pops up a few pickable options (which area + which angle to investigate) before launching, so you click rather than type a paragraph. See Step 0.5.
+**Launch-and-research:** `/go` launches immediately and researches the whole task — it does **not** pop a pre-launch question asking which area or angle to investigate first. Routing is automatic (Step 1) and the launched session does a broad research pass over everything the task touches.
 
 ---
 
@@ -36,16 +36,16 @@ If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex
 
 (`wishdesk` → SWAC.) Report which repo opened, tell Jack to switch to the new tab, done. Skip the rest.
 
-## Step 0.5 — Options-first intake (ALWAYS, before routing)
+## Step 0.1 — Bare ticket number? It's a WishWorks ticket → SWAC, and carry the ticket ID to the PR.
 
-Unless Step 0 already handled it (bare repo name), **invoke the `options-first-intake` skill** and follow it (the AskUserQuestion mechanics + the 5 shared rules + fold-picks) BEFORE you route or launch. Do the cheap recon first — route the task per Step 1 and glance at the KB / the relevant repo — so the options are concrete.
+If `$ARGUMENTS` is ONLY a ticket reference — `WW-###`, `WW###`, or a bare number like `65` (case-insensitive, optional `WW-` prefix) — treat it as a **WishWorks dev-request ticket** (these are SWAC work; same `WW-###` tickets `/ww` manages). Do this:
 
-`/go`-specific rider — **the second axis is ANGLE, not APPROACH.** `/go` always launches a **research** session (not a fix), so scope the **investigation**, never a fix path:
+1. **Normalize** to `WW-###` (a bare `65` → `WW-065`; keep the number's own width — `WW-65` if that's how it's filed).
+2. **Fetch the ticket** so the research is scoped to what the ticket actually asks — read `wishworks/dev-requests/active/WW-###.md` from the SWIRL repo the same way `/ww` does (the GitHub-contents fetch in `/ww`, or `mcp__github__get_file { repo: "SWIRL", path: "wishworks/dev-requests/active/WW-###.md" }`). Pull out the ticket **title** and a one-line summary.
+3. **Route to SWAC** and launch a research session whose task is the ticket's title/summary — exactly like a normal `/go <task>`, but built from the fetched ticket.
+4. **Carry the ticket ID forward.** Embed `WW-###` in the launched prompt and tell the session it is the ticket for this work, so that when it later implements + ships, the **branch name is `jack/WW-###-<desc>`** and the **PR title/body reference `WW-###`** (SWAC convention — e.g. `jack/WW-065-ideas-web-ui`; `/ship-it`'s change log + PR cite the ticket). The ticket ID must survive all the way to the PR.
 
-- **ANGLE — _where_ to look first:** which subsystem/file/table/flow the research should start from, or which interpretation of the task he means (e.g. for "fix the forecast zeros" → "trace the converter/pipeline", "check the Pydantic schema", "check the SQL source"; for "how does the redemption curve work" → "the curve math itself", "where it feeds size_projections", "the data source it reads").
-- Don't phrase options as "apply fix A vs fix B" — `/go` doesn't fix; it investigates. Fix paths get decided later, after research, when you `/launch` the fix.
-
-Fold Jack's picks into the task string you pass to the launcher so the new session starts already-scoped. THEN continue to Step 1 (routing is likely already done from the recon above) → Step 2 → Step 3.
+If the ticket can't be fetched (not found in `active/`, no SWIRL token), say so in one line and ask whether to proceed with just the ticket ID as the scope. Then continue to the launch. (A ticket number **with** extra task text — `/go WW-065 also fix the sleeve` — is not "bare": treat it as a normal task in Step 1, but still carry the `WW-###` through to the branch/PR per point 4.)
 
 ## Step 1 — Otherwise, pick the writable repo (decide and go; routing itself needs no question)
 
@@ -96,7 +96,7 @@ Repo roots:
 
 The hub session you're already in **IS** a sw-cortex session — same cwd, same MCP tools, same native commands. Launching a new terminal for a sw-cortex task would spawn a second `claude` process that reloads `~/CLAUDE.md` + sw-cortex's `CLAUDE.md` from scratch — **paying the full context cost twice for nothing.**
 
-So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `launch-repo-session.sh`.** There is **no `/analyze` in sw-cortex** (it's a SERP-only command) — just do the work right here in the current session: research/diagnose the task inline (folding in any Step 0.5 picks) and proceed. Say in one line that you're handling it in the hub (no new tab, to avoid double-loading context).
+So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `launch-repo-session.sh`.** There is **no `/analyze` in sw-cortex** (it's a SERP-only command) — just do the work right here in the current session: research/diagnose the task inline and proceed. Say in one line that you're handling it in the hub (no new tab, to avoid double-loading context).
 
 A new terminal is only worth it when the task needs a **different** repo's toolset/cwd (SERP or SWAC). For sw-cortex there's nothing to gain — the hub already has everything.
 

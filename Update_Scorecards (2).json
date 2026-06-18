@@ -1,0 +1,264 @@
+{
+  "name": "Update Scorecards",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "31415c6e-91e1-4eab-ac8d-db94e30dd250",
+      "name": "Every Sunday at 9 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-2040, 320]
+    },
+    {
+      "parameters": {
+        "url": "https://serp.sugarwish.com/api/forecast/cost-tracker/last-week-average",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "Uu0gQjgbu2KmxXowcV5CFrzXNsiDHqSMKrUEvGgqiA0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4da45a18-65b0-4c7b-8cc3-36cfa91b03b2",
+      "name": "1. Get Last Week Average",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1800, 120]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst rawCost = data.average_unit_price;\nlet costValue = 0;\nif (rawCost) {\n  costValue = parseFloat(rawCost);\n  if (isNaN(costValue)) costValue = 0;\n}\nconst formattedCost = `$${costValue.toFixed(2)}`;\nreturn [{ json: { costValue, formattedCost, periodLabel: data.period_label, totalItems: data.total_items_shipped, startDate: data.start_date, endDate: data.end_date } }];"
+      },
+      "id": "9863c003-4abc-4336-bb68-4c79696cc0ae",
+      "name": "2. Format Cost Value",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1560, 120]
+    },
+    {
+      "parameters": {
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!B34",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "f5f6fa22-3f1a-44a7-91cf-29da31db8eaa",
+      "name": "3. Read B34",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1320, 120],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-avg-item-cost",
+              "leftValue": "={{ $json.values[0][0] }}",
+              "rightValue": "Avg Item Cost",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a33b9aed-76cf-44e4-8a60-5f6b9a985627",
+      "name": "4. Is Avg Item Cost?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-1080, 120]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!F34?valueInputOption=USER_ENTERED",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ values: [[$('2. Format Cost Value').item.json.formattedCost]] }) }}",
+        "options": {}
+      },
+      "id": "d4ff0918-db39-49cd-be5d-2fdabe553314",
+      "name": "5. Update F34",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-840, 120],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YY0aKH375lw428rC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "jack-test",
+          "mode": "name"
+        },
+        "text": "=✅ Weekly scorecard updated\n• *Avg Cost/Item:* {{ $('2. Format Cost Value').first().json.formattedCost }} — {{ $('2. Format Cost Value').first().json.periodLabel }} ({{ $('2. Format Cost Value').first().json.totalItems.toLocaleString() }} items) → Scorecard26!F34",
+        "otherOptions": {}
+      },
+      "id": "fbda45be-a02e-4dd2-94f2-c282e1439588",
+      "name": "6. Confirm in Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [-600, 120],
+      "webhookId": "5884428a-acc9-447d-9399-9528f1883022",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "jack-test",
+          "mode": "name"
+        },
+        "text": "=⚠️ Weekly cost update FAILED\n• *Expected B34:* \"Avg Item Cost\"\n• *Found:* {{ $json.values[0][0] }}\n• *Period:* {{ $('2. Format Cost Value').first().json.periodLabel }}\n\nScorecard structure may have changed.",
+        "otherOptions": {}
+      },
+      "id": "ab659e76-d5f0-4b4b-9ee6-f57015302997",
+      "name": "6. Error - Wrong Cell (F34)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [-840, -80],
+      "webhookId": "92247083-eb4c-418e-8044-8c05c70d9787",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Sunday at 9 AM": {
+      "main": [
+        [
+          {
+            "node": "1. Get Last Week Average",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Get Last Week Average": {
+      "main": [
+        [
+          {
+            "node": "2. Format Cost Value",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Format Cost Value": {
+      "main": [
+        [
+          {
+            "node": "3. Read B34",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Read B34": {
+      "main": [
+        [
+          {
+            "node": "4. Is Avg Item Cost?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Is Avg Item Cost?": {
+      "main": [
+        [
+          {
+            "node": "5. Update F34",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "6. Error - Wrong Cell (F34)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Update F34": {
+      "main": [
+        [
+          {
+            "node": "6. Confirm in Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fad612d4-8177-451b-925e-e671ce27aa60",
+  "meta": {
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "id": "ttKcozL8m1zTQvTT",
+  "tags": [
+    {
+      "createdAt": "2025-12-08T19:42:04.171Z",
+      "updatedAt": "2025-12-08T19:42:04.171Z",
+      "id": "lEzklHffkgE3bRKm",
+      "name": "jack"
+    }
+  ]
+}

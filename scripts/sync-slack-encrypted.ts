@@ -46,6 +46,7 @@ const flags = {
   ),
   all: args.includes('--all'), // Override to fetch all messages (no limit)
   threads: !args.includes('--no-threads'), // Threads enabled by default, use --no-threads to disable
+  backfillThreads: args.includes('--backfill-threads'), // One-time heal of stuck thread replies
   help: args.includes('--help') || args.includes('-h'),
 };
 
@@ -69,6 +70,8 @@ OPTIONS:
   --limit=N       Max messages per channel (default: 2000, most recent first)
   --all           Fetch all messages (no limit, overrides --limit)
   --no-threads    Skip thread replies (faster, default includes threads)
+  --backfill-threads  One-time heal: re-check every thread in the last 14 days and
+                  index late replies stuck on old parents (re-runnable, only adds)
   --help, -h      Show this help
 
 EXAMPLES:
@@ -217,6 +220,7 @@ async function runSync() {
       dryRun: flags.dryRun,
       maxMessagesPerChannel: messageLimit || undefined,
       includeThreads: flags.threads,
+      backfillThreads: flags.backfillThreads,
     });
 
     console.log('\n✅ Encrypted Sync Complete!\n');
