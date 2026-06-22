@@ -40,7 +40,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\n// --- Avg item cost (unchanged) ---\nconst rawCost = data.average_unit_price;\nlet costValue = 0;\nif (rawCost) {\n  costValue = parseFloat(rawCost);\n  if (isNaN(costValue)) costValue = 0;\n}\nconst formattedCost = `$${costValue.toFixed(2)}`;\n// --- Coverage percentages (new) ---\nconst overall = data.overall || {};\nconst orderedPctNum = (overall.ordered && overall.ordered.pct != null) ? overall.ordered.pct : 0;\nconst packedPctNum  = (overall.packed  && overall.packed.pct  != null) ? overall.packed.pct  : 0;\nconst orderedPct = `${orderedPctNum}%`;\nconst packedPct  = `${packedPctNum}%`;\nreturn [{ json: {\n  costValue, formattedCost,\n  orderedPctNum, packedPctNum, orderedPct, packedPct,\n  periodLabel: data.period_label,\n  totalItems: data.total_items_shipped,\n  startDate: data.start_date, endDate: data.end_date,\n} }];"
+        "jsCode": "const data = $input.first().json;\n// Avg item cost. The consolidated /scorecard/export response nests cost under\n// `cost` (cost.average_unit_price, etc.); the old single-cost endpoint returned\n// it at top level. Read from cost.* with a top-level fallback so either shape works.\nconst cost = data.cost || data;\nlet costValue = cost.average_unit_price ? parseFloat(cost.average_unit_price) : 0;\nif (isNaN(costValue)) costValue = 0;\nconst formattedCost = `$${costValue.toFixed(2)}`;\n// Coverage percentages\nconst overall = data.overall || {};\nconst orderedPct = `${(overall.ordered && overall.ordered.pct != null) ? overall.ordered.pct : 0}%`;\nconst packedPct  = `${(overall.packed  && overall.packed.pct  != null) ? overall.packed.pct  : 0}%`;\nreturn [{ json: {\n  formattedCost, orderedPct, packedPct,\n  periodLabel: cost.period_label,\n  totalItems: cost.total_items_shipped,\n} }];"
       },
       "id": "9863c003-4abc-4336-bb68-4c79696cc0ae",
       "name": "2. Format Cost Value",
@@ -50,13 +50,13 @@
     },
     {
       "parameters": {
-        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!B34",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!B34:B36",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googleSheetsOAuth2Api",
         "options": {}
       },
       "id": "f5f6fa22-3f1a-44a7-91cf-29da31db8eaa",
-      "name": "3. Read B34",
+      "name": "3. Read B34:B36",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [-1320, 120],
@@ -77,9 +77,27 @@
           },
           "conditions": [
             {
-              "id": "check-avg-item-cost",
+              "id": "chk-b34",
               "leftValue": "={{ $json.values[0][0] }}",
               "rightValue": "Avg Item Cost",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "chk-b35",
+              "leftValue": "={{ $json.values[1][0] }}",
+              "rightValue": "Core Product % at 4 weeks plus lead time",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "chk-b36",
+              "leftValue": "={{ $json.values[2][0] }}",
+              "rightValue": "Core Product % with 2 Weeks of SA/FG",
               "operator": {
                 "type": "string",
                 "operation": "equals"
@@ -91,7 +109,7 @@
         "options": {}
       },
       "id": "a33b9aed-76cf-44e4-8a60-5f6b9a985627",
-      "name": "4. Is Avg Item Cost?",
+      "name": "4. Labels Match?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [-1080, 120]
@@ -99,16 +117,16 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!F34?valueInputOption=USER_ENTERED",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!F34:F36?valueInputOption=USER_ENTERED",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googleSheetsOAuth2Api",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ values: [[$('2. Format Cost Value').item.json.formattedCost]] }) }}",
+        "jsonBody": "={{ JSON.stringify({ values: [[$('2. Format Cost Value').item.json.formattedCost], [$('2. Format Cost Value').item.json.orderedPct], [$('2. Format Cost Value').item.json.packedPct]] }) }}",
         "options": {}
       },
       "id": "d4ff0918-db39-49cd-be5d-2fdabe553314",
-      "name": "5. Update F34",
+      "name": "5. Update F34:F36",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [-840, 120],
@@ -127,14 +145,14 @@
           "value": "jack-test",
           "mode": "name"
         },
-        "text": "=\u2705 Weekly scorecard updated\n\u2022 *Avg Cost/Item:* {{ $('2. Format Cost Value').first().json.formattedCost }} \u2014 {{ $('2. Format Cost Value').first().json.periodLabel }} ({{ $('2. Format Cost Value').first().json.totalItems.toLocaleString() }} items) \u2192 F34\n\u2022 *Ordered Coverage:* {{ $('2. Format Cost Value').first().json.orderedPct }} \u2192 F35\n\u2022 *Packed Coverage:* {{ $('2. Format Cost Value').first().json.packedPct }} \u2192 F36",
+        "text": "=\u2705 Weekly scorecard updated ({{ $('2. Format Cost Value').first().json.periodLabel }}, {{ $('2. Format Cost Value').first().json.totalItems.toLocaleString() }} items)\n\u2022 *Avg Item Cost* \u2192 F34: {{ $('2. Format Cost Value').first().json.formattedCost }}\n\u2022 *Core % @ 4wk+lead (ordered)* \u2192 F35: {{ $('2. Format Cost Value').first().json.orderedPct }}\n\u2022 *Core % @ 2wk SA/FG (packed)* \u2192 F36: {{ $('2. Format Cost Value').first().json.packedPct }}",
         "otherOptions": {}
       },
       "id": "fbda45be-a02e-4dd2-94f2-c282e1439588",
       "name": "6. Confirm in Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
-      "position": [-120, 120],
+      "position": [-600, 120],
       "webhookId": "5884428a-acc9-447d-9399-9528f1883022",
       "credentials": {
         "slackApi": {
@@ -151,11 +169,11 @@
           "value": "jack-test",
           "mode": "name"
         },
-        "text": "=\u26a0\ufe0f Weekly cost update FAILED\n\u2022 *Expected B34:* \"Avg Item Cost\"\n\u2022 *Found:* {{ $json.values[0][0] }}\n\u2022 *Period:* {{ $('2. Format Cost Value').first().json.periodLabel }}\n\nScorecard structure may have changed.",
+        "text": "=\u26a0\ufe0f Weekly scorecard update FAILED \u2014 did NOT write F34:F36\nExpected labels in B34:B36:\n\u2022 B34: \"Avg Item Cost\" \u2192 found {{ $json.values[0] ? $json.values[0][0] : 'MISSING' }}\n\u2022 B35: \"Core Product % at 4 weeks plus lead time\" \u2192 found {{ $json.values[1] ? $json.values[1][0] : 'MISSING' }}\n\u2022 B36: \"Core Product % with 2 Weeks of SA/FG\" \u2192 found {{ $json.values[2] ? $json.values[2][0] : 'MISSING' }}\n\nScorecard rows may have shifted.",
         "otherOptions": {}
       },
       "id": "ab659e76-d5f0-4b4b-9ee6-f57015302997",
-      "name": "6. Error - Wrong Cell (F34)",
+      "name": "6. Error - Wrong Labels",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [-840, -80],
@@ -164,52 +182,6 @@
         "slackApi": {
           "id": "IafsmXhPRCyykQMM",
           "name": "Slack account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "PUT",
-        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!F35?valueInputOption=USER_ENTERED",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleSheetsOAuth2Api",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ values: [[$('2. Format Cost Value').item.json.orderedPct]] }) }}",
-        "options": {}
-      },
-      "id": "a1b2c3d4-0035-4f35-8e35-000000000035",
-      "name": "5b. Update F35 (Ordered Coverage)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [-600, 120],
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "YY0aKH375lw428rC",
-          "name": "Google Sheets account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "PUT",
-        "url": "https://sheets.googleapis.com/v4/spreadsheets/17J0Uqqd0dkaS6-3TCCB_TtP1eZg6xbdC0IWThrOH5FM/values/Scorecard26!F36?valueInputOption=USER_ENTERED",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleSheetsOAuth2Api",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ values: [[$('2. Format Cost Value').item.json.packedPct]] }) }}",
-        "options": {}
-      },
-      "id": "a1b2c3d4-0036-4f36-8e36-000000000036",
-      "name": "5c. Update F36 (Packed Coverage)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [-360, 120],
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "YY0aKH375lw428rC",
-          "name": "Google Sheets account"
         }
       }
     }
@@ -242,65 +214,43 @@
       "main": [
         [
           {
-            "node": "3. Read B34",
+            "node": "3. Read B34:B36",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "3. Read B34": {
+    "3. Read B34:B36": {
       "main": [
         [
           {
-            "node": "4. Is Avg Item Cost?",
+            "node": "4. Labels Match?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "4. Is Avg Item Cost?": {
+    "4. Labels Match?": {
       "main": [
         [
           {
-            "node": "5. Update F34",
+            "node": "5. Update F34:F36",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "6. Error - Wrong Cell (F34)",
+            "node": "6. Error - Wrong Labels",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "5. Update F34": {
-      "main": [
-        [
-          {
-            "node": "5b. Update F35 (Ordered Coverage)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "5b. Update F35 (Ordered Coverage)": {
-      "main": [
-        [
-          {
-            "node": "5c. Update F36 (Packed Coverage)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "5c. Update F36 (Packed Coverage)": {
+    "5. Update F34:F36": {
       "main": [
         [
           {

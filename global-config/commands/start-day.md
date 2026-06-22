@@ -104,9 +104,12 @@ Run these eight checks:
    paths with remedy "stale worktree metadata — Jack can `git -C \$SERP worktree prune` if he wants
    (don't do it for him)."
 
-6. **go-launcher extension installed.** `[ -d ~/.vscode/extensions/go-launcher ]`. This is what makes
-   `/go` actually open tabs. ✅ if present; ⚠️ remedy: "`/go` will silently queue requests that never
-   open a tab — reinstall the Go Launcher extension and reload the VS Code window."
+6. **go-launcher extension installed.** VS Code installs it as `~/.vscode/extensions/jackkief.go-launcher-<version>`,
+   NOT a bare `go-launcher` dir — test the glob: `compgen -G '/Users/jackkief/.vscode/extensions/jackkief.go-launcher-*' >/dev/null`
+   (or `ls -d ~/.vscode/extensions/jackkief.go-launcher-* 2>/dev/null | grep -q .`). This is what makes
+   `/go` actually open tabs. ✅ if any versioned dir is present; ⚠️ only if NONE match — remedy: "`/go`
+   will silently queue requests that never open a tab — rebuild + install with
+   `bash global-config/vscode-extensions/go-launcher/build-and-install.sh` and reload the VS Code window."
 
 7. **go-queue dir exists.** `[ -d ~/.claude/go-queue ]` (the launcher `mkdir -p`s it, so this is
    informational). ✅ if present; ⚠️ is benign — "will be created on first `/go`."
