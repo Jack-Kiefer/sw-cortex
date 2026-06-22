@@ -8,7 +8,7 @@ How Jack wants Claude to work. These override the urge to be "helpful" by doing 
 
 - **Minimal, additive change.** When asked to "also add / instead add" a column, dropdown, option, or branch, **extend** the existing structure. Do not delete, replace, or rebuild adjacent behavior, do not add new pages/files/nodes, and do not touch out-of-scope code or data unless explicitly told to. Prefer reusing/extending an existing thing over creating a new one. (e.g. "just use add and remove, not replace"; "you dont need new nodes, just make the existing thing also include X".)
 - **Do exactly what's asked — nothing more.** No bonus "improvements," adjacent refactors, or speculative scaffolding. If you think scope should grow, ask first.
-- **Stop the moment Jack takes over.** If Jack says he'll modify the code himself, "nevermind," or "it's not your job to do that," stop editing immediately and don't step on his changes.
+- **Stop the moment Jack takes over.** If Jack says he'll modify the code himself, "nevermind," or "it's not your job to do that," stop editing immediately and don't step on his changes. **A rejected tool call counts as taking over.** If Jack rejects/cancels a tool use ("user rejected the tool use"), even with no message, treat it as an intentional STOP — do **not** re-fire the same call, do **not** route around it with a different tool to do the same thing, and do **not** proceed as if it succeeded. Stop and ask what he wants instead.
 - **Advisory by default.** "What do I need to change?" / "tell me what to do" / "how would I…" means **surface the diff or SQL as text** — do not apply it until told to.
 - **Verify before claiming done.** Editing a file is not the same as changing the behavior. Before reporting a UI or data fix complete, observe the changed result yourself — reload the page, re-run the query, diff the output. Watch for caches, paginated slices, and stale builds that mask "no change." If you can't verify, say so instead of asserting it works.
 - **No scratch files, minimal comments.** Don't create summary/scratch `.md` files or add explanatory comments unless asked. Keep output minimal and inline.
@@ -102,9 +102,10 @@ The obvious-looking inference is often documented as **wrong** — that's what t
 
 ## Global Skills
 
-| Skill          | Trigger                                        |
-| -------------- | ---------------------------------------------- |
-| `n8n-workflow` | When asked to create n8n workflows/automations |
+| Skill          | Trigger                                                          |
+| -------------- | ---------------------------------------------------------------- |
+| `n8n-workflow` | When asked to create n8n workflows/automations                   |
+| `audit-agent`  | When Jack pastes another agent's bad output and asks to audit it |
 
 ## Global MCP Tools (via `~/.mcp.json`)
 
@@ -391,7 +392,7 @@ This is the institutional memory an AI assistant **cannot** reconstruct from sch
 - **SWAC IS WishDesk** — the GitHub description "SugarWish Activity Coordinator" is misleading.
 - Inventory has **no single source of truth**: sellable (SA) = Laravel `receiver_products.inventory_qty`; raw material (RM) = Odoo only; accounting/valuation = Odoo `stock_quant`/SVL.
 - SERPY is an **AI inventory-ops agent** (Slack bot), NOT a typo for SERP and NOT a human.
-- `git stash` is **FORBIDDEN** in all repos. Never `git add -A`. Advisory by default on anything risky/data-related.
+- `git stash` is **FORBIDDEN** in all repos (it caused a silent 4-hunk drop). Never `git add -A`. To peek at committed state use `git show HEAD:path`; to see your uncommitted changes use `git diff HEAD` — never stash to "get a clean tree." When a fix belongs in a read-only repo (anything but SERP/SWAC/sw-cortex), don't try to edit it — the write-guard will deny it; print a hand-off note (what's wrong + file/line + owner) instead. Advisory by default on anything risky/data-related.
 - Inventory Days formula (Jason originated): `current inventory / (last-7-day use / 7)`.
 
 ---
