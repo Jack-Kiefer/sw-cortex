@@ -1,14 +1,14 @@
 # Command: launch
 
-`/launch` is **the fix-launcher that keeps the original tab open.** It opens a real Claude Code session in the right repo (new VS Code terminal tab, that repo's native commands + MCP tools) and kicks off the work there. It reuses all of `/go`'s routing/intake machinery, with three differences: it does **NOT** close the tab you ran it from, it can **launch several sessions at once**, and for SERP it fires the **implement/analyze** pipeline (a change) rather than `/go`'s research-only pass.
+`/launch` is **the fix-launcher that keeps the original tab open.** It opens a real Claude Code session in the right repo (new VS Code terminal tab, that repo's native commands + MCP tools) and kicks off the work there. It reuses all of `/go`'s routing/intake machinery, with three differences: it does **NOT** close the tab you ran it from, it can **launch several sessions at once**, and for SERP it fires **`/implement`** (build the scoped fix) by default — or **`/research`** when you only want to investigate in the new tab.
 
-Use `/launch` when the fix is already scoped (typically right after a `/go` research pass) and you want to spin it off into its own tab while staying where you are. `/go` finds the problem (research, then offers to launch fixes); `/launch` builds it — `/implement` by default, or `/analyze` when you say `analyze`. (`/go` closes the originating tab once the new one opens; `/launch` leaves it open.)
+Use `/launch` when the fix is already scoped (typically right after a `/go` or `/research` pass) and you want to spin it off into its own tab while staying where you are. `/launch` runs **`/implement` by default** (build the scoped fix → PR), or **`/research`** when you say `research`/`investigate` (investigate in the new tab, report, stop — no build). (`/go` closes the originating tab once the new one opens; `/launch` leaves it open.)
 
 ## Usage
 
 ```
-/launch <scoped fix>            # SERP → /implement (fix already researched); THIS tab stays open
-/launch analyze <task>          # SERP → /analyze (full research+approval+implement pipeline)
+/launch <scoped fix>            # SERP → /implement (fix already researched → build → PR); THIS tab stays open
+/launch research <task>         # SERP → /research (investigate in the new tab, report, stop — no build)
 /launch serp                    # bare repo name → JUST open a SERP session, original tab stays
 /launch swac
 /launch cortex
@@ -23,16 +23,16 @@ Follow **the entire `/go` command spec** for classification, options-first intak
 - **Step 0.5 (options-first intake via `AskUserQuestion`)** — same: turn the task into pickable scope/approach options before launching, folding picks into the task string. (For a multi-launch, ask per task only where it's genuinely ambiguous — don't over-prompt.)
 - **Step 1 / 1.6 (route to SERP/SWAC/sw-cortex; classify research vs implementation)** — same.
 - **Step 1.5 (routed to sw-cortex)** — same: do it INLINE in this hub session, do NOT open a new terminal. (`/launch` on a sw-cortex task changes nothing — the hub already has everything; no tab to keep or close.)
-- **Step 2 (build the first prompt)** — for SERP, pick the command by intent (see Difference 3): **`/implement <task>`** by default (the fix is already scoped) or **`/analyze <task>`** when the request says `analyze` (full research+implement pipeline). SWAC impl → `/global-analyze <task>`. Pure research → the research/answer prompt.
+- **Step 2 (build the first prompt)** — for SERP, pick the command by intent (see Difference 3): **`/implement <task>`** by default (the fix is already scoped) or **`/research <task>`** when the request says `research`/`investigate` (investigate in the new tab, stop — no build). SWAC impl → `/global-analyze <task>`. Pure research (any repo) → `/research <task>`.
 
-### Difference 3 — SERP fires `/implement` by default, `/analyze` on the `analyze` keyword
+### Difference 3 — SERP fires `/implement` by default, `/research` on the `research`/`investigate` keyword
 
-`/launch` is primarily the **"the fix is already scoped, go build it"** entry point — you usually reach it after a `/go` research pass surfaced the issue(s). So for a **SERP** task, choose the first prompt by intent:
+`/launch` is primarily the **"the fix is already scoped, go build it"** entry point — you usually reach it after a `/go` or `/research` pass surfaced the issue(s). So for a **SERP** task, choose the first prompt by intent:
 
-- **Default → `/implement <task>`.** `/launch fix the copier cap` → `/implement cap the copier…`. Skips the research swarm, goes straight to a quick approval gate → build → PR using the same implementation skills `/analyze` uses. The research already happened upstream; don't pay for it twice.
-- **`analyze`/`research`/`investigate` in the request → `/analyze <task>`.** `/launch analyze the forecast zeros` → `/analyze the forecast zeros…`. Runs SERP's full research-swarm → approval gate → implement pipeline in the launched session. Use this when you want the deep investigation to happen **in the new tab** (rather than via `/go`) and then flow straight into the fix — e.g. you want it researched _and_ built without bouncing back to the hub. Strip the leading `analyze`/`research`/`investigate` keyword from the task text before passing it to `/analyze`.
+- **Default → `/implement <task>`.** `/launch fix the copier cap` → `/implement cap the copier…`. Skips the research swarm, goes straight to a quick approval gate → build → PR using the implementation skills. The research already happened upstream; don't pay for it twice.
+- **`research`/`investigate` in the request → `/research <task>`.** `/launch research the forecast zeros` → `/research the forecast zeros…`. Runs the research swarm in the launched session, presents findings, and **stops** — no build, no PR. Use this when you want the deep investigation to happen **in the new tab** without bouncing back to the hub, and you're not ready to build yet. Strip the leading `research`/`investigate` keyword from the task text before passing it to `/research`. (`/launch` no longer fires `/analyze` — research-then-build-in-one-shot is `/go`'s `/analyze` path; `/launch` is build-the-scoped-fix or research-only.)
 
-SWAC implementation always uses `/global-analyze` (SWAC has no separate `/implement` or `/analyze`); the `analyze` keyword is a no-op there since `/global-analyze` already researches first. Pure research tasks (a question, no fix) still use the plain research/answer prompt regardless of repo.
+SWAC implementation always uses `/global-analyze` (SWAC has no separate `/implement`); a `research`/`investigate` SWAC task uses `/research` (the generic research command works in any repo session). Pure research tasks (a question, no fix) use `/research <task>` regardless of repo.
 
 #### SWAC-only implement flow — worktree + dev server, NO auto-PR, wait for "ship it"
 
@@ -76,7 +76,7 @@ That flag tells the launcher to leave `CLOSE_TTY` empty, so the Go Launcher exte
 
 When the request covers **several issues/fixes** — `/launch fixes for those`, `/launch fix X ; add Y`, "launch a session for each of these", "spin up sessions for A, B, and C" — the default is **one terminal per fix** (each gets its own tab so they build, PR, and merge independently). **But you do NOT launch straight away** — you first run the **file-overlap coalescing gate** below, which decides how many tabs there actually are. Only after the gate do you **route and classify each group on its own** (each may land in a different repo / mode) and **call the launcher once per group** (parallel `Bash` calls, don't babysit).
 
-> ⚠️ The instinct to "combine two related fixes into one `/analyze` session" is **wrong here.** "Launch fixes for those" with N issues = **N terminals** — UNLESS two of them edit the same file(s), in which case those specific ones coalesce (the gate below).
+> ⚠️ The instinct to "combine two related fixes into one `/implement` session" is **wrong here.** "Launch fixes for those" with N issues = **N terminals** — UNLESS two of them edit the same file(s), in which case those specific ones coalesce (the gate below).
 
 #### MANDATORY GATE — coalesce fixes that touch the same file(s) BEFORE launching
 
