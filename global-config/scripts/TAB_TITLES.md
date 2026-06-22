@@ -43,19 +43,24 @@ hooks (read session_id from stdin JSON; have no tty):
   SessionStart / UserPromptSubmit → tab-title-default.sh
      └─ if no title file yet, write the floor (CLAUDE_GO_TITLE if set, else
         "🔍 <repo> · session") and emit it → GUARANTEES every session is titled
-  Stop / Notification (--bell) + SubagentStop → tab-title-hook.sh
+  Stop / Notification (--bell) + SubagentStop + PostToolUse → tab-title-hook.sh
      └─ read the session's title file, emit it as {terminalSequence: "OSC0…"}
      └─ --bell adds the attention BEL; on a LEADING-✅ title it ALSO fires a
         macOS desktop notification via osascript (NOT OSC 9 — VS Code drops it)
      └─ SubagentStop re-asserts the PARENT's title after a child finishes
+     └─ PostToolUse re-asserts after EVERY tool call, so a mid-run
+        set-tab-title.sh paints on the next tool call instead of waiting for idle
   SessionEnd → inline `rm` of the session's title file (GC)
 ```
 
 Children CANNOT paint the parent tab (their terminalSequence targets their own
 non-tab PTY), so they delegate: the parent heals its title on SubagentStop. The
-PostToolUse re-assert was removed (per-tool-call hot-path I/O; transitions cover
-every idle moment). The model's `set-tab-title.sh` calls win over the default,
-because the default no-ops once a title file exists.
+PostToolUse re-assert (no `--bell`) re-emits the stored title after every tool
+call so mid-run `set-tab-title.sh` changes paint immediately rather than only on
+the next idle hook — the per-tool-call hot-path I/O is the accepted cost, kept
+cheap by the hook's early `exit 0` when no title file exists and `suppressOutput`.
+The model's `set-tab-title.sh` calls win over the default, because the default
+no-ops once a title file exists.
 
 ## Components
 
@@ -64,7 +69,7 @@ because the default no-ops once a title file exists.
 | Setter          | `~/.claude/scripts/set-tab-title.sh`     | `"NAME"` sets / `--clear` removes; writes session-id state + stamps the tab                                                                                                   |
 | Re-assert hook  | `~/.claude/scripts/tab-title-hook.sh`    | Emits the stored title via `terminalSequence`; `--bell` adds BEL + ✅ notify                                                                                                  |
 | Default hook    | `~/.claude/scripts/tab-title-default.sh` | Floor: titles a session that never called the setter (`🔍 <repo> · session`). With `--prompt` (UserPromptSubmit) it ALSO demotes a leading 🙋/❓ → 🔨 — see "Auto-flip" below |
-| Hook wiring     | `~/.claude/settings.json` → `hooks.*`    | SessionStart → default; UserPromptSubmit → default `--prompt`; Stop/Notification(`--bell`)+SubagentStop → re-assert; SessionEnd → GC                                          |
+| Hook wiring     | `~/.claude/settings.json` → `hooks.*`    | SessionStart → default; UserPromptSubmit → default `--prompt`; Stop/Notification(`--bell`)+SubagentStop+PostToolUse → re-assert; SessionEnd → GC                              |
 | State           | `~/.claude/tab-titles/<session_id>`      | One plain-text file per session                                                                                                                                               |
 | Slash command   | `~/.claude/commands/tab-title.md`        | `/tab-title <name>` / `/tab-title --clear`                                                                                                                                    |
 | Global standard | `~/CLAUDE.md` "Terminal Tab Status"      | Every session sets/updates the 🔍📋🙋🔨🧪📝⬆️❓📦🚀✅ status (steps in that order)                                                                                            |

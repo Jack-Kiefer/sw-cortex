@@ -1,7 +1,8 @@
 # Command: start-day
 
-Jack's morning kickoff. Orchestrates the start-of-day routine as a **team of parallel
-subagents** and ends with a single triage briefing: what needs Jack's attention today.
+Jack's morning kickoff. Orchestrates the start-of-day routine as a **single ultracode Workflow**
+(parallel agents under one fan-out) and ends with a single triage briefing: what needs Jack's
+attention today.
 
 The steps are **independent and run concurrently** — with **one** load-bearing ordering
 constraint: Slack triage (Step 4) reads the index that the Slack sync (Step 1) writes, so
@@ -21,38 +22,83 @@ Anything else is ignored.
 
 ---
 
+## Standing directive (always, every run)
+
+**Run this entire routine at `ultracode` effort, orchestrated as a single Workflow.** Before
+doing anything else:
+
+1. **Effort = ultracode.** Treat this as a standing ultracode opt-in for the routine — the
+   morning briefing should be the most thorough version of itself. (If the session isn't already
+   on ultracode, raise effort to it for this command; token cost is not a constraint here.)
+2. **Drive it with the `Workflow` tool — author ONE workflow script**, not inline Task
+   subagents. The whole routine is the workflow: a `phase('Wave A')` that fans out Steps
+   **0, 2, 2b, 3, 5** in `parallel()` while the Slack sync runs in the background, a **barrier**
+   on the sync, then a `phase('Triage')` running Step 4, then a `phase('Shutdown')` running
+   Step 6. The step bodies below are the per-agent prompts; the orchestration model section maps
+   them onto the script.
+
+This standing directive is the whole reason the command exists in its current form — do not fall
+back to inline Task subagents, and do not run at a lower effort, unless Jack says so in the
+invocation.
+
+---
+
 ## What you (Claude) must do
 
 You are the **orchestrator**. Set the tab title at the start:
 `~/.claude/scripts/set-tab-title.sh "🔨 starting · start-day"` — and **only you** (the main
-thread) touch the tab; subagents must never call `set-tab-title.sh`. The global hooks
+thread) touch the tab; the workflow's agents must never call `set-tab-title.sh`. The global hooks
 re-stamp it, so update it only at real transitions.
 
-Run the routine in **two waves**:
+### Orchestration model — author and run ONE Workflow script
 
-- **Wave A (parallel):** kick off the **Slack sync** (Step 1) so it runs in the background,
-  and in the **same message** spawn one subagent each for **Step 0** (health-check),
-  **Step 2** (tickets), **Step 2b** (PRs/deploy), **Step 3** (KB touch-up), and **Step 5**
-  (Claude-setup diagnostic). Use the **Task tool** with `subagent_type: general-purpose`
-  (use `Explore` for the read-only research steps if you prefer). Each subagent gets the
-  step body below as its task prompt and returns the **compact result block** that step
-  specifies — nothing more. Spawn them in one batch so they run at once.
-- **Barrier:** wait for the Slack sync to finish (and collect every subagent's return).
-- **Wave B:** only now spawn the **Step 4** (Slack triage) subagent — it depends on the
-  freshly-written index.
+Per the standing directive, the routine runs as a **single `Workflow` call**, not inline Task
+subagents. Pass the script **inline** to the `Workflow` tool. It has three phases plus the
+background sync, and exactly **one** load-bearing barrier (sync → triage). Build it like this:
 
-When every subagent has returned, **you** (not a subagent) assemble the **Morning Briefing**
-(below) and apply any `DICTIONARY.md` edits Step 3 proposed. Print a one-line `✅ Step N done`
-as each result lands so Jack sees progress.
+1. **`meta` block** — `name: 'start-day'`, a one-line `description`, and `phases` matching the
+   three `phase()` titles below (`Wave A`, `Triage`, `Shutdown`).
+2. **Kick the Slack sync off first** as a background shell step **outside** the workflow (Step 1
+   is `npm run slack:sync`, which the workflow's agents can't run) — start it with
+   `Bash(run_in_background: true)` **before** the `Workflow` call, OR pass `skip-sync`'s status
+   in via the script's `args`. Simplest correct shape: start the bg sync, then call `Workflow`;
+   the Triage phase doesn't begin until you've confirmed the sync finished (see the barrier
+   below). The sync is the **only** thing the workflow waits on.
+3. **`phase('Wave A')` — fan out the five read steps with `parallel()`.** One `agent()` call each
+   for **Step 0** (health-check), **Step 2** (tickets), **Step 2b** (PRs/deploy), **Step 3** (KB
+   touch-up), **Step 5** (Claude-setup diagnostic). Each agent's prompt **is the step body below**;
+   each must `return` exactly the compact result block that step specifies — give each a `schema`
+   (or a tight "return only this panel" instruction) so the returns come back clean. These have no
+   inter-dependencies, so a single `parallel([...])` barrier collecting all five is correct here.
+   - Step 0 and Step 5 both touch the live setup; Step 0 owns the **only** live MCP probes (Step 5
+     stays transcript-only) — keep that split in their prompts so they don't double-probe.
+4. **Barrier on the sync.** After Wave A's `parallel()` resolves, the script (or you, between the
+   `Workflow` return and a second call) must ensure the **Slack sync has completed** before Triage.
+   If you ran the sync as a bg Bash step, gate Triage on it: don't enter `phase('Triage')` until
+   the sync process has exited. (With `skip-sync`, there's nothing to wait on — Triage can run in
+   the same pass.)
+5. **`phase('Triage')` — Step 4.** One `agent()` for Slack triage; its prompt is Step 4's body. It
+   reads the index the sync just wrote, so it **must** come after the barrier.
+6. **`phase('Shutdown')` — Step 6.** The **one writing step**. `/shutdown`'s logic removes
+   worktrees, so it must **not** run inside a read-only research agent — run Step 6 as the
+   **orchestrator** (a Bash/command step you drive), not as a workflow `agent()`. Sequence it after
+   Wave A returned (so Step 0's worktree snapshot is captured). Skip it on `skip-shutdown`.
+7. **`return`** the collected result blocks from the workflow so you (the orchestrator) have all of
+   them in hand. Then **you** — not the workflow — apply any `DICTIONARY.md` edits Step 3 proposed
+   (with the `Edit` tool, on the main thread) and assemble the **Morning Briefing** below. Print a
+   one-line `✅ Step N done` as each result lands so Jack sees progress.
 
-> **Why subagents:** the steps are independent reads against different systems (git, GitHub,
-> SWIRL, Slack, transcripts) — running them concurrently keeps the morning routine fast and
-> each agent's context focused. The sync→triage order is the **only** thing that must be
-> serial; the two-wave structure above is what enforces it.
+> **Why a workflow:** the steps are independent reads against different systems (git, GitHub,
+> SWIRL, Slack, transcripts) — fanning them out in one `parallel()` keeps the morning routine fast
+> and each agent's context focused, and the workflow gives Jack a live progress tree (`/workflows`).
+> The sync→triage order is the **only** thing that must be serial; the barrier above enforces it.
+> The two writes (the `DICTIONARY.md` touch-up and the Step 6 worktree shutdown) stay on the
+> **orchestrator/main thread**, never inside a workflow agent.
 
-### Step 0 — Setup health-check · Wave A subagent
+### Step 0 — Setup health-check · Wave A agent
 
-> **Subagent contract.** Spawn this as one Task-tool subagent in Wave A. It returns the
+> **Workflow-agent contract.** This is one `agent()` in the workflow's `phase('Wave A')`
+> `parallel()`. It returns the
 > rendered `### 🩺 Setup health` panel (one ✅/⚠️ line per item, ⚠️ remedies inline) as its
 > result — nothing else. It is **non-blocking and report-only** with ONE exception — check 8
 > (Docker + local dev DB) may auto-start those if down (Jack opted in), bounded so it can't hang
@@ -138,14 +184,15 @@ Run these eight checks:
      ⚠️ and move on. This is the ONLY Step 0 item permitted to start anything; everything else stays
      report-only.
 
-**Return:** the rendered `### 🩺 Setup health` panel (the subagent does not print `✅ Step 0
+**Return:** the rendered `### 🩺 Setup health` panel (the agent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).
 
 ### Step 1 — Sync Slack · Wave A barrier (must finish before Step 4)
 
-> **Orchestrator runs this — not a subagent.** Kick the sync off at the **start of Wave A**
-> (e.g. `run_in_background`) so it overlaps the Wave-A subagents, then **block on it** before
-> spawning Step 4. It is the single ordering barrier in the routine.
+> **Orchestrator runs this — NOT a workflow agent.** `npm run slack:sync` is a shell command the
+> workflow's agents can't run, so kick it off yourself with `Bash(run_in_background: true)` at the
+> **start of Wave A** so it overlaps the workflow's Wave-A agents, then **block on it** before the
+> `phase('Triage')` Step 4 begins. It is the single ordering barrier in the routine.
 
 Unless `skip-sync` was passed, run the Slack sync and **wait for it to complete**:
 
@@ -160,9 +207,9 @@ to continue triage against the stale index or stop. Do **not** silently skip ahe
 
 If `skip-sync`: note it, call `get_slack_sync_status`, and report the index's current freshness so
 Jack knows what the triage in Step 4 is based on. (With `skip-sync` there's no sync to wait on, so
-Step 4 may spawn alongside the rest of Wave A.)
+Step 4 may run alongside the rest of Wave A.)
 
-### Step 2 — WishDesk tickets · Wave A subagent
+### Step 2 — WishDesk tickets · Wave A agent
 
 Show Jack his open WishWorks tickets. **Do not query the `wishdesk` MySQL DB for this** —
 WW-#### tickets are `.md` files in the `jasonbkiefer/SWIRL` repo (`wishworks/dev-requests/active/`),
@@ -175,12 +222,12 @@ Jack to `export SWIRL_GITHUB_TOKEN=...` in `~/.zshrc` — don't fall back to a D
 
 Summarize: ticket id, title, priority/status, one-line "what's left." Keep it tight.
 
-**Return:** the tight ticket list (one line per ticket) as the subagent's result.
+**Return:** the tight ticket list (one line per ticket) as the agent's result.
 
-### Step 2b — Open PRs & deploy status (SERP) · Wave A subagent
+### Step 2b — Open PRs & deploy status (SERP) · Wave A agent
 
 A quick read-only pass over SERP's repo state — what's awaiting Jack on the PR/deploy side. SERP is
-the repo he owns and merges; this stays SERP-only. (Fold into the Step 2 subagent if you prefer one
+the repo he owns and merges; this stays SERP-only. (Fold into the Step 2 agent if you prefer one
 fewer agent — both are read-only SERP/SWIRL reads; keep their outputs distinct in the return.)
 
 **Open PRs awaiting Jack.** List open `Jack-Kiefer/SERP` PRs that involve him — authored by, assigned
@@ -206,12 +253,12 @@ pointer to it. If `AHEAD = 0` and `BEHIND = 0`, say "in sync — nothing pending
 
 **Return:** the PR line(s) + the one-line deploy status.
 
-### Step 3 — Light KB touch-up · Wave A subagent
+### Step 3 — Light KB touch-up · Wave A agent
 
-> **Subagent contract.** This subagent **does not edit `DICTIONARY.md` itself** — it
+> **Workflow-agent contract.** This agent **does not edit `DICTIONARY.md` itself** — it
 > **returns the proposed edits as text** (for each: the exact existing line to change or the
 > section to add to, plus the new wording, and a one-line why). The **orchestrator** applies
-> them with the Edit tool after the subagent returns. This keeps all writes on the main
+> them with the Edit tool after the agent returns. This keeps all writes on the main
 > thread, in one place, and matches Jack's "surface the diff, then apply" preference.
 
 Unless `skip-kb` was passed, do a **lightweight, incremental** pass — NOT the full
@@ -259,10 +306,11 @@ watermark — that belongs to the weekly full run, and stamping it here would ma
 > `DICTIONARY.md` is enough — don't also hand-edit `CLAUDE.md` unless Jack asks. If something big
 > changed and a full reconcile is warranted, flag it and suggest Jack run `/refresh-knowledge`.
 
-### Step 4 — Slack triage · Wave B subagent (needs Step 1 done first)
+### Step 4 — Slack triage · `phase('Triage')` agent (needs Step 1 done first)
 
-> **Spawn this only after the Slack sync barrier clears** (or immediately, if `skip-sync`).
-> It reads the index Step 1 wrote. Returns the "needs your attention" item list.
+> **This agent runs in `phase('Triage')`, only after the Slack sync barrier clears** (or
+> immediately, if `skip-sync`). It reads the index Step 1 wrote. Returns the "needs your
+> attention" item list.
 
 Find what Jack hasn't responded to and what needs attention from the **past day**.
 
@@ -299,9 +347,9 @@ jump straight to the message:
 Render each as a markdown link on the channel/person so the briefing line stays scannable, e.g.
 `[#ops-management](https://sugarwish.slack.com/archives/G01.../p178...)`.
 
-### Step 5 — Claude-setup diagnostic · Wave A subagent
+### Step 5 — Claude-setup diagnostic · Wave A agent
 
-> **Subagent contract.** Read-only. This step diagnoses **Jack's Claude Code setup**, not his
+> **Workflow-agent contract.** Read-only. This step diagnoses **Jack's Claude Code setup**, not his
 > SugarWish work: where the tooling itself got in the way over the last few days, and what to
 > change so it stops. It **only reads transcripts** (no live MCP/DB probes — Step 0 owns the
 > live snapshot) and **proposes** config/behaviour fixes as text; it never edits
@@ -360,8 +408,8 @@ clean — no recurring friction."
 
 ### Step 6 — Shut down not-in-use worktrees · orchestrator (the one destructive step)
 
-> **Orchestrator runs this — not a subagent — and it is the ONLY step that writes.** It removes
-> worktrees, so it must not run inside a read-only research agent. Run it **after Wave A has
+> **Orchestrator runs this — NOT a workflow agent — and it is the ONLY step that writes.** It
+> removes worktrees, so it must not run inside a read-only research agent. Run it **after Wave A has
 > returned** (so Step 0's worktree snapshot is already captured for the briefing) — sequence
 > doesn't otherwise matter; it touches only writable repos' worktrees, nothing the other steps read.
 
@@ -387,8 +435,8 @@ the orchestrator folds into the briefing's `### 🧹 Worktrees` line.
 
 ## Morning Briefing (final output)
 
-Once every subagent has returned (and you've applied any Step 3 edits), stitch the results into
-one briefing in this **printed order** — keep it scannable:
+Once the workflow has returned every result block (and you've applied any Step 3 edits), stitch the
+results into one briefing in this **printed order** — keep it scannable:
 
 ```
 ## ☀️ Morning Briefing — <today's date>
@@ -428,14 +476,17 @@ before ending the turn.
 
 ## Notes
 
-- **It's an agent team, with one barrier.** Wave A (Step 0, 2, 2b, 3, 5 + the background Slack
-  sync) fans out as parallel subagents; the sync→triage order is the **only** thing that's
-  serial — Step 4 waits for the sync. Spawn the Wave-A agents in a single message so they run
-  concurrently. The **orchestrator owns the tab, the `DICTIONARY.md` writes, and the final
-  briefing**; subagents only read + return their block.
-- **Printed order is load-bearing for reading, not execution.** The steps execute in parallel
-  (plus Step 6 after Wave A), but assemble the briefing top-to-bottom: health → setup-friction →
-  tickets → deploy/PRs → KB → worktrees → triage, so Jack scans it in a stable order.
+- **It runs as ONE Workflow at ultracode, with one barrier.** Per the standing directive at the
+  top, author and run a single `Workflow` script (don't fall back to inline Task subagents).
+  `phase('Wave A')` fans out Step 0, 2, 2b, 3, 5 in a single `parallel()` while the Slack sync runs
+  in the background; the sync→triage order is the **only** serial dependency — `phase('Triage')`
+  (Step 4) waits on the sync barrier; then `phase('Shutdown')` (Step 6). The **orchestrator owns
+  the tab, the `DICTIONARY.md` writes, the Step 6 worktree shutdown, and the final briefing**; the
+  workflow's agents only read + return their block.
+- **Printed order is load-bearing for reading, not execution.** The phases execute in parallel
+  within Wave A (plus Step 6 after Wave A), but assemble the briefing top-to-bottom: health →
+  setup-friction → tickets → deploy/PRs → KB → worktrees → triage, so Jack scans it in a stable
+  order.
 - **Step 0 is non-blocking and report-only, with one opted-in exception.** It surfaces broken
   plumbing (MCP down, missing go-launcher extension, bastion unreachable, etc.) but never restarts,
   reinstalls, prunes a worktree, or stops the routine — **except check 8 (Docker + local dev DB),
@@ -446,7 +497,7 @@ before ending the turn.
 - **Step 2b (deploy/PRs) stays SERP-only and gate-free** — it's a light dev→main count plus a pointer
   to `/pending-deploy SERP`, which owns the real lint+test readiness gate. Don't run tests here.
 - **`DICTIONARY.md` is a living document.** Step 3 keeps it current with small daily edits —
-  fold in / correct yesterday's learnings, never duplicate. The Step 3 subagent **proposes**; the
+  fold in / correct yesterday's learnings, never duplicate. The Step 3 agent **proposes**; the
   orchestrator applies. The heavy reconcile stays with the weekly `/refresh-knowledge`; the daily
   pass deliberately does **not** touch its watermark, so the two never collide.
 - **Step 5 (Claude-setup diagnostic) is about the tooling, not the work.** It mines transcripts
@@ -456,7 +507,7 @@ before ending the turn.
   the guard)**. It surfaces fixes as text — it never edits `settings.json`, `~/CLAUDE.md`,
   `.env`, or any config itself.
 - **Step 6 (worktree shutdown) is the one destructive step** — it removes clean, idle worktrees
-  via `/shutdown` (orchestrator-run, never a subagent). It only ever touches writable repos'
+  via `/shutdown` (orchestrator-run, never a workflow agent). It only ever touches writable repos'
   worktrees, keeps anything in use, and hard-skips the protected/locked set. Skip it with
   `skip-shutdown`. This is separate from Step 0's worktree check, which stays flag-only.
 - **Otherwise read-only and advisory.** Beyond the `DICTIONARY.md` touch-up and the Step 6 worktree
