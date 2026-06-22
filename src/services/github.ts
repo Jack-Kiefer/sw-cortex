@@ -80,6 +80,7 @@ export async function searchCode(
     url: string;
     snippet?: string;
   }>;
+  note?: string;
 }> {
   const client = getClient();
   const limit = options?.limit ?? 20;
@@ -114,6 +115,11 @@ export async function searchCode(
       url: item.html_url,
       snippet: item.text_matches?.[0]?.fragment,
     })),
+    ...(response.data.total_count === 0
+      ? {
+          note: '0 matches — this is GitHub REST code search, not the web UI or grep: path: globs (path:**/x.py) and fuzzy multi-term AND are unsupported. Try filename:<name>, a single distinctive token, or fetch a known file directly with get_file.',
+        }
+      : {}),
   };
 }
 
