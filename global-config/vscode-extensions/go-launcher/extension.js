@@ -226,18 +226,28 @@ function activate(context) {
   // 1) Anything already queued before startup.
   drainExisting();
 
-  // 2) Watch for new /go requests. RelativePattern over the queue dir.
-  const watcher = vscode.workspace.createFileSystemWatcher(
-    new vscode.RelativePattern(vscode.Uri.file(QUEUE_DIR), '*')
-  );
-  const onNew = (uri) => {
-    if (path.basename(uri.fsPath).startsWith('.')) return;
+  // 2) Watch for new /go requests. QUEUE_DIR (~/.claude/go-queue) lives OUTSIDE the
+  // open workspace, and vscode.workspace.createFileSystemWatcher does NOT reliably
+  // fire for paths outside the workspace roots — so the old RelativePattern watcher
+  // never fired, and the queue only ever drained on window reload (activate →
+  // drainExisting). Use a workspace-independent Node fs.watch, plus a slow
+  // setInterval poll as a belt-and-suspenders fallback (fs.watch can miss events on
+  // some platforms/network FS). processFile unlinks the file before doing any work,
+  // so a watch event and a poll tick can never double-process the same request.
+  const onNew = (name) => {
+    if (!name || String(name).startsWith('.')) return;
     // tiny delay so the writer finishes flushing
-    setTimeout(() => processFile(uri.fsPath), 120);
+    setTimeout(() => processFile(path.join(QUEUE_DIR, String(name))), 120);
   };
-  watcher.onDidCreate(onNew);
-  watcher.onDidChange(onNew);
-  context.subscriptions.push(watcher);
+  try {
+    const fsWatcher = fs.watch(QUEUE_DIR, (_event, filename) => onNew(filename));
+    context.subscriptions.push({ dispose: () => fsWatcher.close() });
+  } catch {
+    // fs.watch unavailable — the poll below still drains the queue.
+  }
+  // Poll fallback: drain anything the watcher missed. Cheap (a readdir) and safe.
+  const poll = setInterval(drainExisting, 1000);
+  context.subscriptions.push({ dispose: () => clearInterval(poll) });
 }
 
 function deactivate() {}
