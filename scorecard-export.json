@@ -1,0 +1,564 @@
+{
+    "generated_at": "2026-06-23T16:49:52.531435Z",
+    "cost": {
+        "average_unit_price": "1.527148590351248035465082972",
+        "period_label": "W25 2026",
+        "start_date": "2026-06-14",
+        "end_date": "2026-06-20",
+        "total_items_shipped": 12125,
+        "is_partial": false
+    },
+    "overall": {
+        "packed": {
+            "on_track": 162,
+            "core_total": 212,
+            "pct": 76
+        },
+        "ordered": {
+            "on_track": 178,
+            "core_total": 212,
+            "pct": 84
+        }
+    },
+    "by_product_type": [
+        {
+            "packed": {
+                "on_track": 59,
+                "core_total": 59,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 59,
+                "core_total": 59,
+                "pct": 100
+            },
+            "group": "Bakery & Cafe @EW",
+            "product_type": "Bakery & Cafe|Englewood",
+            "location": "Englewood"
+        },
+        {
+            "packed": {
+                "on_track": 60,
+                "core_total": 60,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 60,
+                "core_total": 60,
+                "pct": 100
+            },
+            "group": "Bakery & Cafe @TY",
+            "product_type": "Bakery & Cafe|Taylor",
+            "location": "Taylor"
+        },
+        {
+            "packed": {
+                "on_track": 8,
+                "core_total": 8,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 8,
+                "core_total": 8,
+                "pct": 100
+            },
+            "group": "Brownies",
+            "product_type": "Brownies",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 3,
+                "core_total": 8,
+                "pct": 38
+            },
+            "ordered": {
+                "on_track": 7,
+                "core_total": 8,
+                "pct": 88
+            },
+            "group": "Candles",
+            "product_type": "Candles",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 37,
+                "core_total": 56,
+                "pct": 66
+            },
+            "ordered": {
+                "on_track": 52,
+                "core_total": 56,
+                "pct": 93
+            },
+            "group": "Candy",
+            "product_type": "Candy",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 61,
+                "core_total": 82,
+                "pct": 74
+            },
+            "ordered": {
+                "on_track": 70,
+                "core_total": 82,
+                "pct": 85
+            },
+            "group": "Candy & Snacks",
+            "product_type": "Candy & Snacks",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 13,
+                "core_total": 13,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 13,
+                "core_total": 13,
+                "pct": 100
+            },
+            "group": "Cocoa",
+            "product_type": "Cocoa",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 30,
+                "core_total": 30,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 30,
+                "core_total": 30,
+                "pct": 100
+            },
+            "group": "Coffee & Tea",
+            "product_type": "Coffee & Tea",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 22,
+                "core_total": 22,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 22,
+                "core_total": 22,
+                "pct": 100
+            },
+            "group": "Cookies",
+            "product_type": "Cookies",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 59,
+                "core_total": 59,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 59,
+                "core_total": 59,
+                "pct": 100
+            },
+            "group": "Custom Mug & Treats",
+            "product_type": "Custom Mug & Treats",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 15,
+                "core_total": 17,
+                "pct": 88
+            },
+            "ordered": {
+                "on_track": 9,
+                "core_total": 17,
+                "pct": 53
+            },
+            "group": "Dog S-Wag",
+            "product_type": "Dog S-Wag",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 10,
+                "core_total": 14,
+                "pct": 71
+            },
+            "ordered": {
+                "on_track": 14,
+                "core_total": 14,
+                "pct": 100
+            },
+            "group": "Gift Sets|Deluxe Gift Sets",
+            "product_type": "Gift Sets|Deluxe Gift Sets",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 1,
+                "core_total": 2,
+                "pct": 50
+            },
+            "ordered": {
+                "on_track": 2,
+                "core_total": 2,
+                "pct": 100
+            },
+            "group": "Gift Sets|Large Gift Sets",
+            "product_type": "Gift Sets|Large Gift Sets",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 1,
+                "core_total": 3,
+                "pct": 33
+            },
+            "ordered": {
+                "on_track": 3,
+                "core_total": 3,
+                "pct": 100
+            },
+            "group": "Gift Sets|X-Large Gift Sets",
+            "product_type": "Gift Sets|X-Large Gift Sets",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 17,
+                "core_total": 37,
+                "pct": 46
+            },
+            "ordered": {
+                "on_track": 27,
+                "core_total": 37,
+                "pct": 73
+            },
+            "group": "Gourmet Goods & Spa",
+            "product_type": "Gourmet Goods & Spa",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 9,
+                "core_total": 20,
+                "pct": 45
+            },
+            "ordered": {
+                "on_track": 12,
+                "core_total": 20,
+                "pct": 60
+            },
+            "group": "Gourmet Pantry",
+            "product_type": "Gourmet Pantry",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 9,
+                "core_total": 16,
+                "pct": 56
+            },
+            "ordered": {
+                "on_track": 12,
+                "core_total": 16,
+                "pct": 75
+            },
+            "group": "Hot Sauce",
+            "product_type": "Hot Sauce",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 35,
+                "core_total": 41,
+                "pct": 85
+            },
+            "ordered": {
+                "on_track": 32,
+                "core_total": 41,
+                "pct": 78
+            },
+            "group": "Snacks",
+            "product_type": "Snacks",
+            "location": null
+        },
+        {
+            "packed": {
+                "on_track": 3,
+                "core_total": 7,
+                "pct": 43
+            },
+            "ordered": {
+                "on_track": 6,
+                "core_total": 7,
+                "pct": 86
+            },
+            "group": "Spa",
+            "product_type": "Spa",
+            "location": null
+        }
+    ],
+    "main_merged": [
+        {
+            "packed": {
+                "on_track": 60,
+                "core_total": 60,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 60,
+                "core_total": 60,
+                "pct": 100
+            },
+            "group": "Bakery & Cafe",
+            "product_type": "Bakery & Cafe"
+        },
+        {
+            "packed": {
+                "on_track": 8,
+                "core_total": 8,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 8,
+                "core_total": 8,
+                "pct": 100
+            },
+            "group": "Brownies",
+            "product_type": "Brownies"
+        },
+        {
+            "packed": {
+                "on_track": 3,
+                "core_total": 8,
+                "pct": 38
+            },
+            "ordered": {
+                "on_track": 7,
+                "core_total": 8,
+                "pct": 88
+            },
+            "group": "Candles",
+            "product_type": "Candles"
+        },
+        {
+            "packed": {
+                "on_track": 37,
+                "core_total": 56,
+                "pct": 66
+            },
+            "ordered": {
+                "on_track": 52,
+                "core_total": 56,
+                "pct": 93
+            },
+            "group": "Candy",
+            "product_type": "Candy"
+        },
+        {
+            "packed": {
+                "on_track": 61,
+                "core_total": 82,
+                "pct": 74
+            },
+            "ordered": {
+                "on_track": 70,
+                "core_total": 82,
+                "pct": 85
+            },
+            "group": "Candy & Snacks",
+            "product_type": "Candy & Snacks"
+        },
+        {
+            "packed": {
+                "on_track": 13,
+                "core_total": 13,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 13,
+                "core_total": 13,
+                "pct": 100
+            },
+            "group": "Cocoa",
+            "product_type": "Cocoa"
+        },
+        {
+            "packed": {
+                "on_track": 30,
+                "core_total": 30,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 30,
+                "core_total": 30,
+                "pct": 100
+            },
+            "group": "Coffee & Tea",
+            "product_type": "Coffee & Tea"
+        },
+        {
+            "packed": {
+                "on_track": 22,
+                "core_total": 22,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 22,
+                "core_total": 22,
+                "pct": 100
+            },
+            "group": "Cookies",
+            "product_type": "Cookies"
+        },
+        {
+            "packed": {
+                "on_track": 59,
+                "core_total": 59,
+                "pct": 100
+            },
+            "ordered": {
+                "on_track": 59,
+                "core_total": 59,
+                "pct": 100
+            },
+            "group": "Custom Mug & Treats",
+            "product_type": "Custom Mug & Treats"
+        },
+        {
+            "packed": {
+                "on_track": 15,
+                "core_total": 17,
+                "pct": 88
+            },
+            "ordered": {
+                "on_track": 9,
+                "core_total": 17,
+                "pct": 53
+            },
+            "group": "Dog S-Wag",
+            "product_type": "Dog S-Wag"
+        },
+        {
+            "packed": {
+                "on_track": 10,
+                "core_total": 14,
+                "pct": 71
+            },
+            "ordered": {
+                "on_track": 14,
+                "core_total": 14,
+                "pct": 100
+            },
+            "group": "Gift Sets|Deluxe Gift Sets",
+            "product_type": "Gift Sets|Deluxe Gift Sets"
+        },
+        {
+            "packed": {
+                "on_track": 1,
+                "core_total": 2,
+                "pct": 50
+            },
+            "ordered": {
+                "on_track": 2,
+                "core_total": 2,
+                "pct": 100
+            },
+            "group": "Gift Sets|Large Gift Sets",
+            "product_type": "Gift Sets|Large Gift Sets"
+        },
+        {
+            "packed": {
+                "on_track": 1,
+                "core_total": 3,
+                "pct": 33
+            },
+            "ordered": {
+                "on_track": 3,
+                "core_total": 3,
+                "pct": 100
+            },
+            "group": "Gift Sets|X-Large Gift Sets",
+            "product_type": "Gift Sets|X-Large Gift Sets"
+        },
+        {
+            "packed": {
+                "on_track": 17,
+                "core_total": 37,
+                "pct": 46
+            },
+            "ordered": {
+                "on_track": 27,
+                "core_total": 37,
+                "pct": 73
+            },
+            "group": "Gourmet Goods & Spa",
+            "product_type": "Gourmet Goods & Spa"
+        },
+        {
+            "packed": {
+                "on_track": 9,
+                "core_total": 20,
+                "pct": 45
+            },
+            "ordered": {
+                "on_track": 12,
+                "core_total": 20,
+                "pct": 60
+            },
+            "group": "Gourmet Pantry",
+            "product_type": "Gourmet Pantry"
+        },
+        {
+            "packed": {
+                "on_track": 9,
+                "core_total": 16,
+                "pct": 56
+            },
+            "ordered": {
+                "on_track": 12,
+                "core_total": 16,
+                "pct": 75
+            },
+            "group": "Hot Sauce",
+            "product_type": "Hot Sauce"
+        },
+        {
+            "packed": {
+                "on_track": 35,
+                "core_total": 41,
+                "pct": 85
+            },
+            "ordered": {
+                "on_track": 32,
+                "core_total": 41,
+                "pct": 78
+            },
+            "group": "Snacks",
+            "product_type": "Snacks"
+        },
+        {
+            "packed": {
+                "on_track": 3,
+                "core_total": 7,
+                "pct": 43
+            },
+            "ordered": {
+                "on_track": 6,
+                "core_total": 7,
+                "pct": 86
+            },
+            "group": "Spa",
+            "product_type": "Spa"
+        }
+    ]
+}
