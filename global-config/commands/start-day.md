@@ -216,6 +216,23 @@ If `skip-sync`: note it, call `get_slack_sync_status`, and report the index's cu
 Jack knows what the triage in Step 4 is based on. (With `skip-sync` there's no sync to wait on, so
 Step 4 may run alongside the rest of Wave A.)
 
+**Also fast-forward the SERP main clone's `dev`** (belt-and-suspenders so it self-heals each
+morning even if a PR was merged elsewhere — GitHub UI, another machine — without touching this
+clone). Run this alongside the Slack sync; it's a fire-and-forget hub-side shell command, not a
+workflow agent. **Fast-forward only — never rebase, never stash** (a dirty local seed snapshot must
+not block it), and only when the clone is actually on `dev`:
+
+```bash
+SERP=/Users/jackkief/Desktop/Projects/SERP
+if [ "$(git -C "$SERP" branch --show-current)" = "dev" ]; then
+  git -C "$SERP" fetch origin dev --quiet && git -C "$SERP" merge --ff-only origin/dev
+fi
+```
+
+If it's not on `dev` (mid-feature-branch), skip silently. If the fast-forward can't apply (local
+`dev` diverged — not a clean FF), note it in one line and move on; don't force anything. This
+mirrors the hub's own `pull --ff-only origin main` post-merge rule.
+
 ### Step 2 — WishDesk tickets · Wave A agent
 
 Show Jack his open WishWorks tickets. **Do not query the `wishdesk` MySQL DB for this** —
