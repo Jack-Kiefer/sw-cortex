@@ -19,7 +19,7 @@ How Jack wants Claude to work. These override the urge to be "helpful" by doing 
 
 ## Orchestrator / Repo Routing (hub model)
 
-sw-cortex is the **single Claude Code hub** Jack launches (open only sw-cortex in VS Code; `.vscode/settings.json` pins new terminals to its root; run `claude` once, cwd never changes). `/go <task>` is the **one entry point** — it auto-detects the involved repo(s) and opens a real session in the right writable repo, which then runs a slash command chosen by intent: **`/analyze`** for an actionable task (research → build → PR) or **`/research`** for a pure question (investigate → answer → stop). There is no `/work` command and no repo-pick prompt. (`/analyze` and `/deploy` are **repo-local** commands — they live in each repo's `.claude/commands/` and run from inside that repo's session, not from the hub; `/research` is a global command available in every session.)
+sw-cortex is the **single Claude Code hub** Jack launches (open only sw-cortex in VS Code; `.vscode/settings.json` pins new terminals to its root; run `claude` once, cwd never changes). `/go <task>` is the **one entry point** — it auto-detects the involved repo(s) and opens a real session in the right writable repo, which then runs a slash command chosen by intent: **`/serp-analyze`** for an actionable task (research → build → PR) or **`/research`** for a pure question (investigate → answer → stop). There is no `/work` command and no repo-pick prompt. (`/serp-analyze` and `/deploy` are **repo-local** commands — they live in each repo's `.claude/commands/` and run from inside that repo's session, not from the hub; `/research` is a global command available in every session.)
 
 - **Writable from the hub: SERP, SWAC, sw-cortex only.** All other repos (`sugarwish-laravel`, `livery`, `sw-design`, `swirl`, `sugarwish-infrastructure`) are **read-only** — read/search them freely to diagnose, but never edit. When a fix belongs in one of them, print a **hand-off note** (what's wrong + file/line + the owner to ask, from the ownership table above) instead of editing.
 - **This is mechanically enforced.** A PreToolUse hook (`~/.claude/scripts/repo-write-guard.sh`) hard-DENIES any Edit/Write or `git`/`gh` commit·push·merge·worktree·PR whose resolved repo root (via `git rev-parse --git-common-dir`, so worktrees map to their owner) is not SERP/SWAC/sw-cortex. Reads are never blocked.
@@ -82,7 +82,7 @@ mcp__knowledge__get_knowledge_section { section: "Serpy" }   # full text when a 
 - Reasoning about any SugarWish system, database table, or cross-system flow
 - Writing queries against `odoo` / `laravel_live` / `retool` / `wishdesk` / `serp_*` tables
 - Assuming who owns a system, what a column means, or which DB is the source of truth
-- Starting any analyze/planning task (`/global-analyze`, `/global-quick-analyze`, or a repo's own `/analyze`)
+- Starting any analyze/planning task (SWAC's `/swac-analyze`, SERP's `/serp-analyze` + `/quick-analyze`)
 
 The obvious-looking inference is often documented as **wrong** — that's what the KB exists to catch. Search it the way you'd search the web: cheap, early, often.
 
@@ -95,8 +95,7 @@ The obvious-looking inference is often documented as **wrong** — that's what t
 | `/start-day`                          | Morning routine: sync → tickets → KB → triage        |
 | `/slack-search [query]`               | Search Slack messages                                |
 | `/db query [database] [sql]`          | Query databases                                      |
-| `/global-analyze [description]`       | Deep pre-implementation analysis                     |
-| `/global-quick-analyze [description]` | Quick codebase assessment                            |
+| `/swac-analyze [description]`         | SWAC/WishDesk research → build (SWAC sessions)       |
 | `/meeting [title]`                    | Save meeting notes + index to Qdrant                 |
 | `/refresh-knowledge`                  | Update the knowledge base docs                       |
 | `/draft-slack [context]`              | Draft a Slack message                                |

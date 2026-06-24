@@ -23,22 +23,22 @@ Follow **the entire `/go` command spec** for classification, options-first intak
 - **Step 0.5 (options-first intake via `AskUserQuestion`)** — same: turn the task into pickable scope/approach options before launching, folding picks into the task string. (For a multi-launch, ask per task only where it's genuinely ambiguous — don't over-prompt.)
 - **Step 1 / 1.6 (route to SERP/SWAC/sw-cortex; classify research vs implementation)** — same.
 - **Step 1.5 (routed to sw-cortex)** — same: do it INLINE in this hub session, do NOT open a new terminal. (`/launch` on a sw-cortex task changes nothing — the hub already has everything; no tab to keep or close.)
-- **Step 2 (build the first prompt)** — for SERP, pick the command by intent (see Difference 3): **`/implement <task>`** by default (the fix is already scoped) or **`/research <task>`** when the request says `research`/`investigate` (investigate in the new tab, stop — no build). SWAC impl → `/global-analyze <task>`. Pure research (any repo) → `/research <task>`.
+- **Step 2 (build the first prompt)** — for SERP, pick the command by intent (see Difference 3): **`/implement <task>`** by default (the fix is already scoped) or **`/research <task>`** when the request says `research`/`investigate` (investigate in the new tab, stop — no build). SWAC impl → `/swac-analyze <task>`. Pure research (any repo) → `/research <task>`.
 
 ### Difference 3 — SERP fires `/implement` by default, `/research` on the `research`/`investigate` keyword
 
 `/launch` is primarily the **"the fix is already scoped, go build it"** entry point — you usually reach it after a `/go` or `/research` pass surfaced the issue(s). So for a **SERP** task, choose the first prompt by intent:
 
 - **Default → `/implement <task>`.** `/launch fix the copier cap` → `/implement cap the copier…`. Skips the research swarm, goes straight to a quick approval gate → build → PR using the implementation skills. The research already happened upstream; don't pay for it twice.
-- **`research`/`investigate` in the request → `/research <task>`.** `/launch research the forecast zeros` → `/research the forecast zeros…`. Runs the research swarm in the launched session, presents findings, and **stops** — no build, no PR. Use this when you want the deep investigation to happen **in the new tab** without bouncing back to the hub, and you're not ready to build yet. Strip the leading `research`/`investigate` keyword from the task text before passing it to `/research`. (`/launch` no longer fires `/analyze` — research-then-build-in-one-shot is `/go`'s `/analyze` path; `/launch` is build-the-scoped-fix or research-only.)
+- **`research`/`investigate` in the request → `/research <task>`.** `/launch research the forecast zeros` → `/research the forecast zeros…`. Runs the research swarm in the launched session, presents findings, and **stops** — no build, no PR. Use this when you want the deep investigation to happen **in the new tab** without bouncing back to the hub, and you're not ready to build yet. Strip the leading `research`/`investigate` keyword from the task text before passing it to `/research`. (`/launch` no longer fires `/serp-analyze` — research-then-build-in-one-shot is `/go`'s `/serp-analyze` path; `/launch` is build-the-scoped-fix or research-only.)
 
-SWAC implementation always uses `/global-analyze` (SWAC has no separate `/implement`); a `research`/`investigate` SWAC task uses `/research` (the generic research command works in any repo session). Pure research tasks (a question, no fix) use `/research <task>` regardless of repo.
+SWAC implementation always uses `/swac-analyze` (SWAC has no separate `/implement`); a `research`/`investigate` SWAC task uses `/research` (the generic research command works in any repo session). Pure research tasks (a question, no fix) use `/research <task>` regardless of repo.
 
 #### SWAC-only implement flow — worktree + dev server, NO auto-PR, wait for "ship it"
 
-> ⚠️ **This is the SWAC implement contract and it differs from SERP on purpose.** SERP `/implement` builds → verifies → opens a PR in one shot. SWAC does NOT — a SWAC implement launch must work on an isolated worktree+branch, stand up a dev server so Jack can SEE the change, then STOP before any PR and wait for Jack to say "ship it" (then run `/ship-it`). Apply this to **every** SWAC implement launch (the `/global-analyze` "If User Says Implement" step), not just when asked.
+> ⚠️ **This is the SWAC implement contract and it differs from SERP on purpose.** SERP `/implement` builds → verifies → opens a PR in one shot. SWAC does NOT — a SWAC implement launch must work on an isolated worktree+branch, stand up a dev server so Jack can SEE the change, then STOP before any PR and wait for Jack to say "ship it" (then run `/ship-it`). Apply this to **every** SWAC implement launch (the `/swac-analyze` "If User Says Implement" step), not just when asked.
 
-When the launched SWAC session reaches the **implement** step (after its `/global-analyze` research + Jack approving the build), it MUST:
+When the launched SWAC session reaches the **implement** step (after its `/swac-analyze` research + Jack approving the build), it MUST:
 
 1. **Make a worktree + feature branch** off `development` (do NOT edit the main SWAC checkout). Branch name is `<username>/<desc>` per SWAC convention (`jack/<kebab-desc>` — derive `<desc>` from the task; use SWAC's `/create-worktree` convention). **If a WishWorks ticket ID (`WW-###`) was carried in** (a `/go <ticket>` launch — see `/go` Step 0.1), put it in the branch name: `jack/WW-###-<desc>`:
    ```bash
@@ -99,7 +99,7 @@ So `/launch fixes for those` with fixes A (`stock_move.py`), B (`stock_move.py`)
 ~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement suppress product_product.create_uid/write_uid audit-column false positive in the drift classifier; test that real product drift still surfaces"
 ```
 
-(A sw-cortex fix in the batch is still handled inline per Step 1.5 — no tab for it. A SWAC fix uses `/global-analyze`.)
+(A sw-cortex fix in the batch is still handled inline per Step 1.5 — no tab for it. A SWAC fix uses `/swac-analyze`.)
 
 Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkief/Desktop/Projects/SWAC` · sw-cortex `/Users/jackkief/Desktop/Projects/sw-cortex`.
 

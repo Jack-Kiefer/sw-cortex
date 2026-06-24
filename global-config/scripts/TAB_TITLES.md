@@ -4,7 +4,7 @@
 
 Gives every Claude Code session a custom name/status on its terminal tab
 (`🔍 researching · slug`, `🙋 approve? · slug`, `✅ done · slug`) instead of
-the auto-generated conversation summary. Driven by `/analyze`, the global
+the auto-generated conversation summary. Driven by `/serp-analyze`, the global
 "Terminal Tab Status" standard in `~/CLAUDE.md`, and `/tab-title <name>`.
 
 ## PREREQUISITE (step 0): VS Code needs `${sequence}` in its tab-title template
@@ -33,7 +33,7 @@ State is one file per session, keyed by **session id** (stable for the session's
 life; immune to tty reuse):
 
 ```
-set-tab-title.sh "TITLE"           (model/​/analyze)
+set-tab-title.sh "TITLE"           (model/​/serp-analyze)
   └─ writes ~/.claude/tab-titles/$CLAUDE_CODE_SESSION_ID   (source of truth)
   └─ also best-effort stamps the tab via OSC 0 → /dev/tty  (only works in a
      genuine interactive shell; swallowed when run as a Bash tool call)
@@ -78,7 +78,7 @@ no-ops once a title file exists.
 
 ## Changing it
 
-- **Add a status to /analyze:** any string written via `set-tab-title.sh` is
+- **Add a status to /serp-analyze:** any string written via `set-tab-title.sh` is
   emitted verbatim — no mechanism change needed.
 - **Disable entirely:** remove the hook entries from `settings.json` (the
   Stop/Notification/SubagentStop/UserPromptSubmit/SessionStart/SessionEnd

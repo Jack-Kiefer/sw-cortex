@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # repo-write-guard.sh — PreToolUse guard enforcing the orchestrator write-allowlist.
 #
-# sw-cortex is the single Claude Code hub. From it, /analyze may EDIT/COMMIT/PUSH in
+# sw-cortex is the single Claude Code hub. From it, /serp-analyze may EDIT/COMMIT/PUSH in
 # ONLY these repos. Everything else is read-only (diagnose + hand off, never write).
 #
 # Reads the PreToolUse hook JSON on stdin. Emits a deny decision (and exits 0) when a

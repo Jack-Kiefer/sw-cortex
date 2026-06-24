@@ -37,7 +37,7 @@ function shq(s) {
 function taskSlug(prompt) {
   let t = String(prompt || '').trim();
   if (!t) return 'session';
-  t = t.replace(/^\/[a-z-]+\s+/i, ''); // drop leading "/analyze " etc.
+  t = t.replace(/^\/[a-z-]+\s+/i, ''); // drop leading "/serp-analyze " etc.
   t = t.replace(/\([^)]*\)/g, ' '); // drop "(Odoo prod ↔ ...)" asides
   t = t.replace(/\[[^\]]*\]/g, ' '); // drop "[...]" asides
   t = t.replace(/\s+/g, ' ').trim(); // collapse whitespace/newlines
@@ -102,7 +102,7 @@ function processFile(filePath) {
   const closeTty = line2.startsWith('CLOSE_TTY=') ? line2.slice('CLOSE_TTY='.length).trim() : '';
 
   // Close-only request: line 1 is the "__CLOSE__" sentinel and line 2 is "CLOSE_TTY=<tty>".
-  // A /implement or /analyze session drops this (via close-own-tab.sh) as its FINAL teardown
+  // A /implement or /serp-analyze session drops this (via close-own-tab.sh) as its FINAL teardown
   // step after a merged PR — it asks the extension to dispose the session's OWN tab. No new
   // terminal is opened; we reuse closeTabByTty on the resolved tty and return early.
   if (repo === '__CLOSE__') {
@@ -138,7 +138,7 @@ function processFile(filePath) {
   // spawned session's SessionStart floor (tab-title-default.sh) adopts THIS name instead of a
   // generic "🔍 <repo> · session". Once claude runs, its hooks drive the title (keyed by
   // session id). The prompt is passed to claude UNMODIFIED so a leading slash command (e.g.
-  // "/analyze <task>") stays at offset 0 and actually dispatches.
+  // "/serp-analyze <task>") stays at offset 0 and actually dispatches.
   let cmd;
   if (prompt && prompt.trim()) {
     cmd = `claude ${shq(prompt)}`;

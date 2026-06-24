@@ -1,6 +1,6 @@
 # Command: research
 
-Research-only investigation using an agent team (swarm). Investigate deeply, synthesize, and **report** — no implementation, no PR, no "ready to build?" gate. Use this to answer a question or understand a system; use `/global-analyze` when you want research that flows into a build.
+Research-only investigation using an agent team (swarm). Investigate deeply, synthesize, and **report** — no implementation, no PR, no "ready to build?" gate. Use this to answer a question or understand a system; use SERP's `/serp-analyze` or SWAC's `/swac-analyze` when you want research that flows into a build.
 
 ## Usage
 
@@ -8,7 +8,7 @@ Research-only investigation using an agent team (swarm). Investigate deeply, syn
 /research [question or topic]
 ```
 
-`/research` differs from `/global-analyze` in one way: it **stops at the report.** There is no `approval-block`, no implementation handoff, no "Say implement." It answers and ends.
+`/research` differs from the research→build commands (`/serp-analyze`, `/swac-analyze`) in one way: it **stops at the report.** There is no `approval-block`, no implementation handoff, no "Say implement." It answers and ends.
 
 ---
 
