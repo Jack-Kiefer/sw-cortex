@@ -56,9 +56,10 @@ seeded with the loader command so the new session reads the save and continues:
 - Pass ONLY the repo root + the prompt — no `--label`, no inline `set-tab-title.sh`/`claude`
   (same contract as `/go`). The Go Launcher extension opens the tab and names it from the
   prompt; the resumed session drives the title from there.
-- The prompt is `/resume-later-load <file>` — a tiny loader (defined below) that the new
-  session runs first thing: it reads the save, checks out the branch, summarizes where
-  things stand, and asks what to do next.
+- The prompt is `/resume-later-load <file>` — a tiny loader command (its own synced global
+  command, `resume-later-load.md`, so it resolves in the launched SERP/SWAC/sw-cortex
+  session) that the new session runs first thing: it reads the save, checks out the branch,
+  summarizes where things stand, and asks what to do next.
 
 ### Step 4 — Report
 
@@ -69,22 +70,6 @@ session stays put.
 
 ---
 
-# Loader sub-command: `/resume-later-load <file>`
-
-> This runs **inside the newly launched session** (not the hub). It is the first thing that
-> session does. If a user types `/resume-later-load <file>` directly, do the same.
-
-When invoked with a save file path as `$ARGUMENTS`:
-
-1. **Read the save file** at that path. It has the full frontmatter + body written by
-   `/save-for-later`.
-2. **Get on the right branch.** If `branch` is set and exists, check it out
-   (`git -C <repo_root> checkout <branch>`); if the working tree is dirty or the branch is
-   gone, don't force it — just report the discrepancy.
-3. **Re-establish context.** Read the body's "Where it left off / next steps", "Key
-   commands", and "Files touched" sections. Skim the named files if useful.
-4. **Brief Jack**: a tight recap — what this work was, current state, and the concrete next
-   step(s) from the save — then ask whether to proceed with step 1 of "next steps" or do
-   something else. Set the tab title to `🔍 resumed · <slug>`.
-5. Leave the save in `active/`. It gets closed by `/close-later`, or automatically when its
-   PR merges (the merge hook). Do **not** create a new save here.
+The loader the launched session runs first thing — `/resume-later-load <file>` — is its own
+synced global command (`resume-later-load.md`): it reads the save, checks out the branch,
+re-establishes context, and briefs Jack. See that command for its steps.
