@@ -1,0 +1,331 @@
+{
+  "name": "Sync Receiver Product Inventory with Odoo",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": " SELECT\n      pt.sugarwish_id as\n  product_id,\n      p.default_code as sku,\n      SUM(q.quantity -\n  q.reserved_quantity) as\n  available_quantity\n  FROM stock_quant q\n  JOIN product_product p ON\n  q.product_id = p.id\n  JOIN product_template pt ON\n  p.product_tmpl_id = pt.id\n  JOIN stock_location l ON\n  q.location_id = l.id\n  WHERE p.default_code IS NOT NULL\n      AND p.active = true\n      AND pt.sugarwish_id > 0\n      -- Exclude component skus that were showing up\n      AND pt.sugarwish_id < 800000\n      AND (p.default_code LIKE\n  'FG-%' OR p.default_code LIKE\n  'SA-%' OR p.default_code LIKE\n  'L-B02%')\n      AND l.sugarwish_id IS NOT NULL\n      AND l.sugarwish_id >= 1\n  GROUP BY pt.sugarwish_id,\n  p.default_code\n  ORDER BY pt.sugarwish_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [0, 0],
+      "id": "be0ec86f-dbbf-4a08-8d24-b05a30dba1b3",
+      "name": "Odoo: Get Available Quantities",
+      "credentials": {
+        "postgres": {
+          "id": "Cj4x3zqOHw9ecZst",
+          "name": "Odoo_read"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  rp.product_id, \n  rp.sku, \n  oi.inventory,\n  oi.updated_at\nFROM receiver_products rp\nJOIN odoo_inventory oi\n  ON oi.product_id = rp.product_id\nWHERE rp.inventory_link IS NULL\n  AND rp.product_type NOT IN (43, 44)\n  AND archive = 0;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [0, 304],
+      "id": "e9a4cb95-95e6-4617-9916-52bb40bcdaa2",
+      "name": "Laravel: Get Current odoo_inventory Values",
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "advanced": true,
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "=product_id",
+              "field2": "=product_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [384, 160],
+      "id": "ce80c73e-bf23-4faf-9502-c8ebf3500a8c",
+      "name": "Join Odoo + Laravel by product_id"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d02972f0-a584-48f1-97d2-05f9c413a216",
+              "leftValue": "={{ ($json.available_quantity.toNumber() !== $json.inventory) === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [608, 160],
+      "id": "e0f3443c-01e5-4b57-9805-209df385ac2b",
+      "name": "Filter: Inventory Mismatch?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "value": "odoo_inventory",
+          "mode": "list",
+          "cachedResultName": "odoo_inventory"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "product_id",
+        "valueToMatchOn": "={{ $json.product_id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "inventory",
+              "value": "={{ $json.available_quantity.toNumber() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [864, 80],
+      "id": "b174bcd4-1eec-43a1-817b-548f26a20540",
+      "name": "Laravel: Update odoo_inventory with Correct Value",
+      "executeOnce": false,
+      "credentials": {
+        "mySql": {
+          "id": "IUf07KHTTBdglTB2",
+          "name": "sw_live_creds"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const updatedProducts = $('Filter: Inventory Mismatch?').all();\nconst now = new Date();\nconst JACK_ID = 'U022BUNHE1Z';\n\n// Categorize by severity\nconst critical = [];\nconst normal = [];\n\nfor (const p of updatedProducts) {\n  const oldVal = p.json.inventory;\n  const newVal = Math.round(Number(p.json.available_quantity));\n  const diff = newVal - oldVal;\n  const pctChange = oldVal > 0 ? Math.round(Math.abs(diff) / oldVal * 100) : (newVal !== 0 ? Math.round(Math.abs(diff) / Math.abs(newVal) * 100) : 0);\n  \n  // Calculate staleness\n  const updatedAt = p.json.updated_at ? new Date(p.json.updated_at) : null;\n  const staleMinutes = updatedAt ? Math.round((now - updatedAt) / 60000) : null;\n  let staleStr = '';\n  if (staleMinutes !== null) {\n    if (staleMinutes < 60) staleStr = `${staleMinutes}m ago`;\n    else if (staleMinutes < 1440) staleStr = `${Math.round(staleMinutes / 60)}h ago`;\n    else staleStr = `${Math.round(staleMinutes / 1440)}d ago`;\n  }\n  \n  const entry = { pid: p.json.product_id, sku: p.json.sku, oldVal, newVal, diff, pctChange, staleStr, staleMinutes };\n  if (pctChange > 50 || (oldVal > 50 && newVal < 50) || Math.abs(diff) > 100) {\n    critical.push(entry);\n  } else {\n    normal.push(entry);\n  }\n}\n\n// Determine if Jack needs to be alerted\n// Alert condition: any product whose absolute inventory diff is over 100\n// Staleness alone is not actionable — the workflow already corrects stale values\nconst bigDiff = [...critical, ...normal].filter(e => Math.abs(e.diff) > 100);\nconst needsAttention = bigDiff.length > 0;\n\nconst blocks = [\n  {\n    type: \"header\",\n    text: { type: \"plain_text\", text: `Inventory Sync: ${updatedProducts.length} products corrected`, emoji: true }\n  }\n];\n\n// Tag Jack if attention needed\nif (needsAttention) {\n  const reasons = [];\n  reasons.push(`${bigDiff.length} change${bigDiff.length === 1 ? '' : 's'} over 100 units`);\n  blocks.push({\n    type: \"section\",\n    text: { type: \"mrkdwn\", text: `:rotating_light: <@${JACK_ID}> — ${reasons.join(', ')}` }\n  });\n}\n\n// Summary stats\nconst totalUp = updatedProducts.filter(p => Number(p.json.available_quantity) > p.json.inventory).length;\nconst totalDown = updatedProducts.length - totalUp;\nblocks.push({\n  type: \"section\",\n  text: { type: \"mrkdwn\", text: `*Summary:* ${totalUp} increased, ${totalDown} decreased` }\n});\n\n// Critical changes first\nif (critical.length > 0) {\n  blocks.push({ type: \"divider\" });\n  blocks.push({\n    type: \"section\",\n    text: { type: \"mrkdwn\", text: \":warning: *Significant changes:*\" }\n  });\n  const critLines = critical.map(e => {\n    const arrow = e.diff > 0 ? ':arrow_up:' : ':arrow_down:';\n    return `${arrow} *${e.sku}* (${e.pid}): ${e.oldVal} → ${e.newVal} (${e.diff > 0 ? '+' : ''}${e.diff}, ${e.pctChange}% change${e.staleStr ? ', last sync ' + e.staleStr : ''})`;\n  });\n  blocks.push({ type: \"section\", text: { type: \"mrkdwn\", text: critLines.join('\\n') } });\n}\n\n// Normal changes\nif (normal.length > 0) {\n  blocks.push({ type: \"divider\" });\n  function chunkArray(arr, size) {\n    const chunks = [];\n    for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));\n    return chunks;\n  }\n  const lines = normal.map(e => {\n    const sign = e.diff > 0 ? '+' : '';\n    return `• ${e.sku} (${e.pid}): ${e.oldVal} → ${e.newVal} (${sign}${e.diff}${e.staleStr ? ', ' + e.staleStr : ''})`;\n  });\n  const chunks = chunkArray(lines, 30);\n  chunks.forEach(chunk => {\n    blocks.push({ type: \"section\", text: { type: \"mrkdwn\", text: chunk.join('\\n') } });\n  });\n}\n\nblocks.push({\n  type: \"context\",\n  elements: [{ type: \"mrkdwn\", text: `_Ran at ${now.toISOString().slice(0,19)}Z | <https://n8n.sugarwish.com/workflow/Waf2sOm2Aj0nJAx4|View workflow>_` }]\n});\n\nreturn [{ json: { blocks } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1072, 64],
+      "id": "95d21098-8c69-42d3-9eae-eb465bc1be6b",
+      "name": "Build Slack Success Message"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "=C088M68FD47",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ $json }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [1264, 64],
+      "id": "d09bf531-feae-4ae5-bd92-b7a86d08ddbc",
+      "name": "Slack: Post Updated Products",
+      "webhookId": "4ff75667-d0e4-41c3-8832-13ff4b125f33",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const JACK_ID = 'U022BUNHE1Z';\nconst workflowId = 'Waf2sOm2Aj0nJAx4';\nconst workflowLink = `https://n8n.sugarwish.com/workflow/${workflowId}`;\nconst executionLink = $execution?.id \n  ? `https://n8n.sugarwish.com/execution/${$execution.id}` \n  : workflowLink;\n\n// Try to get error details from the failed node\nlet errorDetail = '';\ntry {\n  const errorItems = $('Laravel: Update odoo_inventory with Correct Value').all();\n  if (errorItems.length > 0 && errorItems[0].json.error) {\n    errorDetail = `\\n*Error:* ${errorItems[0].json.error}`;\n  }\n} catch (e) {\n  errorDetail = '';\n}\n\nconst blocks = [\n  {\n    type: \"header\",\n    text: { type: \"plain_text\", text: \"Inventory Sync Failed\", emoji: true }\n  },\n  {\n    type: \"section\",\n    text: { type: \"mrkdwn\", text: `:rotating_light: <@${JACK_ID}> Inventory sync workflow failed. Products may have stale inventory values until the next successful run.${errorDetail}` }\n  },\n  {\n    type: \"section\",\n    text: { type: \"mrkdwn\", text: `<${workflowLink}|View Workflow> | <${executionLink}|View Execution>` }\n  },\n  {\n    type: \"context\",\n    elements: [{ type: \"mrkdwn\", text: `_Failed at ${new Date().toISOString().slice(0,19)}Z_` }]\n  }\n];\n\nreturn [{ json: { blocks } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1088, 288],
+      "id": "64be70e9-6f9b-4cd5-888b-0ea467dacb6e",
+      "name": "Build Slack Error Message"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "=C07GY977AEM",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ $json }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [1392, 320],
+      "id": "16067bb8-20aa-46f1-bec8-33535543dd86",
+      "name": "Slack: Post Error Alert",
+      "webhookId": "f51eb072-dbe6-4f22-b879-32b5208dd44e",
+      "credentials": {
+        "slackApi": {
+          "id": "IafsmXhPRCyykQMM",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */5 5-19 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-240, 160],
+      "id": "4e3b13eb-c7b1-4eb9-8e2a-5f4d9bc27191",
+      "name": "Every 5 Minutes Trigger (5am-7pm)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Odoo: Get Available Quantities": {
+      "main": [
+        [
+          {
+            "node": "Join Odoo + Laravel by product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Laravel: Get Current odoo_inventory Values": {
+      "main": [
+        [
+          {
+            "node": "Join Odoo + Laravel by product_id",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Join Odoo + Laravel by product_id": {
+      "main": [
+        [
+          {
+            "node": "Filter: Inventory Mismatch?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Inventory Mismatch?": {
+      "main": [
+        [
+          {
+            "node": "Laravel: Update odoo_inventory with Correct Value",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Laravel: Update odoo_inventory with Correct Value": {
+      "main": [
+        [
+          {
+            "node": "Build Slack Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Slack Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack Success Message": {
+      "main": [
+        [
+          {
+            "node": "Slack: Post Updated Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack Error Message": {
+      "main": [
+        [
+          {
+            "node": "Slack: Post Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 5 Minutes Trigger (5am-7pm)": {
+      "main": [
+        [
+          {
+            "node": "Odoo: Get Available Quantities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Laravel: Get Current odoo_inventory Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "66f36d04-3aa1-4448-9c4b-6942e0f6d30a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c840a10576e00ab2533eec2b835c01b97e942057b9c92cd733ead1e724f40a56"
+  },
+  "nodeGroups": [],
+  "id": "Waf2sOm2Aj0nJAx4",
+  "tags": []
+}

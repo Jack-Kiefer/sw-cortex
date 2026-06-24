@@ -72,6 +72,11 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    inter-dependencies, so a single `parallel([...])` barrier collecting all five is correct here.
    - Step 0 and Step 5 both touch the live setup; Step 0 owns the **only** live MCP probes (Step 5
      stays transcript-only) — keep that split in their prompts so they don't double-probe.
+   - **Step 5's agent is read-only but its `fixes` get APPLIED by the orchestrator after Wave A**
+     (like Step 3's KB edits): the agent returns `{panel, fixes}`, then the main thread writes the
+     memories / `~/CLAUDE.md` rules / safe `settings.json` allows and pushes global config. This is
+     Jack's standing auto-fix directive — recurring friction (and Jack's own corrections) get a
+     durable fix every run, not just a recommendation.
 4. **Barrier on the sync.** After Wave A's `parallel()` resolves, the script (or you, between the
    `Workflow` return and a second call) must ensure the **Slack sync has completed** before Triage.
    If you ran the sync as a bg Bash step, gate Triage on it: don't enter `phase('Triage')` until
@@ -347,22 +352,27 @@ jump straight to the message:
 Render each as a markdown link on the channel/person so the briefing line stays scannable, e.g.
 `[#ops-management](https://sugarwish.slack.com/archives/G01.../p178...)`.
 
-### Step 5 — Claude-setup diagnostic · Wave A agent
+### Step 5 — Claude-setup diagnostic + auto-fix · Wave A agent (diagnoses) + orchestrator (applies)
 
-> **Workflow-agent contract.** Read-only. This step diagnoses **Jack's Claude Code setup**, not his
-> SugarWish work: where the tooling itself got in the way over the last few days, and what to
-> change so it stops. It **only reads transcripts** (no live MCP/DB probes — Step 0 owns the
-> live snapshot) and **proposes** config/behaviour fixes as text; it never edits
-> `settings.json`, `~/CLAUDE.md`, `.env`, or any config itself. Returns the
-> `### 🩺 Claude-setup friction` panel.
+> **Workflow-agent contract.** The Wave-A agent is **read-only**: it diagnoses **Jack's Claude Code
+> setup** (not his SugarWish work) — where the tooling itself got in the way over the last few days —
+> by reading transcripts only (no live MCP/DB probes — Step 0 owns the live snapshot). It does **not**
+> edit anything itself; instead it returns BOTH the `### 🩺 Claude-setup friction` panel **and** a
+> structured `fixes` list the **orchestrator** then auto-applies (same propose→apply split as Step 3's
+> KB edits — all writes stay on the main thread). **Jack's standing directive (2026-06-24): the
+> fixable friction should be auto-fixed every run, not just recommended — update the setup/config and
+> the prompts/instructions so the friction stops happening.** So this step no longer merely surfaces
+> text: the orchestrator MAKES the durable change.
 
 Where Step 0 asks "is the plumbing up _right now_," this asks "what actually went _wrong_ over
 the last few days, and how do we prevent it." They pair: a cluster here often has its live
 confirmation in Step 0 (e.g. recurring go-launcher Accessibility denials ↔ Step 0's
 go-launcher check).
 
-1. **Mine the transcripts.** Run the extractor (stdlib-only, read-only) over the look-back
-   window (default 3 days; if `days=N` was passed, use it):
+1. **Mine the transcripts — BOTH tool-errors AND Jack's corrections.** Two signals, both load-bearing:
+
+   **(a) Tool-error friction.** Run the extractor (stdlib-only, read-only) over the look-back window
+   (default 3 days; if `days=N` was passed, use it):
 
    ```bash
    python3 ~/.claude/scripts/claude-setup-friction.py --days 3 --json
@@ -375,36 +385,112 @@ go-launcher check).
    with `--top 0`) for a human read. The helper lives in `global-config/scripts/` and syncs to
    `~/.claude/scripts/`.
 
-2. **Diagnose the top clusters** (by count). For each meaningful one, classify it:
-   - **Broken setup → fix it.** Missing module / env (`ModuleNotFoundError: yaml`,
-     externally-managed-environment), MCP server error/unreachable, MCP "outside allowed roots",
-     macOS Accessibility / VS Code tab automation failing, DB pool/connection errors, repeated
-     API overload (529). These get a **concrete fix**: the exact `pip install …`, the
-     `settings.json` permission `allow` rule, the MCP `allowedRoots`/env change to add, the OS
-     permission to grant, or "restart Claude Code after the `.ts` MCP edit." Surface the change
-     as text — **do not apply it.**
-   - **Correct guardrail Claude fought → behavioural note, NOT a loosened guard.** `git stash`
-     blocked, write/git denied in a read-only repo, a `sleep`/chained-shell block, "File has not
-     been read yet," "user rejected the tool use." These denials are **working as intended** —
-     the recommendation is _"stop doing X / do Y instead"_ (a one-line note for `~/CLAUDE.md` or
-     a memory), **never** "allow git stash" or "make that repo writable." Cross-check
-     `DICTIONARY.md` / `~/CLAUDE.md`: many of these already have a documented rule, so the fix
-     is "Claude should already know this" — flag the recurring ones.
+   **(b) Jack's own corrections — the strongest "did it wrong" signal.** A tool error is Claude
+   tripping a guard; a _correction from Jack_ is Claude doing the wrong thing and Jack having to
+   say so. **Treat every corrective message Jack typed as a clear directive: find what Claude did
+   wrong and make a durable fix so it doesn't happen again.** Mine Jack's typed messages over the
+   window and pull out the corrections — the tells: a message that leads with "no" / "nope", "stop",
+   "don't", "you should have", "I told you", "why did you", "that's wrong", "not what I asked",
+   "instead", "actually …", a repeated request after Claude gave a non-answer, or an explicit
+   "from now on / always / never / each time" instruction. Use the same extractor that Step 3 uses:
 
-   Lean on the KB: search `mcp__knowledge__search_knowledge` for the root cause before
-   recommending (e.g. "`.ts` MCP edits need a Claude Code restart," "`mcp__python__run_python`
-   is required over `./venv/bin/python`," "read-only repos are hook-enforced — hand off, don't
-   retry"). The obvious fix is often already documented as the _wrong_ one.
+   ```bash
+   python3 ~/.claude/scripts/knowledge-extract-user-msgs.py $(find ~/.claude/projects -maxdepth 2 -name '*.jsonl' -mtime -3)
+   ```
+
+   For each correction, read enough of the surrounding turn to see **what Claude did** that prompted
+   it, then classify the underlying mistake into the SAME three buckets as the tool-errors below and
+   emit a `fix` (usually `kind: "note"` — a memory or `~/CLAUDE.md` rule; occasionally `kind:
+"config"` when the correction was "change the setup," e.g. "always allow edits" → a settings
+   change). A correction that _already_ matches an existing memory/rule but recurred = the rule isn't
+   biting → propose the sharper wording. Corrections are **high-priority fixes** — weight them above
+   tool-error volume, since they're Jack explicitly telling Claude to stop a behaviour.
+
+2. **Diagnose the top clusters** (by count). For each meaningful one, classify it into ONE of three
+   buckets, and emit a structured `fix` object (see Return) describing the durable change so the
+   orchestrator can apply it:
+   - **Broken setup → CONFIG fix (`kind: "config"`).** Missing module / env (`ModuleNotFoundError:
+yaml`, externally-managed-environment), MCP server error/unreachable, MCP "outside allowed
+     roots", macOS Accessibility / VS Code tab automation failing, DB pool/connection errors,
+     repeated API overload (529), a recurring permission prompt for a safe read-only command. The
+     fix is a **concrete, idempotent action**: the exact `pip install …`, the `settings.json`
+     permission `allow` entry to add, the MCP `allowedRoots`/env change, "restart Claude Code after
+     the `.ts` MCP edit," etc. Provide it as both a one-line human description AND, where it's a
+     `settings.json` `permissions.allow` add, the exact string to insert (e.g. `Bash(rg:*)`).
+   - **Recurring behaviour Claude should already get right → DURABLE NOTE fix (`kind: "note"`).**
+     Claude keeps doing X and the tool/DB rejects it, but the right behaviour is a _rule_, not a
+     config change: schema-guessing columns before `describe_table` (the ~45 "unknown column"
+     cluster), malformed `mcp__github__search_code` grammar, `ls .claude/skills/<name>` from a
+     worktree cwd, Playwright typing before a snapshot/ref, `python3 -c "import yaml"` against
+     system Python. The fix is a **memory or `~/CLAUDE.md` line** that makes the rule stick. Give
+     the proposed memory slug + body (or the exact `~/CLAUDE.md` working-style bullet) so the
+     orchestrator can write/strengthen it. If a memory already exists but isn't biting, say so and
+     propose the _sharper_ wording (the orchestrator updates the existing file, never duplicates).
+   - **Correct guardrail Claude fought → DURABLE NOTE fix (`kind: "note"`), NOT a loosened guard.**
+     `git stash` blocked, write/git denied in a read-only repo, a `sleep`/chained-shell block,
+     "File has not been read yet," "user rejected the tool use." These denials are **working as
+     intended** — the durable fix is a behavioural note (_"stop doing X / do Y instead"_), **never**
+     "allow git stash" or "make that repo writable." Cross-check `DICTIONARY.md` / `~/CLAUDE.md` /
+     existing memories: most already have a rule, so flag it as a recurring "Claude should already
+     know this" and propose strengthening the existing note — never weaken the guard, never add a
+     permission that defeats it.
+
+   Lean on the KB: search `mcp__knowledge__search_knowledge` for the root cause before classifying
+   (e.g. "`.ts` MCP edits need a Claude Code restart," "`mcp__python__run_python` is required over
+   `./venv/bin/python`," "read-only repos are hook-enforced — hand off, don't retry"). The obvious
+   fix is often already documented as the _wrong_ one.
 
 3. **Skip the genuinely transient.** A one-off 529 or a single navigation race isn't a setup
-   problem — only flag API-overload if it's a **repeated, high-count** cluster (then the fix is
-   behavioural: smaller batches / retry posture, not a config change). Note in the panel how
-   many low-signal clusters were rolled up so nothing is silently dropped.
+   problem — only flag API-overload if it's a **repeated, high-count** cluster (then the fix is a
+   `note`: smaller batches / retry posture, not a config change). Note in the panel how many
+   low-signal clusters were rolled up so nothing is silently dropped — and do **not** emit a `fix`
+   for a transient cluster.
 
-**Return:** a `### 🩺 Claude-setup friction (last N days)` panel — top 3–5 clusters, each as
-`count · what · why · fix`, with fixable items separated from guardrail-hits, plus a one-line
-"biggest single win" Jack can act on today. If nothing meaningful surfaced, return "setup ran
-clean — no recurring friction."
+**Return:** an object with two fields:
+
+- `panel` — a `### 🩺 Claude-setup friction (last N days)` markdown panel: top 3–5 clusters, each
+  `count · what · why · fix`, fixable separated from guardrail-hits, plus a one-line "💡 biggest
+  single win." If nothing meaningful surfaced, `panel` = "setup ran clean — no recurring friction"
+  and `fixes` = `[]`.
+- `fixes` — a list of durable-change objects the orchestrator will APPLY, each:
+  `{ kind: "config" | "note" | "repo", cluster: "<short name>", count: <n>,
+action: "<one-line what to do>", target: "<settings.json | ~/CLAUDE.md | memory:<slug> | shell |
+repo:SERP | repo:SWAC>", payload: "<the exact allow-string / memory body / CLAUDE.md bullet /
+command to run — OR, for kind:repo, a clear task prompt describing the code change>",
+rationale: "<why this stops the friction>" }`.
+  Use `kind: "repo"` when the durable fix is a **code change inside a repo** (not a hub config/note) —
+  e.g. a friction cluster whose real root cause is a bug or missing guard in SERP or SWAC source.
+  Only include a `fix` for a cluster genuinely worth a durable change this run (skip transient and
+  already-well-covered ones). Order by count desc.
+
+> **Orchestrator applies the `fixes` (on the main thread, after the agent returns) — Jack's standing
+> auto-fix directive.** For each fix, in this safe order, and report what was applied in the briefing:
+>
+> - `kind: "note"`, `target: memory:<slug>` → **write or update** the memory file under
+>   `…/sw-cortex/memory/` (one fact per file, with frontmatter; if `<slug>` exists, sharpen it in
+>   place — never duplicate) and add/refresh its one-line pointer in `MEMORY.md`.
+> - `kind: "note"`, `target: ~/CLAUDE.md` → add/refine the working-style bullet in
+>   `…/sw-cortex/global-config/CLAUDE.md` (the symlinked source; never hand-edit `~/CLAUDE.md`).
+> - `kind: "config"`, `target: settings.json` → add the exact `permissions.allow` entry (or env/MCP
+>   change) to `~/.claude/settings.json` **only if it's strictly additive and safe** (a read-only
+>   command allowlist, a missing-module install). Use the `update-config` skill's conventions.
+>   **NEVER** add a permission that loosens a guardrail Claude correctly fought (no `git stash`, no
+>   making a read-only repo writable) — those are always `note`s, enforced by the bucket rules above.
+> - `kind: "config"`, `target: shell` (e.g. `pip install …`) → run it if it's a safe, idempotent
+>   install; otherwise surface it as a one-liner for Jack.
+> - `kind: "repo"`, `target: repo:SERP` → **do NOT edit SERP inline from the hub.** Auto-`/launch`
+>   a session to implement the fix: run `~/.claude/scripts/launch-repo-session.sh
+/Users/jackkief/Desktop/Projects/SERP "<payload task prompt>"` (fire-and-forget — it opens a real
+>   SERP session in a new tab that researches→builds→PRs the change; don't block on it). Note in the
+>   briefing that a SERP session was launched for it. _(Jack's directive 2026-06-24: "for serp changes
+>   /launch something automatically to implement.")_
+> - `kind: "repo"`, `target: repo:SWAC` → **make the change locally** — apply the SWAC code edit
+>   directly on the main thread (SWAC is writable from the hub), or open a quick local edit; don't
+>   `/launch` for it. _(Jack's directive 2026-06-24: "for wishdesk just make them locally.")_
+>   After applying config/`~/CLAUDE.md`/MCP-template changes, **`bash scripts/sync-global-config.sh
+push`** so `~/.claude` picks them up (and note in the briefing if a Claude Code restart is needed,
+>   e.g. for `.ts` MCP or `mcp.json` changes). Memory files need no sync. If a fix is ambiguous or
+>   would touch something risky, **don't apply it — list it under "needs Jack" in the panel** instead.
 
 ### Step 6 — Shut down not-in-use worktrees · orchestrator (the one destructive step)
 
@@ -435,8 +521,11 @@ the orchestrator folds into the briefing's `### 🧹 Worktrees` line.
 
 ## Morning Briefing (final output)
 
-Once the workflow has returned every result block (and you've applied any Step 3 edits), stitch the
-results into one briefing in this **printed order** — keep it scannable:
+Once the workflow has returned every result block (and you've applied any Step 3 KB edits **and any
+Step 5 auto-fixes**), stitch the results into one briefing in this **printed order** — keep it
+scannable. In the friction section, report what was **applied** this run (memories written/sharpened,
+`~/CLAUDE.md` rules added, `settings.json` allows added, SERP sessions `/launch`ed, SWAC edits made),
+not just what was recommended — and list anything deferred under "needs Jack":
 
 ```
 ## ☀️ Morning Briefing — <today's date>
@@ -445,8 +534,10 @@ results into one briefing in this **printed order** — keep it scannable:
 - <one-line summary, e.g. "6/6 MCP · bastion · token · queue all ✅"; list any ⚠️ with its remedy>
 
 ### 🩺 Claude-setup friction (last <N> days)
-- <FIX> <count>× <cluster> — <fix> ; <FIX> <count>× <cluster> — <fix>
-- <GUARDRAIL> <count>× <cluster> — <behavioural note>  (or "setup ran clean")
+- ✅ APPLIED: <count>× <cluster> — <durable fix made> (memory/CLAUDE.md/settings/launched-SERP/SWAC-edit)
+- ✅ APPLIED: <correction Jack made> — <rule written so it won't recur>
+- <GUARDRAIL> <count>× <cluster> — <behavioural note strengthened>  (or "setup ran clean")
+- ⏭️ needs Jack: <any fix too risky/ambiguous to auto-apply, surfaced not applied>
 - 💡 biggest single win: <one concrete change>
 
 ### 🎫 WishDesk — what's left
@@ -500,12 +591,20 @@ before ending the turn.
   fold in / correct yesterday's learnings, never duplicate. The Step 3 agent **proposes**; the
   orchestrator applies. The heavy reconcile stays with the weekly `/refresh-knowledge`; the daily
   pass deliberately does **not** touch its watermark, so the two never collide.
-- **Step 5 (Claude-setup diagnostic) is about the tooling, not the work.** It mines transcripts
-  via `claude-setup-friction.py` (read-only, stdlib-only — deliberately no third-party imports,
-  since a missing module is one of the failures it diagnoses), and it **distinguishes broken
-  setup (fix the config) from correct guardrails Claude fought (a behavioural note, never loosen
-  the guard)**. It surfaces fixes as text — it never edits `settings.json`, `~/CLAUDE.md`,
-  `.env`, or any config itself.
+- **Step 5 (Claude-setup diagnostic + AUTO-FIX) is about the tooling, not the work.** It mines
+  transcripts TWO ways: (a) tool-error friction via `claude-setup-friction.py` (read-only,
+  stdlib-only — deliberately no third-party imports, since a missing module is one of the failures
+  it diagnoses), and (b) **Jack's own corrections** (messages where Jack told Claude it did
+  something wrong — "no…", "stop…", "from now on…") via `knowledge-extract-user-msgs.py`, which are
+  the highest-priority signal. It **distinguishes broken setup (config fix) from recurring
+  behaviour + guardrails Claude fought (a durable note/rule, never loosen the guard)**. **Per
+  Jack's standing directive (2026-06-24), the fixable friction is AUTO-APPLIED every run, not just
+  recommended:** the Wave-A agent stays read-only and returns `{panel, fixes}`; the **orchestrator**
+  then applies each fix on the main thread — write/sharpen a memory, add a `~/CLAUDE.md` rule, add a
+  safe additive `settings.json` allow (NEVER one that loosens a guard Claude correctly fought), or
+  for a **repo code fix route by repo: SERP → auto-`/launch` a session to implement it; SWAC →
+  edit locally** — then `sync-global-config.sh push`. Anything risky/ambiguous is surfaced under
+  "needs Jack," not applied. It still never weakens a guardrail.
 - **Step 6 (worktree shutdown) is the one destructive step** — it removes clean, idle worktrees
   via `/shutdown` (orchestrator-run, never a workflow agent). It only ever touches writable repos'
   worktrees, keeps anything in use, and hard-skips the protected/locked set. Skip it with
