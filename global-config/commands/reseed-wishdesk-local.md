@@ -23,7 +23,7 @@ your login survives — but over a **plaintext** connection so it works on Node 
 - The repo script `npm run migration-seed` (`server/scripts/drizzle/migration-seed.ts`)
   connects to the dev source via `getDatabaseConfig('dev')`, which **hardcodes
   `ssl: { rejectUnauthorized: false }`**. The dev host is the bare IP `5.78.187.176`
-  (Hetzner — the *real* dev DB, NOT the old AWS RDS hostname). **Node ≥23 refuses to set
+  (Hetzner — the _real_ dev DB, NOT the old AWS RDS hostname). **Node ≥23 refuses to set
   a TLS servername to an IP** → `ERR_INVALID_ARG_VALUE`, so the repo script crashes on
   connect. The DB itself is fine — it accepts **plaintext** (`ssl:false`) connections.
   This command does the same dev→local copy over plaintext, so it works regardless of Node.
@@ -121,7 +121,7 @@ Wait for it (poll for `Dump completed` at the file's tail). Verify
   | mysql --defaults-extra-file="$SCRATCH/local.cnf" sugarwish_wishdesk_new 2>"$SCRATCH/load.err"
 ```
 
-`load.err` should be empty (warnings ok). 
+`load.err` should be empty (warnings ok).
 
 ### Step 6: Verify + report
 

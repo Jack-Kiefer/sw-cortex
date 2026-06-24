@@ -18,14 +18,14 @@ This command is **SWAC-only** — it assumes a WishDesk session (root `…/SWAC`
 
 ### WishDesk subsystem map (use this to scope)
 
-| Area | What lives there | Typical tables / files |
-| --- | --- | --- |
-| **Desk / CS / CRM** | WishDesk admin console, agents, tickets, the email/SWIM assistant | `swcrm_*`, `orders_tickets`, `sw_billing_tickets`, `swcrm_actions` |
-| **Proposals** | proposal builder, revision chains, locked versions | `proposals`, proposal builder UI |
-| **Sleeves / branding** | sleeve **resolution** + branding data (the side that feeds livery's PDF render) | `branding_records`, `physical_branding`, `sleeve-resolution.ts` |
-| **Receiver app** | customer-facing receiver flows, redemption, quiz | receiver app, `system_settings`, quiz-config |
-| **Auth / app shell** | cookie sessions, agent-vs-admin route guards, Drizzle/Express backend | `server/auth-middleware.ts`, route guards |
-| **Design consumption** | how WishDesk consumes sw-design assets (ecard/box/genie) | `system_settings`, sync-in, quiz-config |
+| Area                   | What lives there                                                                | Typical tables / files                                             |
+| ---------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Desk / CS / CRM**    | WishDesk admin console, agents, tickets, the email/SWIM assistant               | `swcrm_*`, `orders_tickets`, `sw_billing_tickets`, `swcrm_actions` |
+| **Proposals**          | proposal builder, revision chains, locked versions                              | `proposals`, proposal builder UI                                   |
+| **Sleeves / branding** | sleeve **resolution** + branding data (the side that feeds livery's PDF render) | `branding_records`, `physical_branding`, `sleeve-resolution.ts`    |
+| **Receiver app**       | customer-facing receiver flows, redemption, quiz                                | receiver app, `system_settings`, quiz-config                       |
+| **Auth / app shell**   | cookie sessions, agent-vs-admin route guards, Drizzle/Express backend           | `server/auth-middleware.ts`, route guards                          |
+| **Design consumption** | how WishDesk consumes sw-design assets (ecard/box/genie)                        | `system_settings`, sync-in, quiz-config                            |
 
 > Read-only neighbors: **livery** RENDERS the sleeve/slip PDF and **sw-design** owns the design pipeline — both are read-only. When a SWAC task points at one of them, the part you actually change is the SWAC-side resolution/consumption, not the neighbor.
 

@@ -90,22 +90,22 @@ The obvious-looking inference is often documented as **wrong** — that's what t
 
 ## Global Slash Commands
 
-| Command                               | Description                                          |
-| ------------------------------------- | ---------------------------------------------------- |
-| `/start-day`                          | Morning routine: sync → tickets → KB → triage        |
-| `/slack-search [query]`               | Search Slack messages                                |
-| `/db query [database] [sql]`          | Query databases                                      |
-| `/swac-analyze [description]`         | SWAC/WishDesk research → build (SWAC sessions)       |
-| `/meeting [title]`                    | Save meeting notes + index to Qdrant                 |
-| `/refresh-knowledge`                  | Update the knowledge base docs                       |
-| `/draft-slack [context]`              | Draft a Slack message                                |
-| `/shutdown [repo]`                    | Remove all worktrees not in use (writable repos)     |
-| `/ww [description]`                   | WishDesk work helper                                 |
-| `/tab-title [name]`                   | Set/clear this terminal tab title                    |
-| `/compact-global`                     | Compact + resume global context                      |
-| `/save-for-later [note]`              | Save a rich summary of this chat, then close the tab |
-| `/resume-later [pick]`                | List saved chats and relaunch one in its repo        |
-| `/close-later [pick]`                 | Mark a saved chat done (active → closed)             |
+| Command                       | Description                                          |
+| ----------------------------- | ---------------------------------------------------- |
+| `/start-day`                  | Morning routine: sync → tickets → KB → triage        |
+| `/slack-search [query]`       | Search Slack messages                                |
+| `/db query [database] [sql]`  | Query databases                                      |
+| `/swac-analyze [description]` | SWAC/WishDesk research → build (SWAC sessions)       |
+| `/meeting [title]`            | Save meeting notes + index to Qdrant                 |
+| `/refresh-knowledge`          | Update the knowledge base docs                       |
+| `/draft-slack [context]`      | Draft a Slack message                                |
+| `/shutdown [repo]`            | Remove all worktrees not in use (writable repos)     |
+| `/ww [description]`           | WishDesk work helper                                 |
+| `/tab-title [name]`           | Set/clear this terminal tab title                    |
+| `/compact-global`             | Compact + resume global context                      |
+| `/save-for-later [note]`      | Save a rich summary of this chat, then close the tab |
+| `/resume-later [pick]`        | List saved chats and relaunch one in its repo        |
+| `/close-later [pick]`         | Mark a saved chat done (active → closed)             |
 
 ## Global Skills
 
