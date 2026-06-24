@@ -14,10 +14,11 @@ constraint: Slack triage (Step 4) reads the index that the Slack sync (Step 1) w
 /start-day skip-kb       # skip the knowledge-base touch-up step (Step 3)
 /start-day skip-diagnostic   # skip the Claude-setup diagnostic step (Step 5)
 /start-day skip-shutdown # skip the worktree shutdown step (Step 6 — leave all worktrees)
+/start-day skip-reseed   # skip the weekly WishDesk local reseed (Step 7)
 /start-day days=7        # widen the diagnostic / KB look-back window (default 3 days)
 ```
 
-`$ARGUMENTS` may contain `skip-sync`, `skip-kb`, `skip-diagnostic`, `skip-shutdown`, and/or `days=N`.
+`$ARGUMENTS` may contain `skip-sync`, `skip-kb`, `skip-diagnostic`, `skip-shutdown`, `skip-reseed`, and/or `days=N`.
 Anything else is ignored.
 
 ---
@@ -548,6 +549,38 @@ and only on clean, idle worktrees.
 
 **Result:** the same combined summary `/shutdown` produces (removed / kept-in-use / protected), which
 the orchestrator folds into the briefing's `### 🧹 Worktrees` line.
+
+### Step 7 — Weekly WishDesk local reseed · orchestrator (writes LOCAL db only) · ONCE A WEEK
+
+> **Orchestrator runs this — NOT a workflow agent.** It refreshes Jack's **local** WishDesk DB
+> (`sugarwish_wishdesk_new` on `127.0.0.1`) from the dev WishDesk DB so local dev work has current
+> data. It writes ONLY the local DB (never dev/manage/live) and preserves `users`/`proposals` so
+> login survives. It is the second writing step (after Step 6); everything else stays read-only.
+
+**This runs at most once per week.** Gate on a stamp file so a daily `/start-day` doesn't reseed
+every morning — reseed only if it hasn't run in the last 7 days (or `skip-reseed` was NOT passed):
+
+```bash
+STAMP="$HOME/.claude/.last-wishdesk-reseed"
+if [ -f "$STAMP" ] && [ "$(find "$STAMP" -mtime -7 2>/dev/null)" ]; then
+  echo "reseed: skipped (ran $(date -r "$STAMP" '+%a %b %d'))"   # within 7 days → skip
+else
+  echo "reseed: due (last ran $( [ -f "$STAMP" ] && date -r "$STAMP" '+%a %b %d' || echo 'never'))"
+fi
+```
+
+If `skip-reseed` is in `$ARGUMENTS`, skip unconditionally and note it. If it's NOT due (ran <7 days
+ago), skip and note when it last ran — do NOT reseed.
+
+**If due:** run the **`/reseed-wishdesk-local`** command's full logic (read
+`~/.claude/commands/reseed-wishdesk-local.md` and follow it) — it does a plaintext dev→local copy
+(works on Node ≥23 where the repo's `npm run migration-seed` crashes on the TLS-to-IP issue),
+replaces the data tables, skips the large `swcrm_*` CRM tables, and preserves local users. It is
+**non-interactive here** (start-day is unattended): treat the once-a-week gate as the confirmation —
+do not prompt. After a successful load, `touch "$STAMP"`.
+
+**Result:** a one-line `### 🌱 Local reseed` for the briefing — `reseeded N tables from dev` /
+`skipped (ran <date>)` / `skipped (skip-reseed)` / `failed: <reason>`.
 
 ---
 
