@@ -110,11 +110,14 @@ git -C "$ROOT" worktree add --force -B <desc> "$WT" origin/main   # SERP-style w
 # make ALL edits + the commit inside the worktree (git -C "$WT" …), never the hub dir
 git -C "$WT" push -u origin <desc>
 gh -C "$WT" pr create --base main --head <desc> --title "…" --body "…"   # or: cd "$WT" && gh pr create …
-# after Jack merges:
+# after Jack merges — IMMEDIATELY pull the merge into the hub's main, then clean up:
+git -C "$ROOT" pull --ff-only origin main          # advance the hub's main to include the merged PR (right away)
 git -C "$ROOT" worktree remove --force "$WT" && git -C "$ROOT" worktree prune
+# final teardown — close this tab (ONLY a launched go-tab, NEVER the hub):
+~/.claude/scripts/close-own-tab.sh
 ```
 
-Pause for Jack's review/merge unless he says to merge. If `global-config/` changed, run `sync-global-config.sh push` after merge. (Heads-up: `~/CLAUDE.md` is a symlink into the hub checkout, so editing it via that path writes to the hub on `main` — make `global-config/` edits **inside the worktree path** instead, so nothing lands on the hub's `main`.)
+Pause for Jack's review/merge unless he says to merge. **The moment the PR is merged, `git -C "$ROOT" pull --ff-only origin main`** so the hub's `main` isn't left behind the merge — then remove the worktree, and as the **final teardown step close this terminal** with `~/.claude/scripts/close-own-tab.sh`. ⚠️ Close **only when this cortex work ran in a launched/`/launch` go-tab — NEVER close the hub's own terminal** (the long-lived session Jack keeps open); when in doubt, leave it open. If `global-config/` changed, run `sync-global-config.sh push` after the pull, before closing. (Heads-up: `~/CLAUDE.md` is a symlink into the hub checkout, so editing it via that path writes to the hub on `main` — make `global-config/` edits **inside the worktree path** instead, so nothing lands on the hub's `main`.)
 
 ## Step 1.6 — `/go` fires a slash command by intent: `/analyze` (actionable) or `/research` (pure question)
 
