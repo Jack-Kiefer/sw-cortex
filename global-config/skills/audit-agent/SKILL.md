@@ -45,7 +45,7 @@ From what Jack pasted, pin down:
   ignored an explicit instruction? hallucinated a schema/API? Name the failure class —
   it points at which fix surface applies (§4).
 - **Which agent / repo / command** produced it, if knowable — a `/go` session in SERP, a
-  SWAC `/global-analyze`, a raw Claude chat, a subagent. This tells you **which
+  SWAC `/swac-analyze`, a raw Claude chat, a subagent. This tells you **which
   CLAUDE.md, which `.claude/rules`, which skills, which MCP tools** were in scope. If
   it's not stated and matters, ask in one line; otherwise infer from the content and say
   what you assumed.

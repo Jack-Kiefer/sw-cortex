@@ -1,6 +1,6 @@
 ---
 name: options-first-intake
-description: The options-first intake convention — before routing/assessing/researching a task, turn whatever Jack typed into a few pickable AskUserQuestion options instead of making him type an open-ended paragraph. Holds the invariant rules every intake shares; each command supplies its own second axis. Consumed by /go, /launch, /global-analyze, /global-quick-analyze, and SERP /analyze + /quick-analyze.
+description: The options-first intake convention — before routing/assessing/researching a task, turn whatever Jack typed into a few pickable AskUserQuestion options instead of making him type an open-ended paragraph. Holds the invariant rules every intake shares; each command supplies its own second axis. Consumed by /go, /launch, /swac-analyze, and SERP /serp-analyze + /quick-analyze.
 disable-model-invocation: false
 ---
 

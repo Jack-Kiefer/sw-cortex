@@ -47,7 +47,7 @@ mcp__knowledge__get_knowledge_section { section: "Serpy" }   # full text when a 
 - Reasoning about any SugarWish system, database table, or cross-system flow
 - Writing queries against `odoo` / `laravel_live` / `retool` / `wishdesk` / `serp_*` tables
 - Assuming who owns a system, what a column means, or which DB is the source of truth
-- Starting any analyze/planning task (`/analyze`, `/global-analyze`, `/global-quick-analyze`)
+- Starting any analyze/planning task (SWAC's `/swac-analyze`, SERP's `/serp-analyze` + `/quick-analyze`)
 
 The obvious-looking inference is often documented as **wrong** — that's what the KB exists to catch. Search it the way you'd search the web: cheap, early, often.
 
@@ -59,8 +59,7 @@ The obvious-looking inference is often documented as **wrong** — that's what t
 | ------------------------------------- | ------------------------------------ |
 | `/slack-search [query]`               | Search Slack messages                |
 | `/db query [database] [sql]`          | Query databases                      |
-| `/global-analyze [description]`       | Deep pre-implementation analysis     |
-| `/global-quick-analyze [description]` | Quick codebase assessment            |
+| `/swac-analyze [description]`         | SWAC/WishDesk research → build        |
 | `/meeting [title]`                    | Save meeting notes + index to Qdrant |
 | `/refresh-knowledge`                  | Update the knowledge base docs       |
 

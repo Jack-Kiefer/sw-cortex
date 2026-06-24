@@ -1,6 +1,6 @@
 ---
 name: presenting-analysis
-description: Standing rulebook for presenting a research/analysis result — paragraph-first by default (one tight 3–6 sentence paragraph + an offer to expand; the full sectioned findings/plan/Implementation Map appear ONLY when Jack says "more"), a strict relevance gate, and the say-it-once / no-narration output discipline. For research→build flows (/analyze, /global-analyze) the full Implementation Map is still built internally as the implementer's brief but kept under the fold. Use when presenting the results of a research/analysis phase (the /analyze, /global-analyze, /research, or /jira-start present step), or whenever writing up findings for approval. Repo-specific gates/tooling layer on via that repo's analyze-extras skill.
+description: Standing rulebook for presenting a research/analysis result — paragraph-first by default (one tight 3–6 sentence paragraph + an offer to expand; the full sectioned findings/plan/Implementation Map appear ONLY when Jack says "more"), a strict relevance gate, and the say-it-once / no-narration output discipline. For research→build flows (/serp-analyze, /swac-analyze) the full Implementation Map is still built internally as the implementer's brief but kept under the fold. Use when presenting the results of a research/analysis phase (the /serp-analyze, /swac-analyze, /research, or /jira-start present step), or whenever writing up findings for approval. Repo-specific gates/tooling layer on via that repo's analyze-extras skill.
 disable-model-invocation: false
 ---
 
@@ -77,7 +77,7 @@ conversation context — it becomes the implementer's brief verbatim]
 - ...
 ```
 
-## `/analyze` & `/global-analyze` (research→build) — build the Map internally, still show only the paragraph
+## `/serp-analyze` & `/swac-analyze` (research→build) — build the Map internally, still show only the paragraph
 
 These flows hand off to an implementer session, and the **Implementation Map IS that
 implementer's brief** — so you must still produce the full Map (per the expansion template)

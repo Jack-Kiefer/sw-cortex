@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # close-own-tab.sh — ask the Go Launcher extension to close THIS session's terminal tab.
 #
-# Used as the FINAL teardown step of a /implement or /analyze worktree-mode session, AFTER
+# Used as the FINAL teardown step of a /implement or /serp-analyze worktree-mode session, AFTER
 # the PR has merged and /shutdown-worktree has removed the worktree. The launched tab does
 # NOT auto-close on its own (the extension has no ✅-title watcher) — this is the mechanism
 # that closes it.
