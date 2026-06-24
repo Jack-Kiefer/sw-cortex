@@ -101,6 +101,21 @@ So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `l
 
 A new terminal is only worth it when the task needs a **different** repo's toolset/cwd (SERP or SWAC). For sw-cortex there's nothing to gain — the hub already has everything.
 
+**But ship the change as a PR to `main`, built in a throwaway worktree — never commit to the hub's `main` and never `git checkout` a branch in the hub working copy.** "Inline" means the _session_ runs in the hub; it does **not** mean committing straight to `main`. A sw-cortex change makes a **PR to `main` exactly like SERP does**, and like SERP's `/deploy` the branch is made in a **separate git worktree under `/tmp`** so the hub's own checkout never leaves `main`:
+
+```bash
+ROOT=/Users/jackkief/Desktop/Projects/sw-cortex
+WT=/tmp/cortex-pr-<desc>
+git -C "$ROOT" worktree add --force -B <desc> "$WT" origin/main   # SERP-style worktree, NOT a checkout in the hub
+# make ALL edits + the commit inside the worktree (git -C "$WT" …), never the hub dir
+git -C "$WT" push -u origin <desc>
+gh -C "$WT" pr create --base main --head <desc> --title "…" --body "…"   # or: cd "$WT" && gh pr create …
+# after Jack merges:
+git -C "$ROOT" worktree remove --force "$WT" && git -C "$ROOT" worktree prune
+```
+
+Pause for Jack's review/merge unless he says to merge. If `global-config/` changed, run `sync-global-config.sh push` after merge. (Heads-up: `~/CLAUDE.md` is a symlink into the hub checkout, so editing it via that path writes to the hub on `main` — make `global-config/` edits **inside the worktree path** instead, so nothing lands on the hub's `main`.)
+
 ## Step 1.6 — `/go` fires a slash command by intent: `/analyze` (actionable) or `/research` (pure question)
 
 **`/go` launches the session with a slash command, not a raw prompt** — and which one depends on whether there's something to BUILD:
