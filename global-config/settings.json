@@ -178,6 +178,15 @@
             "command": "/Users/jackkief/.claude/scripts/tab-title-hook.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/save-for-later-merge-hook.sh"
+          }
+        ]
       }
     ],
     "SessionEnd": [

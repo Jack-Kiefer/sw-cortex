@@ -32,7 +32,7 @@ doing anything else:
    on ultracode, raise effort to it for this command; token cost is not a constraint here.)
 2. **Drive it with the `Workflow` tool — author ONE workflow script**, not inline Task
    subagents. The whole routine is the workflow: a `phase('Wave A')` that fans out Steps
-   **0, 2, 2b, 3, 5** in `parallel()` while the Slack sync runs in the background, a **barrier**
+   **0, 2, 2b, 2c, 3, 5** in `parallel()` while the Slack sync runs in the background, a **barrier**
    on the sync, then a `phase('Triage')` running Step 4, then a `phase('Shutdown')` running
    Step 6. The step bodies below are the per-agent prompts; the orchestration model section maps
    them onto the script.
@@ -64,9 +64,10 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    in via the script's `args`. Simplest correct shape: start the bg sync, then call `Workflow`;
    the Triage phase doesn't begin until you've confirmed the sync finished (see the barrier
    below). The sync is the **only** thing the workflow waits on.
-3. **`phase('Wave A')` — fan out the five read steps with `parallel()`.** One `agent()` call each
-   for **Step 0** (health-check), **Step 2** (tickets), **Step 2b** (PRs/deploy), **Step 3** (KB
-   touch-up), **Step 5** (Claude-setup diagnostic). Each agent's prompt **is the step body below**;
+3. **`phase('Wave A')` — fan out the read steps with `parallel()`.** One `agent()` call each
+   for **Step 0** (health-check), **Step 2** (tickets), **Step 2b** (PRs/deploy), **Step 2c**
+   (saved-for-later chats), **Step 3** (KB touch-up), **Step 5** (Claude-setup diagnostic). Each
+   agent's prompt **is the step body below**;
    each must `return` exactly the compact result block that step specifies — give each a `schema`
    (or a tight "return only this panel" instruction) so the returns come back clean. These have no
    inter-dependencies, so a single `parallel([...])` barrier collecting all five is correct here.
@@ -257,6 +258,37 @@ lint/tests here** — the readiness gate is `/pending-deploy SERP`'s job; this i
 pointer to it. If `AHEAD = 0` and `BEHIND = 0`, say "in sync — nothing pending."
 
 **Return:** the PR line(s) + the one-line deploy status.
+
+### Step 2c — Saved-for-later chats · Wave A agent
+
+> **Workflow-agent contract.** One `agent()` in `phase('Wave A')`'s `parallel()`. It returns
+> the rendered `### 🗂️ Saved for later` panel and nothing else. It is **read-mostly** with one
+> bounded write: it may auto-close a save whose PR has already merged (same as the merge hook,
+> just caught a day later) — never deletes a save, never touches anything else.
+
+Surface the `/save-for-later` chats Jack parked so they don't get forgotten. List the active saves:
+
+```bash
+~/.claude/scripts/save-for-later.sh list active
+```
+
+Each line is TSV: `file<TAB>title<TAB>repo<TAB>branch<TAB>pr<TAB>updated<TAB>nextstep`. If there are
+none, return "none parked — clean slate."
+
+**Backstop the merge hook.** For each save that has a `pr` number, check whether that PR has merged
+since it was parked (a merge done from the GitHub UI or by a teammate won't have fired the
+PostToolUse hook). For SERP saves: `gh pr view <pr> --repo Jack-Kiefer/SERP --json state -q .state`
+(SWAC: `--repo <swac-repo>`). If a PR shows `MERGED`, auto-close that save and note it:
+
+```bash
+~/.claude/scripts/save-for-later.sh close "<file>" "Auto-closed during /start-day: PR #<pr> merged."
+```
+
+(If `gh` errors, skip the check — don't block; just list the save as still active.)
+
+**Return:** the `### 🗂️ Saved for later` panel — one line per remaining active save
+(`title · repo · branch · age · next step`), plus a line for any auto-closed-this-run. If none,
+the single "none parked" line.
 
 ### Step 3 — Light KB touch-up · Wave A agent
 
@@ -548,6 +580,10 @@ not just what was recommended — and list anything deferred under "needs Jack":
 - dev is <N> commits ahead of main → `/pending-deploy SERP` to review + gate  (or "in sync")
 - #<num> · <title> · (yours / review requested)   — open PRs awaiting you, or "no open PRs"
 
+### 🗂️ Saved for later
+- <title> · <repo> · `<branch>` · <age> — next: <one-line next step>   (`/resume-later` to pick up)
+- ... (or "none parked — clean slate"; note any auto-closed this run: "✅ closed <title> — PR merged")
+
 ### 📚 Knowledge base (living doc)
 - <N facts updated / M added in DICTIONARY.md, or "nothing new to fold in">
 
@@ -569,15 +605,15 @@ before ending the turn.
 
 - **It runs as ONE Workflow at ultracode, with one barrier.** Per the standing directive at the
   top, author and run a single `Workflow` script (don't fall back to inline Task subagents).
-  `phase('Wave A')` fans out Step 0, 2, 2b, 3, 5 in a single `parallel()` while the Slack sync runs
+  `phase('Wave A')` fans out Step 0, 2, 2b, 2c, 3, 5 in a single `parallel()` while the Slack sync runs
   in the background; the sync→triage order is the **only** serial dependency — `phase('Triage')`
   (Step 4) waits on the sync barrier; then `phase('Shutdown')` (Step 6). The **orchestrator owns
   the tab, the `DICTIONARY.md` writes, the Step 6 worktree shutdown, and the final briefing**; the
   workflow's agents only read + return their block.
 - **Printed order is load-bearing for reading, not execution.** The phases execute in parallel
   within Wave A (plus Step 6 after Wave A), but assemble the briefing top-to-bottom: health →
-  setup-friction → tickets → deploy/PRs → KB → worktrees → triage, so Jack scans it in a stable
-  order.
+  setup-friction → tickets → deploy/PRs → saved-for-later → KB → worktrees → triage, so Jack scans
+  it in a stable order.
 - **Step 0 is non-blocking and report-only, with one opted-in exception.** It surfaces broken
   plumbing (MCP down, missing go-launcher extension, bastion unreachable, etc.) but never restarts,
   reinstalls, prunes a worktree, or stops the routine — **except check 8 (Docker + local dev DB),
