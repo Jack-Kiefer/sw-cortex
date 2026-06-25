@@ -1,5 +1,5 @@
-DRY_RUN = False
-ONLY_SKU = "SA-03-027-E"
+DRY_RUN = True
+ONLY_SKU = None
 
 COST_SOURCE = "a_fifo"
 
@@ -10,9 +10,14 @@ ROUND_DP = 2
 
 
 def _fifo_unit_cost(prod):
-    layers = env["stock.valuation.layer"].search([("product_id", "=", prod.id)])
-    rq = sum(layers.mapped("remaining_qty"))
-    rv = sum(layers.mapped("remaining_value"))
+    env.cr.execute(
+        "SELECT COALESCE(SUM(remaining_qty), 0), COALESCE(SUM(remaining_value), 0) "
+        "FROM stock_valuation_layer WHERE product_id = %s",
+        (prod.id,),
+    )
+    rq, rv = env.cr.fetchone()
+    rq = float(rq)
+    rv = float(rv)
     unit = (rv / rq) if rq else None
     return unit, rq, rv
 
@@ -32,6 +37,8 @@ def _find_pairs():
             continue
         e_unit, e_qty, e_val = _fifo_unit_cost(e)
         if e_qty <= 0:
+            continue
+        if e_val > 0:
             continue
 
         a_code = code[:-2] + "-A"
