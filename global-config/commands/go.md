@@ -87,6 +87,8 @@ Choose exactly ONE of SERP / SWAC / sw-cortex. Read-only repos (Odoo, sugarwish-
 
 If a request truly can't be placed (e.g. "fix the Vinebox drop-ship" — could be Laravel/livery with no clear SERP/SWAC angle), say so in one line and ask which repo rather than guessing. If genuinely split across two writable repos, pick the primary and mention the other.
 
+**Orphan analysis/research → default to SERP.** The exception to "ask which repo" is a **pure analysis/research question that doesn't belong to SERP, SWAC, or sw-cortex** (a general SugarWish data/Slack/cross-system question with no clear owning repo). Don't ask and don't handle it inline — **route it to SERP and launch a `/research` session there.** SERP sessions carry telemetry, so this keeps the research tracked instead of running untracked in the hub. (This applies only to **analysis that has no repo home** — a genuine sw-cortex change still routes to sw-cortex and runs inline per Step 1.5, and anything with a real SERP/SWAC angle routes there as usual.)
+
 Repo roots:
 
 - SERP → `/Users/jackkief/Desktop/Projects/SERP`
