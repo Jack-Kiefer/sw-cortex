@@ -88,6 +88,17 @@ The obvious-looking inference is often documented as **wrong** — that's what t
 
 **Updating the KB:** it indexes `sw-cortex/DICTIONARY.md` directly — edit that file and the index refreshes itself on the next search (no ingest step). `/refresh-knowledge` distills new session learnings into the doc.
 
+## Looking Up a WishWorks Ticket (WW-###)
+
+WW-### tickets are dev-request **`.md` files in the `jasonbkiefer/SWIRL` repo** (fetch with the `github` MCP — `mcp__github__get_file { repo: "SWIRL", path, ref? }`). They are filed by **status**, so a ticket is in exactly ONE of two places — **check both, in this order:**
+
+1. **Active (open):** `wishworks/dev-requests/active/WW-###.md`
+2. **Archived (released/closed):** `wishworks/dev-requests/archive/{year}-q{quarter}/WW-###.md` — the archive is **partitioned by quarter** (`2026-q1`, `2026-q2`, …). A released ticket is NOT in `active/` and NOT at `archive/WW-###.md` — it's under the quarter subfolder.
+
+**So the correct lookup is:** try `active/WW-###.md` first; on a 404, walk the `archive/` quarter subfolders (list `wishworks/dev-requests/archive` to see which quarters exist, then fetch `archive/<quarter>/WW-###.md` — most recent quarter first). **A 404 in `active/` means "released," not "missing"** — always fall through to the archive before reporting a ticket can't be found.
+
+**Normalize the id** to `WW-###`, preserving its own width (a bare `65` → look up `WW-065` AND `WW-65`; `/go`/`/ww` keep whatever width it's filed under). The ticket's YAML frontmatter carries the useful fields — `status` (`released`/`in_progress`/…), `track`, `assignee`, `priority`, `released_date`, and `linked_prs[]` (repo + PR number + state) — and the body has the description, root cause, and acceptance criteria. **`status: released` + `released_date`** is the cutoff to reason about for "what happened before this shipped." `/ww` is the full helper for ticket work; this note is just so any session can resolve a ticket by id without it.
+
 ## Global Slash Commands
 
 | Command                       | Description                                          |
