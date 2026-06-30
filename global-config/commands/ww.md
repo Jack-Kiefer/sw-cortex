@@ -52,7 +52,6 @@ PYEOF
 ```
 
 **If the output is "UPDATED":** The local command file was just updated to the latest version. The instructions already loaded in this conversation are now outdated. To proceed correctly:
-
 1. Use the Read tool to read `~/.claude/commands/ww.md` in full — this is the updated version. If the Read tool returns an error that the file is too large (e.g., "exceeds maximum allowed tokens"), read it in chunks using the `offset` and `limit` parameters, starting from line 1 and continuing until every line of the file has been read. Do NOT skip this step or proceed with partial content — you MUST read the entire updated file before moving on, even if it takes multiple Read calls.
 2. Tell the user: "The /ww command was just updated to the latest version. Using the new instructions now."
 3. Follow the **newly-read** instructions (not the ones already in this conversation) to handle the user's original request.
@@ -78,7 +77,6 @@ PYEOF
 WishWorks ticket management — manage WishWorks tickets via natural language.
 
 **Talk naturally** — just describe what you want to do after running `/ww`. Examples:
-
 - "show my tickets"
 - "move WW-003 to in progress"
 - "I want to create a new bug for Wishdesk"
@@ -93,11 +91,9 @@ WishWorks ticket management — manage WishWorks tickets via natural language.
 - "create a bug for Wishdesk — proposal page is broken. Attach: ~/Downloads/bug-screenshot.png"
 
 ## Arguments
-
 - `$ARGUMENTS` — optional natural language request. If no arguments, print the ready message and a fun fact. Say "show my tickets" (or a filter like "show all Wishdesk bugs") to see your assigned list.
 
 ## GitHub API Details
-
 - **Repo:** `jasonbkiefer/SWIRL`
 - **Branch:** `main` — **ALL reads and writes MUST target the `main` branch**
 - **Token:** read from `SWIRL_GITHUB_TOKEN` env var. Every Python heredoc that makes API calls already reads it via `os.environ["SWIRL_GITHUB_TOKEN"]` (raises `KeyError` immediately if unset) or `os.environ.get(...)` (returns None → prints SKIP). **Do NOT add a pre-API verification step via shell** (`echo $SWIRL_GITHUB_TOKEN`, `[ -n "$SWIRL_GITHUB_TOKEN" ]`, etc.) — those patterns get blocked by strict secret-pattern hooks on some developer machines and trigger a ~30-second fallback per call. The auto-update block at the top of this command already runs first and prints SKIP if the token is missing. If the user reports SKIP, tell them to add `export SWIRL_GITHUB_TOKEN="..."` to `~/.zshrc` and start a new session. Never echo, print, log, or hardcode the token value.
@@ -553,39 +549,32 @@ def archive_ticket(ticket_id, archive_reason, archived_by, branch, token, extra_
 ### How to use the helpers
 
 **Updating ticket fields** (status, priority, assignee, environment, etc.):
-
 ```python
 content = update_frontmatter(content, {"status": "in_progress", "environment": "blue"})
 ```
 
 **Adding a history entry** (every ticket change needs this):
-
 ```python
 content = append_history(content, f"- {now} — Status changed to in_progress (by {actor} via Claude CLI)")
 ```
 
 **Adding a comment (Conversation entry):**
-
 ```python
 content = append_conversation(content, "Anna Kifer", "Deployed the fix to blue — please retest.")
 ```
-
 Do NOT pair this with `append_history()` — comment adds intentionally skip the History breadcrumb (matches the WishWorks UI). Author name must be the canonical full Name from team.md. Full flow (mention check, author resolution, confirmation note): see "If asking to add a comment to a ticket".
 
 **Adding a time log row:**
-
 ```python
 content = time_log_row(content, "add", developer="Bilal Ahmed", date="2026-03-31", hours="3.0", description="Tax calc fix")
 ```
 
 **Editing a time log row:**
-
 ```python
 content = time_log_row(content, "edit", developer="Bilal Ahmed", date="2026-03-31", hours="4.5", description="Updated description")
 ```
 
 **Editing when multiple rows exist for the same developer + date** (pass `match_hours` + `match_description` to target a specific row):
-
 ```python
 content = time_log_row(content, "edit", developer="Bilal Ahmed", date="2026-03-31",
                        hours="4.5", description="Updated description",
@@ -593,43 +582,35 @@ content = time_log_row(content, "edit", developer="Bilal Ahmed", date="2026-03-3
 ```
 
 **Deleting a time log row:**
-
 ```python
 content = time_log_row(content, "delete", developer="Bilal Ahmed", date="2026-03-31")
 ```
 
 **Deleting when multiple rows exist for the same developer + date** (pass `match_hours` + `match_description` to target a specific row):
-
 ```python
 content = time_log_row(content, "delete", developer="Bilal Ahmed", date="2026-03-31",
                        match_hours="1.5", match_description="Fixed the bug")
 ```
 
 **Updating release actions:**
-
 ```python
 content = update_release_actions(content, [{"action": "Route(s)", "checked": True, "detail": "Update nginx conf"}])
 ```
 
 **Validating YAML before writing to GitHub** (REQUIRED for ticket creation and any multi-field update):
-
 ```python
 content = validate_yaml_frontmatter(content)
 ```
-
 Call this as the LAST step before writing `content` to GitHub via the API. It catches double-escaping bugs that can break the entire ticket in Wishdesk.
 
 **Parallel-fetching all active tickets** (use any time you'd otherwise loop-fetch every active ticket — e.g. duplicate detection, "show my tickets" filter, ad-hoc cross-ticket queries):
-
 ```python
 tickets = fetch_active_tickets_parallel("main", token, max_workers=20)
 # tickets is {filename: content_str}; parse YAML frontmatter for each
 ```
-
 ~5–10s instead of ~3 min on a 200-ticket active/ directory. Raises on ANY single-fetch failure (never silently drops a ticket — that would corrupt filter results). If it raises, surface a "couldn't fetch all tickets — retry?" prompt rather than continuing with a partial set. Uses `api.github.com/.../contents/{path}?ref={branch}` with `Accept: application/vnd.github.raw` so there's no signed-URL expiration window (the `download_url` field of the contents endpoint expires after ~5 min and 404s mid-fetch on large directories — don't use it).
 
 **NEVER do any of the following** — these patterns caused the corruption bug:
-
 - `re.search(r'\n## ', after_section)` to find section boundaries
 - Manual string slicing to insert into sections
 - Writing your own logic to find where History or Time Log entries go
@@ -641,7 +622,6 @@ The `/ww` command supports attaching files to tickets. Files are uploaded to S3 
 **Attachments section rule — ALWAYS follow:** The `## Attachments` section contains ONLY bare link lines in the form `- [filename](url)` — nothing else, ever. No captions, no descriptions, no prose — not on the same line as the link, and not on a separate line below it.
 
 When the user writes text around an image reference (e.g. `add this image [Image #1] this is showing the bug`, or prose before/after a pasted image), the image itself goes into `## Attachments` as a bare link — but the surrounding text is **ticket body content, not attachment metadata**. Route it to the appropriate section:
-
 - **New ticket (during create):** fold the prose into `## Description`.
 - **Existing ticket (attach to WW-###):** add the prose as a `## Conversation` comment (use `append_conversation()` — see "If asking to add a comment to a ticket") or an item in `## History`, whichever fits the intent.
 
@@ -650,7 +630,6 @@ Never dump the surrounding prose into `## Attachments` under any circumstance.
 **Note:** For /ww, always use branch = "main" in the ticket update helper.
 
 ### Attachment Config
-
 - **Max file size:** 10MB (10,485,760 bytes)
 - **Blocked extensions:** `.exe`, `.bat`, `.cmd`, `.sh`, `.ps1`, `.msi`, `.dll`, `.com`, `.scr`, `.vbs`, `.wsf`
 - **S3 env vars required:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `AWS_REGION` (defaults to `us-east-1`)
@@ -661,7 +640,6 @@ Never dump the surrounding prose into `## Attachments` under any circumstance.
 ### Detecting Images in the Conversation
 
 When processing a `/ww` request, check if images were included in the conversation:
-
 1. Look for `[Image #N]` references in the recent conversation context
 2. If found, check for corresponding cached files at `~/.claude/image-cache/` — these are files Claude Code creates when images are dropped or pasted
 3. If cached files exist and are readable, offer to attach them: "I see you included an image. Want me to attach it to this ticket?"
@@ -670,7 +648,6 @@ When processing a `/ww` request, check if images were included in the conversati
 ### Resolving File Paths
 
 When a user provides a file path (e.g., `~/Downloads/screenshot.png`):
-
 1. Expand `~` to the home directory
 2. Resolve relative paths against the current working directory
 3. Verify the file exists and is readable
@@ -901,7 +878,6 @@ Parse the JSON output. If `error`, tell the user: "The file was uploaded to S3 b
 **Source of truth for ticket structure:** `wishworks/_config/TICKET_FORMAT_GUIDE.md` in the Swirl repo.
 
 When creating or modifying tickets, always follow the format guide. Key rules:
-
 - **All fields must be present** in every ticket, even if blank (use `""`)
 - Different tracks and types have different required fields and starting statuses
 - **Laravel, React Receiver, and Shipping Labels tickets** include a Release Actions checklist section (different items per track — see Release Actions Gate)
@@ -945,7 +921,6 @@ PYEOF
 If output is empty, there's no history yet — pick any fact freely. If output has entries, you'll use them in Step 2.
 
 **Step 2 — Pick the fact (internally — do NOT show it to the developer yet), following these rules — these are hard requirements, not suggestions:**
-
 - **Never invent or fabricate facts.** Only share fun facts you are confident are true and verifiable from general world knowledge (science, history, geography, language, etc.). If you're not sure something is true, do not say it — pick a different fact, or default to a positive thought / encouragement instead.
 - **Never share fun facts about Sugarwish, its products, brand, branding choices, history, founders, customers, or competitors.** You do not have authoritative knowledge of internal Sugarwish details, and inventing them risks misinforming the team. (The CEO previously received a fabricated claim about the brand-color rationale — that exact failure mode is what this rule exists to prevent.)
 - **Avoid any subject that appears in the Step 1 history.** Soft semantic matching, not strict string compare — if a recent entry was about octopuses, don't pick another sea-creature-anatomy fact; switch categories entirely (language, history, space, food science, music, etc.). Look at the last ~10–15 entries especially closely.
@@ -980,7 +955,6 @@ Trigger phrases (examples — interpret natural language): "show my tickets", "s
 **Step 1: Determine filters from the developer's request**
 
 Parse the natural-language request into the filter variables (set at the top of the consolidated heredoc in Step 2). Each filter is either None (don't apply) or a specific value:
-
 - `MY_TICKETS_ONLY` — True by default. False if developer said "all" with no possessive (e.g., "show all Wishdesk bugs" means EVERYONE's Wishdesk bugs).
 - `STATUS_FILTER` — e.g., `"in_progress"`, `"deploy_ready"`, `"backlog"`. None if no status mentioned.
 - `TRACK_FILTER` — e.g., `"wishdesk"`, `"laravel"`, `"shipping-labels"`, `"react-receiver"`, `"wishbot"`, `"retool"`, `"swirl-bot"`. None if not mentioned.
@@ -1331,7 +1305,6 @@ The Python heredoc above does ALL the formatting work (section headers, column a
 After printing every row verbatim, you MAY add ONE short follow-up line (e.g., "Want me to drill into any of these, or filter further?"). Otherwise, nothing else.
 
 **Forbidden behaviors (every one of these has happened before — DO NOT do any of them):**
-
 - **Summarizing instead of listing.** Phrases like "All 43 active Wishdesk bugs — heavy concentration in BACKLOG (36)…" are FORBIDDEN. The user cannot see the rows from a summary.
 - **Skipping rows because there are many.** 24 rows, 43 rows, 100 rows — print them all. No exception for "this seems like a lot".
 - **Replacing ticket titles with paraphrases** like "lots of test tickets" or "various T-### chunks". Every row must show the actual title (truncated by Python).
@@ -1358,12 +1331,10 @@ At the START of every ticket-creation flow, re-fetch these four config files fre
 **Step 1: Determine type and track**
 
 Ask what they want to create if not clear from their message:
-
 - **Type:** Story (new feature/enhancement), Bug (something broken), or Task (technical/infrastructure work)
 - **Track:** Laravel, Wishdesk, Retool, WishBot, React Receiver, Shipping Labels, or Swirl Bot
 
 **Track-type compatibility:** Not every track supports every type. Validate the type+track combination against `ticket_types_by_track` in `wishworks/_config/enums.json`. In particular:
-
 - **Retool** and **Shipping Labels** do NOT support Stories (only Bug and Task)
 - If the developer asks for a Story on Retool or Shipping Labels, reject: "{Track} doesn't support Stories — only Bugs and Tasks. Did you mean to create a Task?" — wait for them to pick Bug, Task, or cancel before proceeding.
 
@@ -1372,11 +1343,10 @@ Ask what they want to create if not clear from their message:
 Based on the type and track, collect these fields conversationally. Ask for the most important ones first, and batch related questions together.
 
 **All types need:**
-
 - `title` — short descriptive title
 - `description` — what and why (for bugs: what's broken, what should happen instead)
 - `requestor` — auto-detect by running `gh api user --jq .login` to get the developer's GitHub username, then look up the canonical `Name` in team.md (Dev Team table → match the `GitHub Username` column → use the `Name` column). If the GitHub username matches no row (e.g., new dev not in team.md, or empty `GitHub Username` column for that member), fall back to `git config user.name` and run that through the **Name resolution** algorithm (Assign Rules section below) against the Dev Team table.
-  - **Override path (filing on behalf of someone else):** if the developer says "the requestor is X" (or otherwise overrides the auto-detected value), the override input MUST resolve to a real team member in team.md before the ticket is created. **Validation rule:** resolve the input through Name resolution against (a) the Dev Team table's `Name` column, then (b) the All Staff table's `Name` column. **Exactly one match** → store the canonical full `Name` from that table. **Multiple matches** → list candidates and ask the developer to pick. **Zero matches** → **HARD STOP. Do not create the ticket.** Respond: _"I couldn't find '{input}' in team.md (Dev Team or All Staff). The requestor field MUST be a real team member — no placeholders, no department names, no 'unknown'. Please find out who specifically requested this (check the Slack thread, ask in the relevant department channel, etc.) and re-run /ww with their actual name. Possible options based on department context: {list 3-5 nearest fuzzy matches in team.md All Staff filtered by relevant department, if any}."_
+  - **Override path (filing on behalf of someone else):** if the developer says "the requestor is X" (or otherwise overrides the auto-detected value), the override input MUST resolve to a real team member in team.md before the ticket is created. **Validation rule:** resolve the input through Name resolution against (a) the Dev Team table's `Name` column, then (b) the All Staff table's `Name` column. **Exactly one match** → store the canonical full `Name` from that table. **Multiple matches** → list candidates and ask the developer to pick. **Zero matches** → **HARD STOP. Do not create the ticket.** Respond: *"I couldn't find '{input}' in team.md (Dev Team or All Staff). The requestor field MUST be a real team member — no placeholders, no department names, no 'unknown'. Please find out who specifically requested this (check the Slack thread, ask in the relevant department channel, etc.) and re-run /ww with their actual name. Possible options based on department context: {list 3-5 nearest fuzzy matches in team.md All Staff filtered by relevant department, if any}."*
   - **NEVER store** a department name, team name, role title, or any placeholder string (including "unknown", "TBD", "—") in `requestor`. The field must always resolve to a real person from team.md. If the developer truly cannot identify the requestor, the ticket should not be created yet — they need to track down who actually asked for the work first.
   - **Cron-generated tickets** (e.g. `WishBot (recurring)`) are exempt — those are written by automation, not by `/ww`.
 - `department` — ask if not obvious (valid: Customer Support, Account Management, Finance/Billing, Operations, Marketing, HR, Platform)
@@ -1384,40 +1354,36 @@ Based on the type and track, collect these fields conversationally. Ask for the 
 - `assignee` — **ALWAYS ask** who should be assigned — the question itself is mandatory and must never be skipped, but an ANSWER is not required. Ask something like: "Who should be assigned? (Say 'skip' if you don't know — the team lead will assign later.)" If the developer names someone, validate and resolve the input via the **Name resolution** steps in the `Assign Rules` section below — accept short names like "Bilal" and resolve them to the canonical full `Name` before storing. If they say "skip" / "I don't know" / "no one yet" (or similar), leave `assignee: ""` and proceed — never block ticket creation on a missing assignee. Optional answer ≠ optional question: do NOT silently default to blank without asking.
 
 **Bugs also need:**
-
 - `requestor_urgency` — Critical, High, Medium, Low, or "I'm not sure"
 - `priority` — **required for every bug, on every track. ALWAYS ASK — this is a mandatory question that must never be auto-filled, assumed, or skipped, even though a default is offered.** Bug priority uses a **Critical / High / Medium** scale (bugs have no `Low` — Medium is the floor). Never write a bug with an empty `priority`, and never silently set it from urgency and move on — you MUST put the question to the creator and **WAIT for their reply** before continuing to the duplicate check or the "Ready to create" summary. Compute a suggested default from the urgency they just gave, present it, and let them accept or override:
 
-  | `requestor_urgency`    | suggested `priority` |
-  | ---------------------- | -------------------- |
-  | Critical               | Critical             |
-  | High                   | High                 |
-  | Medium                 | Medium               |
-  | Low                    | Medium               |
-  | "I'm not sure" / blank | Medium               |
+  | `requestor_urgency` | suggested `priority` |
+  |---|---|
+  | Critical | Critical |
+  | High | High |
+  | Medium | Medium |
+  | Low | Medium |
+  | "I'm not sure" / blank | Medium |
 
-  Ask it as its own distinct step and then STOP, e.g. _"Urgency is High — what priority should this bug be? I'd suggest **High**. Reply Critical / High / Medium, or say 'yes'/'that's fine' to take the suggestion."_ Do not show the ticket preview until they answer. Store exactly what the creator chooses (one of Critical/High/Medium) — only treat the suggested default as the value once they explicitly accept it. This applies to Wishdesk, Laravel, and all other bug tracks — see the Laravel/React/Shipping note below so you don't prompt twice.
-
+  Ask it as its own distinct step and then STOP, e.g. *"Urgency is High — what priority should this bug be? I'd suggest **High**. Reply Critical / High / Medium, or say 'yes'/'that's fine' to take the suggestion."* Do not show the ticket preview until they answer. Store exactly what the creator chooses (one of Critical/High/Medium) — only treat the suggested default as the value once they explicitly accept it. This applies to Wishdesk, Laravel, and all other bug tracks — see the Laravel/React/Shipping note below so you don't prompt twice.
 - `who_affected` — optional: Specific Customer/Order, General System Issue, or Me
 - Steps to Reproduce (as a body section) — recommended but not required
 
 **Glitch channel opt-out (`no_announce`) — PASSIVE, never prompt (T-191):**
-
 - If the requester says they don't want the ticket posted/announced to the glitch channel (any phrasing — "don't post this to #glitches", "no glitch channel post", "skip the announcement", "this doesn't need channel tracking"), set `no_announce: true` in frontmatter and confirm in the creation summary ("won't be posted to the glitch channel").
 - **Never ask about it** — only set it when the requester explicitly requests it. Most tickets should announce normally; the field is for high-volume routine reports that don't need channel tracking.
 - Applies to any ticket type the announcement cron covers (bugs on every track; retool tasks). Harmless on other tickets — it simply does nothing there.
 - The flag only suppresses WishBot's automatic channel announcement; the ticket itself is created normally and shows up in WishWorks as usual.
 
 **Tasks also need:**
-
 - `justification` — why this work is needed
 - `estimate` — hours (e.g., `4h`, `8h`). Max 8 hours per ticket — if work exceeds 8h, it must be broken into child tickets.
 
 **Laravel, React Receiver, and Shipping Labels tickets (all types) — collected at creation:**
-
 - `estimate` — hours (e.g., `4h`, `8h`). Max 8h per ticket — if over 8h, must be broken into child tickets. Required for stories, tasks, AND bugs on these three tracks.
 - `priority` — Critical, High, Medium, or Low. Required for **stories and tasks** on these tracks. (**Bugs** collect priority via the "Bugs also need" rule above — bug scale Critical/High/Medium, defaulted from urgency — so don't prompt for priority twice on a Laravel/React/Shipping bug.)
 - `component` / `sub_component` — **Laravel only.** Direct the developer to review the component matrix at https://desk2.sugarwish.com/component-matrix/ and ask them to provide the **sub-component** that best fits their ticket (e.g., "buyer orders", "gift cards", "proposals"). Match their answer against the sub-components in `wishworks/_config/component-matrix.json` to fill in both the `component` (parent) and `sub_component` fields. If no match, ask them to clarify or leave blank. **React Receiver and Shipping Labels have no component taxonomy — skip this question and leave both fields blank.**
+
 
 **Step 3: Auto-detect component**
 
@@ -1436,14 +1402,12 @@ All tickets (every track) start at `backlog` in `active/`. Laravel, React Receiv
 Follow the exact template for this track+type from the ticket format guide (`wishworks/_config/TICKET_FORMAT_GUIDE.md`). Include ALL frontmatter fields — set required ones from the collected info, set everything else to the default value shown in the template (`""`, `false`, or `0`). For enum fields you weren't explicitly asked about, leave empty (`""`) — never auto-pick a "sensible" enum value.
 
 **Use canonical enum values for `type` and `track`:** Read the canonical strings from `wishworks/_config/enums.json` and write the EXACT value to frontmatter. The user may say "Story" or "Shipping Labels" or "React Receiver" in chat — always look up and write the canonical form. The two multi-word tracks use **hyphens, not underscores or spaces**:
-
 - `react-receiver` (NOT `react_receiver`, `reactreceiver`, or `react receiver`)
 - `shipping-labels` (NOT `shipping_labels`, `shippinglabels`, or `shipping labels`)
 
 If the user provides a track name that doesn't match anything in `enums.json` `tracks` (e.g., a brand-new track not yet added), write it lowercased with hyphens for any spaces (matches the existing convention) — don't reject. The reconciliation cron flags unknown tracks downstream for cleanup.
 
 Body sections:
-
 - `## Description` — always
 - `## Steps to Reproduce` — for bugs (if provided)
 - `## Release Actions` — **Laravel, React Receiver, and Shipping Labels** — include the full unchecked checklist for the ticket's track (see the Release Actions Gate section for each track's checklist items)
@@ -1482,7 +1446,6 @@ Is this the same issue as any of these? (yes/no)
 Show a summary of the ticket before creating. Do NOT fetch the counter yet — the ticket number is not known at this point. Use "WW-???" as a placeholder.
 
 For Laravel tickets:
-
 ```
 Ready to create:
   WW-??? (Laravel Story) — "Add checkout tax calculation"
@@ -1493,7 +1456,6 @@ Create this ticket? (y/n)
 ```
 
 For non-Laravel tickets:
-
 ```
 Ready to create:
   WW-??? (Wishdesk Bug) — "Proposal page not loading for guest users"
@@ -1514,7 +1476,6 @@ Wait for confirmation, then push the file via GitHub API.
 **Step 7.5: Process attachments (if any)**
 
 After the ticket is created successfully, check if there are files to attach:
-
 1. **File paths mentioned in the original create request** — if the developer included paths like "Attach: ~/Downloads/screenshot.png" in their create message, process them now
 2. **Images in the conversation** — if images were dropped/pasted before the create command, ask: "I see you included an image. Want me to attach it to {new_ticket_id}?"
 
@@ -1531,7 +1492,6 @@ If uploads fail, the ticket is still created — tell the developer: "Ticket {ti
 Understand the developer's intent from their natural language and perform the action following the rules below. If a ticket ID is not provided, use the most recently referenced ticket in the conversation. If no ticket has been referenced, ask which ticket.
 
 **Routing exceptions:**
-
 - **"show tickets" style requests** — any request that asks for a list of tickets ("show my tickets", "show all Wishdesk bugs", "what tickets need release actions", "show critical bugs", etc.) is NOT a single-ticket action — route those to the **If asking to see tickets** section above (which parallel-fetches the active list).
 - **Fun fact / positive thought requests** — "fun fact", "give me a fun fact", "tell me something interesting", "positive thought", etc. → route to the **If asking for a fun fact** section above.
 - **Comment requests** — "add a comment to WW-###: …", "comment on WW-###…", "leave a note on WW-###…" → route to the **If asking to add a comment to a ticket** section below (mention check + exact Conversation format are mandatory there).
@@ -1549,7 +1509,6 @@ When a developer says something like "attach ~/Downloads/screenshot.png to WW-04
 **Step 1: Resolve the file(s)**
 
 Collect all files to attach. Sources:
-
 1. **File paths in the message** — expand `~`, resolve relative paths, verify each exists
 2. **Images in the conversation** — if the developer dropped/pasted an image into Claude Code before running this command, check for cached files at `~/.claude/image-cache/`. If found and readable, ask: "I see you included an image. Want me to attach it to {ticket_id}?" If the cache isn't available, skip silently.
 
@@ -1568,7 +1527,6 @@ For each successful upload, run the Updating Ticket Markdown helper to add the l
 **Step 5: Report results**
 
 For each file:
-
 - Success: "Attached {filename} to {ticket_id} — {s3_url}"
 - Upload failed: "{filename} couldn't be uploaded: {error}. You can try again with `/ww attach {path} to {ticket_id}`."
 - Ticket update failed: "{filename} was uploaded to S3 but the ticket couldn't be updated. Try again with `/ww attach {path} to {ticket_id}`."
@@ -1592,7 +1550,6 @@ If a ticket ID was provided, use it. If not, use the most recently referenced ti
 Tagging does NOT work from this command. The WishWorks UI notifies people in Slack when they're @tagged in a comment; comments added here are written straight to the ticket file — **nobody is tagged or notified, ever**.
 
 Scan the comment body for tag candidates:
-
 - An `@` followed by a word is a CANDIDATE only if the `@` is NOT part of an email address — skip it when the `@` is directly preceded by a non-space character (e.g. `anna@sugarwish.com`).
 - A candidate counts as a REAL tag only if the word(s) after the `@` match a team member in `wishworks/_config/team.md` (first name or full name, case-insensitive). Things like `@reboot`, `@3pm`, `@here` are NOT tags — never warn on those. (team.md is needed in Step 3 anyway for the author name — fetch it ONCE here and reuse it; never fetch it twice in this flow.)
 - Legacy Slack syntax `<@U...>` ALWAYS counts as a tag.
@@ -1604,7 +1561,6 @@ If real tags were found, STOP and warn — do not post yet:
 > "Heads up — tagging doesn't work from this command, so @{Name} will NOT be notified. If you post the comment anyway, I'll remove the tag (it becomes plain text "{Name}"). To actually tag and notify {Name}, add the comment in the WishWorks UI instead. Post it here anyway?"
 
 Wait for the developer's answer. If they cancel, stop (offer to keep the draft handy). If they say post anyway, strip every tag first:
-
 - `@Jaypee` → `Jaypee` (drop the `@`, keep the name so the sentence still reads naturally)
 - `<@U...>` → the member's name from team.md, or remove it entirely if it doesn't resolve
 
@@ -1615,7 +1571,6 @@ Get `git config user.name` and resolve it to the canonical full Name via the tea
 **Step 4: Post the comment (one Python heredoc)**
 
 Include the Standard Ticket Helpers and use `append_conversation()` — NEVER hand-roll the entry format (the UI parser silently drops malformed lines, making the comment invisible in the viewer). In one heredoc:
-
 1. Find the ticket file — `wishworks/dev-requests/active/` first, then the `archive/` subfolders (same lookup as attachments).
 2. Fetch content + SHA.
 3. `content = append_conversation(content, "{Canonical Name}", BODY)` — assign the comment body to a variable with a triple-quoted string (`BODY = """…"""`) so multi-line text and quotes can't break the heredoc; if the body itself contains `"""`, use `'''…'''` instead. If `append_conversation` raises the capacity ValueError, show that message to the developer and stop.
@@ -1657,14 +1612,12 @@ When looking up a ticket, try `active/` first, then `archive/` subdirectories.
 To move via API: PUT file at new path, then DELETE from old path using its sha.
 
 **Post-move verification (REQUIRED):** After every archive or release move, immediately verify:
-
 1. GET the new path (archive/) — confirm the file exists
 2. GET the old path (active/) — confirm the file is gone (expect 404)
 3. If the old path still returns a file (not 404), delete it again using the fresh sha from the GET response
 4. Report the verification result: "Verified: WW-### is in archive and removed from active." or flag if there's an issue.
 
 **Quarter calculation:** Sugarwish quarters start 15 days behind standard. Use Mountain Time.
-
 - Q1: Jan 1 – Mar 31
 - Q2: Apr 1 – Jun 30
 - Q3: Jul 1 – Sep 30
@@ -1678,7 +1631,6 @@ To move via API: PUT file at new path, then DELETE from old path using its sha.
 ## Status Change Rules
 
 ### Forward movement
-
 A ticket can move to the next status in its sequence (one step forward). All statuses are accessible to all users.
 
 **Estimate gate:** When moving a story, task, or bug on Laravel, React Receiver, or Shipping Labels from `backlog` to `in_progress`, check if `estimate` is set. If not, block the transition: "This ticket needs an estimate before it can be moved to in progress. What's the estimate in hours? (e.g., 4h, 8h — max 8h per ticket)"
@@ -1686,7 +1638,6 @@ A ticket can move to the next status in its sequence (one step forward). All sta
 **Released date (all tracks):** When moving a ticket to `released`, set `released_date` to the current Mountain Time timestamp in `YYYY-MM-DD HH:mm` format (e.g., `2026-04-01 14:30`). Use `update_frontmatter(content, {"released_date": now})` where `now` is formatted as `YYYY-MM-DD HH:mm`.
 
 **Environment on release (all tracks):** When moving a ticket to `released`, also set the `environment` field based on the ticket's track:
-
 - **Laravel:** set `environment` to `live`
 - **React Receiver:** set `environment` to `live`
 - **Shipping Labels:** set `environment` to `live`
@@ -1699,7 +1650,6 @@ A ticket can move to the next status in its sequence (one step forward). All sta
 Free backward movement between `backlog` ↔ `in_progress` ↔ `deploy_ready` for all tracks.
 
 ### Moving backward from Released (all tracks)
-
 1. Ask: "Is this code currently live in production?"
 2. **If yes** → Reject: "This ticket's code is live in production and cannot be moved from Released. If there's an issue, please create a new bug ticket."
 3. **If no** → Ask which environment based on the ticket's track:
@@ -1712,11 +1662,10 @@ Free backward movement between `backlog` ↔ `in_progress` ↔ `deploy_ready` fo
 5. Move to `in_progress`, update `environment` field, move file from `archive/` to `active/`
 
 ### Moving to Archived
-
 Always requires a reason. Set `archive_reason` in frontmatter (underscore — WishWorks **ticket** frontmatter uses underscores; the hyphen convention is for weekly-board task files only and does NOT apply to tickets. The schema, the SWAC viewer, and WishBot all read `archive_reason` underscore). **For `type: bug` tickets on the `laravel` or `wishdesk` track, also run the n8n-candidate archive prompt** — see the "n8n-candidate archive prompt" subsection under `## Archive Rules`.
 
-### Estimate gate
 
+### Estimate gate
 When a developer tries to move a story, task, or bug on Laravel, React Receiver, or Shipping Labels from `backlog` to `in_progress`, check if `estimate` is set. If not, block the transition and ask: "This ticket needs an estimate before it can be moved to in progress. What's the estimate in hours? (e.g., 4h, 8h — max 8h per ticket)"
 
 Tracks NOT subject to the estimate gate: Wishdesk, Retool, WishBot, Swirl Bot.
@@ -1726,7 +1675,6 @@ Tracks NOT subject to the estimate gate: Wishdesk, Retool, WishBot, Swirl Bot.
 When a developer changes a ticket's track (e.g., from Wishdesk to Laravel):
 
 **Always do these on any track change:**
-
 1. **Clear assignee** — set to `""` (developer lists differ by track)
 2. **Clear component** — set to `""` (component taxonomies differ by track)
 3. **Add history entries** for all three changes:
@@ -1739,7 +1687,6 @@ When a developer changes a ticket's track (e.g., from Wishdesk to Laravel):
 Add the `## Release Actions` section with the full unchecked checklist for the NEW track (if not already present), placed before `## History`. The checklist differs per track:
 
 **Laravel:**
-
 ```
 ## Release Actions
 - [ ] No actions needed
@@ -1755,7 +1702,6 @@ Add the `## Release Actions` section with the full unchecked checklist for the N
 ```
 
 **React Receiver:**
-
 ```
 ## Release Actions
 - [ ] No actions needed
@@ -1764,7 +1710,6 @@ Add the `## Release Actions` section with the full unchecked checklist for the N
 ```
 
 **Shipping Labels:**
-
 ```
 ## Release Actions
 - [ ] No actions needed
@@ -1786,32 +1731,27 @@ Also add `release_by: ""` to frontmatter if not already present.
 When a developer asks to change `environment` on a Laravel, React Receiver, Shipping Labels, or Swirl Bot ticket, the valid options depend on the track:
 
 **Laravel and React Receiver** (same flow: development → blue → live):
-
 - `development`
 - `blue`
 - `live`
 - `other` — any custom test environment name, saved verbatim
 
 **Shipping Labels** (no blue step):
-
 - `development`
 - `live`
 - `other` — any custom test environment name, saved verbatim
 
 **Swirl Bot** (single-stage — live only):
-
 - `live` — the only standard value for this track
 - If a developer requests any environment other than `live` on a Swirl Bot ticket, confirm first: "Swirl Bot is a single-stage track — the only standard environment is `live`. Did you mean `live`, or should I save '{value}' as a custom test environment?"
 
 **How to handle the value the developer provides (case-insensitive matching):**
-
 1. If the value is a standard for this track (see lists above) → save as-is (lowercase)
 2. If the value is `manage` on Laravel → save as `development` and tell the developer: "Saving as 'development' — that's the canonical name for what dev sometimes calls 'manage'."
 3. If a developer picks `blue` on a Shipping Labels ticket → reject: "Shipping Labels doesn't use a blue step — only `development` and `live`. Did you mean `development`?"
 4. If the value is anything else → confirm first: "That's not a standard {track} environment. Options are {list standards for this track}, or 'other' for a custom test environment. Did you mean one of the standards, or should I save '{value}' as a custom test environment?" — only save after the developer confirms.
 
 **When the developer didn't specify a value** (e.g., you're prompting them as part of another flow like backward-from-released):
-
 - Laravel / React Receiver: "What environment is it on? (development, blue, live, or other)"
 - Shipping Labels: "What environment is it on? (development, live, or other)"
 - Swirl Bot: Environment is `live` — no question needed. If prompting is required, confirm: "Environment will be set to `live` (the only standard environment for Swirl Bot). Proceed? (y/n)"
@@ -1825,18 +1765,15 @@ This applies to **any** action that changes the environment field on these four 
 When a developer sets the `environment` field to a **pre-release environment** (see below) on one of these three tracks, check the Release Actions section **before** making the change.
 
 **Pre-release environment per track:**
-
 - Laravel: `development` or `blue`
 - React Receiver: `development` or `blue`
 - Shipping Labels: `development` (no blue step)
 
 **Release Actions are complete if:**
-
 - "No actions needed" is checked (no detail text required), OR
 - One or more specific actions are checked AND each has detail text underneath it
 
 **If Release Actions are incomplete:**
-
 1. Block the environment change — do NOT update the `environment` field yet
 2. Tell the developer: "Before I can move this to {environment}, you need to fill out your Release Actions. Let's do that now."
 3. Show them the Release Actions checklist options **for the ticket's track**:
@@ -1911,7 +1848,7 @@ This rule applies to **any** action that sets environment to a pre-release envir
 ## Archive Rules
 
 - Requires a reason (always). **If the developer didn't provide a reason in their message, ask for one before proceeding. Do NOT archive without a reason.**
-- **Block on active children (flat-hierarchy aware):** before archiving, fetch every ticket whose `parent_ticket` equals this ticket's ID. If any direct child is in `backlog`, `in_progress`, or `deploy_ready`, **block the archive**. Error: _"WW-### has N active children: WW-A, WW-B, WW-C. Archive those first, or use 'Archive parent + all children'."_ List every active child by its ticket ID.
+- **Block on active children (flat-hierarchy aware):** before archiving, fetch every ticket whose `parent_ticket` equals this ticket's ID. If any direct child is in `backlog`, `in_progress`, or `deploy_ready`, **block the archive**. Error: *"WW-### has N active children: WW-A, WW-B, WW-C. Archive those first, or use 'Archive parent + all children'."* List every active child by its ticket ID.
 - **Released/archived children don't block** — if all children are `released` or `archived`, proceed with the archive normally (no cascade; released children stay in their archive folder, already-archived children stay where they are).
 - **Explicit cascade opt-in:** if the developer's request clearly opts into cascading ("archive WW-### and all children", "archive WW-### and its children", "archive with children", etc.), cascade-archive all non-released children with auto-reason `"Parent WW-### archived: {reason}"`. This is the only path that cascades — never cascade by default.
 - Set `status: archived` and `archive_reason: {reason}` on the parent (underscore — WishWorks ticket field; not the board's hyphen convention).
@@ -1923,7 +1860,6 @@ This rule applies to **any** action that sets environment to a pre-release envir
 **This is the canonical contract. The SWAC archive-modal path (T-101 Chunk F) mirrors it exactly — same question wording, same writes, same Retool-task creation. Do not diverge without updating both.**
 
 **GATE — when this prompt fires:** ALL of the following must be true. If any fails, do NOT fire — archive proceeds normally with no n8n questions.
-
 - `type: bug` AND `track ∈ {laravel, wishdesk}` (any other type — story, task — or any other track — retool, wishbot, react-receiver, shipping-labels, swirl-bot — skips).
 - `n8n_candidate` is currently **empty**. If it's already set (e.g. a PR-time determination from T-101 Chunk D already wrote the value and the `## n8n Workflow Spec` section), do NOT re-ask — archive as-is. The determination was already made; re-prompting would duplicate the spec section and waste the dev's time.
 - This is the **directly-archived** ticket, NOT a cascade-archived child. During a cascade ("archive {ID} and all children"), children are bulk-archived with their auto-reason and SKIP the interactive prompt — only the ticket the dev explicitly named gets prompted (if it otherwise qualifies).
@@ -1933,18 +1869,16 @@ Run the gate AFTER the archive reason is collected and the active-children check
 **Sequence:**
 
 **Q1** — ask:
-
 > "You're archiving {ID}. Before I move it, a couple of questions so we can capture whether n8n could help with this in the future.
 >
 > Q1. Was this a real issue where you had to make changes in the database or elsewhere to fix it?
-> [1] Yes [2] No [3] Unsure"
+> [1] Yes  [2] No  [3] Unsure"
 
 - **[2] No** → set `real_issue: "no"`. No Q2. Go straight to the archive write (no body section, no Retool task).
 - **[3] Unsure** → set `real_issue: "unsure"`. No Q2 (sign-off A — don't ask about automating something we're not sure was real). Archive write (no body section, no Retool task).
 - **[1] Yes** → set `real_issue: "yes"`. Continue to Q2.
 
 **Q2** — ask:
-
 > "Q2. Could we monitor or auto-fix this with n8n?
 > [A] Monitor and alert only (n8n detects, notifies us in Slack)
 > [B] Auto-fix (n8n detects + fixes, notifies us in #api-autofix)
@@ -1961,30 +1895,26 @@ Run the gate AFTER the archive reason is collected and the active-children check
 **Helper flow (Q2=E only):**
 
 **Q2a** — ask:
-
 > "Can we DETECT this happening? (Is there a query, log pattern, or API response we could watch?)
-> [1] Yes [2] No [3] Unsure"
+> [1] Yes  [2] No  [3] Unsure"
 
 - **[2] No** → `n8n_candidate: "none"` (nothing to detect, nothing to do). No body section, no Retool task.
 - **[3] Unsure** → enter the AI-assisted conversation (below).
 - **[1] Yes** → continue to Q2b.
 
 **Q2b** — ask:
-
 > "Can we AUTO-FIX it once detected? (Is there a deterministic update we can run, no judgment call needed?)
-> [1] Yes [2] No [3] Unsure"
+> [1] Yes  [2] No  [3] Unsure"
 
 - **[1] Yes** → Q3-autofix (auto-fix path).
 - **[2] No** → Q3-alert (alert path).
 - **[3] Unsure** → AI-assisted conversation.
 
 **AI-assisted conversation (any helper-flow "Unsure"):** walk through symptoms / what they'd look at / whether the data is even visible. Be intelligent — if the dev's answers already settle a downstream question, skip it. Outcomes:
-
 - Resolves to one of A/B/C/D → take that Q3 path (or `none` for D).
 - Still genuinely unsure → `n8n_candidate: "unsure"`, write a body section with only a `### Triage context` subheading (symptoms, fix applied, why marked unsure). No Retool task (this lands on the T-101 Chunk H triage page).
 
 **Q3 (asked as a SINGLE numbered-list message, answered in one reply):**
-
 - **Q3-alert** (`n8n_candidate: alert`):
   1. Which fields / data should we monitor?
   2. What's the identifying scenario or query? (SELECT snippet ideal)
@@ -2027,17 +1957,14 @@ Build the `body_section` ONLY for outcomes alert / auto-fix / both / unsure (nev
 Include only the subheadings that apply to the outcome (alert → Detection + Alert message; auto-fix → Detection + Fix; both → Detection + Fix + Manual parts; unsure → Triage context).
 
 Then call:
-
 ```python
 archive_ticket(ID, reason, archiver_name, BRANCH, TOKEN, extra_fm=extra_fm, body_section=body_section)
 ```
-
 (`body_section=None` when there is no section.) `BRANCH` is `main` for `/ww`. `archiver_name` is the canonical full Name of whoever is archiving (resolve the same way `requestor` is resolved in the creation flow).
 
 **Retool task auto-creation (ONLY when `n8n_candidate ∈ {alert, auto-fix, both}`):**
 
 After the archive write succeeds, auto-create a Retool task — no extra prompting (the dev already answered everything). Build it via the normal Ticket Creation Flow machinery but skip the duplicate-check and the confirmation step. Field values:
-
 - `type: task`, `track: retool`, `status: backlog`
 - `title: "n8n: <short summary derived from the archived bug's title>"`
 - `requestor:` the archiver's canonical Name
@@ -2054,7 +1981,7 @@ If Retool-task creation fails, the bug is already safely archived with its spec 
 
 ## Child Ticket Rules
 
-- **No nesting (flat hierarchy)** — tickets are one level deep. A ticket can be a parent OR a child, but not both. **Before creating a child, fetch the proposed parent's ticket file and check its `parent_ticket` field.** If the proposed parent already has a `parent_ticket` value set (i.e. it's already a child of some other ticket), reject: _"WW-500 is already a child of WW-490. Tickets can only be children OR parents, not both. Unparent WW-500 first if you want to give it children."_ (Replace with the actual IDs.) This rule is type-agnostic — applies to bugs, stories, and tasks.
+- **No nesting (flat hierarchy)** — tickets are one level deep. A ticket can be a parent OR a child, but not both. **Before creating a child, fetch the proposed parent's ticket file and check its `parent_ticket` field.** If the proposed parent already has a `parent_ticket` value set (i.e. it's already a child of some other ticket), reject: *"WW-500 is already a child of WW-490. Tickets can only be children OR parents, not both. Unparent WW-500 first if you want to give it children."* (Replace with the actual IDs.) This rule is type-agnostic — applies to bugs, stories, and tasks.
 - **Parent must be far enough along:** `backlog` or later (all tracks).
 - Parent cannot be archived
 - Child inherits parent's `requestor`, `department`, `assignee`, and `promoted_from`
@@ -2086,7 +2013,7 @@ Every link is written on **BOTH** tickets — the forward type on the ticket you
 name, and its inverse on the other ticket:
 
 | Forward (on this ticket) | Inverse (on the other ticket) |
-| ------------------------ | ----------------------------- |
+|--------------------------|-------------------------------|
 | `blocked_by`             | `blocking`                    |
 | `blocking`               | `blocked_by`                  |
 | `caused_by`              | `causes`                      |
@@ -2094,12 +2021,11 @@ name, and its inverse on the other ticket:
 | `related_to`             | `related_to` (symmetric)      |
 
 Map the developer's natural language to the forward type:
-
-- "A is blocked by B" / "A needs B first" → on A: `blocked_by` B
-- "A is blocking B" / "A blocks B" → on A: `blocking` B
-- "A was caused by B" → on A: `caused_by` B
-- "A caused B" / "A causes B" → on A: `causes` B
-- "A is related to B" → on A: `related_to` B
+- "A is blocked by B" / "A needs B first"  → on A: `blocked_by` B
+- "A is blocking B" / "A blocks B"          → on A: `blocking` B
+- "A was caused by B"                       → on A: `caused_by` B
+- "A caused B" / "A causes B"               → on A: `causes` B
+- "A is related to B"                       → on A: `related_to` B
 
 **If no relationship is specified, always ask before writing — never guess or
 default.** When the request clearly names a relationship (via the map above),
@@ -2136,7 +2062,6 @@ unchanged. Never rebuild frontmatter from a template that drops them.
 ## Parent Status Derivation
 
 When a child's status changes, check if parent should update:
-
 - Any child `in_progress` → parent should be `in_progress`
 - All children at `deploy_ready` or later → parent should be `deploy_ready`
 - All children `released` → parent should be `released`
@@ -2147,13 +2072,11 @@ When a child's status changes, check if parent should update:
 **Always use `append_history()` from the Standard Ticket Helpers** to add history entries. Never write your own section-finding logic.
 
 Every change appends to `## History`. Format:
-
 ```
 - YYYY-MM-DD HH:mm — {event} (by {actor from git config} via Claude CLI)
 ```
 
 Examples:
-
 - `- 2026-03-01 10:00 — Status changed to in_progress (by Bilal via Claude CLI)`
 - `- 2026-03-01 10:00 — Moved back from released to in_progress: needs rework. Environment: blue (by Parish via Claude CLI)`
 - `- 2026-03-02 14:00 — Estimate set: M (by Bilal via Claude CLI)`
@@ -2187,14 +2110,12 @@ The `Time Tracking` column in `wishworks/_config/team.md` determines which devel
 When a developer says something like "log 3 hours on WW-003" or "log 2h on WW-042 for yesterday":
 
 **Step 1: Parse the request**
-
 - Ticket ID (required — can be WW-### or WW-###)
 - Hours (required, decimal — e.g., 3.0, 1.5, 0.25)
 - Date (optional — defaults to today in Mountain Time)
 - Description (optional — see Step 3)
 
 **Step 2: Validate**
-
 1. Fetch the ticket and verify it exists and is not `archived`
 2. Verify the ticket is assigned to the developer — resolve BOTH `git config user.name` AND the ticket's `assignee` field through the `Assign Rules` resolution algorithm to their canonical full `Name`s, then compare. Resolving both sides absorbs the case where `assignee` is still in old first-name form (assignee frontmatter has not yet been backfilled — see T-131 fallout checklist).
 3. Hours: minimum 0.25h, maximum 24h per entry. **Must be in 15-minute (0.25h) increments** — valid values are 0.25, 0.5, 0.75, 1.0, 1.25, etc. If the developer enters a non-standard value (e.g., 0.67h), **round up** to the nearest 0.25h increment and tell them: "Rounded 0.67h up to 0.75h (time is tracked in 15-minute increments)." If below 0.25h, round up to 0.25h and tell them: "Rounded up to 0.25h (15 min minimum)." Always proceed with the rounded value — don't block or ask for confirmation.
@@ -2206,7 +2127,6 @@ When a developer says something like "log 3 hours on WW-003" or "log 2h on WW-04
 6. Check the developer's daily total across all tickets for the target date (read from the monthly ledger on `main` branch). If adding this entry would exceed 10h total, show a confirmation: "This would bring your total for [date] to [X]h. Continue?"
 
 **Step 3: Get description**
-
 - If Claude has session context about work on this ticket (e.g., just made code changes, discussed the ticket): propose an auto-generated description and ask the developer to confirm or edit it
 - If no context: ask "What did you work on?"
 - Keep descriptions concise (one sentence)
@@ -2218,7 +2138,6 @@ Write to the ticket FIRST (source of truth — has the context and description),
 **Each log is its own row** — never merge, consolidate, or edit an existing row when adding new time. If the same developer logs multiple times on the same date, each log gets its own row on both the ticket and the ledger. Separate rows preserve the audit trail, keep descriptions clean, and make individual sessions editable/deletable.
 
 **IMPORTANT:** Use the Standard Ticket Helpers for ALL ticket writes. Include the helpers in your Python heredoc and use:
-
 - `content = time_log_row(content, "add", developer=..., date=..., hours=..., description=...)` to append a new time log row (always appends, never merges)
 - `content = append_history(content, f"- {now} — Logged {hours}h (by {developer} via Claude CLI)")` to add the history entry
 
@@ -2235,16 +2154,14 @@ The helper handles both cases: creating the section if it doesn't exist, or appe
 **Ledger write** (only if ticket write succeeded) — file: `wishworks/_reports/time-log-YYYY-MM.md` (use the target date's month)
 
 If the file doesn't exist yet (404), create it with this header:
-
 ```markdown
 # Time Log — {Month Name} {Year}
 
 | Date | Developer | Ticket | Type | Track | Hours | Description |
-| ---- | --------- | ------ | ---- | ----- | ----- | ----------- |
+|------|-----------|--------|------|-------|-------|-------------|
 ```
 
 Then append a new row:
-
 ```
 | {date} | {developer} | {ticket_id} | {type} | {track} | {hours} | {description} |
 ```
@@ -2318,14 +2235,12 @@ When someone asks about time logged — "how much time this week", "show time lo
 **Step 1: Determine who's asking**
 
 Run `git config user.name` and look up the name in `wishworks/_config/team.md` (on `main` branch):
-
 - If the name matches a developer in the Dev Team table → **developer mode** (show only their time)
 - If the name is "Anna" or doesn't match a developer → **manager mode** (show all developers)
 
 **Step 2: Parse the date range**
 
 Interpret natural language date ranges. Default to "this week" if not specified. Examples:
-
 - "this week" → Monday through today (or Friday if today is weekend)
 - "last week" → previous Monday through Friday
 - "March" or "this month" → March 1 through today (or end of month if past)
@@ -2357,7 +2272,6 @@ Gaps: Bilal (Wed), Parish (Mon, Wed), Aashish (Tue, Wed)
 ```
 
 Rules:
-
 - Only show business days (Mon-Fri) as columns
 - Only include developers with `time_tracking_required: yes`
 - Use "—" for days with no time logged
@@ -2380,7 +2294,6 @@ Total: 15.5h
 ```
 
 Rules:
-
 - Sort by date, then ticket ID
 - Show individual entries (not consolidated by day)
 - Include the total at the bottom
@@ -2396,7 +2309,6 @@ These prompts trigger automatically. Check if the developer has time tracking re
 When a developer moves a ticket to `deploy_ready`, check if there's ANY time logged on that ticket by this developer (check the ticket's `## Time Log` section).
 
 If no time logged:
-
 ```
 You haven't logged any time on {ticket_id}. Want to log your hours before I move it to deploy ready?
 ```
@@ -2408,7 +2320,6 @@ Non-blocking — if they decline, proceed with the status change.
 When a developer moves a ticket to `in_progress`, check their OTHER `in_progress` tickets for unlogged time (no entries in the last 3 business days in the ledger on `main` branch).
 
 If gaps found:
-
 ```
 Heads up — you have unlogged time on WW-038 (in progress since {date}, no time logged).
 ```
