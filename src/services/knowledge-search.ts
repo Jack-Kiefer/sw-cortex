@@ -46,6 +46,23 @@ export interface SearchResult {
   truncated: boolean;
 }
 
+// Recursively collect every markdown file under a directory.
+function walkMarkdown(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkMarkdown(abs));
+    else if (entry.isFile() && /\.mdx?$/i.test(entry.name)) out.push(abs);
+  }
+  return out;
+}
+
+// Resolve KNOWLEDGE_FILES (or the default) into a flat, sorted list of markdown
+// file paths. Each entry may be a file OR a directory: a directory is expanded
+// into its *.md files recursively. Entries that don't exist are skipped (so a
+// stale path can't take down the whole index) — directories with no markdown
+// simply contribute nothing.
 function knowledgeFiles(): string[] {
   const env = process.env.KNOWLEDGE_FILES;
   const names = env
@@ -54,7 +71,24 @@ function knowledgeFiles(): string[] {
         .map((f) => f.trim())
         .filter(Boolean)
     : DEFAULT_FILES;
-  return names.map((f) => (path.isAbsolute(f) ? f : path.join(REPO_ROOT, f)));
+
+  const resolved = new Set<string>();
+  for (const name of names) {
+    const abs = path.isAbsolute(name) ? name : path.join(REPO_ROOT, name);
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(abs);
+    } catch {
+      console.error(`[knowledge] skipping missing KNOWLEDGE_FILES entry: ${abs}`);
+      continue;
+    }
+    if (stat.isDirectory()) {
+      for (const f of walkMarkdown(abs)) resolved.add(f);
+    } else {
+      resolved.add(abs);
+    }
+  }
+  return [...resolved].sort();
 }
 
 function sha256(text: string): string {
