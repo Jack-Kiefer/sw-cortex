@@ -3077,6 +3077,10 @@ A push/merge to `main` is **not live** until `deploy-k8s.sh main` runs on the no
 
 ⚠️ `getChatSessionByThreadId()` matches by `thread_id` ALONE — bulk emails (surveys, notifications) share one Message-ID, so different customers replying get **merged into the first customer's ticket** (cross-customer contamination, 7+ prod cases). Fix: verify `requester_email == senderEmail` before merging threads.
 
+#### Inbound email-parser is a ReDoS / app-hang vector — size-cap + bounded regex + always return 200
+
+⚠️ A single oversized/malformed inbound email can take **all of desk.sugarwish.com down**. On 2026-06-29 a 624 KB Yahoo HTML email hit `server/services/email-parser.ts` **HTML Thread Extraction** (~line 483), whose quote-stripping `On … wrote:` regexes catastrophically backtrack (O(n²)) → 100% CPU → app hang → ALB unhealthy → site down. Two SendGrid **Inbound Parse** routes feed it: **`POST /api/email-webhook`** (`server/livechat/email-webhook-route.ts`, livechat replies) and **`POST /api/orders-email-webhook`** / `/api/orders_email_webhook` (`server/orders-tickets/email-webhook.ts`, ticket/order replies) — **blocking the pathway drops ALL inbound support email on that channel**, not one sender. It re-hung within ~1 min of every restart because the app never returned 200, so **SendGrid kept redelivering** (access log: repeated 499s). Hardening (PR merged to `main` 2026-06-29): **(1)** cap HTML body size before parsing, **(2)** bound every quote-stripping regex with `{0,500}`-style limits / timeout guard instead of greedy `.*?`, **(3)** ALWAYS return HTTP 200 from the webhook so SendGrid stops the redelivery retry storm even when parsing fails. Mitigation during the incident was an out-of-band pathway block (no code change), since superseded by the merged fix.
+
 ---
 
 ### Proposals, Redemption & Migration
