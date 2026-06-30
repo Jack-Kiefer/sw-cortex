@@ -46,6 +46,23 @@ export interface SearchResult {
   truncated: boolean;
 }
 
+// Recursively collect all .md files under a directory (sorted for a stable
+// chunk order). Skips dotfiles/dirs and node_modules.
+function markdownFilesUnder(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...markdownFilesUnder(abs));
+    else if (entry.isFile() && entry.name.endsWith('.md')) out.push(abs);
+  }
+  return out.sort();
+}
+
+// Resolve KNOWLEDGE_FILES (comma-separated; paths relative to the repo root or
+// absolute) to a flat list of markdown files. An entry may be a single .md file
+// or a directory — directories are recursed for their .md files. Missing paths
+// are skipped with a warning rather than failing the whole index.
 function knowledgeFiles(): string[] {
   const env = process.env.KNOWLEDGE_FILES;
   const names = env
@@ -54,7 +71,17 @@ function knowledgeFiles(): string[] {
         .map((f) => f.trim())
         .filter(Boolean)
     : DEFAULT_FILES;
-  return names.map((f) => (path.isAbsolute(f) ? f : path.join(REPO_ROOT, f)));
+  const resolved = names.map((f) => (path.isAbsolute(f) ? f : path.join(REPO_ROOT, f)));
+  const files: string[] = [];
+  for (const p of resolved) {
+    if (!fs.existsSync(p)) {
+      console.warn(`[knowledge] KNOWLEDGE_FILES path not found, skipping: ${p}`);
+      continue;
+    }
+    if (fs.statSync(p).isDirectory()) files.push(...markdownFilesUnder(p));
+    else files.push(p);
+  }
+  return files;
 }
 
 function sha256(text: string): string {

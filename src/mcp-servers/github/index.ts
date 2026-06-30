@@ -3,11 +3,16 @@
 /**
  * GitHub MCP Server - Read-Only Access
  *
- * Provides read-only tools for accessing configured GitHub repositories:
+ * Provides read-only tools for accessing the repositories configured in the
+ * GITHUB_REPOS env var (see .env / .env.example). Current set:
  * - Jack-Kiefer/SERP
  * - jasonbkiefer/SWAC
+ * - jasonbkiefer/swirl
+ * - jasonbkiefer/sw-design
  * - sethfinley/sugarwish-odoo
  * - sethfinley/sugarwish-laravel
+ * - sethfinley/sugarwish-infrastructure
+ * - csloan-sw/livery
  *
  * NO write operations are available. This is intentional.
  */

@@ -116,19 +116,20 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 ### Repo / System Ownership
 
-| Repo / System                              | Owner                                 | Notes                                                        |
-| ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------ |
-| `Jack-Kiefer/SERP`                         | **Jack** (solo)                       | Reviewed by Seth+Anna; sponsor Matt; `carolyn/pack-tomorrow` |
-| `sethfinley/sugarwish-laravel`             | **Seth** + Prixite                    | Main/legacy e-commerce monolith                              |
-| `sethfinley/sugarwish-odoo`                | **Seth** + Prixite (Manish)           | `prixite_customization`; Odoo 15 modules                     |
-| `sethfinley/sugarwish-frontend-react`      | **Seth**                              | React receiver app                                           |
-| `jasonbkiefer/SWAC` (= WishDesk)           | **Jason** org; **Parish** lead/merger | CS ops: Madison Meilinger                                    |
-| `jasonbkiefer/swirl` (= WishWorks + SWIRL) | **Jason** org; **Anna** runs board    | WW-\* tickets                                                |
-| `jasonbkiefer/sw-design`                   | **Jason** + Clare McClaren            | Builder configs, box recipes, icon manifests                 |
-| `csloan-sw/livery` (= SWOP)                | **Cris Sloan** (seeded by Jason)      | Print-station; MCP suite                                     |
-| `laravel_live` (MySQL)                     | **Seth** (DB replications)            | SugarWish prod e-commerce — **NOT SERP**                     |
-| Jenkins / CI/CD (all platforms)            | **Munyr**                             | `ciservice.sugarwish.com`; Seth oversees                     |
-| Odoo prod + staging-new (Odoo.sh)          | **Seth**                              |                                                              |
+| Repo / System                              | Owner                                 | Notes                                                         |
+| ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------- |
+| `Jack-Kiefer/SERP`                         | **Jack** (solo)                       | Reviewed by Seth+Anna; sponsor Matt; `carolyn/pack-tomorrow`  |
+| `sethfinley/sugarwish-laravel`             | **Seth** + Prixite                    | Main/legacy e-commerce monolith                               |
+| `sethfinley/sugarwish-odoo`                | **Seth** + Prixite (Manish)           | `prixite_customization`; Odoo 15 modules                      |
+| `sethfinley/sugarwish-frontend-react`      | **Seth**                              | React receiver app                                            |
+| `jasonbkiefer/SWAC` (= WishDesk)           | **Jason** org; **Parish** lead/merger | CS ops: Madison Meilinger                                     |
+| `jasonbkiefer/swirl` (= WishWorks + SWIRL) | **Jason** org; **Anna** runs board    | WW-\* tickets                                                 |
+| `jasonbkiefer/sw-design`                   | **Jason** + Clare McClaren            | Builder configs, box recipes, icon manifests                  |
+| `csloan-sw/livery` (= SWOP)                | **Cris Sloan** (seeded by Jason)      | Print-station; MCP suite                                      |
+| `sethfinley/sugarwish-infrastructure`      | **Munyr** (Seth org)                  | Infra-as-code: k8s manifests, host/SSH inventory, AWS→Hetzner |
+| `laravel_live` (MySQL)                     | **Seth** (DB replications)            | SugarWish prod e-commerce — **NOT SERP**                      |
+| Jenkins / CI/CD (all platforms)            | **Munyr**                             | `ciservice.sugarwish.com`; Seth oversees                      |
+| Odoo prod + staging-new (Odoo.sh)          | **Seth**                              |                                                               |
 
 > Repo ownership ≠ authorship. SWAC lives under `jasonbkiefer` but is built by the offshore dev team. **SERP is NOT in the SWIRL who-owns-what doc** — it is Jack's domain.
 
@@ -136,15 +137,16 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 ## The Systems & How They Connect
 
-| Repo                | What it is                                                                | Stack                                                       | Prod branch / flow                                                 |
-| ------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------ |
-| `SERP`              | In-house ERP replacing **Odoo 15**, built from scratch                    | Python FastAPI/Uvicorn + custom ORM on MySQL; Next.js/React | `main` (manual deploy); `dev` = development                        |
-| `SWAC` (= WishDesk) | CS/fulfillment desk + proposal/receiver flows                             | React + Express + TS + MySQL + Drizzle                      | `live` (dev→staging→live)                                          |
-| `sugarwish-laravel` | Main/legacy e-commerce monolith                                           | Laravel 11 / PHP 8.2 / MySQL 8                              | `main` ← `blue` (integration) ← `manage` (staging) ← `development` |
-| `sugarwish-odoo`    | Custom Odoo 15 modules                                                    | Odoo 15.0.1.3 / PostgreSQL                                  | `main` ← `staging_new`                                             |
-| `sw-design`         | Design/asset pipeline (ecards/sleeves/boxes/merch/Genie configs)          | Build scripts → S3 → WishDesk                               | —                                                                  |
-| `swirl`             | SWIRL AI knowledge platform **AND** WishWorks ticket datastore (one repo) | docs + MCP/Slack/Qdrant                                     | —                                                                  |
-| `livery`            | Ops-tooling MCP suite **AND** sleeve imposition/printing (Mac Mini)       | Express + MCP servers                                       | —                                                                  |
+| Repo                       | What it is                                                                  | Stack                                                                 | Prod branch / flow                                                 |
+| -------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `SERP`                     | In-house ERP replacing **Odoo 15**, built from scratch                      | Python FastAPI/Uvicorn + custom ORM on MySQL; Next.js/React           | `main` (manual deploy); `dev` = development                        |
+| `SWAC` (= WishDesk)        | CS/fulfillment desk + proposal/receiver flows                               | React + Express + TS + MySQL + Drizzle                                | `live` (dev→staging→live)                                          |
+| `sugarwish-laravel`        | Main/legacy e-commerce monolith                                             | Laravel 11 / PHP 8.2 / MySQL 8                                        | `main` ← `blue` (integration) ← `manage` (staging) ← `development` |
+| `sugarwish-odoo`           | Custom Odoo 15 modules                                                      | Odoo 15.0.1.3 / PostgreSQL                                            | `main` ← `staging_new`                                             |
+| `sw-design`                | Design/asset pipeline (ecards/sleeves/boxes/merch/Genie configs)            | Build scripts → S3 → WishDesk                                         | —                                                                  |
+| `swirl`                    | SWIRL AI knowledge platform **AND** WishWorks ticket datastore (one repo)   | docs + MCP/Slack/Qdrant                                               | —                                                                  |
+| `livery`                   | Ops-tooling MCP suite **AND** sleeve imposition/printing (Mac Mini)         | Express + MCP servers                                                 | —                                                                  |
+| `sugarwish-infrastructure` | Infra-as-code: k8s manifests + the SSH/host inventory + migration changelog | k8s YAML (`apps/dev` + `apps/prod`) + External Secrets; AWS + Hetzner | `main` (only branch); owner **Munyr**                              |
 
 ### SERP — The Odoo-Replacement ERP
 
@@ -1332,7 +1334,7 @@ There are **TWO completely separate order pipelines** plus a third merchandise w
 
 - ❌ AI assumes 'processing' items auto-recover → ✅ Reality: items stuck 'processing' from a worker crash are NEVER reset; no heartbeat/TTL/sweeper exists; requires manual admin intervention.
 
-**2. Darklaunch Order Worker** (`darklaunch_order_worker.py`). **NO queue at all.** It dual-writes receiver-order + preselect-order rows into `serp_prod_darklaunch` ONLY (never the main DB), shadow-processing Odoo-sourced orders (`order_type IN ('receiver-order','preselect-order') AND inventory_source='odoo'`), reading read-only against Odoo/live MySQL for seeding, never pushing back to Odoo. **As of 2026-06-17 (PRs #181/#182/#183, deployed) it no longer polls live Laravel MySQL directly for new orders — a new `staging_copier_worker.py` ("staging copier", `STAGING_COPIER_ENABLED`, 5-min, `RECENT_WINDOW_DAYS=7`) copies recent Odoo-synced ec_order/preselect/items/component_orders rows from live Laravel (read-only, PII-stripped via an allow-list + `PII_COLUMNS` deny-map) into the local `serp_test` legacy tables; `detect_new_orders_odoo` (now SYNC, `store_id=2`) reads those local tables and decides "already synced" by `NOT EXISTS serp_sale_order` (no watermark, no flag). `serp_test` `ec_order.id` is a local AUTO_INCREMENT and detection joins on `ec.order_id`/`odoo_id` (never raw `id`). ⚠️ **Copier dup-bloat bug (found 2026-06-23):** `staging_copier_worker.py` declares `_PK['ec_order']='order_id'` and uses `INSERT … ON DUPLICATE KEY UPDATE`, but the staging `ec_order` table (schema mirrored from `manage_schema.json`) has `order_id` as a **non-unique** index — its only unique key is `PRIMARY(id)`, and `EC_ORDER_COLUMNS` omits `id` — so the conflict never fires and every 300s cycle plain-INSERTs ~5k fresh rows (live `serp_test`: ~950k rows for ~5.1k distinct orders, up to ~209 copies of one `order_id`). Sibling staging tables (`items`/`component_orders`/`preselect_orders`) are clean because their column lists DO include `id`. Detection stays *correct* (paths use `SELECT DISTINCT ec.order_id` + `NOT EXISTS serp_sale_order`) so this is a latent cost/timeout risk, not a missing-row cause. Fix: add a UNIQUE index on staging `ec_order(order_id)` via a `seeding/migrations/*.sql` migration (+ one-time dedup keeping `MAX(id)` per `order_id`), and/or have the copier write the real Laravel `id`.**
+**2. Darklaunch Order Worker** (`darklaunch_order_worker.py`). **NO queue at all.** It dual-writes receiver-order + preselect-order rows into `serp_prod_darklaunch` ONLY (never the main DB), shadow-processing Odoo-sourced orders (`order_type IN ('receiver-order','preselect-order') AND inventory_source='odoo'`), reading read-only against Odoo/live MySQL for seeding, never pushing back to Odoo. **As of 2026-06-17 (PRs #181/#182/#183, deployed) it no longer polls live Laravel MySQL directly for new orders — a new `staging_copier_worker.py` ("staging copier", `STAGING_COPIER_ENABLED`, 5-min, `RECENT_WINDOW_DAYS=7`) copies recent Odoo-synced ec_order/preselect/items/component_orders rows from live Laravel (read-only, PII-stripped via an allow-list + `PII_COLUMNS` deny-map) into the local `serp_test` legacy tables; `detect_new_orders_odoo` (now SYNC, `store_id=2`) reads those local tables and decides "already synced" by `NOT EXISTS serp_sale_order` (no watermark, no flag). `serp_test` `ec_order.id` is a local AUTO_INCREMENT and detection joins on `ec.order_id`/`odoo_id` (never raw `id`). ⚠️ **Copier dup-bloat bug (found 2026-06-23):** `staging_copier_worker.py` declares `_PK['ec_order']='order_id'` and uses `INSERT … ON DUPLICATE KEY UPDATE`, but the staging `ec_order` table (schema mirrored from `manage_schema.json`) has `order_id` as a **non-unique** index — its only unique key is `PRIMARY(id)`, and `EC_ORDER_COLUMNS` omits `id` — so the conflict never fires and every 300s cycle plain-INSERTs ~5k fresh rows (live `serp_test`: ~950k rows for ~5.1k distinct orders, up to ~209 copies of one `order_id`). Sibling staging tables (`items`/`component_orders`/`preselect_orders`) are clean because their column lists DO include `id`. Detection stays _correct_ (paths use `SELECT DISTINCT ec.order_id` + `NOT EXISTS serp_sale_order`) so this is a latent cost/timeout risk, not a missing-row cause. Fix: add a UNIQUE index on staging `ec_order(order_id)` via a `seeding/migrations/*.sql` migration (+ one-time dedup keeping `MAX(id)` per `order_id`), and/or have the copier write the real Laravel `id`.**
 
 **3. Merchandise Order Queue** (`order_queue_worker.py`, gated by `ORDER_QUEUE_WORKER_ENABLED`, currently disabled). Polls `component_orders WHERE order_type='merchandise' AND inventory_source='serp'`, writes the main/live SERP DB. This is the path for custom-branding merchandise that goes 100% through SERP and never to Odoo (Jason's Feb 8 2026 decision).
 
@@ -1406,6 +1408,7 @@ Slack routing: #live-product-warnings (`C084Z9EKDSL`), #ops-and-tech, #api-autof
 - **`sw-design`** (Jason-driven, `jasonbkiefer`): holds design/config — the CustomGenie quiz, builder-classic PDP, box recipes, product-category sync, icon manifests. Clare McClaren (VP Creative & Merchandising) owns icons/design. A **full-overwrite sync from sw-design wipes** any genie/box/sleeve config edited directly in WishDesk — changes must be made in this repo.
 - **`swirl` / SWIRL** (`jasonbkiefer/SWIRL`): two roles — (1) **SWIRL** = "Sugarwish Intelligence Reference Library", a company-wide AI knowledge platform (docs, MCP access, Slack bot); (2) the **WishWorks datastore** (auto-generated ticket commits; the `/ww` command self-updates from this private repo + an n8n archival step; the ticket "track" field determines repo/team ownership). SWIRL is SEPARATE from Jack's `sw-cortex`.
 - **`livery` / SWOP** (GitHub `csloan-sw/livery`, "branded SWOP"): owned by **Criston (Cris) Sloan** (Automation Engineer, Slack `U040UH4GVPX`, SERP user id 13, reports to COO Matthew Patrick). Two jobs: (1) the warehouse **print-station backbone** + an MCP ops-tooling suite (`mcp-db-tool`, `mcp-slack`, `mcp-wishdesk`, `swim-kb`, `custom-shop-slip` PDF); (2) **sleeve imposition / printing** — `fulfillment/custom-shop-slip/lib/slip-data.js` `selectSleeveEntries` filters `branding_records.physical_branding.entries[]` by `ec_order.size` (which is actually a `buyer_products.id`), then `sleeve-pdf.js imposeBatch` maps `box_sku` → a hardcoded `SKU_TRIM_TABLE` for print dims. **CRITICAL: livery caches PDFs by orderId ONLY and NEVER invalidates on branding edits** — after a data fix an operator MUST click "Regenerate" (`POST /reset-status/:orderId`) then re-run generate-batch. A missing `SKU_TRIM_TABLE` key (e.g. `h_*` hot-sauce, `c_3`) throws and aborts the whole PDF (silent "no sleeve").
+- **`sugarwish-infrastructure`** (GitHub `sethfinley/sugarwish-infrastructure`, only branch `main`): the company's **infra-as-code** repo, owned by **Munyr Ahmed** (DevOps/infra lead, Slack `U068USJ2LQM`; Jack is a CONSUMER of this infra, not its owner — read-only/diagnose-only, hand off to Munyr). Two parts: (1) **`apps/dev` + `apps/prod`** — Kubernetes manifests (Deployments, CronJobs, RBAC, Namespaces) with secrets injected via **External Secrets Operator** (no plaintext secrets in the repo; `.gitignore` excludes `kubeconfigs/` and SSH config). Images pulled from **AWS ECR**. (2) **`docs/`** — the operational ground truth: **`sugarwish-infra.md`** is the snapshot **SSH/host inventory** (≈8 Hetzner Cloud hosts + ≈11 AWS EC2 hosts: Jenkins, n8n, Elasticsearch, Grafana, WishDesk, Help Live/Staging, queue workers, bastion — with SSH aliases/IPs/roles and DB host structure; passwords are fetched at runtime from the **KeePass vault `sugarwish-infra.kdbx`**, never stored in-repo); **`changelog.md`** is the **AWS→Hetzner migration history** (EC2/RDS resizes; Blue→Hetzner 2026-03-24, WishDesk→Hetzner 2026-03-27, SERP K3s→Hetzner 2026-06-05, plus new pentest envs). This is the canonical reference for "what host runs what" and "when did X move to Hetzner". SEPARATE from Jack's `sw-cortex`.
 
 ---
 
@@ -2024,13 +2027,14 @@ Odoo is the **PULLER**. Sync state is tracked on the **Laravel side** via the `o
 ⚠️ **AI assumes the column is `odoo_synchronized`** → ✅ **Reality:** It is spelled **`oddo_synchronized`** (double-d, missing second-o) on Laravel `ec_order` and `preselect_orders`. The typo suggests a hasty/legacy implementation. Companion flag `ship_date_odoo_synchronized` (correctly spelled) tracks ship-date push separately. The fragmented two-flag design and the typo are both signals of legacy debt.
 
 **Values of `oddo_synchronized` (production reality):**
-| Value | Meaning | Count (approx) |
-|-------|---------|----------------|
-| `0` | not synced / not started | ~77,498–77,667 |
-| `1` | synced / pushed to Odoo | ~3.88M (99%) |
-| `2` | partial / in-flight / recent | ~64–166 |
-| `3` | **stuck/failed** (errored, references archived/disabled SKU) | exists but RARE — observed as **1 order total (19783360)** in prod, contrary to WW-510 bug report which assumed many |
-| `5` | vendor/special / bypass-Odoo state | ~17,428–17,512 |
+
+| Value | Meaning                                                      | Count (approx)                                                                                                       |
+| ----- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `0`   | not synced / not started                                     | ~77,498–77,667                                                                                                       |
+| `1`   | synced / pushed to Odoo                                      | ~3.88M (99%)                                                                                                         |
+| `2`   | partial / in-flight / recent                                 | ~64–166                                                                                                              |
+| `3`   | **stuck/failed** (errored, references archived/disabled SKU) | exists but RARE — observed as **1 order total (19783360)** in prod, contrary to WW-510 bug report which assumed many |
+| `5`   | vendor/special / bypass-Odoo state                           | ~17,428–17,512                                                                                                       |
 
 ⚠️ **`oddo_synchronized=3` is far rarer than assumed.** Stuck orders typically sit at `2` (pending sync) or trace to the April 2026 combo-line migration that archived child SKUs → Odoo fails with "product not found." Companion flags: `component_imported` (0 not imported → 1 success → 2 exposed/in-progress → 3 failed → 5 bypass-Odoo), `items.odoo_sync` (0=not synced, 1=syncing/in-flight, 2=synced ~14M+ rows, 5=unknown ~22K).
 
@@ -2692,12 +2696,13 @@ A push/merge to `main` is **not live** until `deploy-k8s.sh main` runs on the no
 #### Four distinct shadow/replica DBs — don't conflate them
 
 ⚠️ They are NOT one thing:
-| DB | What it is | Flag |
-|---|---|---|
-| `serp_*_replica` (staging/prod) | Clean row-for-row mirror of manage/laravel*live, **zero Odoo overlay**, nearly empty shells | — |
-| `serp*\*\_darklaunch`(staging/prod) | Replica **plus** Odoo overlay (normal BOMs, MOs, SVL, POs) where the worker dual-writes |`SERP_DARKLAUNCH_ENABLED`|
-|`serp_shadow`(Hetzner) | Predecessor prod-traffic handler validation |`SERP_SHADOW_WRITES_ENABLED`|
-|`serp_test`(Hetzner`5.161.233.240`) | **REAL live PRODUCTION darklaunch mirror** (not a throwaway), MCP key `live_darklaunch_db`, consistently ~ahead of `serp_prod_darklaunch` | — |
+
+| DB                                  | What it is                                                                                                                                | Flag                         |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `serp_*_replica` (staging/prod)     | Clean row-for-row mirror of manage/laravel*live, **zero Odoo overlay**, nearly empty shells                                               | —                            |
+| `serp*\*\_darklaunch`(staging/prod) | Replica **plus** Odoo overlay (normal BOMs, MOs, SVL, POs) where the worker dual-writes                                                   | `SERP_DARKLAUNCH_ENABLED`    |
+| `serp_shadow`(Hetzner)              | Predecessor prod-traffic handler validation                                                                                               | `SERP_SHADOW_WRITES_ENABLED` |
+| `serp_test`(Hetzner`5.161.233.240`) | **REAL live PRODUCTION darklaunch mirror** (not a throwaway), MCP key `live_darklaunch_db`, consistently ~ahead of `serp_prod_darklaunch` | —                            |
 
 - **Fingerprints:** darklaunch has `_migrations` + `serp_darklaunch_meta`; replicas have neither and no Odoo-owned/manufacturing tables.
 - "**compare-replica**" tooling actually compares **darklaunch**, not the replica.
