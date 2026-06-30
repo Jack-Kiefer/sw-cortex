@@ -129,13 +129,13 @@ After this, Claude will have access to the `slack-search` MCP tools in any proje
 
 This repo includes several MCP servers that Claude Code can use as tools:
 
-| Server           | Purpose                                      |
-| ---------------- | -------------------------------------------- |
-| **slack-search** | Semantic search over Slack messages          |
-| **knowledge**    | Semantic search over DICTIONARY.md           |
-| **db**           | Read-only database access (MySQL/PostgreSQL) |
-| **github**       | GitHub repo access                           |
-| **logs**         | System log search and analysis               |
+| Server           | Purpose                                                  |
+| ---------------- | -------------------------------------------------------- |
+| **slack-search** | Semantic search over Slack messages                      |
+| **knowledge**    | Semantic search over DICTIONARY.md (+ `KNOWLEDGE_FILES`) |
+| **db**           | Read-only database access (MySQL/PostgreSQL)             |
+| **github**       | GitHub repo access                                       |
+| **logs**         | System log search and analysis                           |
 
 ## Optional: GitHub Access
 
