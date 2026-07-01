@@ -27,51 +27,64 @@ export interface DatabaseConfig {
   user: string;
   password: string;
   database: string;
-  // SSH tunnel config (optional - if present, will try tunnel first then fallback to direct)
-  ssh?: {
-    host: string;
-    port: number;
-    user: string;
-    privateKeyPath: string;
-  };
+  // SSH tunnel config. When present, the connection is forwarded through the
+  // bastion. All databases that share the same bastion reuse ONE tunnel — see
+  // SshTunnelConfig / createTunnel below.
+  ssh?: SshTunnelConfig;
 }
 
-// Track which databases fell back to direct connection
-const directConnectionFallbacks: Set<string> = new Set();
+// One shared SSH tunnel definition. Every database pointing at the same bastion
+// (same host/port/user/key) shares a single SSH connection and a single local
+// forward port, keyed by `tunnelKey`.
+interface SshTunnelConfig {
+  host: string;
+  port: number;
+  user: string;
+  privateKeyPath: string;
+  // Stable key identifying the tunnel so multiple DBs collapse onto one SSH
+  // connection instead of opening one per database.
+  tunnelKey: string;
+  // Preferred fixed local port to bind (e.g. 13306 so /start-day can probe it).
+  // Falls back to an ephemeral port when unset or already in use.
+  preferredLocalPort?: number;
+}
 
-// Active tunnel tracking
+// Active tunnel tracking, keyed by SshTunnelConfig.tunnelKey (NOT by database),
+// so wishdesk and laravel_live share the same bastion connection.
 interface TunnelInfo {
   server: NetServer;
   sshClient: SSHClient;
   localPort: number;
+  // In-flight connect promise: concurrent first-queries await the same connect
+  // instead of racing to open duplicate tunnels.
+  ready: Promise<number>;
 }
 
 const activeTunnels: Map<string, TunnelInfo> = new Map();
 
 // Get database configs from environment
 export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
-  // SSH config for live databases (sugarwish)
-  const liveSshConfig = process.env.LIVE_SSH_HOST
-    ? {
-        host: process.env.LIVE_SSH_HOST,
-        port: parseInt(process.env.LIVE_SSH_PORT || '22', 10),
-        user: process.env.LIVE_SSH_USER || '',
-        privateKeyPath: process.env.LIVE_SSH_KEY_PATH || '~/.ssh/id_rsa',
-      }
-    : undefined;
+  // The ONE SSH bastion this service uses. Only the two databases that live on
+  // the private AWS RDS (wishdesk, laravel_live) route through it; every other
+  // remote DB (Odoo/Retool cloud, Hetzner hosts) is publicly reachable and
+  // connects directly. LIVE_SSH_TUNNEL=false disables the tunnel entirely.
+  const liveSshConfig: SshTunnelConfig | undefined =
+    process.env.LIVE_SSH_HOST && process.env.LIVE_SSH_TUNNEL !== 'false'
+      ? {
+          host: process.env.LIVE_SSH_HOST,
+          // Accept LIVE_SSH_PORT; the bastion SSH port is 22 by default.
+          port: parseInt(process.env.LIVE_SSH_PORT || '22', 10),
+          user: process.env.LIVE_SSH_USER || '',
+          privateKeyPath: process.env.LIVE_SSH_KEY_PATH || '~/.ssh/id_rsa',
+          tunnelKey: 'live-bastion',
+          // Bind the fixed port /start-day probes (LIVE_SSH_TUNNEL_PORT, e.g.
+          // 13306) when set, so the health check and the app agree on the port.
+          preferredLocalPort: process.env.LIVE_SSH_TUNNEL_PORT
+            ? parseInt(process.env.LIVE_SSH_TUNNEL_PORT, 10)
+            : undefined,
+        }
+      : undefined;
 
-  // General SSH config (fallback)
-  const sshConfig = process.env.SSH_BASTION_HOST
-    ? {
-        host: process.env.SSH_BASTION_HOST,
-        port: parseInt(process.env.SSH_BASTION_PORT || '22', 10),
-        user: process.env.SSH_BASTION_USER || '',
-        privateKeyPath: process.env.SSH_KEY_PATH || '~/.ssh/id_rsa',
-      }
-    : undefined;
-
-  // SSH is now included when config exists - will try tunnel first, fallback to direct
-  // Set *_USE_SSH=false to explicitly disable tunnel attempts for a database
   return {
     wishdesk: {
       name: 'wishdesk',
@@ -81,7 +94,10 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.WISHDESK_DB_USER || '',
       password: process.env.WISHDESK_DB_PASSWORD || '',
       database: process.env.WISHDESK_DB_NAME || '',
-      ssh: process.env.WISHDESK_USE_SSH !== 'false' ? liveSshConfig : undefined,
+      // Routes through the live bastion (private RDS). WISHDESK_USE_SSH is a
+      // deprecated per-DB alias kept working; LIVE_SSH_TUNNEL is the real toggle
+      // (already applied when building liveSshConfig).
+      ssh: process.env.WISHDESK_USE_SSH === 'false' ? undefined : liveSshConfig,
     },
     wishdesk_dev: {
       name: 'wishdesk_dev',
@@ -101,7 +117,8 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.SUGARWISH_DB_USER || '',
       password: process.env.SUGARWISH_DB_PASSWORD || '',
       database: process.env.SUGARWISH_DB_NAME || '',
-      ssh: process.env.LIVE_SSH_TUNNEL !== 'false' ? liveSshConfig : undefined,
+      // Same private RDS as wishdesk → same shared bastion tunnel.
+      ssh: liveSshConfig,
     },
     odoo: {
       name: 'odoo',
@@ -111,7 +128,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.ODOO_DB_USER || '',
       password: process.env.ODOO_DB_PASSWORD || '',
       database: process.env.ODOO_DB_NAME || '',
-      ssh: process.env.ODOO_USE_SSH !== 'false' ? sshConfig : undefined,
+      // Public Odoo Cloud host over SSL — direct connection, no bastion.
     },
     retool: {
       name: 'retool',
@@ -121,7 +138,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.RETOOL_DB_USER || '',
       password: process.env.RETOOL_DB_PASSWORD || '',
       database: process.env.RETOOL_DB_NAME || '',
-      ssh: process.env.RETOOL_USE_SSH !== 'false' ? sshConfig : undefined,
+      // Public Retool Cloud host over SSL — direct connection, no bastion.
     },
     odoo_staging: {
       name: 'odoo_staging',
@@ -131,7 +148,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.ODOO_STAGING_DB_USER || '',
       password: process.env.ODOO_STAGING_DB_PASSWORD || '',
       database: process.env.ODOO_STAGING_DB_NAME || '',
-      ssh: process.env.ODOO_STAGING_USE_SSH !== 'false' ? sshConfig : undefined,
+      // Public Odoo Cloud staging host over SSL — direct connection, no bastion.
     },
     local: {
       name: 'local',
@@ -219,33 +236,67 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
   };
 }
 
-// Create SSH tunnel and return local port
+// Tear down every pool that was routed through the given tunnel key so the next
+// query rebuilds against a fresh tunnel. Pools are keyed by database name, so we
+// drop every pool whose config still routes through this bastion.
+function invalidateTunnel(tunnelKey: string): void {
+  activeTunnels.delete(tunnelKey);
+  const configs = getDatabaseConfigs();
+  for (const [name, cfg] of Object.entries(configs)) {
+    if (cfg.ssh?.tunnelKey === tunnelKey) {
+      mysqlPools
+        .get(name)
+        ?.end()
+        .catch(() => {});
+      mysqlPools.delete(name);
+      pgPools
+        .get(name)
+        ?.end()
+        .catch(() => {});
+      pgPools.delete(name);
+    }
+  }
+}
+
+// Open (or reuse) the ONE shared SSH tunnel for a bastion and return the local
+// forward port. Every database with the same ssh.tunnelKey shares a single SSH
+// connection and local listener; the per-socket forwardOut targets that specific
+// database's host:port, so one tunnel fronts several remote DBs.
+//
+// Self-healing: a tunnel that errors/ends removes itself and drops its pools
+// (invalidateTunnel), so the NEXT query transparently rebuilds it — a transient
+// blip no longer wedges the connection for the whole process (the old permanent
+// directConnectionFallbacks latch is gone).
 async function createTunnel(config: DatabaseConfig): Promise<number> {
-  if (!config.ssh) {
+  const ssh = config.ssh;
+  if (!ssh) {
     throw new Error('SSH config required for tunnel');
   }
 
-  const tunnelKey = config.name;
+  const tunnelKey = ssh.tunnelKey;
 
-  // Return existing tunnel if active
-  if (activeTunnels.has(tunnelKey)) {
-    return activeTunnels.get(tunnelKey)!.localPort;
+  // Reuse an in-flight or established tunnel for this bastion.
+  const existing = activeTunnels.get(tunnelKey);
+  if (existing) {
+    return existing.ready;
   }
 
-  return new Promise((resolve, reject) => {
+  const ready = new Promise<number>((resolve, reject) => {
     const sshClient = new SSHClient();
 
     // Read private key
     let privateKey: string;
     try {
-      const keyPath = config.ssh!.privateKeyPath.replace('~', process.env.HOME || '');
+      const keyPath = ssh.privateKeyPath.replace('~', process.env.HOME || '');
       privateKey = readFileSync(keyPath, 'utf8');
     } catch {
-      reject(new Error(`Failed to read SSH key: ${config.ssh!.privateKeyPath}`));
+      activeTunnels.delete(tunnelKey);
+      reject(new Error(`Failed to read SSH key: ${ssh.privateKeyPath}`));
       return;
     }
 
-    // Create local server to forward connections
+    // Local listener that forwards each accepted socket through the SSH
+    // connection to the remote DB this config points at.
     const server = createServer((socket) => {
       sshClient.forwardOut('127.0.0.1', 0, config.host, config.port, (err, stream) => {
         if (err) {
@@ -256,74 +307,111 @@ async function createTunnel(config: DatabaseConfig): Promise<number> {
       });
     });
 
-    server.listen(0, '127.0.0.1', () => {
+    // Bind the preferred fixed port (so /start-day can probe it); if it's taken
+    // or unset, fall back to an ephemeral port so a stale listener never wedges
+    // startup.
+    const onListening = () => {
       const localPort = (server.address() as AddressInfo).port;
 
       sshClient.on('ready', () => {
-        activeTunnels.set(tunnelKey, { server, sshClient, localPort });
+        activeTunnels.set(tunnelKey, { server, sshClient, localPort, ready });
+        console.log(`[db] tunnel '${tunnelKey}': listening on 127.0.0.1:${localPort}`);
         resolve(localPort);
       });
 
       sshClient.on('error', (err) => {
         server.close();
-        activeTunnels.delete(tunnelKey);
-        mysqlPools.delete(tunnelKey);
-        pgPools.delete(tunnelKey);
+        invalidateTunnel(tunnelKey);
         reject(new Error(`SSH connection failed: ${err.message}`));
       });
 
-      // Clean up when tunnel dies so next query creates a fresh one
-      sshClient.on('close', () => {
+      // Tunnel died — drop it and its pools so the next query rebuilds a fresh one.
+      const teardown = () => {
         server.close();
-        activeTunnels.delete(tunnelKey);
-        mysqlPools.delete(tunnelKey);
-        pgPools.delete(tunnelKey);
-      });
-
-      sshClient.on('end', () => {
-        server.close();
-        activeTunnels.delete(tunnelKey);
-        mysqlPools.delete(tunnelKey);
-        pgPools.delete(tunnelKey);
-      });
+        invalidateTunnel(tunnelKey);
+      };
+      sshClient.on('close', teardown);
+      sshClient.on('end', teardown);
 
       sshClient.connect({
-        host: config.ssh!.host,
-        port: config.ssh!.port,
-        username: config.ssh!.user,
+        host: ssh.host,
+        port: ssh.port,
+        username: ssh.user,
         privateKey,
       });
-    });
+    };
 
-    server.on('error', (err) => {
+    server.once('listening', onListening);
+    server.on('error', (err: NodeJS.ErrnoException) => {
+      // Preferred fixed port already in use → retry once on an ephemeral port.
+      if (err.code === 'EADDRINUSE' && ssh.preferredLocalPort) {
+        console.log(
+          `[db] tunnel '${tunnelKey}': port ${ssh.preferredLocalPort} in use, using an ephemeral port`
+        );
+        server.removeAllListeners('error');
+        server.on('error', (e) => {
+          invalidateTunnel(tunnelKey);
+          reject(new Error(`Failed to create tunnel server: ${e.message}`));
+        });
+        server.listen(0, '127.0.0.1');
+        return;
+      }
+      invalidateTunnel(tunnelKey);
       reject(new Error(`Failed to create tunnel server: ${err.message}`));
     });
+
+    // Prefer the fixed port; fall back to ephemeral via the EADDRINUSE handler.
+    server.listen(ssh.preferredLocalPort ?? 0, '127.0.0.1');
   });
+
+  // Register the in-flight promise immediately so concurrent first-queries dedupe
+  // onto it rather than each opening a tunnel. Real server/client land in the map
+  // on 'ready'; drop the placeholder if the connect rejects.
+  activeTunnels.set(tunnelKey, {
+    server: undefined as unknown as NetServer,
+    sshClient: undefined as unknown as SSHClient,
+    localPort: 0,
+    ready,
+  });
+  ready.catch(() => activeTunnels.delete(tunnelKey));
+
+  return ready;
 }
 
-// Get effective connection details (try tunnel first, fallback to direct)
+// Get effective connection details.
+//
+// A database with an ssh config REQUIRES the tunnel — its host (the private AWS
+// RDS) isn't publicly reachable, so silently connecting direct would just hang.
+// So we retry the tunnel once with a short backoff and, if it still fails, throw
+// a clear error. There's no permanent direct-fallback latch: the next query
+// tries the tunnel fresh, which is what makes a transient blip self-heal.
+//
+// A database with no ssh config connects directly (Odoo/Retool cloud, Hetzner).
 async function getConnectionDetails(
   config: DatabaseConfig
 ): Promise<{ host: string; port: number; viaTunnel: boolean }> {
-  // If already fell back to direct for this database, use direct
-  if (directConnectionFallbacks.has(config.name)) {
-    return { host: config.host, port: config.port, viaTunnel: false };
-  }
-
-  // Try SSH tunnel first if config exists
   if (config.ssh) {
-    try {
-      const localPort = await createTunnel(config);
-      console.log(`[db] ${config.name}: connected via SSH tunnel (port ${localPort})`);
-      return { host: '127.0.0.1', port: localPort, viaTunnel: true };
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.log(
-        `[db] ${config.name}: SSH tunnel failed (${errorMsg}), falling back to direct connection`
-      );
-      directConnectionFallbacks.add(config.name);
-      // Fall through to direct connection
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const localPort = await createTunnel(config);
+        console.log(`[db] ${config.name}: connected via SSH tunnel (port ${localPort})`);
+        return { host: '127.0.0.1', port: localPort, viaTunnel: true };
+      } catch (err) {
+        lastErr = err;
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.log(
+          `[db] ${config.name}: SSH tunnel attempt ${attempt} failed (${errorMsg})` +
+            (attempt === 1 ? ', retrying…' : '')
+        );
+        if (attempt === 1) await new Promise((r) => setTimeout(r, 750));
+      }
     }
+    const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    throw new Error(
+      `${config.name} requires the SSH tunnel to '${config.ssh.host}' but it could not be ` +
+        `established: ${msg}. Check LIVE_SSH_HOST/USER/KEY_PATH and bastion reachability.`
+    );
   }
 
   // Direct connection
@@ -569,10 +657,10 @@ export async function closeAllPools(): Promise<void> {
   mysqlPools.clear();
   pgPools.clear();
 
-  // Close SSH tunnels
+  // Close SSH tunnels (guard against a placeholder still connecting).
   for (const tunnel of activeTunnels.values()) {
-    tunnel.server.close();
-    tunnel.sshClient.end();
+    tunnel.server?.close();
+    tunnel.sshClient?.end();
   }
   activeTunnels.clear();
 }
