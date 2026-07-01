@@ -547,8 +547,8 @@ Environment separation is by table-name **suffix**, not separate DBs. Production
 ### Two SERP Order Pipelines (+ Merchandise)
 
 1. **Odoo sync queue** (`odoo_sync_worker.py`, Retool PG) — triggered on approved Serpy draft; warehouse ops vs Odoo via XML-RPC + mirrors to darklaunch. **PO receipts flow here.**
-2. **Darklaunch order worker** (`darklaunch_order_worker.py`) — **NO queue**; polls `ec_order WHERE oddo_synchronized=1`; `POLL_INTERVAL=300s`, `BATCH_LIMIT=50`, single-threaded; dual-writes receiver/preselect orders to `serp_prod_darklaunch` only; never pushes back to Odoo. **As of PR #291 (2026-06-25) it queries Odoo ZERO times** — `_resolve_odoo_ids` (id-stamp + the 3 cancel/cold-cancel/ship gates that read live Odoo `sale_order.state`) was removed; the cancel/ship gates now key off a non-Odoo signal / are caught by aggregate drift instead. Consequence: the worker is allowed to run **AHEAD of Odoo** (worker rows are `odoo_id=NULL`, AUTO_INCREMENT `id`). **Detector bug (pre-#291):** `detect_shipped_orders_odoo` had `ORDER BY … DESC LIMIT 50` stranding the oldest tail (observed 883 in-flight) — fix = oldest-first.
-3. **Merchandise** (`order_queue_worker.py`, gated `ORDER_QUEUE_WORKER_ENABLED`): polls `component_orders WHERE order_type='merchandise' AND inventory_source='serp'`; writes **main/live SERP DB**.
+2. **Darklaunch order worker** (`darklaunch_order_worker.py`) — **NO queue**; polls `ec_order WHERE oddo_synchronized=1`; `POLL_INTERVAL=300s`, `BATCH_LIMIT=50`, single-threaded; dual-writes receiver/preselect orders to `serp_prod_darklaunch` only; never pushes back to Odoo. **As of PR #291 (2026-06-25) it queries Odoo ZERO times** — `_resolve_odoo_ids` (id-stamp + the 3 cancel/cold-cancel/ship gates that read live Odoo `sale_order.state`) was removed; the cancel/ship gates now key off a non-Odoo signal / are caught by aggregate drift instead. Consequence: the worker is allowed to run **AHEAD of Odoo** (worker rows are `odoo_id=NULL`, AUTO_INCREMENT `id`). **Detector bug (pre-#291):** `detect_shipped_orders_odoo` had `ORDER BY … DESC LIMIT 50` stranding the oldest tail (observed 883 in-flight) — fix = oldest-first. **As of PR #316 (2026-07-01, deployed to `main`) this worker is gated by `ORDER_QUEUE_WORKER_ENABLED`, NOT `SERP_DARKLAUNCH_ENABLED`** — the two flags were decoupled to fix the reseed drop bug (below). `SERP_DARKLAUNCH_ENABLED` now gates ONLY the dual-write mirror + darklaunch pool init.
+3. **Merchandise** — **REMOVED 2026-07-01 (PR #316).** The merchandise `order_queue_worker.py` (previously polled `component_orders WHERE order_type='merchandise' AND inventory_source='serp'`, default-disabled, never populated) was deleted; its `ORDER_QUEUE_WORKER_ENABLED` flag was repurposed to gate the **darklaunch order worker** (see #2). Merchandise-through-SERP is not currently wired to a live worker. ⚠️ **Full-reseed pause must NOT flip `SERP_DARKLAUNCH_ENABLED`:** pre-#316, `seed-full-reseed.js` Phase 1 (`setOrderSyncing(false)`) set `SERP_DARKLAUNCH_ENABLED=false`, which ALSO killed the dual-write mirror — any Odoo order/MO created during the pause (e.g. `EW/MO/22086`, Odoo id 28439) was never mirrored into live `serp_test` AND never backfilled (`mrp_production` isn't a bulk-copy table). The reseed now pauses via `ORDER_QUEUE_WORKER_ENABLED` while `SERP_DARKLAUNCH_ENABLED` stays ON so the `_with_darklaunch_mirror` dual-write keeps mirroring throughout.
 
 Orders that never reach Odoo intentionally get `odoo_id=NULL`. `inventory_source='serp'` → main DB (merchandise queue); `inventory_source='odoo'` → darklaunch/replica DB.
 
@@ -761,14 +761,14 @@ Hosted at `n8n.sugarwish.com`. All post as bot "n8n" (`U08QP0DL9L5`); messages e
 
 ### SERP Env Flags (independent switches)
 
-| Flag                              | Gates                                                         |
-| --------------------------------- | ------------------------------------------------------------- |
-| `SERP_DARKLAUNCH_ENABLED`         | Darklaunch Odoo-mirroring writes                              |
-| `SERP_SHADOW_WRITES_ENABLED`      | Shadow/prod-traffic validation (distinct from darklaunch)     |
-| `ORDER_MANAGEMENT_WRITES_ENABLED` | Prod writes from Order Management page                        |
-| `ORDER_QUEUE_WORKER_ENABLED`      | Merchandise order queue worker                                |
-| `PACK_TOMORROW_ENABLED`           | Pack-tomorrow feature                                         |
-| `ODOO_ID_STAMP_ENABLED`           | odoo_id stamping (off → no Odoo DB/XML-RPC during processing) |
+| Flag                              | Gates                                                                                                                                                     |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SERP_DARKLAUNCH_ENABLED`         | Darklaunch dual-write MIRROR + pool init ONLY (as of PR #316, 2026-07-01, NO longer gates the darklaunch order worker — see `ORDER_QUEUE_WORKER_ENABLED`) |
+| `SERP_SHADOW_WRITES_ENABLED`      | Shadow/prod-traffic validation (distinct from darklaunch)                                                                                                 |
+| `ORDER_MANAGEMENT_WRITES_ENABLED` | Prod writes from Order Management page                                                                                                                    |
+| `ORDER_QUEUE_WORKER_ENABLED`      | Darklaunch order worker gate (repurposed 2026-07-01, PR #316; the merch `order_queue_worker.py` was removed)                                              |
+| `PACK_TOMORROW_ENABLED`           | Pack-tomorrow feature                                                                                                                                     |
+| `ODOO_ID_STAMP_ENABLED`           | odoo_id stamping (off → no Odoo DB/XML-RPC during processing)                                                                                             |
 
 Removed/legacy: `USE_SERP_AS_LIVE`, `USE_MOCK_ODOO` (keep `LIVE_SSH_*`). `ODOO_SOURCED_ORDERS_ENABLED` was consolidated into `SERP_DARKLAUNCH_ENABLED` — treat standalone references as legacy.
 

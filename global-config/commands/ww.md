@@ -159,6 +159,75 @@ def update_frontmatter(content, updates):
             fm_text = fm_text.rstrip() + f'\n{field}: {formatted}\n'
     return content[:3] + fm_text + content[end:]
 
+def read_link_entries(content, field):
+    """Read the current entries of a link field (`linked_tickets` / `linked_work_items`)
+    as a list of {type, ticket_id|work_item_id} dicts. Normalizes "", null, [], or an
+    absent field to []. Pure string/regex (no yaml round-trip) — matches the rest of the
+    helpers and tolerates a field that was previously written in a slightly off shape."""
+    if not content.startswith('---'):
+        return []
+    end = content.index('---', 3)
+    fm = content[3:end]
+    # field line + its block value: following lines that are indented OR a `- ` sequence
+    # item at column 0 (yaml.dump emits sequences flush-left, so older files may be in
+    # that shape — match both so existing entries are never silently dropped on rewrite).
+    m = re.search(r'^' + re.escape(field) + r':.*(?:\n(?:[ \t]+.*|-[ \t].*))*', fm, re.MULTILINE)
+    if not m:
+        return []
+    entries = []
+    for item in re.split(r'\n[ \t]*-\s', m.group(0)):  # first chunk is the field: line itself -> skipped
+        tm = re.search(r'type:\s*(\S+)', item)
+        im = re.search(r'(ticket_id|work_item_id):\s*(\S+)', item)
+        if tm and im:
+            entries.append({'type': tm.group(1), im.group(1): im.group(2)})
+    return entries
+
+def write_link_entries(content, field, entries):
+    """Replace the ENTIRE `field:` block in frontmatter with valid YAML.
+    Empty -> `field: []`. Non-empty -> proper block list. String-surgical: rewrites ONLY
+    this field's lines, so created_at and every other field stay byte-for-byte unchanged
+    (no global yaml.safe_load/dump, so timestamps are never reformatted). Correctly
+    replaces the field whether it is currently "", [], a block list, or absent — so it
+    never leaves a `field: ""` scalar with dangling list items (invalid YAML)."""
+    if not content.startswith('---'):
+        return content
+    end = content.index('---', 3)
+    fm = content[3:end]
+    if entries:
+        lines = [f'{field}:']
+        for e in entries:
+            idkey = 'ticket_id' if 'ticket_id' in e else 'work_item_id'
+            lines.append(f'  - type: {e["type"]}')
+            lines.append(f'    {idkey}: {e[idkey]}')
+        block = '\n'.join(lines)
+    else:
+        block = f'{field}: []'
+    # match the whole existing block (indented OR flush-left `- ` items) so the
+    # replacement leaves no dangling sequence lines behind.
+    pattern = re.compile(r'^' + re.escape(field) + r':.*(?:\n(?:[ \t]+.*|-[ \t].*))*', re.MULTILINE)
+    if pattern.search(fm):
+        fm = pattern.sub(lambda m, b=block: b, fm, count=1)  # lambda avoids backref interpretation
+    else:
+        fm = fm.rstrip('\n') + '\n' + block + '\n'
+    return content[:3] + fm + content[end:]
+
+def _link_key(e):
+    return (e.get('type'), e.get('ticket_id', e.get('work_item_id')))
+
+def add_link_entry(content, field, entry):
+    """Idempotently add a link entry and rewrite the field as valid YAML.
+    entry = {'type': T, 'ticket_id'|'work_item_id': ID}."""
+    entries = read_link_entries(content, field)
+    if _link_key(entry) not in [_link_key(e) for e in entries]:
+        entries.append(entry)
+    return write_link_entries(content, field, entries)
+
+def remove_link_entry(content, field, ref_type, ref_id):
+    """Remove the entry matching (ref_type, ref_id) and rewrite the field. No-op if absent."""
+    entries = [e for e in read_link_entries(content, field)
+               if (e.get('type'), e.get('ticket_id', e.get('work_item_id'))) != (ref_type, ref_id)]
+    return write_link_entries(content, field, entries)
+
 def append_history(content, entry):
     """Append an entry to ## History. Finds the last '- ' line and inserts after it."""
     if '## History' not in content:
@@ -919,7 +988,7 @@ The default no-args path is intentionally minimal — no team.md fetch, no devel
 
 **Step 2: Print the ready message**
 
-> "WishWorks is active for this session. You can ask me to do anything — create tickets, change status, set priority, estimate, assign, archive, log time, or create child tickets. Say 'show my tickets' to see your assigned list, or 'fun fact' if you want one. Just tell me what you need in plain English."
+> "WishWorks is active for this session. You can ask me to do anything — create tickets or work items, link items together, change status, set priority, estimate, assign, archive, log time, or create child tickets. Say 'show my tickets' to see your assigned list, or 'fun fact' if you want one. Just tell me what you need in plain English."
 
 That's the entire default flow. ~1–3 seconds on the developer's machine. Nothing else runs unless they ask for it.
 
@@ -1344,6 +1413,8 @@ If you find yourself thinking "this is a lot of rows, I should summarize" — ST
 
 When a developer wants to create a new ticket, gather all required information before creating it. Ask questions conversationally — don't dump a form.
 
+> **Ticket vs. work item:** this flow is for **development tickets** (`WW-###` — code work on a track). If the developer wants to track **non-dev department work** (a `DW-###` work item — e.g. an FAQ update, a copy refresh, an ops process change), use the **Work Item Creation Flow** section instead.
+
 **Pre-flight (MANDATORY — re-fetch config FRESH before every ticket creation):**
 
 At the START of every ticket-creation flow, re-fetch these four config files fresh from GitHub via the API — **even if you already fetched one or more of them earlier in this same Claude session.** Never reuse content read earlier in the conversation:
@@ -1507,9 +1578,13 @@ Create this ticket? (y/n)
 
 **CRITICAL — do NOT fetch the counter until the user says "yes".** The user may take minutes or hours to respond. If you fetch the counter before confirmation, another session or WishBot could take that number in the meantime, causing a duplicate.
 
-After the user confirms → fetch `wishworks/_config/counter.txt` fresh from GitHub, use that number for the filename (`WW-###.md`), then **immediately** create the ticket and increment the counter in the same step. (NOT `counter.txt` — that's for live tickets.)
+**Increment the counter FIRST, then write the ticket file — in that order (T-257 counter-drift fix).** After the user confirms:
 
-Wait for confirmation, then push the file via GitHub API.
+1. Fetch `wishworks/_config/counter.txt` fresh from GitHub — read the integer `N` (+ its `sha`).
+2. **PUT `counter.txt` = `N+1` first** (SHA-guarded — on a `409` conflict, re-fetch and retry). This reserves the number `N`.
+3. **Only after the counter write succeeds**, write the ticket file as `WW-N.md`.
+
+**Why this order:** if the file were written first and the counter increment then failed (or the session was interrupted), the counter would be left BEHIND the ticket just created — and the next creation would reuse `N` and **overwrite the real ticket**. This happened on 2026-06-22 (WW-1427 created, counter stuck at 1427, manual bump required). Counter-first means any failure leaves a harmless gap (counter ahead of the last file) instead of an overwrite. This matches how WishBot's automated intake already works.
 
 **Step 7.5: Process attachments (if any)**
 
@@ -1526,9 +1601,100 @@ If uploads fail, the ticket is still created — tell the developer: "Ticket {ti
 
 - Tell the developer the ticket was created with its ID
 
+### If asking to create a work item: Work Item Creation Flow
+
+**Routing — ticket vs. work item.** A **Work Item** (`DW-###`) is non-development work a department owns and wants to track (e.g. "Support needs to update an FAQ", "Marketing copy refresh", "Ops shipping-process change") — NOT code work. Route here when the developer says any of: "create a work item", "new work item", "track this as a work item", "make a DW for…", "log a work item for…". If it's clearly development work (a feature/bug/task on a code track) route to the **Ticket Creation Flow** instead. If genuinely ambiguous, ask: "Is this a development ticket (code work) or a work item (non-dev department work)?"
+
+Work Items are simpler than tickets — **no track, type, component, or estimate.** Gather information conversationally, don't dump a form. The full field model is in `wishworks/_config/work-item-schema.md` (source of truth) and mirrors the Wishdesk UI's `createWorkItem` (SWAC `wishworks/services/work-item-writer.ts`).
+
+**Pre-flight (MANDATORY):** re-fetch `wishworks/_config/team.md` fresh from GitHub at the start of the flow (needed for requestor/assignee resolution) — even if fetched earlier this session.
+
+**Step 1: Collect required fields** (always)
+
+- `title` — short descriptive title, **≤100 chars** (hard limit — reject and ask to shorten if longer).
+- `description` — what the work is and why.
+- `department` — **the team that does the work** (e.g. Customer Support, Account Management, Finance/Billing, Operations, Marketing, HR, Platform). Ask if not obvious. If an assignee is given and resolves to a team member, you may suggest their department as the default, but confirm it.
+- `requestor` — auto-detect the creator: run `gh api user --jq .login` → look up the canonical `Name` in team.md (Dev Team table, `GitHub Username` column → `Name`). If no match, fall back to `git config user.name` run through **Name resolution** (Assign Rules section). The result **MUST resolve to a real person in team.md** — **HARD STOP if it doesn't** (same rule as tickets: never store a department/placeholder/"unknown"). Override path: if the developer says "the requestor is X", resolve X through Name resolution against team.md (Dev Team then All Staff); exactly one match → store canonical Name; zero matches → hard stop.
+
+**Step 2: Always ask `assignee`** (the question is mandatory; an answer is not)
+
+- Ask: "Who should be assigned? (Say 'skip' if no one yet.)" If they name someone, validate + resolve via **Name resolution** to the canonical full Name. If they skip, leave it unset. Never block creation on a missing assignee.
+
+**Step 3: Ask the optional fields together, in ONE message — none required** (Anna, 2026-06-22)
+Ask a single catch-all: _"Anything else? (optional) — priority (Critical/High/Medium/Low), due date (YYYY-MM-DD), source link, or a parent work item (DW-###)."_ Capture only what they provide; skip any they don't mention. Do **not** prompt for them one at a time.
+
+- `priority` — Critical / High / Medium / Low. **Default blank** (forces intentional selection — never auto-pick).
+- `due_date` — YYYY-MM-DD (date only).
+- `source` — Slack permalink or other URL where the ask originated.
+- `parent_work_item` — an existing `DW-###`. If given, **validate** before creating: parent must exist (find via `work-items/active/` → `work-items/archive/{quarter}/`), must NOT be archived, and must NOT itself have a `parent_work_item` (flat hierarchy — one level only). If the parent has a `project` or `promoted_from`, **inherit** those onto the new child. Reject with a clear message if any rule fails.
+
+**Step 4: Duplicate scan** (always — Anna, 2026-06-22)
+Fetch all active work items from `wishworks/work-items/active/` in parallel — same approach as `fetch_active_tickets_parallel` but pointed at the `work-items/active` directory (one listing call + parallel raw GETs; **never** a per-file loop). Take the 30 most recent by `created_at`, compare the new title + description for semantic similarity (you're the AI — no extra API call), and if any look like dupes, show them grouped HIGH/MEDIUM confidence and ask "Is this the same as any of these? (yes/no)". Yes → cancel, point to the existing `DW-###`. No / none found → proceed (silently if none found).
+
+**Step 5: Confirm** — show a summary, do NOT fetch the counter yet (use `DW-???` as placeholder):
+
+```
+Ready to create:
+  DW-??? (Work Item) — "Refresh holiday FAQ copy"
+  Department: Customer Support | Requestor: Anna Kifer
+  Assignee: Madison Meilinger | Priority: — | Due: — | Parent: —
+
+Create this work item? (y/n)
+```
+
+**Step 6: Create (ONLY after the developer confirms "yes")**
+
+- **Counter (DW, separate from the WW ticket counter) — increment FIRST, then write the file (T-257 counter-drift fix):**
+  1. Fetch `wishworks/_config/work-item-counter.txt` fresh — read the integer `n` (+ its `sha`).
+  2. **PUT the counter file = `n+1` first** (SHA-guarded). On a `409`/`422` (collision/concurrent writer), re-fetch the counter and retry — up to **5 attempts**.
+  3. **Only after the counter write succeeds**, write the DW file using `DW-` + `n` zero-padded to 3 digits as the id (e.g. `28` → `DW-028`).
+  - Same rationale as ticket Step 7: counter-first means a failure leaves a harmless gap (counter ahead) instead of overwriting an existing work item. Never write the file before reserving the number.
+- **Frontmatter** — write **only** these fields (omit any optional that's blank — mirror the UI writer exactly so the viewer round-trips):
+  ```yaml
+  ---
+  title: <title>
+  status: not_started
+  department: <department>
+  requestor: <canonical Name>
+  created_at: <ISO 8601 Mountain time WITH offset, milliseconds, e.g. 2026-06-22T12:30:00.000-06:00> # Mountain wall-clock + explicit offset (-06:00 MDT / -07:00 MST). Generate via zoneinfo America/Denver, isoformat with ms. The offset is REQUIRED (a bare "2026-06-22 12:30:00" parses as server-local and is ambiguous). Viewer sorts created_at via new Date().getTime(), so the offset form is safe and shows Mountain wall-clock.
+  assignee: <Name> # only if provided
+  due_date: <YYYY-MM-DD> # only if provided
+  priority: <Critical|High|Medium|Low> # only if provided
+  source: <url> # only if provided
+  parent_work_item: <DW-###> # only if provided
+  project: <PRJ-###> # only if inherited from the parent
+  promoted_from: <IDEA-###> # only if inherited from the parent
+  ---
+  ```
+  Do **NOT** write `linked_work_items`, `linked_tickets`, `followers`, `completed_at`, `blocked_reason`, or `archive_reason` at creation — the UI omits them and the linking flow / status changes add them when needed.
+  - **YAML safety:** run user-provided values (`title`, `department`, `source`) through the `sanitize_yaml_value` helper and quote any value containing `:` or quotes — exactly as the ticket creation flow does. Build the frontmatter with `yaml.safe_dump` (or the same quoting the helpers use); never hand-concatenate an unescaped title into the YAML.
+- **Body** (exact section order, matching the UI's `buildWorkItemBody`):
+
+  ```
+  ## Description
+
+  <description>
+
+  ## Conversation
+
+
+  ## Attachments
+
+
+  ## History
+  - <same created_at ISO timestamp> — Created by <requestor Name>
+  ```
+
+  Note the History "Created by" line uses the **work-item format** (`— Created by {Name}`) and the same `created_at` ISO timestamp — NOT the ticket "Created via Claude CLI by Name (Dept)" form.
+
+- Write the file to `wishworks/work-items/active/{DW-###}.md` via PUT.
+- If a `parent_work_item` was set, append a history line to the **parent**: `- {ts} — Child work item {DW-###} created: "{title}" (by {actor} via Claude CLI)`.
+
+**Step 7: NO Slack announce** (Anna, 2026-06-16) — work items have no intake channel; there is no announcement step. Just tell the developer the work item was created with its `DW-###` id.
+
 ### If any other action: Parse and perform
 
-Understand the developer's intent from their natural language and perform the action following the rules below. If a ticket ID is not provided, use the most recently referenced ticket in the conversation. If no ticket has been referenced, ask which ticket.
+Understand the developer's intent from their natural language and perform the action following the rules below. **"Link"/"unlink" requests** (between any combination of `WW-###` tickets and `DW-###` work items) → follow the **Linking Tickets & Work Items** section. If a ticket ID is not provided, use the most recently referenced ticket in the conversation. If no ticket has been referenced, ask which ticket.
 
 **Routing exceptions:**
 
@@ -1641,8 +1807,12 @@ Real tickets from main (`WW-###`) will also appear on the sandbox branch — the
 
 - `wishworks/dev-requests/active/WW-###.md` — active tickets
 - `wishworks/dev-requests/archive/{year}-q{quarter}/WW-###.md` — released/archived tickets
+- `wishworks/work-items/active/DW-###.md` — active work items
+- `wishworks/work-items/archive/{year}-q{quarter}/DW-###.md` — done/archived work items
 - `wishworks/_config/team.md` — team member list
 - `wishworks/_config/counter.txt` — next ticket ID number
+- `wishworks/_config/work-item-counter.txt` — next work-item ID number (DW)
+- `wishworks/_config/work-item-schema.md` — work-item field/status/section reference
 - `wishworks/_config/TICKET_FORMAT_GUIDE.md` — full ticket format reference
 - `wishworks/_config/component-matrix.json` — component → developer mapping
 - `wishworks/_reports/time-log-YYYY-MM.md` — monthly time tracking ledger
@@ -2067,33 +2237,54 @@ If Retool-task creation fails, the bug is already safely archived with its spec 
 - Increment `counter.txt` after creating
 - Update parent's history
 
-## Linking Tickets
+## Linking Tickets & Work Items
 
-Tickets can be linked to each other with a typed, **bidirectional** relationship,
-stored in the `linked_tickets` frontmatter array. Each entry is:
+Tickets and Work Items can be linked to each other with a typed, **bidirectional**
+relationship. Links work across **all** combinations:
+
+- **ticket ↔ ticket** (the original behavior)
+- **ticket ↔ work item** (cross-type)
+- **work item ↔ work item**
+
+This mirrors the Wishdesk UI's shared bidirectional link-writer (T-216 / SWAC
+`wishworks/services/link-writer.ts`). Each link is stored as a frontmatter array
+entry. **Which array a link lands in is decided by the type of the entity it
+POINTS AT:**
+
+- a reference **to a ticket** lands in `linked_tickets` as `{ type, ticket_id }`
+- a reference **to a work item** lands in `linked_work_items` as `{ type, work_item_id }`
 
 ```yaml
 linked_tickets:
   - type: blocked_by
     ticket_id: WW-100
+linked_work_items:
+  - type: caused_by
+    work_item_id: DW-012
 ```
+
+**Entity ID formats:**
+
+- **Tickets:** `WW-###` (regex `^WW-(DEV-)?\d{1,6}$`)
+- **Work items:** `DW-###` (regex `^DW-(DEV-)?\d{1,6}$`)
 
 **Board links (T-###) are OUT of scope** — those are managed entirely in Wishboard; never touch them here.
 
 ### Relationship types and inverses
 
-Every link is written on **BOTH** tickets — the forward type on the ticket you
-name, and its inverse on the other ticket:
+Every link is written on **BOTH** entities — the forward type on the entity you
+name first (the **source**), and its inverse on the other entity (the **target**):
 
-| Forward (on this ticket) | Inverse (on the other ticket) |
-| ------------------------ | ----------------------------- |
-| `blocked_by`             | `blocking`                    |
-| `blocking`               | `blocked_by`                  |
-| `caused_by`              | `causes`                      |
-| `causes`                 | `caused_by`                   |
-| `related_to`             | `related_to` (symmetric)      |
+| Forward (on the source) | Inverse (on the target)  |
+| ----------------------- | ------------------------ |
+| `blocked_by`            | `blocking`               |
+| `blocking`              | `blocked_by`             |
+| `caused_by`             | `causes`                 |
+| `causes`                | `caused_by`              |
+| `related_to`            | `related_to` (symmetric) |
 
-Map the developer's natural language to the forward type:
+Map the developer's natural language to the forward type. `A` and `B` can each be
+a **ticket OR a work item**, in any combination:
 
 - "A is blocked by B" / "A needs B first" → on A: `blocked_by` B
 - "A is blocking B" / "A blocks B" → on A: `blocking` B
@@ -2103,35 +2294,100 @@ Map the developer's natural language to the forward type:
 
 **If no relationship is specified, always ask before writing — never guess or
 default.** When the request clearly names a relationship (via the map above),
-use it directly. Otherwise — e.g. "link WW-50 to WW-100" — reply: "What's the
+use it directly. Otherwise — e.g. "link WW-50 to DW-012" — reply: "What's the
 relationship? blocked_by, blocking, caused_by, causes, or related_to?" and wait
 for the answer before writing either side.
 
-### Adding a link (A —T→ B, inverse I)
+### Which frontmatter field each side gets (the cross-type rule)
 
-1. Reject self-links (A and B are the same ticket).
-2. Find both files (search `active/` → `submitted/` → `archive/`). If either is
-   missing, stop and tell the developer — do not write a one-sided link.
-3. **Write A:** add `{ type: T, ticket_id: B }` to A's `linked_tickets`.
-   Idempotent — skip if an entry with the same `(type, ticket_id)` already exists.
-4. **Write B:** add `{ type: I, ticket_id: A }` to B's `linked_tickets`
-   (same idempotency rule).
+Because the field is chosen by the **referenced** entity's type, a cross-type
+link stores **different-shaped refs on each side** — this is correct; each file
+records the other end in the field that matches the other end's type:
+
+- **Forward entry (on the source A):** lands in the field matching the **target
+  B's** type — `linked_tickets` if B is a ticket, `linked_work_items` if B is a
+  work item. Ref shape: `{ type: T, ticket_id: B }` or `{ type: T, work_item_id: B }`.
+- **Inverse entry (on the target B):** lands in the field matching the **source
+  A's** type. Ref shape keyed off A's type the same way.
+
+Worked example — ticket `WW-123` `blocked_by` work item `DW-456`:
+
+- On `WW-123` (target is a work item): `linked_work_items: [{ type: blocked_by, work_item_id: DW-456 }]`
+- On `DW-456` (source is a ticket): `linked_tickets: [{ type: blocking, ticket_id: WW-123 }]`
+
+Same-type links keep their natural field (ticket↔ticket → both sides
+`linked_tickets`; work item↔work item → both sides `linked_work_items`).
+
+### Finding the files
+
+- **Ticket** (`WW-###`): search `dev-requests/active/` →
+  `dev-requests/submitted/` → `dev-requests/archive/{quarter}/`.
+- **Work item** (`DW-###`): search `work-items/active/` →
+  `work-items/archive/{quarter}/`.
+
+If either file is missing, stop and tell the developer — do not write a one-sided link.
+
+### Adding a link (source A —T→ target B, inverse I)
+
+1. Reject self-links (A and B are the same entity — same id **and** same type).
+2. Find both files (per "Finding the files" above). If either is missing, stop
+   and tell the developer — do not write a one-sided link.
+3. **Write A (the source):** add the forward ref to A's **target-typed** field
+   (`linked_tickets` if B is a ticket, else `linked_work_items`) — ref
+   `{ type: T, ticket_id: B }` or `{ type: T, work_item_id: B }` per B's type.
+   Idempotent — skip if an entry with the same `(type, referenced-id)` already
+   exists in that field.
+4. **Write B (the target):** add the inverse ref `{ type: I, <id-field>: A }` to
+   B's **source-typed** field, where `<id-field>` is `ticket_id` if A is a ticket
+   else `work_item_id` (same idempotency rule).
 5. Append a history line to each file (see History below).
 6. Write A first, then B — two separate PUTs, re-fetching each file's `sha`
    immediately before its PUT. If the second write fails, tell the developer
    that A was updated but B was not so they can retry; the two sides must never
    be left diverged.
 
+**CRITICAL — how to write the field (use the Standard Ticket Helpers; never
+hand-roll the YAML):** mutate the link field with **`add_link_entry()`** (and
+`remove_link_entry()` for unlink) from the helpers block — never insert list
+lines by hand. The field on an existing ticket is frequently the seeded scalar
+`linked_tickets: ""` / `linked_work_items: ""` (WishBot's auto-fix writes the
+empty **string**, not `[]`). Appending list items under that scalar by hand
+produces **invalid YAML** (`field: ""` followed by dangling `- ` items), which
+`yaml.safe_load` cannot parse — the reconciliation cron then drops the ticket and
+the viewer can't render it. `add_link_entry()` normalizes `""` / `[]` / a block
+list / an absent field into one valid list and is string-surgical, so it also
+leaves `created_at` and every other field byte-for-byte unchanged (no full
+frontmatter re-dump → timestamps are never reformatted). Use `append_history()`
+for the history line. Example for one side:
+
+```python
+content = add_link_entry(content, field, {"type": T, id_field: B})   # add
+content = append_history(content, f"- {ts} — Linked {T} {B} (by {actor} via Claude CLI)")
+```
+
+**History lines (use `append_history()`):**
+
+- On A (forward): `- {ts} — Linked {T} {B} (by {actor} via Claude CLI)`
+- On B (inverse): `- {ts} — Linked {I} {A} (by {actor} via Claude CLI)`
+- For removals use `Unlinked` in place of `Linked`.
+- `{actor}` = `git config user.name` resolved to the canonical full Name via team.md (same resolution as elsewhere).
+- Example cross-type pair: `Linked blocked_by DW-456 (by Jaypee Lalucis via Claude CLI)` on `WW-123`, and `Linked blocking WW-123 (by Jaypee Lalucis via Claude CLI)` on `DW-456`.
+
 ### Removing a link
 
-Same flow, but remove the matching `(type, ticket_id)` entry from A and the
-`(inverse, A)` entry from B. Removing a link that isn't present is a no-op.
+Same flow, but remove the matching `(type, referenced-id)` entry from A's
+target-typed field and the `(inverse, A)` entry from B's source-typed field
+using **`remove_link_entry(content, field, type, id)`** from the helpers (which
+rewrites the field as a valid list — `field: []` when the last entry is removed —
+and leaves all other fields, including `created_at`, untouched). Removing a link
+that isn't present is a no-op.
 
 ### Preserve frontmatter on every write
 
-Any other ticket write (status, assignee, priority, archive, etc.) must
-round-trip `linked_tickets` and all other existing frontmatter fields
-unchanged. Never rebuild frontmatter from a template that drops them.
+Any other write (status, assignee, priority, archive, etc.) must round-trip
+`linked_tickets`, `linked_work_items`, and all other existing frontmatter fields
+unchanged. Never rebuild frontmatter from a template that drops them. (Applies to
+both tickets and work items.)
 
 ## Parent Status Derivation
 
