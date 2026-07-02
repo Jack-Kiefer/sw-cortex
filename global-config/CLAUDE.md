@@ -110,6 +110,7 @@ WW-### tickets are dev-request **`.md` files in the `jasonbkiefer/SWIRL` repo** 
 | `/db query [database] [sql]`  | Query databases                                      |
 | `/swac-analyze [description]` | SWAC/WishDesk research → build (SWAC sessions)       |
 | `/meeting [title]`            | Save meeting notes + index to Qdrant                 |
+| `/sync-meetings [all\|since=]` | Pull Gemini meeting notes from Drive → index to Qdrant |
 | `/refresh-knowledge`          | Update the knowledge base docs                       |
 | `/draft-slack [context]`      | Draft a Slack message                                |
 | `/shutdown [repo]`            | Remove all worktrees not in use (writable repos)     |
