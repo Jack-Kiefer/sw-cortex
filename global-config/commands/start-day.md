@@ -6,7 +6,9 @@ attention today.
 
 The steps are **independent and run concurrently** — with **one** load-bearing ordering
 constraint: Slack triage (Step 4) reads the index that the Slack sync (Step 1) writes, so
-**triage must not start until sync has finished**. Everything else fans out in parallel.
+**triage must not start until sync has finished**. Everything else fans out in parallel. (Step 1b
+syncs the Gemini meeting notes from Drive into Qdrant — an orchestrator step alongside the Slack
+sync, but nothing waits on it.)
 
 ```
 /start-day               # full routine: sync ‖ tickets ‖ PRs ‖ KB ‖ diagnostic → triage
@@ -232,6 +234,39 @@ fi
 If it's not on `dev` (mid-feature-branch), skip silently. If the fast-forward can't apply (local
 `dev` diverged — not a clean FF), note it in one line and move on; don't force anything. This
 mirrors the hub's own `pull --ff-only origin main` post-merge rule.
+
+### Step 1b — Sync meeting notes from Drive · orchestrator (main thread, NOT a workflow agent)
+
+> **Orchestrator runs this — NOT a workflow agent.** It fetches Jack's Gemini meeting-note Docs
+> from Google Drive, which **requires the `mcp__claude_ai_Google_Drive__*` MCP tools**, and MCP
+> tools only work on the main session thread — a workflow agent can't call them. It's the
+> meeting-notes analogue of Step 1's Slack sync: fetch new source → index into the same Qdrant
+> collection. It has **no ordering dependency on triage** (Step 4 triages Slack, not meetings), so
+> run it alongside the Slack sync and let it finish whenever; it does not gate any later phase.
+
+Unless `skip-sync` was passed, do a **Drive→file→index catch-up** of the meeting notes so they're
+searchable via `/slack-search` alongside Slack. Follow the **`/sync-meetings` command's logic** —
+read `~/.claude/commands/sync-meetings.md` and do exactly what it does (it is the single source of
+truth for this):
+
+1. List the Gemini meeting-note Docs in Drive (Docs whose title ends in **"Notes by Gemini"**) via
+   `mcp__claude_ai_Google_Drive__search_files`.
+2. Determine which are **new or edited** since the last sync (compare against the files already in
+   `~/Desktop/Projects/sw-cortex/knowledge/meetings/` — skip Docs whose file exists and whose
+   `modifiedTime` isn't newer). Default to the **incremental** path here — do NOT force a full
+   `all` re-fetch in the morning routine.
+3. For each Doc to sync, fetch its text (`mcp__claude_ai_Google_Drive__read_file_content`, piping
+   large results to disk via `jq -r '.fileContent'`) and write it as
+   `knowledge/meetings/YYYY-MM-DD-<slug>.md` (the filename convention `sync-meetings.md` specifies).
+4. Run the file-based indexer: `cd ~/Desktop/Projects/sw-cortex && npm run meetings:sync -- --meetings-only`.
+
+If `skip-sync` was passed, skip this too (it shares the flag with the Slack sync) and note it. If
+the Drive MCP is unavailable/errors, note it in one line and continue the routine — don't block the
+morning briefing on it. This step is **incremental and idempotent** (deterministic Qdrant point IDs
+overwrite; a meeting is never stored twice), so it's safe to run every morning.
+
+**Result:** a one-line `### 📝 Meeting notes` for the briefing — `synced N new/updated Docs → C
+chunks` / `already current — nothing new` / `skipped (skip-sync)` / `Drive unavailable — skipped`.
 
 ### Step 2 — WishDesk tickets · Wave A agent
 
@@ -637,6 +672,9 @@ not just what was recommended — and list anything deferred under "needs Jack":
 ### 📚 Knowledge base (living doc)
 - <N facts updated / M added in DICTIONARY.md, or "nothing new to fold in">
 
+### 📝 Meeting notes
+- <synced N new/updated Docs → C chunks, or "already current — nothing new" / "skipped (skip-sync)" / "Drive unavailable — skipped">
+
 ### 🧹 Worktrees
 - <N removed (clean+idle), M kept in use (dirty/unpushed/live), K protected skipped — or "none to clean">
 
@@ -662,8 +700,8 @@ before ending the turn.
   workflow's agents only read + return their block.
 - **Printed order is load-bearing for reading, not execution.** The phases execute in parallel
   within Wave A (plus Step 6 after Wave A), but assemble the briefing top-to-bottom: health →
-  setup-friction → tickets → deploy/PRs → saved-for-later → KB → worktrees → triage, so Jack scans
-  it in a stable order.
+  setup-friction → tickets → deploy/PRs → saved-for-later → KB → meeting-notes → worktrees →
+  triage, so Jack scans it in a stable order.
 - **Step 0 is non-blocking and report-only, with one opted-in exception.** It surfaces broken
   plumbing (MCP down, missing go-launcher extension, bastion unreachable, etc.) but never restarts,
   reinstalls, prunes a worktree, or stops the routine — **except check 8 (Docker + local dev DB),
@@ -671,6 +709,14 @@ before ending the turn.
   move on if it can't come up). The worktree check in particular stays list-and-flag only, and
   never touches the protected/locked worktrees. It owns the **only live MCP probes** — Step 5
   stays transcript-only so the two don't double-probe.
+- **Step 1b (meeting-notes sync) is an orchestrator step, like Step 1.** It fetches the Gemini
+  "… - Notes by Gemini" Docs from Google Drive via the `mcp__claude_ai_Google_Drive__*` MCP tools —
+  which only work on the main thread, so it can't be a workflow agent — writes any new/edited ones
+  to `knowledge/meetings/`, then runs the file-based indexer (`npm run meetings:sync`) which
+  chunks/embeds/encrypts/upserts into the same `slack_messages_encrypted` collection `/slack-search`
+  already searches. It shares the `skip-sync` flag with Step 1, is incremental + idempotent
+  (deterministic point IDs never double-store a meeting), and **nothing waits on it** (triage reads
+  Slack, not meetings). Full logic lives in `/sync-meetings` (`~/.claude/commands/sync-meetings.md`).
 - **Step 2b (deploy/PRs) stays SERP-only and gate-free** — it's a light dev→main count plus a pointer
   to `/pending-deploy SERP`, which owns the real lint+test readiness gate. Don't run tests here.
 - **`DICTIONARY.md` is a living document.** Step 3 keeps it current with small daily edits —
