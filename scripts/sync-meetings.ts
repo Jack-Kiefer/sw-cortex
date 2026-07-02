@@ -182,8 +182,16 @@ async function syncChunks(chunks: DocChunk[]): Promise<number> {
           userId: src.pointPrefix,
           userName: encrypt(src.channelName),
           text: encrypt(`[${src.label}: ${chunk.title}] [${chunk.date}]\n${chunk.text}`),
-          timestamp: chunk.timestamp,
-          threadTs: encrypt(chunk.file),
+          // Offset the shared doc timestamp by chunk index so get_thread returns
+          // the meeting's chunks in reading order (they all share one date).
+          timestamp: chunk.timestamp + chunk.chunkIndex,
+          // Plain (unencrypted) group key = the source file. All chunks of one
+          // meeting share it, so get_slack_thread({ channelId, threadTs: <file> })
+          // returns the whole meeting for surrounding context. Encrypting it would
+          // give every chunk a different ciphertext (random IV) and break the
+          // exact-match filter get_thread uses. The filename is just the meeting
+          // title/date — already visible in the decrypted text, not sensitive.
+          threadTs: chunk.file,
           permalink: null,
           version: 1,
           encrypted: true,
