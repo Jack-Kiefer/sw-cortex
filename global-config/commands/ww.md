@@ -1472,12 +1472,15 @@ Based on the type and track, collect these fields conversationally. Ask for the 
 - `who_affected` — optional: Specific Customer/Order, General System Issue, or Me
 - Steps to Reproduce (as a body section) — recommended but not required
 
-**Glitch channel opt-out (`no_announce`) — PASSIVE, never prompt (T-191):**
+**Glitch channel announcement (`no_announce`) — bugs are QUIET by default, opt-in AFTER creation (Anna, 2026-07-01):**
 
-- If the requester says they don't want the ticket posted/announced to the glitch channel (any phrasing — "don't post this to #glitches", "no glitch channel post", "skip the announcement", "this doesn't need channel tracking"), set `no_announce: true` in frontmatter and confirm in the creation summary ("won't be posted to the glitch channel").
-- **Never ask about it** — only set it when the requester explicitly requests it. Most tickets should announce normally; the field is for high-volume routine reports that don't need channel tracking.
-- Applies to any ticket type the announcement cron covers (bugs on every track; retool tasks). Harmless on other tickets — it simply does nothing there.
-- The flag only suppresses WishBot's automatic channel announcement; the ticket itself is created normally and shows up in WishWorks as usual.
+- **Bugs (any track) are created with `no_announce: true` — they do NOT auto-post to the #glitches channel.** This is the default now: a CLI-filed bug is already known/being worked, so it stays quiet unless the creator opts in. Set `no_announce: true` in the Step 5 frontmatter for every bug (overriding the template's `false` default).
+- **Do NOT ask a yes/no question during creation.** Instead, AFTER the ticket is created, show the opt-in callout in **Step 8: Post-creation** and let the creator say "announce it" if they want it posted. Silence = stays quiet, no action needed — that's the whole point (no reply required).
+- **Do NOT mention the #glitches decision in the Step 6 create-confirmation summary.** The post/don't-post choice is communicated in EXACTLY ONE place: the Step 8 callout. A terse "won't post to #glitches" line in the Ready-to-create summary muddies it and isn't the actual offer — leave it out of Step 6 entirely.
+- **Proactive opt-in during creation:** if the creator explicitly says up front that they DO want it announced (e.g. "post this to #glitches", "announce this one"), build the bug with `no_announce: false` instead, and in Step 8 confirm "Will be announced in #glitches (appears in ~2–3 min)" — do NOT show the opt-in callout for that bug.
+- **Retool tasks are UNCHANGED — still announce by default (passive opt-out, T-191).** For a `type: task` + `track: retool` ticket, only set `no_announce: true` if the creator explicitly asks to skip the announcement (any phrasing — "don't post this", "skip the announcement"). Never prompt about it, and never show the bugs-only callout.
+- Stories and non-retool tasks never announce — the flag is a no-op there; leave it at the template default and don't show the callout.
+- The flag only controls WishBot's automatic channel announcement; the ticket is created normally and shows up in WishWorks regardless. WishBot's own Slack intake (organic glitch reports) is unaffected — those still announce.
 
 **Tasks also need:**
 
@@ -1599,7 +1602,46 @@ If uploads fail, the ticket is still created — tell the developer: "Ticket {ti
 
 **Step 8: Post-creation**
 
-- Tell the developer the ticket was created with its ID
+- Tell the developer the ticket was created with its ID.
+- **For BUGS created quiet (the default — `no_announce: true`), you MUST output the #glitches opt-in callout below — VERBATIM.** After the ticket-ID confirmation, print the box EXACTLY as written, character for character. **Do NOT paraphrase it, summarize it, replace it with a one-line note (e.g. "no #glitches post" / "won't be posted"), or skip it.** This box is the ONLY thing that tells the creator they can _choose_ to announce it — dropping it or reducing it to prose hides the choice and makes it look like the tool decided for them. Output it ONLY for a bug created quiet — NOT for stories, non-retool tasks, retool tasks, or a bug where the creator already opted IN during creation (for that one, instead confirm "Will be announced in #glitches — appears in ~2–3 min").
+
+  ```
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📢  THIS BUG IS QUIET — not posted to #glitches
+      Want the team to see it? Just say
+      "announce it" and I'll post it.
+      Not needed? You're all set — no reply needed.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ```
+
+  - This is a callout, NOT a question. The creator does not need to reply. Silence = the bug stays quiet, and that's the end of it.
+  - If they later say "announce it" (or "announce WW-###", "post it to #glitches", etc.), handle it via the **"If asking to announce a ticket to #glitches"** action below.
+
+### If asking to announce a ticket to #glitches
+
+Trigger phrases (interpret natural language): "announce it", "announce WW-123", "post it to #glitches", "post this to the glitches channel", "yes announce it", etc. This flips a quiet bug ticket so WishBot's cron posts it to the #glitches channel. (`/ww` does NOT post to Slack itself — it only sets the flag; WishBot's announce cron owns the actual post.)
+
+**Which ticket:** If they name a ticket ID, use it. If they just say "announce it" right after creating a bug, use that just-created ticket. If it's genuinely ambiguous (no recent ticket in context and no ID given), ask which ticket ID they mean.
+
+**Step 1 — Fetch the ticket** from `wishworks/dev-requests/active/{ID}.md` on `main` (content + `sha`, fresh). If it's not in `active/`, tell them you can only announce active tickets and stop.
+
+**Step 2 — Validate:**
+
+- Must be `type: bug`. If not, say: _"Only bug tickets get posted to #glitches. {ID} is a {type}, so there's nothing to announce."_ and stop.
+- If `no_announce` is already `false`/absent, it's already set to announce: _"{ID} is already set to post to #glitches — nothing to change."_ and stop.
+
+**Step 3 — Flip the flag** using the Standard Ticket Helpers, then PUT the file back to `main` (SHA-guarded; on `409`, re-fetch and retry). `now` = Mountain Time. `actor` = the developer's **canonical full name** — resolve it the SAME way the creation flow resolves `requestor` (`gh api user --jq .login` → team.md Dev Team `GitHub Username` column → `Name` column; fall back to `git config user.name` only if unresolved). Do NOT write the bare GitHub login — history lines use canonical names everywhere else:
+
+```python
+content = update_frontmatter(content, {"no_announce": False})
+content = append_history(content, f"- {now} — Marked for #glitches announcement (no_announce → false) by {actor} via Claude CLI")
+content = validate_yaml_frontmatter(content)
+```
+
+**Step 4 — Confirm, WITH the timing caveats:**
+
+- Normal case: _"Done — {ID} will appear in #glitches in ~2–3 min (WishBot posts it on its next cron pass)."_
+- **24-hour caveat (check the ticket's `created_at`):** WishBot only announces tickets within ~24h of creation (it suppresses stale stragglers). If the ticket was created more than a day ago, the flip will NOT post it — tell them: _"Heads up — {ID} was created more than 24 hours ago, so WishBot won't auto-post it now. If it still needs to go to #glitches, post it there manually or flag it to the team."_
 
 ### If asking to create a work item: Work Item Creation Flow
 
