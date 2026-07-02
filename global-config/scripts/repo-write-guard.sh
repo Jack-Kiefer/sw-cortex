@@ -41,9 +41,13 @@ repo_root_for_dir() {
   done
   [ -d "$dir" ] || return 0
   local common
-  common="$(cd "$dir" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)" || return 0
+  # --path-format=absolute is required: a bare --git-common-dir emits a PHYSICAL-cwd-relative
+  # path (e.g. ../../../.git), which mis-resolves when $dir crosses a symlink — SERP worktrees
+  # symlink backend/venv to the main clone, so a venv token resolved to the worktree itself
+  # and denied it as a "read-only repo" (2026-07-02).
+  common="$(cd "$dir" 2>/dev/null && git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 0
   [ -n "$common" ] || return 0
-  # git-common-dir may be relative (".git") — resolve against the dir it was run from.
+  # Defensive: older git without --path-format still emits relative — resolve against $dir.
   case "$common" in
     /*) : ;;
     *) common="$dir/$common" ;;
