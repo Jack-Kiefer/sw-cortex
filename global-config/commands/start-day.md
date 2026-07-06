@@ -564,11 +564,15 @@ rationale: "<why this stops the friction>" }`.
 > - `kind: "config"`, `target: shell` (e.g. `pip install …`) → run it if it's a safe, idempotent
 >   install; otherwise surface it as a one-liner for Jack.
 > - `kind: "repo"`, `target: repo:SERP` → **do NOT edit SERP inline from the hub.** Auto-`/launch`
->   a session to implement the fix: run `~/.claude/scripts/launch-repo-session.sh
+>   a session to implement the fix: run `~/.claude/scripts/launch-repo-session.sh --keep-original
 /Users/jackkief/Desktop/Projects/SERP "<payload task prompt>"` (fire-and-forget — it opens a real
->   SERP session in a new tab that researches→builds→PRs the change; don't block on it). Note in the
->   briefing that a SERP session was launched for it. _(Jack's directive 2026-06-24: "for serp changes
->   /launch something automatically to implement.")_
+>   SERP session in a new tab that researches→builds→PRs the change; don't block on it). **The
+>   `--keep-original` flag is MANDATORY here:** this launch fires from the long-lived HUB tab, and
+>   `launch-repo-session.sh` closes the originating tab BY DEFAULT — omitting the flag closes the
+>   hub out from under Jack (it has, 3×). Any `launch-repo-session.sh` call made from the hub must
+>   pass `--keep-original`; only `/go` (which runs from a disposable launched tab) omits it. Note in
+>   the briefing that a SERP session was launched for it. _(Jack's directive 2026-06-24: "for serp
+>   changes /launch something automatically to implement.")_
 > - `kind: "repo"`, `target: repo:SWAC` → **make the change locally** — apply the SWAC code edit
 >   directly on the main thread (SWAC is writable from the hub), or open a quick local edit; don't
 >   `/launch` for it. _(Jack's directive 2026-06-24: "for wishdesk just make them locally.")_
