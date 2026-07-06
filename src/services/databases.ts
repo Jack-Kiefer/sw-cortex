@@ -551,9 +551,13 @@ export async function queryDatabase(
   // Enforce read-only
   validateReadOnly(query);
 
-  // Add LIMIT if not present and limit specified
-  let finalQuery = query.trim();
-  if (limit && !finalQuery.toUpperCase().includes('LIMIT')) {
+  // Add LIMIT only to SELECT/WITH statements that don't already have one.
+  // Strip a trailing ';' first so `SELECT … ; LIMIT n` (from a .sql file) can't form,
+  // and gate on a real LIMIT clause + statement type so `SHOW TABLES`, DESCRIBE, etc.
+  // (which take no LIMIT) and identifiers/comments containing the word "limit" are left alone.
+  let finalQuery = query.trim().replace(/;+\s*$/, '');
+  const isSelect = /^\s*(SELECT|WITH)\b/i.test(finalQuery);
+  if (limit && isSelect && !/\bLIMIT\s+\d+/i.test(finalQuery)) {
     finalQuery = `${finalQuery} LIMIT ${limit}`;
   }
 
