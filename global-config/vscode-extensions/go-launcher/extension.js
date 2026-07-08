@@ -124,9 +124,7 @@ function processFile(filePath) {
   // than regressing below it.
   const slug = taskSlug(prompt);
   const desc =
-    slug === 'session'
-      ? `🔍 ${path.basename(repo)} · session`
-      : normalizeTitle(slug, '🔨');
+    slug === 'session' ? `🔍 ${path.basename(repo)} · session` : normalizeTitle(slug, '🔨');
   // CRITICAL: do NOT pass `name` to createTerminal. A name sets VS Code's TitleEventSource.Api,
   // which sets a static title AND permanently disposes the terminal's OSC title-change listener
   // for the terminal's whole life — so no OSC 0/2 escape (the launch-body seed below OR the
