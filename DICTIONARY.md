@@ -2118,6 +2118,15 @@ A **separate post-create step** that opens its OWN darklaunch-pool connection (d
 
 The per-table **`values:` line** is the only meaningful signal: `'K rows, C columns — clean'` = faithful mirror (nothing to investigate); `'X/Y rows diverge'` = real drift. Genuine issues are: (1) `'X rows 30m+ old in Odoo MISSING from darklaunch'` (real sync gap), and (2) column-level **`settled` value-divergences on Odoo-origin rows.**
 
+#### STANDING RULE — neither LAG nor DRIFT is ever an acceptable answer
+
+darklaunch exists to guarantee SERP produces the SAME result as Odoo, kept current. So two things are **NEVER** a valid explanation, excuse, or end-state — they are the failures the monitor exists to catch, and the expected-noise categories below are only the triage that tells a REAL divergence from a benign artifact:
+
+- **LAG is a failure to flag/fix, not a state to accept.** If the darklaunch worker is BEHIND Odoo — frontier not advancing, a table hours stale, the backlog tail never clearing — that IS the issue: the worker isn't keeping up. Never close a lag finding with "it'll catch up" / "just poll-lag" / "expected staleness" as if lag were fine. The ONLY lag that is not a finding is a **fresh** per-row poll-gap (< the classifier's settle/fresh window) that provably self-converges on the very next cycle; anything that does NOT converge next cycle is real lag = a failure to root-cause (throughput ceiling, event-loop starvation, starved backlog tail, wedged/paused worker) and fix.
+- **DRIFT is never an acceptable solution or outcome.** Any real, settled divergence is a failure to surface and fix — never tolerate it, never "reseed it away," never add a suppression to silence it. Root-cause WHY SERP diverged from Odoo (worker scope gap, seed-copy bug, coverage hole) and correct SERP.
+
+This rule **layers on top of** the expected-noise triage below — it does not delete it. The benign-artifact categories (post-reseed staleness during a KNOWN reseed, tz offset, windowed-seed deltas, `WORKER_ROW_DIVERGENT_COLUMNS` by-design columns) stay as the classifier that separates a REAL divergence from an artifact. But their job ends at "is this an artifact?"; once a finding is confirmed **real** lag or **real** drift, "acceptable" is off the table — it's a bug to fix. (Codified in-code at `/compare-darklaunch` command doc + `backend/workers/darklaunch_drift/worker.py` + `formatter.py` + `darklaunch_order_worker.py` docstrings; SERP PR — see changelog. Aligns with the long-standing "staleness IS the signal — don't reseed it away" feedback.)
+
 #### MOST FLAGGED "DRIFT" IS NOT A BUG — expected-noise categories
 
 - **(A) Post-seed/post-reseed Odoo staleness:** Odoo crons/users edited rows AFTER the seed snapshot via a path SERP doesn't dual-write (crons, invoicing, PO receipt). Cleared by reseed — drift count often equals post-cutover-write-count. (Verified: e.g. all 79 drifting `stock_quant` rows had post-reseed Odoo write dates → 100% staleness, real_bug = none.)
