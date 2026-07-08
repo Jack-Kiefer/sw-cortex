@@ -63,3 +63,6 @@ temp/
 *.pem
 id_rsa*
 *.key
+
+# Secret drop box — write-only paste target for live credentials (never commit, never Read)
+secret.txt
