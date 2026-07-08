@@ -2,8 +2,11 @@
 # Claude Code hook: keeps this session's terminal-tab title asserted.
 # Full docs: ~/.claude/scripts/TAB_TITLES.md
 #
-#   --bell   also request the terminal bell (Stop/Notification use this;
-#            PostToolUse/UserPromptSubmit omit it so work doesn't ding constantly)
+#   --bell       also request the terminal bell (Stop/Notification use this;
+#                PostToolUse/UserPromptSubmit omit it so work doesn't ding constantly)
+#   --activity   PostToolUse: append a live "· <activity>" suffix derived from the tool
+#                call (e.g. "· editing extension.js") to the emitted title, so the tab
+#                updates on every tool call between the model's own set-tab-title.sh calls.
 #
 # Hooks run with NO controlling terminal (Claude Code v2.1.139+), so we cannot write
 # the title escape to /dev/tty ourselves. Instead we return it in the hook's JSON via
@@ -11,6 +14,11 @@
 #
 # Title state is keyed by SESSION ID (stable for the session's life; survives tty reuse).
 # set-tab-title.sh writes ~/.claude/tab-titles/<session_id>; this hook reads it back.
+#
+# IMPORTANT: the --bell question-override and the --activity suffix are TRANSIENT — they
+# change only what THIS invocation emits, never the persisted $F. So the model's semantic
+# status (🔍/🔨/🧪…) is preserved; the next re-assert (or the model's own update) restores
+# the clean title, and a question popup / live activity is layered on top only while relevant.
 
 input=$(cat)
 
@@ -26,9 +34,71 @@ F="$HOME/.claude/tab-titles/$sid"
 title=$(sed -E 's/^\[[^]]+\] //' "$F")
 [ -n "$title" ] || exit 0
 
+# `out` is what we actually emit this invocation — starts as the persisted title and may be
+# transiently overridden below (question popup) or extended (live activity). $F is never touched.
+out="$title"
+# The "label" part of the stored title (what follows "· ", else the title minus its lead emoji).
+case "$title" in
+  *"· "*) label=${title##*· } ;;
+  *) label=${title#* } ;;
+esac
+
+# --- Question popup → "❓ question · <label>" (Notification hook, transient) --------------
+# Claude Code fires Notification with a notification_type discriminator. When it's a prompt
+# that needs Jack (a permission/tool-approval popup, an MCP elicitation dialog, or a
+# background session asking for input) the tab should SAY there's a question — automatically,
+# without the model having to set 🙋 itself. Idle (idle_prompt) is NOT a question: it just
+# means "your turn", so we leave the model's status alone there (bell only). This override is
+# transient: when Jack answers, UserPromptSubmit → tab-title-default.sh --prompt demotes the
+# lead emoji back to 🔨 and the persisted model label (untouched in $F) carries on.
+if [ "$1" = "--bell" ]; then
+  ntype=$(printf '%s' "$input" | jq -r '.notification_type // empty' 2>/dev/null)
+  case "$ntype" in
+    permission_prompt|elicitation_dialog|agent_needs_input)
+      out="❓ question · ${label:-session}"
+      ;;
+  esac
+fi
+
+# --- Live tool activity → "<title> · <activity>" (PostToolUse hook, transient) -----------
+# So the tab moves on EVERY tool call, not just when the model calls set-tab-title.sh. Derive
+# a tiny activity phrase from the tool + its input; append it as a "· <activity>" suffix to the
+# CURRENT emitted title. Persisted $F is untouched, so the model's semantic status still wins
+# and the suffix simply reflects "what it's doing right now" between the model's own updates.
+if [ "$1" = "--activity" ]; then
+  tool=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)
+  act=""
+  case "$tool" in
+    Edit|Write|Read|NotebookEdit)
+      fp=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+      [ -n "$fp" ] && fp=$(basename "$fp")
+      case "$tool" in
+        Read) [ -n "$fp" ] && act="reading $fp" ;;
+        *)    [ -n "$fp" ] && act="editing $fp" ;;
+      esac
+      ;;
+    Bash)
+      cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)
+      # First bare word of the command (skip leading VAR=val assignments), capped.
+      verb=$(printf '%s' "$cmd" | tr '\n' ' ' | awk '{for(i=1;i<=NF;i++){if($i!~/=/){print $i;exit}}}')
+      [ -n "$verb" ] && act="running $verb"
+      ;;
+    Grep|Glob) act="searching" ;;
+    Task) act="delegating" ;;
+    WebFetch|WebSearch) act="web" ;;
+    "") act="" ;;
+    *) act="$tool" ;;  # MCP/other tools: show the tool name
+  esac
+  # Cap the activity so the suffix never blows out the tab width.
+  if [ -n "$act" ]; then
+    act=$(printf '%s' "$act" | cut -c1-24)
+    out="$title · $act"
+  fi
+fi
+
 # OSC 0 sets the tab/window title. All sequences below are on Claude Code's
 # terminalSequence allowlist; CC emits them on our behalf (hooks have no tty).
-esc=$(printf '\033]0;%s\007' "$title")
+esc=$(printf '\033]0;%s\007' "$out")
 
 # Bell + done-notification only on idle events (Stop/Notification pass --bell).
 if [ "$1" = "--bell" ]; then

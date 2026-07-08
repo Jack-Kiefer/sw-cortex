@@ -175,7 +175,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/jackkief/.claude/scripts/tab-title-hook.sh"
+            "command": "/Users/jackkief/.claude/scripts/tab-title-hook.sh --activity"
           }
         ]
       },
