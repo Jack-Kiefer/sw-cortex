@@ -47,7 +47,14 @@ else
     [ -n "$cwd" ] || cwd="$PWD"
     repo=$(basename "$cwd" 2>/dev/null)
     [ -n "$repo" ] || repo="session"
-    title="🔍 $repo · session"
+    # The sw-cortex hub is the long-lived manual session Jack keeps open — never /go-launched,
+    # so it always lands on this floor. "🔍 sw-cortex · session" wrongly reads the repo as the
+    # status and says nothing useful; name it what it is.
+    if [ "$repo" = "sw-cortex" ]; then
+      title="🎯 hub"
+    else
+      title="🔍 $repo · session"
+    fi
   fi
   mkdir -p "$DIR"
   printf '%s' "$title" > "$F"

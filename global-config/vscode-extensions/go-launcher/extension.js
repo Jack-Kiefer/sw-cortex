@@ -116,7 +116,17 @@ function processFile(filePath) {
   }
 
   // Derive the descriptive launch label. normalizeTitle enforces "<emoji> <label>" grammar.
-  const desc = normalizeTitle(taskSlug(prompt), '🔨');
+  // When the prompt carries no task text (bare "/go serp", or a forked session launched with
+  // an empty prompt), taskSlug returns the "session" sentinel — DON'T seed a naked "🔨 session"
+  // (no repo, no label): that non-empty CLAUDE_GO_TITLE would then OVERRIDE the SessionStart
+  // floor's better repo-anchored "🔍 <repo> · session" (see tab-title-default.sh). Instead seed
+  // that same repo-anchored floor here, so a task-less launch matches the no-launch floor rather
+  // than regressing below it.
+  const slug = taskSlug(prompt);
+  const desc =
+    slug === 'session'
+      ? `🔍 ${path.basename(repo)} · session`
+      : normalizeTitle(slug, '🔨');
   // CRITICAL: do NOT pass `name` to createTerminal. A name sets VS Code's TitleEventSource.Api,
   // which sets a static title AND permanently disposes the terminal's OSC title-change listener
   // for the terminal's whole life — so no OSC 0/2 escape (the launch-body seed below OR the
