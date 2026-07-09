@@ -73,7 +73,7 @@ another small agent rather than widening one.
   cost; cheap agents don't have it. 6–12 researchers is normal.
 - **Scale to a token target when Jack sets one** (a `+500k`-style directive):
   ```js
-  const FLEET = budget.total ? Math.max(6, Math.floor(budget.total / 100_000)) : 8
+  const FLEET = budget.total ? Math.max(6, Math.floor(budget.total / 100_000)) : 8;
   ```
   Guard any budget loop on `budget.total` — with no target, `budget.remaining()` is
   `Infinity` and a `while` loop runs to the agent cap.
@@ -85,39 +85,58 @@ export const meta = {
   name: 'research-fanout',
   description: 'Cheap parallel research over independent angles, one Opus synthesis',
   phases: [{ title: 'Research' }, { title: 'Synthesize' }],
-}
+};
 
-const FINDINGS = { /* JSON Schema: { angle, conclusions[], files[], risks[] } */ }
-const REPORT   = { /* JSON Schema: the plan/answer object the command consumes */ }
+const FINDINGS = {
+  /* JSON Schema: { angle, conclusions[], files[], risks[] } */
+};
+const REPORT = {
+  /* JSON Schema: the plan/answer object the command consumes */
+};
 
 // One entry per angle. Split a broad angle into two small agents rather than one fat one.
 const ANGLES = [
-  { key: 'codebase', prompt: '…map where X is implemented…',      model: 'haiku'  },
-  { key: 'schema',   prompt: '…describe_table the relevant tables…', model: 'haiku'  },
-  { key: 'history',  prompt: '…KB + Slack for prior decisions…',    model: 'haiku'  },
-  { key: 'web',      prompt: '…external lib/API docs…',             model: 'sonnet' },
-]
+  { key: 'codebase', prompt: '…map where X is implemented…', model: 'haiku' },
+  { key: 'schema', prompt: '…describe_table the relevant tables…', model: 'haiku' },
+  { key: 'history', prompt: '…KB + Slack for prior decisions…', model: 'haiku' },
+  { key: 'web', prompt: '…external lib/API docs…', model: 'sonnet' },
+];
 
-phase('Research')
+phase('Research');
 // pipeline: each angle researches then self-verifies independently — no barrier.
-const found = (await pipeline(
-  ANGLES,
-  a => agent(a.prompt, { label: `research:${a.key}`, phase: 'Research',
-                         model: a.model, effort: 'low', schema: FINDINGS })
-         .catch(() => null),
-  (r, a) => r && agent(`Sanity-check these ${a.key} findings, flag anything unsupported:\n${JSON.stringify(r)}`,
-                       { label: `verify:${a.key}`, phase: 'Research',
-                         model: 'haiku', effort: 'low', schema: FINDINGS })
-              .catch(() => r)   // verify failure → keep the raw finding, don't drop
-)).filter(Boolean)
+const found = (
+  await pipeline(
+    ANGLES,
+    (a) =>
+      agent(a.prompt, {
+        label: `research:${a.key}`,
+        phase: 'Research',
+        model: a.model,
+        effort: 'low',
+        schema: FINDINGS,
+      }).catch(() => null),
+    (r, a) =>
+      r &&
+      agent(
+        `Sanity-check these ${a.key} findings, flag anything unsupported:\n${JSON.stringify(r)}`,
+        {
+          label: `verify:${a.key}`,
+          phase: 'Research',
+          model: 'haiku',
+          effort: 'low',
+          schema: FINDINGS,
+        }
+      ).catch(() => r) // verify failure → keep the raw finding, don't drop
+  )
+).filter(Boolean);
 
-phase('Synthesize')
+phase('Synthesize');
 // The ONE Opus call — no model/effort override means it inherits Opus; make effort explicit.
 const report = await agent(
   `Synthesize into a plan. Note any missing angle in risks.\n${JSON.stringify(found)}`,
   { label: 'synthesize', phase: 'Synthesize', model: 'opus', effort: 'high', schema: REPORT }
-)
-return report
+);
+return report;
 ```
 
 ## When NOT to use a Workflow
