@@ -3,6 +3,7 @@
     "defaultMode": "bypassPermissions",
     "allow": [
       "Read",
+      "Workflow",
       "mcp__task-manager",
       "mcp__db",
       "mcp__github",
