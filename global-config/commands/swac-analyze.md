@@ -42,9 +42,11 @@ This command is **SWAC-only** — it assumes a WishDesk session (root `…/SWAC`
 
 ---
 
-## Step 1: Run the WishDesk research swarm
+## Step 1: Run the WishDesk research swarm — as a cheap-fleet Workflow
 
-**Invoke the `research-team` skill** and follow it — it is the single source of truth for the swarm: parallelize across a team by default (≥2, cap 4), choose the roster from what THIS task needs (codebase-researcher always, +context/db/web as the task warrants — never a fixed set), time-box every researcher, poll via `TaskList`/`TaskGet`, and `TaskStop` any that overruns. Don't hand-roll a fixed roster here.
+**Fan the research out as a `Workflow`, built per the `workflow-authoring` skill** — a large CHEAP fleet (haiku for MCP/schema/KB-bound angles, sonnet for heavier ones) at `effort: 'low'`, structured as a `pipeline()` so one slow researcher never stalls the rest (`.catch(() => null)` each, synthesize on the survivors), with Opus reserved for the single synthesis pass. Fan out over the WishDesk angles the scope named (desk/CRM, proposals, sleeve resolution, receiver app, auth/app-shell, design consumption) — one small agent per angle, split a broad angle into two rather than widening one. The Workflow returns a structured findings object; you (Opus) then synthesize + present exactly as below. The Workflow does **research only** — it can't pause for approval or build, so the approval gate (Step 5) and the worktree+dev-server build stay in this interactive session unchanged.
+
+**Fallback:** if the `Workflow` tool isn't available in this session, **invoke the `research-team` skill** instead and follow it — same cheap-fleet philosophy via Task-team primitives: parallelize by default (≥2, cap 4), roster chosen from what THIS task needs (codebase-researcher always, +context/db/web as warranted), time-box every researcher, poll via `TaskList`/`TaskGet`, `TaskStop` any that overruns.
 
 **Also invoke the `wishdesk-analyze-extras` skill** (it lives in the SWAC repo) alongside it — it supplies WishDesk's tools (`mcp-db-tool`/`mcp-db-tool-live`, **not** the hub's generic `mcp__db`), the env tiers above, and the desk/proposal/sleeve subsystem detail the researchers should use. If that skill isn't available in this session (e.g. you're running from the hub rather than a real SWAC session), fall back to the generic core — the hub's `mcp__db` (database `wishdesk` / `wishdesk_dev`), `mcp__knowledge`, and `mcp__slack-search` — and lean on the subsystem map above.
 
