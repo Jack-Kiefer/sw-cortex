@@ -287,13 +287,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
     };
   } catch (error) {
+    const raw = error instanceof Error ? error.message : String(error);
+    // "Bad credentials" from the GitHub API means the PAT is expired/revoked, not
+    // a code problem. A bare "Error: Bad credentials" gave no next step and
+    // recurred 18× in one week — translate it into the exact fix so the token
+    // gets refreshed instead of the failure being retried blindly.
+    const isAuth =
+      /bad credentials/i.test(raw) ||
+      /401/.test(raw) ||
+      /requires authentication/i.test(raw) ||
+      /token .*expired/i.test(raw);
+    const text = isAuth
+      ? `GitHub authentication failed (${raw}). The GITHUB_TOKEN PAT is likely expired or revoked. ` +
+        `Fix: generate a new token, update GITHUB_TOKEN in sw-cortex/.env, then restart Claude Code ` +
+        `so the github MCP server reloads it. (Verify the PAT with a curl to https://api.github.com/user using an "Authorization: token <PAT>" header — 200 = live, 401 = still bad.)`
+      : `Error: ${raw}`;
     return {
-      content: [
-        {
-          type: 'text',
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        },
-      ],
+      content: [{ type: 'text', text }],
       isError: true,
     };
   }

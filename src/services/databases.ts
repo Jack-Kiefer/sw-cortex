@@ -438,7 +438,16 @@ async function getMySQLPool(config: DatabaseConfig): Promise<mysql.Pool> {
       database: config.database,
       waitForConnections: true,
       connectionLimit: 5,
-      queueLimit: 0,
+      // Bound the queue: without this a single wedged connection makes EVERY
+      // subsequent query wait forever and then eat the 30s wall-clock guard,
+      // which is exactly the "even `SELECT 1` times out" climbing failure. Cap
+      // the backlog so an over-subscribed pool fails fast instead of stalling.
+      queueLimit: 20,
+      // Fail a dead/slow TCP connect in CONNECT_TIMEOUT_MS instead of letting it
+      // hang for the full 30s query guard. A `SELECT 1` that "times out" is
+      // almost always a stuck connect to a cold Hetzner/RDS host, not a slow
+      // query — surfacing that fast is the whole point.
+      connectTimeout: CONNECT_TIMEOUT_MS,
     });
     // Server-side query abort for every shape (plain SELECT, CTE, UNION, …):
     // set the session max_execution_time on each new physical connection so
@@ -447,6 +456,8 @@ async function getMySQLPool(config: DatabaseConfig): Promise<mysql.Pool> {
     pool.on('connection', (conn) => {
       conn.query(`SET SESSION max_execution_time = ${QUERY_TIMEOUT_MS}`);
     });
+    // (mysql2 discards a dropped pooled connection internally on the next
+    // acquire — no pool-level 'error' handler needed, unlike pg below.)
     mysqlPools.set(key, pool);
   }
   return mysqlPools.get(key)!;
@@ -466,10 +477,20 @@ async function getPGPool(config: DatabaseConfig): Promise<pg.Pool> {
       password: config.password,
       database: config.database,
       max: 5,
+      // Fail a dead/slow connect fast (see getMySQLPool for the rationale — a
+      // trivial query "timing out" is a stuck connect to a cold Odoo/Retool
+      // host, not a slow query).
+      connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
       // Enable SSL for remote PostgreSQL connections (required by Odoo, Retool)
       ssl: {
         rejectUnauthorized: false, // Accept self-signed certificates
       },
+    });
+    // A pooled client that errors while idle (dropped by a cold host) must not
+    // crash the process — pg re-emits it on the pool. Log and let the pool
+    // discard it so the next acquire builds a fresh connection.
+    pool.on('error', (err) => {
+      console.error(`[db] ${config.name}: idle pg client error (${err.message}) — discarding`);
     });
     // Server-side query abort: Postgres cancels any statement still running
     // after 30s, so a slow query can't keep grinding on a shared box. Set on
@@ -513,6 +534,55 @@ function validateReadOnly(query: string): void {
 //   2. A JS wall-clock guard (withTimeout below) also covers connect / SSH
 //      tunnel hangs, which the engine-level timeouts can't see.
 const QUERY_TIMEOUT_MS = 30_000;
+
+// Fail a stuck TCP/handshake connect this fast rather than letting it consume
+// the full 30s query guard. Kept well under QUERY_TIMEOUT_MS so a genuine
+// connection problem is reported as one ("Could not connect to …") instead of
+// masquerading as a slow query — the distinction the timeout memory relies on.
+const CONNECT_TIMEOUT_MS = 10_000;
+
+// Connection-level failures that mean the physical socket is bad (stale pool
+// entry, cold host, dropped tunnel) — NOT a query problem. On these we drop the
+// pool and retry once so a transient blip self-heals instead of surfacing as a
+// misleading "query timeout".
+const CONNECTION_ERROR_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EPIPE',
+  'PROTOCOL_CONNECTION_LOST',
+  'ER_CON_COUNT_ERROR',
+  'ENOTFOUND',
+  'EHOSTUNREACH',
+]);
+
+function isConnectionError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const code = (err as { code?: string }).code;
+  const msg = (err as { message?: string }).message || '';
+  return (
+    (!!code && CONNECTION_ERROR_CODES.has(code)) ||
+    /connect ETIMEDOUT|connect ECONNREFUSED|Connection terminated|connection timeout|timeout expired|Client has encountered a connection error/i.test(
+      msg
+    )
+  );
+}
+
+// Drop the cached pool for a database so the next query rebuilds a fresh one.
+// Used when a query fails with a connection-level error — the pooled socket is
+// dead, so reusing the pool would just fail again.
+function dropPool(name: string): void {
+  mysqlPools
+    .get(name)
+    ?.end()
+    .catch(() => {});
+  mysqlPools.delete(name);
+  pgPools
+    .get(name)
+    ?.end()
+    .catch(() => {});
+  pgPools.delete(name);
+}
 
 // Reject if a promise hasn't settled within QUERY_TIMEOUT_MS.
 function withTimeout<T>(promise: Promise<T>): Promise<T> {
@@ -561,26 +631,99 @@ export async function queryDatabase(
     finalQuery = `${finalQuery} LIMIT ${limit}`;
   }
 
-  if (config.type === 'mysql') {
-    const pool = await getMySQLPool(config);
-    // Engine-level abort comes from SESSION max_execution_time (set on each
-    // connection in getMySQLPool); withTimeout adds the wall-clock guard that
-    // also covers connect / SSH tunnel hangs.
-    const [rows, fields] = await withTimeout(pool.query(finalQuery));
-    const rowsArray = Array.isArray(rows) ? rows : [rows];
-    return {
-      columns: fields ? (fields as mysql.FieldPacket[]).map((f) => f.name) : [],
-      rows: rowsArray as Record<string, unknown>[],
-      rowCount: rowsArray.length,
-    };
-  } else {
-    const pool = await getPGPool(config);
-    const result = await withTimeout(pool.query(finalQuery));
-    return {
-      columns: result.fields.map((f) => f.name),
-      rows: result.rows,
-      rowCount: result.rowCount ?? result.rows.length,
-    };
+  // Run the query, retrying ONCE on a connection-level error with a fresh pool.
+  // A dead pooled socket (cold host, dropped tunnel) fails the first attempt;
+  // dropping the pool and rebuilding makes a transient blip self-heal instead of
+  // surfacing as a misleading "query timeout".
+  const runOnce = async (): Promise<QueryResult> => {
+    if (config.type === 'mysql') {
+      const pool = await getMySQLPool(config);
+      // Engine-level abort comes from SESSION max_execution_time (set on each
+      // connection in getMySQLPool); withTimeout adds the wall-clock guard that
+      // also covers connect / SSH tunnel hangs.
+      const [rows, fields] = await withTimeout(pool.query(finalQuery));
+      const rowsArray = Array.isArray(rows) ? rows : [rows];
+      return {
+        columns: fields ? (fields as mysql.FieldPacket[]).map((f) => f.name) : [],
+        rows: rowsArray as Record<string, unknown>[],
+        rowCount: rowsArray.length,
+      };
+    } else {
+      const pool = await getPGPool(config);
+      const result = await withTimeout(pool.query(finalQuery));
+      return {
+        columns: result.fields.map((f) => f.name),
+        rows: result.rows,
+        rowCount: result.rowCount ?? result.rows.length,
+      };
+    }
+  };
+
+  try {
+    return await runOnce();
+  } catch (err) {
+    if (isConnectionError(err)) {
+      // Stale/dead pooled socket — rebuild once.
+      dropPool(config.name);
+      try {
+        return await runOnce();
+      } catch (retryErr) {
+        throw enrichError(retryErr, config, finalQuery, true);
+      }
+    }
+    throw await enrichSchemaError(err, config, finalQuery);
+  }
+}
+
+// Turn a raw connection failure into an actionable message so the caller applies
+// the CONNECTION remedy (retry / check the host is up / tunnel), not the
+// query-shape timeout memory. Half of observed "Query exceeded 30s timeout"
+// errors were trivial queries (SELECT 1) against a cold host — those are
+// connection problems wearing a timeout costume.
+function enrichError(
+  err: unknown,
+  config: DatabaseConfig,
+  query: string,
+  afterRetry: boolean
+): Error {
+  const raw = (err instanceof Error ? err.message : String(err)).trim();
+  const msg = raw || 'connection failed';
+  const isTimeout = /exceeded \d+s timeout/i.test(msg);
+  const hint = isTimeout
+    ? `This looks like a CONNECTION problem, not a slow query — a trivial query timing out means the connect to '${config.name}' (${config.host || 'tunnel'}) hung. `
+    : '';
+  return new Error(
+    `Could not connect to '${config.name}'${afterRetry ? ' (after 1 retry)' : ''}: ${msg}. ` +
+      `${hint}Check the host is reachable and the pool/tunnel is healthy, then retry.`
+  );
+}
+
+// When a query fails because a column/table doesn't exist, append the table's
+// REAL columns to the error. The "describe_table first" rule is often skipped;
+// this turns a blind schema guess into a self-correcting loop by handing the
+// caller the actual schema on the spot instead of leaving them to guess again.
+async function enrichSchemaError(
+  err: unknown,
+  config: DatabaseConfig,
+  query: string
+): Promise<Error> {
+  const msg = err instanceof Error ? err.message : String(err);
+  const m =
+    /Unknown column '([^']+)'/.exec(msg) || /column "?([\w.]+)"? does not exist/i.exec(msg);
+  if (!m) return err instanceof Error ? err : new Error(msg);
+
+  // Best-effort: find the first real table name in the query and describe it.
+  const tbl = /\bFROM\s+`?([a-zA-Z_][\w]*)`?/i.exec(query)?.[1];
+  if (!tbl) return err instanceof Error ? err : new Error(msg);
+  try {
+    const cols = await describeTable(config.name, tbl);
+    const names = cols.map((c) => c.column).join(', ');
+    return new Error(
+      `${msg}\n\nColumn '${m[1]}' is not on '${tbl}'. Real columns of ${config.name}.${tbl}: ${names}. ` +
+        `(Run mcp__db__describe_table BEFORE querying an unfamiliar table to avoid this.)`
+    );
+  } catch {
+    return err instanceof Error ? err : new Error(msg);
   }
 }
 
