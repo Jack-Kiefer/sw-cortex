@@ -1,0 +1,62 @@
+<!-- agents-md-base: v1 -->
+<!-- Source of truth: sw-cortex/global-config/AGENTS.md.template. Edit THERE and ship
+     by PR, then update each repo's committed AGENTS.md copy via that repo's own PR flow
+     (AGENTS.md must be COMMITTED per repo — worktrees only contain committed files).
+     SWAC keeps its own hand-written AGENTS.md (predates this template; already covers
+     these conventions in WishDesk-specific form). -->
+
+# Repository Guidelines (Codex / non-Claude agents)
+
+You are typically invoked by a supervising Claude Code session as a scoped implementer
+inside a git worktree. That session owns judgment, verification, and shipping. These are
+the house rules; your brief (`.codex-brief.md` if present) is your complete scope.
+
+## Working Style
+
+- **Minimal, additive change.** Extend existing structures; do not delete, replace, or
+  rebuild adjacent behavior, and do not touch out-of-scope code or data.
+- **Do exactly what's asked — nothing more.** No bonus improvements, adjacent refactors,
+  or speculative scaffolding. If scope seems wrong, STOP and say so in your final report.
+- **No workarounds — root cause only.** If the correct fix is outside your scope, report
+  it rather than patching around it.
+- **No scratch files, minimal comments.** No summary `.md` files; comments only where the
+  code cannot say it.
+- **Verify before claiming done.** Run the acceptance commands you were given and report
+  their real output. Never claim tests pass without running them.
+
+## Git Safety (hard rules)
+
+- **NEVER `git stash`.** Never `git add -A` / `git add .` — stage only the files you
+  changed, deliberately.
+- **Never commit, push, open PRs, or merge unless your brief explicitly says to.** The
+  supervising session owns commit/push/PR/merge.
+- **Work only inside the worktree/repo you were launched in.** Never touch other
+  checkouts, other repos, or files outside the workspace.
+- Never switch branches in a checkout you did not create.
+
+## Repos (context, not permission — your sandbox enforces the real boundary)
+
+Writable repos in this workspace: **SERP, SWAC, sw-cortex**. Everything else
+(`sugarwish-laravel`, `livery`, `sw-design`, `swirl`, `sugarwish-infrastructure`) is
+read-only — if a fix belongs there, report it, don't attempt it.
+
+## Data / SQL
+
+- **Never write to production databases.** Read-only always; surface SQL as text.
+- **Never invent column names.** Schema facts come from your brief — if a column/table
+  you need is not stated there, STOP and report the gap instead of guessing. Known traps
+  in this codebase family: the Odoo sync flag is spelled `oddo_synchronized` (misspelled
+  on purpose); SERP/darklaunch joins to Odoo are on `odoo_id`, never `id = id`;
+  `stock_move.state` filters must use the positive list
+  `('draft','confirmed','waiting','partially_available','assigned')`, never
+  `NOT IN ('done','cancel')`.
+
+## When you are the implementer for a Claude session
+
+- Your brief is self-contained on purpose: you have **no MCP tools, no knowledge base,
+  no Slack, no DB access**. Everything you need is in the brief + this repo. If it
+  isn't, STOP and report — do not improvise.
+- Do not start or stop dev servers unless the brief says to.
+- End with the structured final report the brief asks for (files touched, commands run
+  with real exit status, open questions). Your diff will be independently reviewed —
+  report honestly, including failures.
