@@ -41,16 +41,16 @@ gets the task description plus ambient access (CLAUDE.md, rules, MCP tools, KB).
 has none of that at runtime — no MCP, no KB, no DB, no Slack — so each item must be
 **pre-fetched into the brief**:
 
-| A Claude teammate has…                             | The brief must contain…                                                                  |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Its task's slice of the plan + Implementation Map  | That slice **verbatim** (file + symbol anchors, exact lines, tests to extend/create)      |
-| `landmine-check` sweep (rules + memories + KB)     | The Landmines list filtered to this chunk's files/tables, each with its "why"             |
-| `mcp__db__describe_table` on touched tables        | The **actual describe_table output pasted in** for every table the chunk reads/writes     |
-| KB facts (`mcp__knowledge__search_knowledge`)      | Any KB fact the chunk depends on, stated as text                                          |
-| The WW-### ticket (SWAC)                           | Ticket id + the acceptance-criteria body text                                             |
-| Sight of the worktree's current state              | A summary of uncommitted changes (`git status --porcelain` + `git diff --stat`) if any    |
-| Repo conventions (CLAUDE.md / rules)               | `AGENTS.md` at the worktree root — **verify it exists** before invoking (it's auto-read)  |
-| The verify commands                                | Acceptance criteria as exact shell commands                                               |
+| A Claude teammate has…                            | The brief must contain…                                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Its task's slice of the plan + Implementation Map | That slice **verbatim** (file + symbol anchors, exact lines, tests to extend/create)     |
+| `landmine-check` sweep (rules + memories + KB)    | The Landmines list filtered to this chunk's files/tables, each with its "why"            |
+| `mcp__db__describe_table` on touched tables       | The **actual describe_table output pasted in** for every table the chunk reads/writes    |
+| KB facts (`mcp__knowledge__search_knowledge`)     | Any KB fact the chunk depends on, stated as text                                         |
+| The WW-### ticket (SWAC)                          | Ticket id + the acceptance-criteria body text                                            |
+| Sight of the worktree's current state             | A summary of uncommitted changes (`git status --porcelain` + `git diff --stat`) if any   |
+| Repo conventions (CLAUDE.md / rules)              | `AGENTS.md` at the worktree root — **verify it exists** before invoking (it's auto-read) |
+| The verify commands                               | Acceptance criteria as exact shell commands                                              |
 
 **If any required context cannot be pre-fetched into the brief (the chunk would need
 mid-build DB introspection or KB searches), do NOT route it to Codex** — that's a Claude
@@ -63,24 +63,31 @@ over-include.
 # CODEX BRIEF v1 — <chunk name>
 
 ## Task
+
 <the chunk's slice of the approved plan, verbatim>
 
 ## Implementation Map
+
 <file + symbol anchor per change site · test files to extend/create>
 
 ## Landmines
+
 <each gotcha + why it matters — from landmine-check, filtered to this chunk>
 
 ## Schema facts (pre-fetched — the ONLY schema truth you have)
+
 <describe_table output for every touched table; omit section if no data touched>
 
 ## Worktree state
+
 <uncommitted-changes summary, or "clean">
 
 ## Acceptance criteria (run these; report real exit status)
+
 <exact commands, e.g. npm run test:backend && npm run lint>
 
 ## Constraints
+
 - You have NO MCP tools, NO knowledge base, NO database access, NO network beyond this
   repo. Everything you need is above — if something is missing, STOP and report the gap
   in your final message. Never guess column names, join keys, or config values.
@@ -89,6 +96,7 @@ over-include.
 - AGENTS.md in this repo root is in force.
 
 ## Final message format (JSON)
+
 {"status":"done|blocked","files_touched":[…],"commands_run":[{"cmd":"…","exit":0}],"open_questions":[…]}
 ```
 
