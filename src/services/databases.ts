@@ -708,8 +708,7 @@ async function enrichSchemaError(
   query: string
 ): Promise<Error> {
   const msg = err instanceof Error ? err.message : String(err);
-  const m =
-    /Unknown column '([^']+)'/.exec(msg) || /column "?([\w.]+)"? does not exist/i.exec(msg);
+  const m = /Unknown column '([^']+)'/.exec(msg) || /column "?([\w.]+)"? does not exist/i.exec(msg);
   if (!m) return err instanceof Error ? err : new Error(msg);
 
   // Best-effort: find the first real table name in the query and describe it.
