@@ -96,6 +96,8 @@ Close on the `approval-block`, not a bare "Say implement" line — state what's 
 
    Each teammate works in their own area (no file conflicts), uses `model: "sonnet"`, reports completion to the lead, and stops fast if their area has no work. Apply progressive synthesis — start integrating as work comes in, don't block on all teammates.
 
+   **Codex routing (before spawning teammates):** route eligible chunks per the `codex-implementer` skill — frontend/UI chunks (desk console, proposal builder, receiver UI) and big mechanical chunks go to a `codex exec` run in the same worktree instead of a Claude teammate (SWAC's committed `AGENTS.md` is auto-read as its conventions; the skill's context-parity gate + brief schema govern what gets pre-fetched into the brief, e.g. the WW-### ticket body). Keep **db-dev**/migrations and small scoped diffs with Claude teammates. A Codex run and a teammate must never touch the same file. Steps 3–4 (verify, dev server) are unchanged and always run Claude-side.
+
 3. **Verify:** type checks, lint, and SWAC's Jest suite (`npm run test:e2e` / `npm run test:fast`) pass. Confirm login/behavior against the running dev server with curl if it's a backend/auth change (cookie-session login at `http://localhost:5003/api/login`).
 
 4. **Stand up the dev server** (`npm run dev` from the worktree, or `./restart-dev.sh`) so Jack can SEE the change at `http://localhost:5003`, then **STOP**. Tell Jack what to look at and wait. Do **not** push or open a PR.

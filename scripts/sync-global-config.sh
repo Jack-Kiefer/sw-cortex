@@ -201,6 +201,29 @@ push_config() {
         merge_settings_json "$GLOBAL_CONFIG/settings.json" ~/.claude/settings.json
     fi
 
+    # AGENTS.md drift check — READ-ONLY. AGENTS.md ships COMMITTED per repo (worktrees
+    # only contain committed files), so push never writes into other repos' clones; it
+    # just warns when a repo's copy lags the template. SWAC keeps its own hand-written
+    # AGENTS.md (no base marker) and is intentionally excluded.
+    echo ""
+    echo "AGENTS.md:"
+    if [ -f "$GLOBAL_CONFIG/AGENTS.md.template" ]; then
+        tmpl_ver=$(grep -o 'agents-md-base: v[0-9]*' "$GLOBAL_CONFIG/AGENTS.md.template" | head -1)
+        for repo in "$HOME/Desktop/Projects/SERP" "$REPO_DIR"; do
+            name=$(basename "$repo")
+            if [ ! -f "$repo/AGENTS.md" ]; then
+                echo "  ! $name/AGENTS.md missing — copy global-config/AGENTS.md.template in via that repo's PR flow"
+            else
+                repo_ver=$(grep -o 'agents-md-base: v[0-9]*' "$repo/AGENTS.md" | head -1)
+                if [ "$repo_ver" = "$tmpl_ver" ]; then
+                    echo "  = $name/AGENTS.md up to date ($tmpl_ver)"
+                else
+                    echo "  ! $name/AGENTS.md is ${repo_ver:-unversioned}, template is $tmpl_ver — refresh via that repo's PR flow"
+                fi
+            fi
+        done
+    fi
+
     echo ""
     echo "Done! Restart Claude Code to pick up changes."
 }
