@@ -1,0 +1,1 @@
+/Users/jackkief/Sites/sugarwish-claude-commands/commands/logs.md
