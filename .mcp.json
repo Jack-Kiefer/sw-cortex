@@ -19,6 +19,10 @@
     "knowledge": {
       "command": "npx",
       "args": ["tsx", "src/mcp-servers/knowledge/index.ts"]
+    },
+    "n8n": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp-servers/n8n/index.ts"]
     }
   }
 }

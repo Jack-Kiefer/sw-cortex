@@ -13,7 +13,7 @@ Personal work intelligence platform for Jack. Answers questions, accesses databa
 
 ## MCP Servers
 
-This workspace has 5 MCP servers that provide tools for Claude to use:
+This workspace has 6 MCP servers that provide tools for Claude to use:
 
 | Server           | Purpose                             | Tools   |
 | ---------------- | ----------------------------------- | ------- |
@@ -22,6 +22,7 @@ This workspace has 5 MCP servers that provide tools for Claude to use:
 | **logs**         | System log search and analysis      | 4 tools |
 | **db**           | Database queries (read-only)        | 4 tools |
 | **github**       | GitHub repo access (read-only)      | 9 tools |
+| **n8n**          | Live n8n workflows (read-only)      | 4 tools |
 
 See `~/CLAUDE.md` for full MCP tool documentation (synced globally).
 
@@ -41,7 +42,8 @@ sw-cortex/
 │   │   ├── slack-search/  # Slack message search
 │   │   ├── logs/          # Log analysis
 │   │   ├── db/            # Database access
-│   │   └── github/        # GitHub access
+│   │   ├── github/        # GitHub access
+│   │   └── n8n/           # Live n8n workflows (read-only)
 │   ├── services/          # Shared backend services
 │   ├── qdrant/            # Qdrant vector DB module
 │   ├── db/                # Local SQLite schema (Drizzle)

@@ -302,6 +302,24 @@ Search and analyze sw-cortex service logs.
 | Recent errors  | `mcp__logs__get_recent_errors { limit? }`                      |
 | Log statistics | `mcp__logs__get_log_stats`                                     |
 
+### n8n Workflows (`mcp__n8n__*`)
+
+Read-only access to the **live self-hosted n8n instance** (via its REST API at
+`N8N_HOST`, e.g. `http://localhost:5678`, using `N8N_API_KEY`). Reads the actual running
+workflows and run history — always current, unlike the stale JSON exports under
+`workflows/n8n/`. No write operations (can't create/activate/execute workflows).
+
+| Need to...            | Do this                                                              |
+| --------------------- | ------------------------------------------------------------------- |
+| List workflows        | `mcp__n8n__list_workflows { active?, limit? }`                      |
+| Get one workflow JSON | `mcp__n8n__get_workflow { id }`                                     |
+| List recent runs      | `mcp__n8n__list_executions { workflowId?, status?, limit? }`        |
+| Get one run's detail  | `mcp__n8n__get_execution { id, include_data? }`                     |
+
+`list_workflows` returns summaries (`id`, `name`, `active`, `tags`); pass an `id` to
+`get_workflow` for the full node/connection JSON. `list_executions` `status` is
+`success` | `error` | `waiting`.
+
 ## Global Config Management
 
 The `global-config/` directory in `sw-cortex` contains commands, skills, and settings that sync to `~/.claude` for use across all projects.

@@ -27,6 +27,7 @@
       "mcp__logs",
       "mcp__db",
       "mcp__github",
+      "mcp__n8n",
       "mcp__slack",
       "mcp__browser",
       "mcp__browser-automation",
