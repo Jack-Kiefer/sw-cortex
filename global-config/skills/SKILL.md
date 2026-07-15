@@ -1,134 +1,148 @@
 ---
-name: research-team
-description: Standing rulebook for a research/analysis swarm — parallelize across a TEAM by default, choose the roster from what the task needs (at least 2 agents, never a fixed set), time-box every researcher, and TaskStop any that runs long. Use when running the research/plan phase of an analyze flow (or any task that means spawning a team of researchers to investigate in parallel). Repo-specific tooling/gates layer on top via that repo's analyze-extras skill.
+name: workflow-authoring
+description: How Jack wants Workflow scripts built — a large CHEAP agent fleet (haiku/sonnet at low effort) for fan-out, Opus reserved for synthesis only, pipeline-not-barrier so one slow agent never stalls the rest, and straggler-dropping so nothing hangs. Use whenever authoring a Workflow script (the analyze-command research fan-out, or any ad-hoc workflow) — it is the source of truth for model/effort choice, control-flow shape, and fleet sizing.
 disable-model-invocation: false
 ---
 
-# Research Team — parallelize the investigation, time-box every agent
+# Workflow Authoring — cheap fleet, no stalls, Opus only for synthesis
 
-Fires for the research/plan phase: when the work means investigating across several
-angles before writing a plan. The default is a **team working in parallel**, not the
-lead digging serially. The lead coordinates and synthesizes — it does NOT do the bulk
-of the digging itself.
+The point of a Workflow here is **more coverage per token**: many cheap agents doing
+the fan-out, one expensive agent doing the thinking. A naive workflow does the opposite —
+every `agent()` inherits the main-loop model (Opus), so an all-Opus fleet burns the budget
+on grunt work. These rules make cheap-fan-out / expensive-synthesis the default.
 
-> **Repo-specific layer:** this is the generic core. The repo you're in supplies its own
-> tooling, KB-gate, and roster tuning via its `*-analyze-extras` skill (e.g.
-> `serp-analyze-extras`, `wishdesk-analyze-extras`) — invoke that alongside this one when
-> the analyze command tells you to. Where this skill says "the KB"/"MCP tools" generically,
-> the extras skill names the exact tools and any hard pre-gate.
+Follow this whenever you write a Workflow script — the analyze research phase
+(`/serp-analyze`, `/swac-analyze`) or any ad-hoc workflow.
 
-## 1. Parallelize by default — at least 2 agents
+## 1. Cheap by default — Opus ONLY for synthesis
 
-- **Spawn a team, not a solo lead.** A team turns a 10-minute serial sweep into a
-  ~3-minute parallel one. Spawn all researchers **in a single message** so they run
-  concurrently.
-- **Always at least 2 researchers** — codebase-researcher (always) plus ≥1 more angle.
-  Most tasks warrant 2–4.
-- **Drop to INLINE (no team) when a team would be pure overhead** — say so in one line
-  when you do. Two cases:
-  - a trivial one-file change where you already know the exact file; OR
-  - **the lead can reach the answer faster by reading source directly** (files are
-    findable by name/grep, the angles aren't independent enough to parallelize, or
-    you'll have the full picture before researchers even spin up). A team you out-run is
-    worse than no team: the idle members add nothing and then stall teardown. If you
-    catch yourself thinking "they went idle without findings, I already got it from
-    source" — that task should have been inline. Prefer 1–2 `Explore` calls or an inline
-    sweep over a `TeamCreate` whenever the investigation is findable rather than genuinely
-    multi-angle.
-- **Cap: 4 researchers.** Past that, coordination overhead outweighs the parallelism.
-  Need more angles than 4? Widen an existing agent's brief instead of adding a body.
+`agent()` with no `model`/`effort` inherits the session model (Opus). That is the trap.
 
-## 2. Choose the roster from THIS task — never a fixed set
+- **Pass `model` AND `effort` on every researcher/verifier `agent()` call.** The ONLY
+  call that omits them (and thus inherits Opus) is the **final synthesis/judgment** agent.
+- **Model per role:**
+  - `haiku` — MCP-bound / mechanical: `describe_table`, KB search, Slack search, grep,
+    reading a known file, structured extraction. This is most of the fleet.
+  - `sonnet` — heavier reasoning or external docs: web research, tracing an unfamiliar
+    code path, cross-file synthesis of one angle.
+  - `opus` — the **one** synthesis agent that reasons over ALL findings to produce the
+    plan/answer. Give it `effort: 'high'` (or `xhigh` for the hardest calls).
+- **Effort:** researchers `effort: 'low'`. Low effort on haiku both costs less and
+  **finishes faster** — which shortens the tail (see §3). Reserve `high`/`xhigh` for
+  synthesis and any genuinely hard verify.
 
-codebase-researcher is the only fixed member. Pick the rest by what the task actually
-needs, and state in one line why each non-codebase agent earns its slot.
+## 2. Structured output, not prose, from the fleet
 
-| Researcher              | Spawn when…                                                                                                                                                                                                                                                                                                                                                                           | subagent_type / model                           | Budget |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------ |
-| **codebase-researcher** | always                                                                                                                                                                                                                                                                                                                                                                                | `Explore` (returns conclusions, not file dumps) | ~3 min |
-| **context-researcher**  | institutional history is load-bearing (cross-team decisions, ownership) — **3–5** `mcp__knowledge__search_knowledge` queries FIRST (the task terms AND adjacent topics: neighboring systems, the cross-system flow, the data source behind it), THEN `mcp__slack-search__*`; chase any new term a hit surfaces with a follow-up query, and keep searching the KB as new terms surface | `general-purpose`, `model: haiku`               | ~90s   |
-| **db-researcher**       | DB schemas / queries / migrations / data modeling across several tables (for 1–2 tables the lead runs `describe_table` itself) — `mcp__db__list_tables`/`describe_table` on the relevant tables only                                                                                                                                                                                  | `general-purpose`, `model: haiku`               | ~90s   |
-| **web-researcher**      | external libraries / third-party APIs / unfamiliar tech — never for internal plumbing the KB/codebase already covers — 2–4 `WebSearch` + 2–3 `WebFetch`                                                                                                                                                                                                                               | `general-purpose`, `model: sonnet`              | ~3 min |
+Give every researcher a `schema` (JSON Schema) so it returns a validated object, not free
+text. Then the synthesizer gets clean data (`JSON.stringify(findings)`) and spends its
+expensive Opus tokens **reasoning**, not re-extracting facts from prose. Validation retries
+happen at the tool layer, so you never hand-parse.
 
-When a task needs two angles of the same kind (two distinct subsystems to map, codebase
+## 3. Never let one slow agent hold up the rest
 
-- a separate integration surface), give a second researcher of that type its own scoped
-  brief rather than overloading one — still within the cap of 4.
+This is the rule Jack cares about most: **more parallel at once, no stalls.**
 
-## 3. Time-box every researcher — no agent runs unbounded
+- **DEFAULT TO `pipeline()`, not `parallel()`.** `parallel()` is a **barrier** — it waits
+  for the slowest member before returning, so one stuck agent stalls everything.
+  `pipeline()` has **no barrier between stages**: item A can be in stage 3 while item B is
+  still in stage 1, so a slow researcher delays only its own chain. Wall-clock = slowest
+  single item, not slowest-per-stage summed.
+- **`.catch(() => null)` every researcher thunk.** A thrown or dead agent then resolves to
+  `null` instead of rejecting — `parallel()`/`pipeline()` already turn a throw into `null`,
+  but the explicit catch documents intent and lets you drop cleanly. Always
+  `.filter(Boolean)` before synthesizing.
+- **Over-provision and drop the tail.** Spawn more small agents than you strictly need and
+  synthesize on the survivors — don't wait for every straggler. Note any dropped angle in
+  the synthesis output's Risks/gaps so nothing silently vanishes.
 
-- **Create one task per researcher** (`TaskCreate`) before/at spawn — this is what makes
-  each agent pollable via `TaskList`/`TaskGet` and stoppable via `TaskStop`.
-- **Note the spawn wall-clock** for each agent so you can tell when its budget (table
-  above) has elapsed. `Date.now()` isn't available in inline reasoning — read the clock
-  from a tool result or just track elapsed roughly.
-- **Poll, don't block.** Check `TaskList`/`TaskGet` and integrate findings as each
-  reports in; start drafting after 2–3 core reports.
-- **When a researcher blows its budget:** send ONE status ping via `SendMessage`. If it
-  still hasn't reported within ~30s of the ping, **`TaskStop` it and proceed without
-  it** — fold the missing angle into Risks & Open Questions, and run a single cheap
-  verification yourself if it's load-bearing.
-- **Overall Phase 1 budget: ~5 min wall-clock** spawn → presented analysis. Per-agent
-  budgets keep any one researcher from eating the whole window. A stopped agent with a
-  noted gap beats a stalled run — never sit idle on a wedged agent.
+**Use `parallel()` (barrier) ONLY when synthesis genuinely needs ALL findings at once** —
+e.g. dedup across the whole set, or a plan that reasons over everything together. Even
+then, keep the tail short (small cheap agents, drop stragglers). If synthesis can run
+per-item, it's a pipeline, not a barrier.
 
-## 4. Found the answer early? Shut the team down — silently, then move on
+## 4. Many small cheap agents > few fat ones
 
-If you find what you need while teammates are still out, **shut them ALL down
-immediately** and cancel obsolete tasks. Don't wait for or integrate late corroborating
-reports — skim one line for contradictions and move on. A wrong detail in a late report
-costs more time correcting than it adds.
+Splitting an angle into several small haiku agents beats one big agent: **lower variance,
+shorter tail, more coverage per token.** This is the actual "more agents, same tokens"
+mechanism — not one Opus agent doing everything serially. When an angle is broad, add
+another small agent rather than widening one.
 
-**Teardown order — `TaskStop` BEFORE `TeamDelete`:** an idle/running member blocks
-`TeamDelete`, so `TaskStop` every member first, _then_ `TeamDelete`. This is the bug that
-stalls cleanup when you skip it.
+## 5. Size the fleet (optionally to budget)
 
-**Teardown is best-effort and SILENT — it must never delay or clutter the presentation:**
+- Default to a generous cheap fleet — the old 4-agent cap was about Opus coordination
+  cost; cheap agents don't have it. 6–12 researchers is normal.
+- **Scale to a token target when Jack sets one** (a `+500k`-style directive):
+  ```js
+  const FLEET = budget.total ? Math.max(6, Math.floor(budget.total / 100_000)) : 8;
+  ```
+  Guard any budget loop on `budget.total` — with no target, `budget.remaining()` is
+  `Infinity` and a `while` loop runs to the agent cap.
 
-- Do the teardown **before** you present the analysis, not after. The approval turn ends
-  on the plan/approval block (the `presenting-analysis` skill owns this) — never on
-  cleanup narration.
-- If `TeamDelete` still won't complete (members slow to stop), **leave the idle team to be
-  reaped and move on in the SAME turn.** Idle agents consume nothing. Do NOT retry
-  `TeamDelete` in a loop, and do NOT emit status lines about it ("teammates went idle…",
-  "the team won't delete…", "I won't keep retrying…") — that chatter is exactly what
-  buries the plan. One silent attempt, then proceed regardless of the result.
+## Canonical skeleton — cheap pipeline research → one Opus synthesis
 
-## 5. Every researcher brief ends with the same hard cap
+```js
+export const meta = {
+  name: 'research-fanout',
+  description: 'Cheap parallel research over independent angles, one Opus synthesis',
+  phases: [{ title: 'Research' }, { title: 'Synthesize' }],
+};
 
-> HARD CAP: report ≤25 lines, conclusions only — no per-row tables, no raw SQL output,
-> no full schema dumps. One line per non-load-bearing fact. Only cover entities named in
-> the task. Budget: \<Ns\> — if you can't finish, report what you have and stop; the lead
-> may stop you at the deadline.
+const FINDINGS = {
+  /* JSON Schema: { angle, conclusions[], files[], risks[] } */
+};
+const REPORT = {
+  /* JSON Schema: the plan/answer object the command consumes */
+};
 
-## Search the knowledge base aggressively — broad, recurring, and FIRST
+// One entry per angle. Split a broad angle into two small agents rather than one fat one.
+const ANGLES = [
+  { key: 'codebase', prompt: '…map where X is implemented…', model: 'haiku' },
+  { key: 'schema', prompt: '…describe_table the relevant tables…', model: 'haiku' },
+  { key: 'history', prompt: '…KB + Slack for prior decisions…', model: 'haiku' },
+  { key: 'web', prompt: '…external lib/API docs…', model: 'sonnet' },
+];
 
-The SugarWish dictionary is not preloaded into context, so
-`mcp__knowledge__search_knowledge` is the lead's and every researcher's only access to
-ground-truth (systems, tables, columns, cross-system flows, owners, gotchas). The KB
-exists to catch the wrong-but-plausible inference, and the trap is usually filed under a
-topic adjacent to what you literally searched. So search a LOT, not once:
+phase('Research');
+// pipeline: each angle researches then self-verifies independently — no barrier.
+const found = (
+  await pipeline(
+    ANGLES,
+    (a) =>
+      agent(a.prompt, {
+        label: `research:${a.key}`,
+        phase: 'Research',
+        model: a.model,
+        effort: 'low',
+        schema: FINDINGS,
+      }).catch(() => null),
+    (r, a) =>
+      r &&
+      agent(
+        `Sanity-check these ${a.key} findings, flag anything unsupported:\n${JSON.stringify(r)}`,
+        {
+          label: `verify:${a.key}`,
+          phase: 'Research',
+          model: 'haiku',
+          effort: 'low',
+          schema: FINDINGS,
+        }
+      ).catch(() => r) // verify failure → keep the raw finding, don't drop
+  )
+).filter(Boolean);
 
-- **First, before reasoning.** A researcher whose brief touches any SugarWish entity runs
-  KB queries before it greps or reads. Don't reason about a table/system/flow you haven't
-  searched. (Your repo's analyze-extras skill may make this a hard pre-gate — honor it.)
-- **Broad, not literal.** Each KB search round covers the task terms PLUS adjacent
-  topics — the systems one layer up/down, the cross-system flow the change sits in, the
-  data source behind it, neighboring features sharing its tables. Vary the wording; one
-  query per distinct angle. Default to **3–5** queries, more when several systems are in play.
-- **Recurring, not one-shot.** Search again whenever a NEW term surfaces mid-research — a
-  table name a researcher reports, a system the codebase touches, a gotcha a memory hints
-  at. A ~200ms `mcp__knowledge__search_knowledge` call that corrects a framing is far
-  cheaper than building on a wrong assumption. Keep checking the whole run as the picture
-  sharpens.
-- **Chase the thread.** When a hit names something you hadn't searched, run a follow-up
-  query on it before moving on. Expand truncated hits with `get_knowledge_section` when
-  load-bearing. Searching too much is not the failure mode here; searching too little is.
+phase('Synthesize');
+// The ONE Opus call — no model/effort override means it inherits Opus; make effort explicit.
+const report = await agent(
+  `Synthesize into a plan. Note any missing angle in risks.\n${JSON.stringify(found)}`,
+  { label: 'synthesize', phase: 'Synthesize', model: 'opus', effort: 'high', schema: REPORT }
+);
+return report;
+```
 
-## Synthesis
+## When NOT to use a Workflow
 
-Compress, never re-paste — teammate reports are raw material; the presented analysis
-carries only distilled conclusions and the file:line map. Run cheap verifications
-yourself (one SQL query, one grep, one read, **one KB search on a term that just
-surfaced**) only for facts that change the recommendation — never spin up a new teammate
-or a new research round for them.
+A Workflow runs **headless start-to-finish** — it can't pause for Jack's approval or hand an
+interactive build back to the session. So use it for the **research/fan-out** phase only;
+keep present-for-approval and the interactive worktree build in the calling command. If the
+Workflow tool is unavailable in the session, fall back to the `research-team` skill (same
+cheap-fleet philosophy, Task-team primitives instead of a script).
