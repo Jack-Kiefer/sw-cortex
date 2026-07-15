@@ -368,13 +368,13 @@ one SQL statement.
    legitimately share a BOM, so a template match is NOT a mismatch (avoids false positives). If a
    `product_id` resolves to a template that has **no active BOM at all** (a raw-material or junk
    product staged as a finished good — also seen in the incident), flag it too, tagged `(product not
-   manufacturable)`.
+manufacturable)`.
 
 4. **For each flag, name the real damage** so Jack can act: report `MO <mo_id> (draft #<draft_id>):
-   bom <bom_id> builds <bom_sku> but product_id <product_id> is <product_sku>`. If time permits,
+bom <bom_id> builds <bom_sku> but product_id <product_id> is <product_sku>`. If time permits,
    add the one line of actual over-consumption from
    `SELECT pt.default_code, sm.product_uom_qty FROM stock_move sm JOIN product_product pp ON pp.id=sm.product_id
-    JOIN product_template pt ON pt.id=pp.product_tmpl_id WHERE sm.raw_material_production_id=<mo_id> AND sm.state='done'`
+ JOIN product_template pt ON pt.id=pp.product_tmpl_id WHERE sm.raw_material_production_id=<mo_id> AND sm.state='done'`
    (in `odoo`) — the wrongly-consumed RM is what actually needs reconciling.
 
 5. **Also surface silently-STUCK ops** (the same draft that carried the mismatch, #1444, ALSO had an
@@ -382,7 +382,7 @@ one SQL statement.
    MO just never happened). In the same `serp_app` pull, add a second bucket: any `odoo_sync_queue_live`
    row (ANY `entity_type`, not just MO) with `status IN ('failed','dlq')` and
    `created_at >= NOW() - INTERVAL 14 DAY`. Report each as `stuck: <entity_type> "<descr>" (draft
-   #<id>) — <first line of error_message>`. This is a distinct signal from the mismatch (a mismatch
+#<id>) — <first line of error_message>`. This is a distinct signal from the mismatch (a mismatch
    reports success; a stuck op reports failure) — surface both, they hide in the same drafts.
 
 **Bound it:** dedupe the id lists before the `IN (…)` (don't send thousands of ids), and cap the
@@ -390,13 +390,14 @@ window at 14 days for the daily run. If either DB errors or times out, note it i
 on — never block the briefing.
 
 **Return:** the `### 🧯 SERPY draft integrity` panel with up to two sub-lines:
+
 - **Mismatches** — if none, `✅ SERPY MO drafts (last 14d): all bom↔product↔sku consistent — no hidden
-  mismatches.` If any, a `🔴` header (`N mismatched MO op(s) — wrong RM likely consumed, needs
-  reconciling`) + one line per flagged MO (mo_id · draft · builds-vs-is · wrongly-consumed RM), and
+mismatches.` If any, a `🔴` header (`N mismatched MO op(s) — wrong RM likely consumed, needs
+reconciling`) + one line per flagged MO (mo_id · draft · builds-vs-is · wrongly-consumed RM), and
   the pointer "reconcile in Odoo (unbuild the MO / inventory-adjust the RM); the sync-side guard (PR
   #485) blocks new ones."
 - **Stuck ops** — if none, omit or `✅ no failed/dlq SERPY ops in 14d`. If any, `🔴 N stuck SERPY op(s)
-  never retried` + one line each (entity_type · draft · error), pointer "retry via `/api/admin/sync-queue`
+never retried` + one line each (entity_type · draft · error), pointer "retry via `/api/admin/sync-queue`
   or re-stage — failed rows are never auto-repicked."
 
 ### Step 2c — Saved-for-later chats · Wave A agent
