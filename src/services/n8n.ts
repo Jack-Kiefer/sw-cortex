@@ -131,7 +131,9 @@ export async function getExecution(id: string, includeData?: boolean): Promise<u
 
 function summarizeWorkflow(w: Record<string, unknown>): WorkflowSummary {
   const tags = Array.isArray(w.tags)
-    ? (w.tags as Array<Record<string, unknown>>).map((t) => String(t.name ?? t.id ?? '')).filter(Boolean)
+    ? (w.tags as Array<Record<string, unknown>>)
+        .map((t) => String(t.name ?? t.id ?? ''))
+        .filter(Boolean)
     : [];
   return {
     id: String(w.id ?? ''),
