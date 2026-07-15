@@ -69,7 +69,8 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    below). The sync is the **only** thing the workflow waits on.
 3. **`phase('Wave A')` — fan out the read steps with `parallel()`.** One `agent()` call each
    for **Step 0** (health-check), **Step 2** (tickets), **Step 2b** (PRs/deploy), **Step 2c**
-   (saved-for-later chats), **Step 3** (KB touch-up), **Step 5** (Claude-setup diagnostic). Each
+   (saved-for-later chats), **Step 2d** (SERPY draft integrity), **Step 3** (KB touch-up), **Step 5**
+   (Claude-setup diagnostic). Each
    agent's prompt **is the step body below**;
    each must `return` exactly the compact result block that step specifies — give each a `schema`
    (or a tight "return only this panel" instruction) so the returns come back clean. These have no
@@ -311,6 +312,92 @@ lint/tests here** — the readiness gate is `/pending-deploy SERP`'s job; this i
 pointer to it. If `AHEAD = 0` and `BEHIND = 0`, say "in sync — nothing pending."
 
 **Return:** the PR line(s) + the one-line deploy status.
+
+### Step 2d — SERPY draft integrity (bom↔product↔sku mismatch) · Wave A agent
+
+> **Workflow-agent contract.** One `agent()` in `phase('Wave A')`'s `parallel()`. **Fully
+> read-only** (`mcp__db__*` SELECTs against `serp_app` + `odoo` only — never writes). Returns the
+> rendered `### 🧯 SERPY draft integrity` panel and nothing else.
+
+A silent-data-loss check born from a real incident (2026-07-15, draft #1444): SERPY staged a
+manufacturing-order op whose identity fields **disagreed with each other** — `product_id`, the
+`bom_id`, and the free-text SKU each pointed at a **different** product. Odoo builds an MO's
+finished good from `product_id` but its **raw-component moves from `bom_id`**, so it made one
+product while **consuming another product's raw material** — draining RM-21-074-A by 512 units.
+The sync reported success, so nothing surfaced it for weeks; it only came out when the wrongly-
+drained RM read low after a receipt. PR #485 added a **worker-side preflight** (`_assert_bom_matches_product`
+in `workers/handlers/manufacturing.py`) that now BLOCKS this at sync time — but this Step is the
+**detective control**: it re-scans what already shipped (older ops, and any op the guard couldn't
+catch) so a hidden mismatch can't sit unnoticed.
+
+**The check — a recent SERPY MO op is BAD when its `bom_id`'s finished product_template ≠ its
+`product_id`'s product_template.** The op payloads live in `serp_app` (MySQL); the product/BOM
+identity lives in `odoo` (Postgres) — so this is a two-query cross-DB join done in the agent, not
+one SQL statement.
+
+1. **Pull recent SERPY MO ops** from `serp_app` (last ~14 days is enough for a daily run; widen on
+   demand). Query with `mcp__db__query_database { database: "serp_app", query: … }`:
+
+   ```sql
+   SELECT id AS queue_id, odoo_id AS mo_id, status, created_at,
+     CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.bom_id'))     AS UNSIGNED) AS bom_id,
+     CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.product_id')) AS UNSIGNED) AS product_id,
+     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.draft_id'))    AS draft_id,
+     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.description'))  AS descr
+   FROM odoo_sync_queue_live
+   WHERE entity_type='mrp_production' AND operation='create'
+     AND status IN ('synced','partial')
+     AND JSON_EXTRACT(payload,'$.bom_id') IS NOT NULL
+     AND created_at >= (NOW() - INTERVAL 14 DAY)
+   ORDER BY created_at DESC;
+   ```
+
+2. **Resolve every distinct `bom_id` and `product_id` to its `product_tmpl_id`** in one round-trip
+   each against `odoo` (dedupe the id lists first — usually a few dozen):
+
+   ```sql
+   -- BOM → finished template
+   SELECT id AS bom_id, product_tmpl_id FROM mrp_bom WHERE id IN (<distinct bom_ids>);
+   -- product → template
+   SELECT id AS product_id, product_tmpl_id FROM product_product WHERE id IN (<distinct product_ids>);
+   ```
+
+3. **Flag any op where `bom.product_tmpl_id != product.product_tmpl_id`.** That is the exact defect
+   (the MO's BOM builds a different product than its finished-good id). **Compare at the
+   product_TEMPLATE level, not the variant/product_id level** — two variants of one template can
+   legitimately share a BOM, so a template match is NOT a mismatch (avoids false positives). If a
+   `product_id` resolves to a template that has **no active BOM at all** (a raw-material or junk
+   product staged as a finished good — also seen in the incident), flag it too, tagged `(product not
+   manufacturable)`.
+
+4. **For each flag, name the real damage** so Jack can act: report `MO <mo_id> (draft #<draft_id>):
+   bom <bom_id> builds <bom_sku> but product_id <product_id> is <product_sku>`. If time permits,
+   add the one line of actual over-consumption from
+   `SELECT pt.default_code, sm.product_uom_qty FROM stock_move sm JOIN product_product pp ON pp.id=sm.product_id
+    JOIN product_template pt ON pt.id=pp.product_tmpl_id WHERE sm.raw_material_production_id=<mo_id> AND sm.state='done'`
+   (in `odoo`) — the wrongly-consumed RM is what actually needs reconciling.
+
+5. **Also surface silently-STUCK ops** (the same draft that carried the mismatch, #1444, ALSO had an
+   op that hard-**failed** and was never retried — `failed` rows are never auto-repicked, so a needed
+   MO just never happened). In the same `serp_app` pull, add a second bucket: any `odoo_sync_queue_live`
+   row (ANY `entity_type`, not just MO) with `status IN ('failed','dlq')` and
+   `created_at >= NOW() - INTERVAL 14 DAY`. Report each as `stuck: <entity_type> "<descr>" (draft
+   #<id>) — <first line of error_message>`. This is a distinct signal from the mismatch (a mismatch
+   reports success; a stuck op reports failure) — surface both, they hide in the same drafts.
+
+**Bound it:** dedupe the id lists before the `IN (…)` (don't send thousands of ids), and cap the
+window at 14 days for the daily run. If either DB errors or times out, note it in the panel and move
+on — never block the briefing.
+
+**Return:** the `### 🧯 SERPY draft integrity` panel with up to two sub-lines:
+- **Mismatches** — if none, `✅ SERPY MO drafts (last 14d): all bom↔product↔sku consistent — no hidden
+  mismatches.` If any, a `🔴` header (`N mismatched MO op(s) — wrong RM likely consumed, needs
+  reconciling`) + one line per flagged MO (mo_id · draft · builds-vs-is · wrongly-consumed RM), and
+  the pointer "reconcile in Odoo (unbuild the MO / inventory-adjust the RM); the sync-side guard (PR
+  #485) blocks new ones."
+- **Stuck ops** — if none, omit or `✅ no failed/dlq SERPY ops in 14d`. If any, `🔴 N stuck SERPY op(s)
+  never retried` + one line each (entity_type · draft · error), pointer "retry via `/api/admin/sync-queue`
+  or re-stage — failed rows are never auto-repicked."
 
 ### Step 2c — Saved-for-later chats · Wave A agent
 
@@ -668,6 +755,10 @@ not just what was recommended — and list anything deferred under "needs Jack":
 ### 🚀 Deploy & PRs (SERP)
 - dev is <N> commits ahead of main → `/pending-deploy SERP` to review + gate  (or "in sync")
 - #<num> · <title> · (yours / review requested)   — open PRs awaiting you, or "no open PRs"
+
+### 🧯 SERPY draft integrity
+- ✅ SERPY MO drafts (last 14d): all bom↔product↔sku consistent  (or "🔴 <N> mismatched MO op(s):")
+- 🔴 MO <mo_id> (draft #<id>): bom builds <sku_a> but product is <sku_b> — wrongly consumed <RM ×qty>; reconcile in Odoo
 
 ### 🗂️ Saved for later
 - <title> · <repo> · `<branch>` · <age> — next: <one-line next step>   (`/resume-later` to pick up)
