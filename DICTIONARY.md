@@ -412,7 +412,7 @@ Three id buckets on every `serp_*` table holding both Odoo and SERP rows:
 - **`serp_mrp_bom`** — `type` ENUM(`normal`,`phantom`) (no third value). In replica/`manage`: frozen April-2026 snapshot, **~224–228 phantom rows only, `odoo_id` NULL**, no normal BOMs/MOs (those live in darklaunch). Excluded from comparisons (`KNOWN_FILTERED_TABLES` filters `mrp_bom` to `active=true AND type!='phantom'`).
 - **`serp_account_move_line`** — filter `display_type='product'` for real goods; `is_anglo_saxon_line` = system COGS (not manual).
 - **`serp_res_company`** — exactly 1 row, id=1 (odoo_id=1). `company_id` always 1.
-- `serp_product_supplierinfo` — dual local FKs + parallel Odoo FKs (`odoo_partner_id`, `odoo_product_id`); `delay`=lead-time days. `components.inventory_source` enum `'odoo'`/`'serp'` = per-component darklaunch switch (only **3 of 2524** are `'serp'` in prod darklaunch). `components.odoo_id` is **varchar** and synthetic.
+- `serp_product_supplierinfo` — dual local FKs + parallel Odoo FKs (`odoo_partner_id`, `odoo_product_id`); `delay`=lead-time days. `components.inventory_source` enum `'odoo'`/`'serp'` = per-component darklaunch switch (only **3 of 2,526** are `'serp'` in live `serp_test` as of 2026-07-17 — ids 2578/2579/2580, MiiR white drinkware, which have **zero `component_orders` rows**; the switch does NOT propagate to `component_orders`, which is 100% `'odoo'` — see the `component_orders` entry). `components.odoo_id` is **varchar** and synthetic.
 
 ---
 
@@ -1728,7 +1728,13 @@ Order line items. `order_type` enum(`receiver-order`/`preselect-order`/`sweet-sh
 
 #### `component_orders` (~682K-2.26M)
 
-Order-time exploded BOM (NOT static recipe). `order_id`→`ec_order.order_id`, `order_type` enum(`receiver-order`/`preselect-order`/`merchandise`; prod live has only first two; `manage` has all three), `inventory_source` enum(`odoo`/`serp`), `component_id`, `component_sku`/`component_name` (denormalized), `quantity`, `location_id`, `accessory_images_id`.
+Order-time exploded BOM (NOT static recipe). `order_id`→`ec_order.order_id`, `order_type` enum(`receiver-order`/`preselect-order`/`merchandise`), `inventory_source` enum(`odoo`/`serp`), `component_id`, `component_sku`/`component_name` (denormalized), `quantity`, `location_id`, `accessory_images_id`.
+
+⚠️ **`inventory_source='serp'` is DEAD DATA here — assume `component_orders` is 100% `'odoo'` and write queries accordingly.** Measured in live `serp_test` 2026-07-17: **73,342 rows, ALL `'odoo'`, ZERO `'serp'`** — including all 188 `merchandise` rows. This is by design, not a gap: the only writer that ever produced `inventory_source='serp'` lines was the merchandise `order_queue_worker.py`, which was **default-disabled its whole life and DELETED in PR #316 (2026-07-01)** — so nothing has written a `'serp'` row and nothing will until merchandise-through-SERP is re-wired. Consequences:
+
+- **A `WHERE inventory_source='serp'` filter on this table returns 0 rows** — if a query/report/worker depends on one, it is silently dead code, not a working filter.
+- **Don't infer the merchandise pipeline is live from the presence of `order_type='merchandise'` rows.** 188 exist (2026-06-18→07-16) but they are `'odoo'`-sourced; the SERP merchandise path documented in "Two SERP Order Pipelines" is still unwired.
+- **`components.inventory_source` does NOT propagate to `component_orders`.** The 3 `'serp'` components (ids 2578/2579/2580, MiiR white drinkware — of 2,526 total) have **zero** `component_orders` rows in either source value. The two columns are independent switches; flipping a component does not retag its order lines, and a component being `'serp'` implies nothing about its orders existing.
 
 ### Product Catalog (two-sided)
 
