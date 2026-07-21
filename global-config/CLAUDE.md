@@ -116,6 +116,7 @@ WW-### tickets are dev-request **`.md` files in the `jasonbkiefer/SWIRL` repo** 
 | `/sync-meetings [all\|since=]` | Pull Gemini meeting notes from Drive → index to Qdrant |
 | `/refresh-knowledge`           | Update the knowledge base docs                         |
 | `/draft-slack [context]`       | Draft a Slack message                                  |
+| `/remind [what] [when]`        | Set a Slack reminder (snooze/delete buttons); list/delete |
 | `/shutdown [repo]`             | Remove all worktrees not in use (writable repos)       |
 | `/ww [description]`            | WishDesk work helper                                   |
 | `/tab-title [name]`            | Set/clear this terminal tab title                      |
