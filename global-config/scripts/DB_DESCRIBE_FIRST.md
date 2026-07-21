@@ -10,11 +10,11 @@ CLAUDE.md's "HARD GATE before the FIRST query."
 
 ## How it works — two hooks + a marker file
 
-| Script | Hook | Job |
-| --- | --- | --- |
-| `db-record-described.sh` | **PostToolUse** on `mcp__db__describe_table` / `list_tables` / `mcp__knowledge__search_knowledge` | Records each looked-up table into `~/.claude/db-described/<session_id>` (one normalized token per line; `list_tables` writes a blanket `*`). |
-| `db-describe-first-guard.sh` | **PreToolUse** on `mcp__db__query_database` | Extracts the query's base tables (via `db-extract-tables.py`), and **denies** if any *gated* table wasn't recorded this session — the deny message names the table(s). |
-| `db-extract-tables.py` | (helper) | Pulls base tables from SQL: `FROM`/`JOIN`/`UPDATE`/`INTO`, minus CTE names, `serp_`-normalized, `information_schema`/`pg_catalog` excluded. Standalone file so no backtick-python nests inside a bash `$(...)`. |
+| Script                       | Hook                                                                                              | Job                                                                                                                                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `db-record-described.sh`     | **PostToolUse** on `mcp__db__describe_table` / `list_tables` / `mcp__knowledge__search_knowledge` | Records each looked-up table into `~/.claude/db-described/<session_id>` (one normalized token per line; `list_tables` writes a blanket `*`).                                                                    |
+| `db-describe-first-guard.sh` | **PreToolUse** on `mcp__db__query_database`                                                       | Extracts the query's base tables (via `db-extract-tables.py`), and **denies** if any _gated_ table wasn't recorded this session — the deny message names the table(s).                                          |
+| `db-extract-tables.py`       | (helper)                                                                                          | Pulls base tables from SQL: `FROM`/`JOIN`/`UPDATE`/`INTO`, minus CTE names, `serp_`-normalized, `information_schema`/`pg_catalog` excluded. Standalone file so no backtick-python nests inside a bash `$(...)`. |
 
 The marker is cleaned up by the existing **SessionEnd** hook (extended to `rm -f` the
 `db-described/<sid>` file alongside the tab-title files).
@@ -31,7 +31,7 @@ exact table and tells you to `describe_table` it, then re-issue — which is the
 
 - **`local` DB** — the dev sqlite/Docker DB (your own schema; no institutional-knowledge trap).
 - **Trivial queries** — no `FROM`/`JOIN` (`SELECT 1`, `SELECT NOW()`, `SHOW …`).
-- **`information_schema` / `pg_catalog`** — those *are* the schema lookup.
+- **`information_schema` / `pg_catalog`** — those _are_ the schema lookup.
 - **CTE names** — `WITH x AS (…)` `x` is not a real table.
 - **`query_database_from_file`** — curated SQL on disk, not the ad-hoc guess queries (blind spot:
   the SQL isn't in the tool input, so it's exempted rather than read off disk).

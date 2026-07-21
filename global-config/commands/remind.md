@@ -33,15 +33,19 @@ You are running in the **sw-cortex hub**. The reminders live in the local SQLite
 ### 1. Figure out the sub-action
 
 - **`list`** (input is exactly `list`) → run:
+
   ```bash
   npx tsx scripts/manage-reminders.ts list
   ```
+
   Print the returned list. Done.
 
 - **`delete <id>`** (input starts with `delete` followed by a number) → run:
+
   ```bash
   npx tsx scripts/manage-reminders.ts delete <id>
   ```
+
   Confirm what was deleted. If they said "delete" with no id, run `list` first, show the reminders, and ask which id.
 
 - **Otherwise it's a new reminder** → go to step 2.
@@ -49,6 +53,7 @@ You are running in the **sw-cortex hub**. The reminders live in the local SQLite
 ### 2. Split the input into a message and a time
 
 Parse `$ARGUMENTS` into:
+
 - **`<what>`** — the thing to be reminded about (strip a leading "remind me to", "remind me", "to", etc. if present).
 - **`<when>`** — the time phrase. Look for a trailing `in <duration>`, `at <time>`, `tomorrow…`, `next <day>…`, a bare duration like `30m`/`2h`/`1d`, or an ISO date. Keep the natural phrase intact (e.g. pass `tomorrow at 3pm`, not a converted timestamp) — the script's parser handles it.
 

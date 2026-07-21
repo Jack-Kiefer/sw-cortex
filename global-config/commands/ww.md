@@ -1491,19 +1491,24 @@ Based on the type and track, collect these fields conversationally. Ask for the 
 
 - `estimate` — hours (e.g., `4h`, `8h`). Max 8h per ticket — if over 8h, must be broken into child tickets. Required for stories, tasks, AND bugs on these three tracks.
 - `priority` — Critical, High, Medium, or Low. Required for **stories and tasks** on these tracks. (**Bugs** collect priority via the "Bugs also need" rule above — bug scale Critical/High/Medium, defaulted from urgency — so don't prompt for priority twice on a Laravel/React/Shipping bug.)
-- `component` / `sub_component` — **Laravel only.** Direct the developer to review the component matrix at https://desk2.sugarwish.com/component-matrix/ and ask them to provide the **sub-component** that best fits their ticket (e.g., "buyer orders", "gift cards", "proposals"). Match their answer against the sub-components in `wishworks/_config/component-matrix.json` to fill in both the `component` (parent) and `sub_component` fields. If no match, ask them to clarify or leave blank. **React Receiver and Shipping Labels have no component taxonomy — skip this question and leave both fields blank.**
+- `component` — **Laravel only, REQUIRED — never blank, on every type (bug/story/task).** Ask the developer to describe the work area for their ticket (e.g., "cart / checkout", "buyer flow", "PCS2", "gift card management") — point them to the component matrix at https://desk2.sugarwish.com/component-matrix/ if they want to browse it. `wishworks/_config/component-matrix.json`'s `laravel` section is **two-level**: a **category name** (e.g. "Buyer Flows & Checkout", "Receivers", "Technology") containing an array of entries, where each entry's `component` field is the real **leaf value** (e.g. "cart / checkout", "PCS2"). Match their answer against the **leaf values** — never the category names.
+  - **Write ONLY the matched leaf value to the ticket's `component` field. Never write a category name to `component`** — a category is a grouping header, not a real value. (This exact swap — category into `component`, leaf into `sub_component` — is a known production bug; 8 tickets had to be corrected on 2026-07-13.) **`sub_component` is unused — always leave it `""`, never populate it,** no matter what matches.
+  - Clear single match → confirm and use it. Multiple plausible leaves → list them and ask the developer to pick, don't guess.
+  - **Never surface a `Technology`-category leaf as a candidate for something a customer directly sees or experiences** (email/SMS wording, content, or timing; UI text; pricing display; etc.) **unless the developer's own description contains actual infrastructure/deliverability symptoms** (spam folder, sender reputation, SPF/DKIM/DMARC, bounce/mass-bounce, provider errors like SES/Twilio, queueing/delivery-confirmation failures). Read each candidate's own `description` field before offering it — several `Technology` entries explicitly state what they are NOT (e.g. "Email & Communication Systems" is infrastructure/deliverability only and explicitly excludes "a specific transactional email template," which lives under its own client-facing Laravel component instead, like "buyer order emails" or "recipient emails"). A candidate whose description rules out the reported scenario must not be offered at all — not even as a second option. This isn't just about picking the right leaf: a client-facing issue mis-filed under `Technology` would also silently skip Ellen's UAT review (T-250), since Technology is entirely No-review there.
+  - **Genuine no-match: do NOT leave blank** (required field, no exceptions). Offer the named fallback **"Other Dev Support"** (under the "Technology" category) and have them explicitly accept it first: _"That doesn't match a specific area — should I file this under 'Other Dev Support'?"_ Never auto-pick this fallback silently.
+  - **React Receiver and Shipping Labels have no component taxonomy — skip this question entirely and leave both `component` and `sub_component` blank** (unchanged for these two tracks).
 
 **Step 3: Auto-detect component**
 
-- **Wishdesk:** Fetch `wishworks/_config/component-matrix.json` and try to match the description/title to a Wishdesk component (including `WishWorks` for work on the WishWorks UI at `/admin/wishworks`). If a match is found, set `component` and tell the developer. If no match, leave blank.
-- **Laravel:** Already collected in Step 2 — the developer provides a sub-component and it's matched against the component matrix. Skip this step for Laravel.
+- **Wishdesk:** Fetch `wishworks/_config/component-matrix.json` and try to match the description/title to a Wishdesk component (including `WishWorks` for work on the WishWorks UI at `/admin/wishworks`). If a match is found, set `component` and tell the developer. If no match, leave blank for now — **`component` is REQUIRED on Wishdesk, never blank on creation** (added 2026-07-16, after Wishdesk components joined the UAT-review trigger list), but resolving a miss happens at Step 6's confirmation, not here — see Step 6.
+- **Laravel:** Already collected in Step 2 as a required field — the developer's work-area answer is matched against the `laravel` section's **leaf values** (never category names), with "Other Dev Support" as the explicit accept-only fallback on no match. Skip this step for Laravel — nothing left to auto-detect.
 - **WishBot / Retool:** Fetch `wishworks/_config/component-matrix.json` → respective track section. Each currently has a single entry (`wishbot` → `component: "WishBot"`, `retool` → `component: "Retool"`) — auto-fill `component` from that entry, leave `sub_component` blank. The single-component placeholder is conceptually redundant (component name = track name) — see T-084 which will expand the wishbot section into multiple meaningful components like Intake, PR Events, etc.; same data-model concern applies to retool.
 - **React Receiver / Shipping Labels:** No matrix entries for these tracks — leave `component` and `sub_component` blank.
 - **Swirl Bot:** No component matrix entries. Leave `component` and `sub_component` blank.
 
 **Step 4: Set starting status and folder**
 
-All tickets (every track) start at `backlog` in `active/`. Laravel, React Receiver, and Shipping Labels tickets still collect estimate and priority at creation (Laravel also collects component) — set those fields in frontmatter from the values collected in Step 2. **Every bug ticket (any track) also has `priority` set at creation** from the bug-priority rule in Step 2 — never write a bug with an empty `priority`.
+All tickets (every track) start at `backlog` in `active/`. Laravel, React Receiver, and Shipping Labels tickets still collect estimate and priority at creation (Laravel also **requires** component — never blank, see Step 2) — set those fields in frontmatter from the values collected in Step 2. **Every bug ticket (any track) also has `priority` set at creation** from the bug-priority rule in Step 2 — never write a bug with an empty `priority`.
 
 **Step 5: Build the ticket file**
 
@@ -1552,6 +1557,8 @@ Is this the same issue as any of these? (yes/no)
 8. If no duplicates found → proceed silently (don't mention it)
 
 **Step 6: Confirm with the developer**
+
+**Wishdesk component gate (added 2026-07-16) — resolved HERE, not as a separate upfront question.** `component` is a hard requirement on every Wishdesk ticket (bug/story/task), same as Laravel — but to avoid slowing Wishdesk developers down with an extra question on every ticket, it's enforced inline in this confirmation step instead of its own dedicated prompt: if Step 3's auto-detect already found a match, show it in the summary below as normal — no extra step, no added friction. If Step 3 left `component` blank, do NOT show "Ready to create" yet — first ask the developer to describe the work area (same style as Laravel's Step 2 question: e.g. "cart / checkout"-style phrasing but matched against the `wishdesk` section's flat component list), match against the leaf `subCategory` values, and offer **"Other Dev Support"** as the explicit accept-only fallback on a genuine no-match (same pattern as Laravel's Step 2 fallback — never auto-pick it silently). Only once `component` is resolved does the summary below get shown. Never create a Wishdesk ticket with `component` blank.
 
 Show a summary of the ticket before creating. Do NOT fetch the counter yet — the ticket number is not known at this point. Use "WW-???" as a placeholder.
 
@@ -2494,7 +2501,7 @@ When a developer says something like "log 3 hours on WW-003" or "log 2h on WW-04
 **Step 2: Validate**
 
 1. Fetch the ticket and verify it exists and is not `archived`
-2. Verify the ticket is assigned to the developer — resolve BOTH `git config user.name` AND the ticket's `assignee` field through the `Assign Rules` resolution algorithm to their canonical full `Name`s, then compare. Resolving both sides absorbs the case where `assignee` is still in old first-name form (assignee frontmatter has not yet been backfilled — see T-131 fallout checklist).
+2. Resolve BOTH `git config user.name` AND the ticket's `assignee` field through the `Assign Rules` resolution algorithm to their canonical full `Name`s. **This is no longer a gate on logging** — any developer can log time on any non-archived ticket regardless of who (if anyone) it's assigned to; other developers legitimately help out on tickets they don't own. You need both resolved names further down (Step 4/5) to decide whether to auto-assign or offer a reassignment. Resolving both sides now also absorbs the case where `assignee` is still in old first-name form (assignee frontmatter has not yet been backfilled — see T-131 fallout checklist).
 3. Hours: minimum 0.25h, maximum 24h per entry. **Must be in 15-minute (0.25h) increments** — valid values are 0.25, 0.5, 0.75, 1.0, 1.25, etc. If the developer enters a non-standard value (e.g., 0.67h), **round up** to the nearest 0.25h increment and tell them: "Rounded 0.67h up to 0.75h (time is tracked in 15-minute increments)." If below 0.25h, round up to 0.25h and tell them: "Rounded up to 0.25h (15 min minimum)." Always proceed with the rounded value — don't block or ask for confirmation.
 4. If hours > 8 in a single entry: ask "That's over 8 hours — did you mean to split this across multiple days?"
 5. **Date restrictions:**
@@ -2515,10 +2522,17 @@ Write to the ticket FIRST (source of truth — has the context and description),
 
 **Each log is its own row** — never merge, consolidate, or edit an existing row when adding new time. If the same developer logs multiple times on the same date, each log gets its own row on both the ticket and the ledger. Separate rows preserve the audit trail, keep descriptions clean, and make individual sessions editable/deletable.
 
+**Auto-assign is folded into this same ticket write when the ticket is unassigned — never a separate API call:**
+
+- If the ticket's `assignee` (resolved in Step 2) is **blank**: before writing, also apply `content = update_frontmatter(content, {"assignee": developer})` and add the auto-assignment history line (below), so the assignment and the time log land in the same PUT.
+- If `assignee` is set to **someone else**: do NOT touch it here. Write only the time log in this step — a possible reassignment is a separate, later write, only after the developer answers the Step 5 follow-up question (you don't yet know the answer).
+- If `assignee` already matches the logger: no assignment handling needed at all.
+
 **IMPORTANT:** Use the Standard Ticket Helpers for ALL ticket writes. Include the helpers in your Python heredoc and use:
 
 - `content = time_log_row(content, "add", developer=..., date=..., hours=..., description=...)` to append a new time log row (always appends, never merges)
 - `content = append_history(content, f"- {now} — Logged {hours}h (by {developer} via Claude CLI)")` to add the history entry
+- **Only if auto-assigning (blank-assignee case):** also call `content = append_history(content, f"- {now} — Auto-assigned to {developer} (logged time on unassigned ticket) (via Claude CLI)")` — add this line BEFORE the "Logged {hours}h" line (so History reads top-to-bottom as "assigned, then logged"), and apply the `update_frontmatter()` assignee change above in the same `content` before the PUT.
 
 **The `developer` argument MUST be the canonical full `Name` from team.md** (e.g., `"Bilal Ahmed"`, `"Anna Kifer"`) — NOT the first-name truncation (`"Bilal"`, `"Anna"`). This is the value resolved in Step 1 (or re-resolved here if you don't have it). Writing the first-name form here breaks the daily reconciliation diff key and forces a follow-up auto-fix run to rewrite the cell. See T-133 for why.
 
@@ -2554,11 +2568,15 @@ Then append a new row:
 
 **Error handling for partial success:** If the ticket write succeeded but the ledger write fails after all retries, tell the developer: "Logged {hours}h on {ticket_id} for {date}. The ticket is updated but the monthly report didn't sync — the daily reconciliation will fix this automatically."
 
-**Step 5: Confirm**
+**Step 5: Handle assignment, then confirm**
 
-If both writes succeed: `Logged {hours}h on {ticket_id} for {date}. Updated ticket and monthly report.`
+Behavior depends on the `assignee` state resolved in Step 2:
 
-Add a history entry to the ticket: `- YYYY-MM-DD HH:mm — Logged {hours}h (by {developer} via Claude CLI)`
+- **Assignee was blank** (already auto-assigned + logged together in Step 4 — single write, no extra API call): confirm both in one line: `Logged {hours}h on {ticket_id} for {date}. Assigned to you (was unassigned).`
+- **Assignee is set to someone else:** confirm the log first — it already succeeded and is never blocked by this: `Logged {hours}h on {ticket_id} for {date}.` Then, as a **separate follow-up question**, ask: `{ticket_id} is currently assigned to {other_name} — want me to reassign it to you?`
+  - **Yes** → fetch the ticket fresh (new SHA from the Step 4 write), apply `content = update_frontmatter(content, {"assignee": developer})`, add the history line `- {now} — Reassigned from {other_name} to {developer} (via Claude CLI)`, then PUT (same SHA-conflict retry pattern, up to 3 attempts). Confirm: `Reassigned {ticket_id} to you.`
+  - **No** → no further write. The earlier log confirmation already covered it — nothing more to say.
+- **Assignee already matches the logger:** no assignment step at all — just the standard confirmation: `Logged {hours}h on {ticket_id} for {date}. Updated ticket and monthly report.`
 
 ### Editing a Time Entry
 

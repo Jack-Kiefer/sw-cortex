@@ -9,9 +9,7 @@ import { parseNaturalDate } from './date-parser.js';
 
 // Parse a duration string like "30m", "2h", "1d" into milliseconds.
 export function parseDuration(duration: string): number {
-  const match = duration
-    .trim()
-    .match(/^(\d+)\s*(m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)$/i);
+  const match = duration.trim().match(/^(\d+)\s*(m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)$/i);
   if (!match) throw new Error(`Invalid duration: ${duration}`);
 
   const value = parseInt(match[1], 10);
