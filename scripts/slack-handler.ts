@@ -23,18 +23,24 @@ const log = createLogger('slack-handler');
 // Initialize database
 initDb();
 
+// The reminder bot is Jack Bot (its own Socket-Mode Slack app), NOT SERPY.
+// REMINDER_BOT_TOKEN wins if set; otherwise fall back to JACK_SLACK_BOT_TOKEN.
+const reminderBotToken = process.env.REMINDER_BOT_TOKEN || process.env.JACK_SLACK_BOT_TOKEN;
+
 // Validate required env vars
-const requiredEnvVars = ['SLACK_BOT_TOKEN', 'SLACK_SIGNING_SECRET', 'SLACK_APP_TOKEN'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    log.error(`${envVar} not set`);
-    process.exit(1);
-  }
+if (!reminderBotToken) {
+  log.error('REMINDER_BOT_TOKEN / JACK_SLACK_BOT_TOKEN not set');
+  process.exit(1);
+}
+if (!process.env.SLACK_APP_TOKEN) {
+  log.error('SLACK_APP_TOKEN not set - needed for Socket Mode');
+  process.exit(1);
 }
 
-// Initialize Bolt app with Socket Mode
+// Initialize Bolt app with Socket Mode. signingSecret is only used for HTTP
+// request verification (unused in Socket Mode) — passed through if present.
 const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
+  token: reminderBotToken,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   socketMode: true,
   appToken: process.env.SLACK_APP_TOKEN,

@@ -21,11 +21,14 @@ const log = createLogger('reminders');
 // Initialize
 initDb();
 
-const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
+// The reminder bot is Jack Bot (its own Socket-Mode Slack app), NOT SERPY.
+// REMINDER_BOT_TOKEN wins if set; otherwise fall back to JACK_SLACK_BOT_TOKEN.
+const reminderBotToken = process.env.REMINDER_BOT_TOKEN || process.env.JACK_SLACK_BOT_TOKEN;
+const slack = new WebClient(reminderBotToken);
 const slackUserId = process.env.SLACK_USER_ID;
 
-if (!process.env.SLACK_BOT_TOKEN) {
-  log.error('SLACK_BOT_TOKEN not set');
+if (!reminderBotToken) {
+  log.error('REMINDER_BOT_TOKEN / JACK_SLACK_BOT_TOKEN not set');
   process.exit(1);
 }
 
