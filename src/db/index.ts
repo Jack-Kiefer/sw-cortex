@@ -32,7 +32,22 @@ export function closeDb(): void {
   sqlite.close();
 }
 
-// Initialize database
+// Initialize database — create the reminders table if it doesn't exist yet.
 export function initDb(): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message TEXT NOT NULL,
+      remind_at INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      slack_channel TEXT,
+      snoozed_until INTEGER,
+      sent_at INTEGER,
+      created_at INTEGER NOT NULL,
+      slack_message_ts TEXT,
+      interacted INTEGER DEFAULT 0,
+      last_reminded_at INTEGER
+    );
+  `);
   console.log('Database initialized at:', DB_PATH);
 }
