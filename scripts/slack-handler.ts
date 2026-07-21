@@ -24,16 +24,18 @@ const log = createLogger('slack-handler');
 initDb();
 
 // The reminder bot is Jack Bot (its own Socket-Mode Slack app), NOT SERPY.
-// REMINDER_BOT_TOKEN wins if set; otherwise fall back to JACK_SLACK_BOT_TOKEN.
+// Both tokens must be Jack Bot's: the bot token (xoxb) and its OWN app-level
+// token (xapp). REMINDER_* wins; fall back to JACK_SLACK_BOT_TOKEN for the bot.
 const reminderBotToken = process.env.REMINDER_BOT_TOKEN || process.env.JACK_SLACK_BOT_TOKEN;
+const reminderAppToken = process.env.REMINDER_APP_TOKEN;
 
 // Validate required env vars
 if (!reminderBotToken) {
   log.error('REMINDER_BOT_TOKEN / JACK_SLACK_BOT_TOKEN not set');
   process.exit(1);
 }
-if (!process.env.SLACK_APP_TOKEN) {
-  log.error('SLACK_APP_TOKEN not set - needed for Socket Mode');
+if (!reminderAppToken) {
+  log.error('REMINDER_APP_TOKEN not set - Jack Bot app-level token needed for Socket Mode');
   process.exit(1);
 }
 
@@ -43,7 +45,7 @@ const app = new App({
   token: reminderBotToken,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   socketMode: true,
-  appToken: process.env.SLACK_APP_TOKEN,
+  appToken: reminderAppToken,
 });
 
 // Helper to extract action details from body

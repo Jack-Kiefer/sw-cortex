@@ -191,8 +191,21 @@ Run these eight checks:
      the bound (e.g. "Docker daemon didn't come ready in ~60s — open Docker Desktop manually" or
      "`serp-mysql` failed to start — check `docker compose -f SERP/docker-compose.yml logs serp-mysql`").
      Keep the daemon-boot wait bounded so a stuck Docker can't stall the morning routine — on timeout,
-     ⚠️ and move on. This is the ONLY Step 0 item permitted to start anything; everything else stays
-     report-only.
+     ⚠️ and move on.
+
+9. **Reminder services up (auto-start if down).** The `/remind` feature has two **local** background
+   processes on this Mac (they stop when the Mac is off, so each morning they must be turned back on):
+   the **Socket Mode button handler** (`scripts/slack-handler.ts` — makes the snooze/done/delete
+   buttons work) and the **every-minute checker loop** (runs `scripts/check-reminders.ts` every 60s to
+   fire due reminders). Both DM via **Jack Bot** (its own Slack app — `JACK_SLACK_BOT_TOKEN` +
+   `REMINDER_APP_TOKEN`, NOT SERPY). Like the Docker check, this one is **allowed to start things**:
+   run the idempotent helper — `bash /Users/jackkief/Desktop/Projects/sw-cortex/scripts/reminders-up.sh`
+   — which only starts whatever isn't already running (it `pgrep`s for `slack-handler.ts` and
+   `reminders-loop` first). ✅ `reminders: handler + checker up` if both were already running; `🔧
+started reminders: <what>` if it booted them; ⚠️ with the script's stderr if it failed (remedy:
+   "check `REMINDER_APP_TOKEN`/`JACK_SLACK_BOT_TOKEN` in `.env` and `/tmp/sw-cortex-slack-handler.log`").
+   These two + the Docker check (#8) are the only Step 0 items permitted to start anything; everything
+   else stays report-only.
 
 **Return:** the rendered `### 🩺 Setup health` panel (the agent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).
