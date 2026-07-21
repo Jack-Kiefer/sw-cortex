@@ -18,7 +18,6 @@ export const reminders = sqliteTable('reminders', {
   message: text('message').notNull(),
   remindAt: integer('remind_at', { mode: 'timestamp' }).notNull(),
   status: text('status').notNull().default(REMINDER_STATUS.PENDING),
-  slackChannel: text('slack_channel'), // DM or channel override
   snoozedUntil: integer('snoozed_until', { mode: 'timestamp' }),
   sentAt: integer('sent_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' })

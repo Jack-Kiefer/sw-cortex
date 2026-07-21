@@ -43,12 +43,10 @@ export function parseRemindAt(input: string): Date {
   throw new Error(`Cannot parse reminder time: ${input}`);
 }
 
-// Reminder operations
-export function addReminder(data: {
-  message: string;
-  remindAt: string;
-  slackChannel?: string;
-}): Reminder {
+// Reminder operations.
+// Reminders are always delivered as a DM to SLACK_USER_ID (see
+// scripts/check-reminders.ts) — there is intentionally no channel override.
+export function addReminder(data: { message: string; remindAt: string }): Reminder {
   const remindAtDate = parseRemindAt(data.remindAt);
 
   return db
@@ -56,7 +54,6 @@ export function addReminder(data: {
     .values({
       message: data.message,
       remindAt: remindAtDate,
-      slackChannel: data.slackChannel ?? null,
       status: REMINDER_STATUS.PENDING,
       createdAt: new Date(),
     })

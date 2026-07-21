@@ -40,7 +40,6 @@ export function initDb(): void {
       message TEXT NOT NULL,
       remind_at INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
-      slack_channel TEXT,
       snoozed_until INTEGER,
       sent_at INTEGER,
       created_at INTEGER NOT NULL,
