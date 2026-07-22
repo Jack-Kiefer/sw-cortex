@@ -102,9 +102,10 @@ function processFile(filePath) {
   const closeTty = line2.startsWith('CLOSE_TTY=') ? line2.slice('CLOSE_TTY='.length).trim() : '';
 
   // Close-only request: line 1 is the "__CLOSE__" sentinel and line 2 is "CLOSE_TTY=<tty>".
-  // A /implement or /serp-analyze session drops this (via close-own-tab.sh) as its FINAL teardown
-  // step after a merged PR — it asks the extension to dispose the session's OWN tab. No new
-  // terminal is opened; we reuse closeTabByTty on the resolved tty and return early.
+  // Dropped (via close-own-tab.sh) ONLY by explicit close commands like /save-for-later —
+  // post-merge sessions no longer close their tab (Jack closes tabs himself). It asks the
+  // extension to dispose the session's OWN tab. No new terminal is opened; we reuse
+  // closeTabByTty on the resolved tty and return early.
   if (repo === '__CLOSE__') {
     if (closeTty) closeTabByTty(closeTty, null);
     return;

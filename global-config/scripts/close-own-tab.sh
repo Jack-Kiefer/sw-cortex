@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # close-own-tab.sh — ask the Go Launcher extension to close THIS session's terminal tab.
 #
-# Used as the FINAL teardown step of a /implement or /serp-analyze worktree-mode session, AFTER
-# the PR has merged and /shutdown-worktree has removed the worktree. The launched tab does
-# NOT auto-close on its own (the extension has no ✅-title watcher) — this is the mechanism
-# that closes it.
+# Used ONLY by explicit close commands (/save-for-later). NOT part of post-merge teardown —
+# sessions leave their tab open at ✅ done after a PR merges; Jack closes tabs himself
+# (2026-07-22 directive). The launched tab does NOT auto-close on its own (the extension has
+# no ✅-title watcher) — this script is the only close mechanism, invoked only when Jack
+# explicitly asks to close the chat.
 #
 # How it works: the extension (~/.vscode/extensions/jackkief.go-launcher) watches
 # ~/.claude/go-queue/ and disposes the VS Code terminal whose shell PID's tty matches a

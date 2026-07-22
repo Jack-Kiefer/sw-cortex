@@ -106,7 +106,7 @@ Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkie
 ## Step — Report
 
 - **One line per launched session**: which repo, the mode (research/impl), and why — same format as `/go` Step 4. For a multi-launch, one line each.
-- New tabs open **automatically**; each auto-closes ~5s after it reaches `✅ done`. **This tab stays open** — tell Jack to switch to the new tab(s) if he wants; this session stays put either way.
+- New tabs open **automatically**; each stays open at `✅ done` — Jack closes them himself. **This tab stays open too** — tell Jack to switch to the new tab(s) if he wants; this session stays put either way.
 - If no tab appears, the extension may not be loaded — reload the VS Code window.
 
 ## Plain-English equivalent (no slash needed)

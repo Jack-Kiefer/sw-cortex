@@ -115,11 +115,10 @@ gh -C "$WT" pr create --base main --head <desc> --title "…" --body "…"   # o
 # after Jack merges — IMMEDIATELY pull the merge into the hub's main, then clean up:
 git -C "$ROOT" pull --ff-only origin main          # advance the hub's main to include the merged PR (right away)
 git -C "$ROOT" worktree remove --force "$WT" && git -C "$ROOT" worktree prune
-# final teardown — close this tab (ONLY a launched go-tab, NEVER the hub):
-~/.claude/scripts/close-own-tab.sh
+# then set ✅ done and STOP — do NOT close the tab; Jack closes tabs himself
 ```
 
-Pause for Jack's review/merge unless he says to merge. **The moment the PR is merged, `git -C "$ROOT" pull --ff-only origin main`** so the hub's `main` isn't left behind the merge — then remove the worktree, and as the **final teardown step close this terminal** with `~/.claude/scripts/close-own-tab.sh`. ⚠️ Close **only when this cortex work ran in a launched/`/launch` go-tab — NEVER close the hub's own terminal** (the long-lived session Jack keeps open); when in doubt, leave it open. If `global-config/` changed, run `sync-global-config.sh push` after the pull, before closing. (Heads-up: `~/CLAUDE.md` is a symlink into the hub checkout, so editing it via that path writes to the hub on `main` — make `global-config/` edits **inside the worktree path** instead, so nothing lands on the hub's `main`.)
+Pause for Jack's review/merge unless he says to merge. **The moment the PR is merged, `git -C "$ROOT" pull --ff-only origin main`** so the hub's `main` isn't left behind the merge — then remove the worktree, set `✅ done`, and stop. **Do NOT close the terminal after the merge** — the tab stays open; Jack closes tabs himself (`close-own-tab.sh` is reserved for explicit close commands like `/save-for-later`). If `global-config/` changed, run `sync-global-config.sh push` after the pull. (Heads-up: `~/CLAUDE.md` is a symlink into the hub checkout, so editing it via that path writes to the hub on `main` — make `global-config/` edits **inside the worktree path** instead, so nothing lands on the hub's `main`.)
 
 ## Step 1.6 — `/go` fires a slash command by intent: `/serp-analyze` (actionable) or `/research` (pure question)
 
@@ -163,12 +162,12 @@ And a SERP `/go how does the redemption curve feed size_projections?` becomes:
 
 where `<slash-command-prompt>` is what Step 2 built — `/serp-analyze …` (SERP actionable), `/swac-analyze …` (SWAC actionable), or `/research …` (pure question).
 
-Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher queues the request and the Go Launcher extension opens the tab, deriving a descriptive name from the task prompt automatically (e.g. `🔍 forecast zeros on live-products`). The running session then updates the title as it works (`🔍 researching` → `🙋 presenting issues` → `✅ done`, after which the tab auto-closes). Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the queue and produces a bare `SERP` title.
+Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher queues the request and the Go Launcher extension opens the tab, deriving a descriptive name from the task prompt automatically (e.g. `🔍 forecast zeros on live-products`). The running session then updates the title as it works (`🔍 researching` → `🙋 presenting issues` → `✅ done`; the tab stays open — Jack closes it himself). Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the queue and produces a bare `SERP` title.
 
 ## Step 4 — Report
 
 - **One line**: which repo you routed to and which command it's running, e.g. "Routed to **SERP** — opening an `/serp-analyze` session for the forecast zeros (research → build → PR)." or for a question: "Routed to **SERP** — opening a `/research` session to answer how the redemption curve feeds size_projections."
-- A new terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility), titled with the task. It auto-closes ~5s after it reaches `✅ done`. Tell Jack to switch to it; it's working with that repo's full native tooling. This hub session stays put.
+- A new terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility), titled with the task. It stays open at `✅ done` — Jack closes it himself when he's done with it. Tell Jack to switch to it; it's working with that repo's full native tooling. This hub session stays put.
 - **For an actionable `/serp-analyze` launch, the build happens IN that session** — research flows straight to a PR, no bounce back to the hub. For a `/research` launch (pure question), the session answers and stops; if it surfaces a fixable issue you can later spin the fix into its own tab with `/launch` (→ `/implement`).
 - If no tab appears, the extension may not be loaded yet (needs a VS Code reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
 
