@@ -72,6 +72,8 @@ When you call the launcher (Step 3), **add the `--keep-original` flag**:
 
 That flag tells the launcher to leave `CLOSE_TTY` empty, so the Go Launcher extension opens the new tab but leaves the originating tab open. Everything else (descriptive tab name derived from the prompt, the new session updating its own title `🔍→🙋→✅` then auto-closing itself) is unchanged. **Do NOT add `--label` or call `set-tab-title.sh` yourself** — same rule as `/go`.
 
+**Images attached to the launch request ride along as file paths** — same as `/go` Step 2.5: a drag-dropped path goes straight into the prompt; a pasted image is first dumped to disk with `~/.claude/scripts/extract-session-images.sh`, and the prompt tells the session to Read the path(s) as part of the task.
+
 ### Difference 2 — one terminal PER fix when given multiple
 
 When the request covers **several issues/fixes** — `/launch fixes for those`, `/launch fix X ; add Y`, "launch a session for each of these", "spin up sessions for A, B, and C" — the default is **one terminal per fix** (each gets its own tab so they build, PR, and merge independently). **But you do NOT launch straight away** — you first run the **file-overlap coalescing gate** below, which decides how many tabs there actually are. Only after the gate do you **route and classify each group on its own** (each may land in a different repo / mode) and **call the launcher once per group** (parallel `Bash` calls, don't babysit).
