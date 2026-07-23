@@ -154,6 +154,27 @@ So a SERP `/go fix the forecast zeros on live-products` becomes the launcher pro
 And a SERP `/go how does the redemption curve feed size_projections?` becomes:
 `/research how does the redemption curve feed size_projections? — set the tab title with set-tab-title.sh as you go (🔍 while researching, 🙋 when presenting the answer, ✅ when answered).`
 
+### Step 2.5 — Images attached? Carry them into the launched prompt as file paths.
+
+The launch pipe is text-only, but the launched session's Read tool can view PNG/JPG files — so images ride along **as file paths in the prompt**. If Jack's `/go` message includes images, handle both attachment kinds:
+
+- **File path in the message** (drag-dropped a file — the path is already text): use it directly.
+- **Pasted image** (`[Image #N]` chip — exists only in this session's transcript, no path): re-materialize it to disk first:
+
+  ```bash
+  ~/.claude/scripts/extract-session-images.sh          # dumps the last user message's pasted images
+  ```
+
+  It prints one absolute path per line (files land in `~/.claude/go-attachments/`). Empty output = no pasted images found (e.g. the transcript hasn't flushed) — say so in one line rather than launching with a dangling reference.
+
+Then append an image rider to the Step 2 prompt so the launched session actually looks at them, e.g.:
+
+```
+/serp-analyze <task> — first, Read these image(s), they are part of the task: /Users/jackkief/.claude/go-attachments/<...>.png — set the tab title with set-tab-title.sh as you go (…).
+```
+
+No launcher/extension changes are involved — the prompt passes through unmodified, and `taskSlug` only affects the tab name. (Skip this step when the message has no images.)
+
 ## Step 3 — Launch
 
 ```bash
