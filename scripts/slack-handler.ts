@@ -23,19 +23,20 @@ const log = createLogger('slack-handler');
 // Initialize database
 initDb();
 
-// The reminder bot is Jack Bot (its own Socket-Mode Slack app), NOT SERPY.
-// Both tokens must be Jack Bot's: the bot token (xoxb) and its OWN app-level
-// token (xapp). REMINDER_* wins; fall back to JACK_SLACK_BOT_TOKEN for the bot.
-const reminderBotToken = process.env.REMINDER_BOT_TOKEN || process.env.JACK_SLACK_BOT_TOKEN;
-const reminderAppToken = process.env.REMINDER_APP_TOKEN;
+// Reminder bot/app tokens. The bot token (xoxb, SLACK_BOT_TOKEN) and the
+// app-level token (xapp, SLACK_APP_TOKEN) MUST belong to the same Slack app —
+// otherwise button clicks route to an app with no Socket Mode listener and the
+// reminders re-fire forever (the ⚠️ / re-reminder bug).
+const reminderBotToken = process.env.SLACK_BOT_TOKEN;
+const reminderAppToken = process.env.SLACK_APP_TOKEN;
 
 // Validate required env vars
 if (!reminderBotToken) {
-  log.error('REMINDER_BOT_TOKEN / JACK_SLACK_BOT_TOKEN not set');
+  log.error('SLACK_BOT_TOKEN not set');
   process.exit(1);
 }
 if (!reminderAppToken) {
-  log.error('REMINDER_APP_TOKEN not set - Jack Bot app-level token needed for Socket Mode');
+  log.error('SLACK_APP_TOKEN not set - app-level token needed for Socket Mode');
   process.exit(1);
 }
 
