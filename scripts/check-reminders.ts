@@ -21,15 +21,16 @@ const log = createLogger('reminders');
 // Initialize
 initDb();
 
-// Posts the reminder DM using SLACK_BOT_TOKEN — the SAME app as SLACK_APP_TOKEN
-// (used by slack-handler's Socket Mode listener) so its buttons route back to
-// the listener. A mismatched pair sends clicks to a listener-less app.
-const reminderBotToken = process.env.SLACK_BOT_TOKEN;
+// The reminder bot is Jack Bot (its own Socket-Mode Slack app), NOT SERPY.
+// Posts the reminder DM as Jack Bot (JACK_SLACK_BOT_TOKEN) — the SAME app as
+// REMINDER_APP_TOKEN (slack-handler's Socket Mode listener) so its buttons route
+// back to the listener. A mismatched pair sends clicks to a listener-less app.
+const reminderBotToken = process.env.JACK_SLACK_BOT_TOKEN;
 const slack = new WebClient(reminderBotToken);
 const slackUserId = process.env.SLACK_USER_ID;
 
 if (!reminderBotToken) {
-  log.error('SLACK_BOT_TOKEN not set');
+  log.error('JACK_SLACK_BOT_TOKEN not set');
   process.exit(1);
 }
 

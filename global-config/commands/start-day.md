@@ -193,19 +193,26 @@ Run these eight checks:
      Keep the daemon-boot wait bounded so a stuck Docker can't stall the morning routine — on timeout,
      ⚠️ and move on.
 
-9. **Reminder services up (auto-start if down).** The `/remind` feature has two **local** background
-   processes on this Mac (they stop when the Mac is off, so each morning they must be turned back on):
-   the **Socket Mode button handler** (`scripts/slack-handler.ts` — makes the snooze/done/delete
-   buttons work) and the **every-minute checker loop** (runs `scripts/check-reminders.ts` every 60s to
-   fire due reminders). Both DM via **Jack Bot** (its own Slack app — `JACK_SLACK_BOT_TOKEN` +
-   `REMINDER_APP_TOKEN`, NOT SERPY). Like the Docker check, this one is **allowed to start things**:
-   run the idempotent helper — `bash /Users/jackkief/Desktop/Projects/sw-cortex/scripts/reminders-up.sh`
-   — which only starts whatever isn't already running (it `pgrep`s for `slack-handler.ts` and
-   `reminders-loop` first). ✅ `reminders: handler + checker up` if both were already running; `🔧
-started reminders: <what>` if it booted them; ⚠️ with the script's stderr if it failed (remedy:
-   "check `REMINDER_APP_TOKEN`/`JACK_SLACK_BOT_TOKEN` in `.env` and `/tmp/sw-cortex-slack-handler.log`").
-   These two + the Docker check (#8) are the only Step 0 items permitted to start anything; everything
-   else stays report-only.
+9. **Reminder services up + healthy (auto-start / auto-repair if broken).** The `/remind` feature has
+   two **local** background processes on this Mac (they stop when the Mac is off, so each morning they
+   must be turned back on): the **Socket Mode button handler** (`scripts/slack-handler.ts` — makes the
+   snooze/done/delete buttons work) and the **every-minute checker loop** (runs
+   `scripts/check-reminders.ts` every 60s to fire due reminders). Both DM via **Jack Bot** (its own
+   Slack app — `JACK_SLACK_BOT_TOKEN` + `REMINDER_APP_TOKEN`, NOT SERPY). Like the Docker check, this
+   one is **allowed to start (and now RESTART) things**: run the idempotent helper —
+   `bash /Users/jackkief/Desktop/Projects/sw-cortex/scripts/reminders-up.sh`. It does more than a
+   pgrep: it **liveness-checks the button handler**, because the process can be *running yet dead* — if
+   `JACK_SLACK_BOT_TOKEN` is missing/corrupt (the known trap: a **duplicate `.env` key** that resolves
+   to a Slack **team id** `T…` instead of an `xoxb-` token), the handler authenticates with a bad token
+   and every button click fails (⚠️ in Slack) while `pgrep` still finds it. So the helper validates the
+   token with Slack `auth.test` and, if a handler is **present-but-unhealthy, kills and restarts it**;
+   if the token itself is still invalid it does NOT restart (that won't help) and warns loudly to fix
+   `.env`. Report: ✅ `reminders: handler + checker up` if both were already running and healthy; `🔧
+started …` if it booted them; `♻️ repaired …` if it restarted an unhealthy handler; ⚠️ with the
+   script's warning if the token is invalid (remedy: "fix the duplicate/corrupt `JACK_SLACK_BOT_TOKEN`
+   in `.env` — it must be an `xoxb-` token, not `T…` — then re-run `reminders-up.sh`; also check
+   `/tmp/sw-cortex-slack-handler.log`"). These two + the Docker check (#8) are the only Step 0 items
+   permitted to start/restart anything; everything else stays report-only.
 
 **Return:** the rendered `### 🩺 Setup health` panel (the agent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).
