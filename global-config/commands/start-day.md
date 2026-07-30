@@ -201,7 +201,7 @@ Run these eight checks:
    Slack app — `JACK_SLACK_BOT_TOKEN` + `REMINDER_APP_TOKEN`, NOT SERPY). Like the Docker check, this
    one is **allowed to start (and now RESTART) things**: run the idempotent helper —
    `bash /Users/jackkief/Desktop/Projects/sw-cortex/scripts/reminders-up.sh`. It does more than a
-   pgrep: it **liveness-checks the button handler**, because the process can be *running yet dead* — if
+   pgrep: it **liveness-checks the button handler**, because the process can be _running yet dead_ — if
    `JACK_SLACK_BOT_TOKEN` is missing/corrupt (the known trap: a **duplicate `.env` key** that resolves
    to a Slack **team id** `T…` instead of an `xoxb-` token), the handler authenticates with a bad token
    and every button click fails (⚠️ in Slack) while `pgrep` still finds it. So the helper validates the
