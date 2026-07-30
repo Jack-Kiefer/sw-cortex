@@ -10,17 +10,24 @@ All production database queries MUST be read-only. Never execute:
 
 ## Database Mapping
 
-| Database     | Type       | MCP Database Name | Purpose                                            |
-| ------------ | ---------- | ----------------- | -------------------------------------------------- |
-| WishDesk     | MySQL      | `wishdesk`        | WishDesk ticketing (via SSH tunnel)                |
-| WishDesk Dev | MySQL      | `wishdesk_dev`    | WishDesk dev/staging                               |
-| SugarWish    | MySQL      | `sugarwish`       | Production orders                                  |
-| Odoo         | PostgreSQL | `odoo`            | ERP data (prod)                                    |
-| Odoo Staging | PostgreSQL | `odoo_staging`    | ERP data (staging)                                 |
-| Retool       | PostgreSQL | `retool`          | Analytics/dashboards                               |
-| Laravel Live | MySQL      | `laravel_live`    | **Production** (SERP)                              |
-| Local        | MySQL      | `local`           | Local dev DB — user picks name via `LOCAL_DB_NAME` |
-| Manage       | MySQL      | `manage`          | Laravel staging                                    |
+These are the exact keys wired in `src/services/databases.ts` (the server the
+hub's `mcp__db__*` tools call). MCP server changes need a Claude Code restart to
+take effect.
+
+| Database             | Type       | MCP Database Name    | Purpose                                                                             |
+| -------------------- | ---------- | -------------------- | ---------------------------------------------------------------------------------- |
+| WishDesk             | MySQL      | `wishdesk`           | WishDesk ticketing (via SSH tunnel)                                                 |
+| WishDesk Dev         | MySQL      | `wishdesk_dev`       | WishDesk dev/staging (direct)                                                       |
+| Laravel Live         | MySQL      | `laravel_live`       | **Production** SugarWish e-commerce/orders (AWS RDS, via SSH tunnel)                |
+| Manage               | MySQL      | `manage`             | Laravel **staging** (direct)                                                        |
+| Odoo                 | PostgreSQL | `odoo`               | ERP data (prod, direct/SSL)                                                         |
+| Odoo Staging         | PostgreSQL | `odoo_staging`       | ERP data (staging, direct/SSL)                                                      |
+| Retool               | PostgreSQL | `retool`             | Analytics/dashboards (direct/SSL)                                                   |
+| SERP Local Prod      | MySQL      | `serp_local_prod`    | Local Docker (serp-mysql, `127.0.0.1:3307`, devuser) — local SERP prod schema       |
+| SERP Local Staging   | MySQL      | `serp_local_staging` | Local Docker (same container) — local SERP staging schema                           |
+| Laravel Local        | MySQL      | `laravel_local`      | Local Docker (same container) — 13 Laravel catalog tables, schema-only              |
+| SERP App             | MySQL      | `serp_app`           | **Live/prod SERP app DB** on Hetzner (`LIVE_DARKLAUNCH_DB_*` host, DB `serp_app`)    |
+| SERP Test            | MySQL      | `serp_test`          | **Staging SERP / darklaunch mirror** on Hetzner (same host, DB `serp_test`)          |
 
 All databases are accessed via unified MCP tools:
 
@@ -53,7 +60,11 @@ SELECT * FROM users;                -- Avoid when possible
 
 ## SSH Tunnel
 
-Remote databases are accessed via SSH tunnel through bastion host. The MCP server handles tunnel setup automatically.
+Only the two DBs on the private AWS RDS — `wishdesk` and `laravel_live` — route
+through the live bastion (a single shared tunnel; the MCP server sets it up
+automatically). Every other remote DB (Odoo/Retool cloud over SSL, the Hetzner
+`serp_app`/`serp_test` hosts) connects **directly**; the local Docker DBs
+(`serp_local_prod`, `serp_local_staging`, `laravel_local`) hit `127.0.0.1:3307`.
 
 ## Connection Pooling
 

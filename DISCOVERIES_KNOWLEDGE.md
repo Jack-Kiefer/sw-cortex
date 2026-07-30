@@ -234,7 +234,7 @@ SugarWish runs on a constellation of systems that overlap and feed each other. T
 #### Hosting & Infrastructure (AWS → Hetzner migration in progress)
 
 - **Production SERP app server**: AWS EC2 at **34.203.231.65**, `/opt/SERP`. Runs **Next.js frontend + FastAPI/Uvicorn backend + PM2** (`serp-backend`, `serp-frontend`, `serp-workers`), fronted by **nginx**. PM2 v20 owns the `serp-*` processes (v18 also has pm2 installed but is not live).
-- **Production darklaunch MySQL DB**: Hetzner at **5.161.233.240**, database `serp_test` (MCP key `live_darklaunch_db`) — this is the **REAL live production darklaunch mirror**, NOT a throwaway test DB.
+- **Darklaunch MySQL DB**: Hetzner at **5.161.233.240**, database `serp_test` (MCP key `serp_test`; the old `live_darklaunch_db` key was removed — same DB) — the **most-current darklaunch mirror**, NOT a throwaway test DB. It is **staging SERP**, not production; live/prod SERP is `serp_app` on the same host.
 - **Already migrated to Hetzner** (as of ~Apr 29 2026): the `manage` cluster MySQL (AWS shut down Apr 29), Desk2/Desk3 (WishDesk), and the darklaunch DB.
 - **Still on AWS**: SERP EC2 app server, AWS ALB (TLS:443 → nginx:80), ElastiCache Serverless Redis, S3 (`sw-serp` bucket for attachments/serpy-logs via boto3 `S3_ENDPOINT_URL`), and `laravel_live` MySQL (AWS RDS `database-1.cqqg1tfyyubp.us-east-1`, accessed via SSH tunnel).
 - **Hetzner caveats**: a fresh Hetzner MySQL needs `SET GLOBAL sql_mode='NO_ENGINE_SUBSTITUTION'`; Hetzner has no managed Redis (self-host), no managed ALB (use Hetzner Cloud LB + Let's Encrypt), no S3 equivalent (Hetzner Object Storage via `S3_ENDPOINT_URL`, s3v4, virtual addressing, `payload_signing_enabled=False`, no dots in bucket names). Est. cost drop ~$128/mo → ~€9-18/mo. **Munyr owns the migration** (Seth/Anna sponsors); Jack is a consumer, not infra owner.
@@ -488,15 +488,16 @@ SugarWish runs **13 databases** across MySQL and PostgreSQL. The unified `mcp__d
 | `odoo`                                            | PostgreSQL | **Production** ERP/inventory/accounting source of truth (Odoo 15, cloud-hosted on Odoo.sh — no shell access) |
 | `odoo_staging`                                    | PostgreSQL | Odoo staging (credentials rotate frequently — check `#odoo-prixite`)                                         |
 | `retool`                                          | PostgreSQL | Analytics/ops + SERP sync engine + SERP auth bridge + forecast caches (~123-165 tables; **NOT SERP-owned**)  |
-| `local` (`serp_local`)                            | MySQL      | Partial SERP dev schema (port 3307); uses predecessor "shadow" mechanism                                     |
-| `serp_test` / `live_darklaunch_db`                | MySQL      | **Live PRODUCTION darklaunch mirror** on Hetzner `5.161.233.240:3306`                                        |
-| `serp_prod_replica`, `serp_staging_replica`       | MySQL      | Clean Laravel mirrors (no Odoo overlay)                                                                      |
-| `serp_prod_darklaunch`, `serp_staging_darklaunch` | MySQL      | Replica + Odoo overlay (worker dual-writes Odoo-style ops)                                                   |
+| `serp_local_prod`, `serp_local_staging`           | MySQL      | Local Docker (serp-mysql, port 3307, devuser) — local SERP prod/staging schemas                             |
+| `laravel_local`                                   | MySQL      | Local Docker (same container) — 13 Laravel catalog tables, schema-only                                       |
+| `serp_test`                                        | MySQL      | **Staging SERP / darklaunch mirror** on Hetzner `5.161.233.240:3306` (old `live_darklaunch_db` key removed)  |
+| `serp_app`                                         | MySQL      | **Live/prod SERP app DB** on same Hetzner host, DB `serp_app`                                                |
+| _(concepts, no MCP key)_ `serp_prod_replica`, `serp_staging_replica`, `serp_prod_darklaunch`, `serp_staging_darklaunch` | MySQL | Replica (no Odoo overlay) / replica + Odoo overlay — real DBs, but no longer addressable MCP keys |
 
 **SERP's 4-DB matrix**: `{prod, staging} × {replica, darklaunch}`, all MySQL with `serp_*` tables.
 
 - **Replica DBs** (`serp_prod_replica`, `serp_staging_replica`): row-for-row mirrors of `manage`/`laravel_live`, **ZERO Odoo overlay**, nearly empty shells (~19 SO/~19 moves, frozen 2026-05-28).
-- **Darklaunch DBs**: replica PLUS Odoo overlay (normal BOMs, MOs, SVL, POs). `serp_prod_darklaunch` is future production. `live_darklaunch_db`/`serp_test` on Hetzner is the canonical prod write target and runs consistently ahead (~35K stock_moves vs `serp_prod_darklaunch`'s ~34K).
+- **Darklaunch DBs**: replica PLUS Odoo overlay (normal BOMs, MOs, SVL, POs). `serp_prod_darklaunch` is future production. `serp_test` on Hetzner (MCP key `serp_test`) is the canonical darklaunch write target and runs consistently ahead (~35K stock_moves vs `serp_prod_darklaunch`'s ~34K) — it is staging SERP, not production (prod is `serp_app`).
 
 #### Fingerprinting which DB a table belongs to
 
@@ -1091,7 +1092,7 @@ Odoo is the **PULLER**. Sync state is tracked on the **Laravel side** via the `o
 | **REPLICA** (`serp_staging_replica`, `serp_prod_replica`)          | Clean row-for-row mirror of `manage`/`laravel_live` — **ZERO Odoo overlay**. App reads/writes these. Nearly-empty shells (~19 SOs frozen ~2026-05-28). NO Odoo-origin/manufacturing rows.                              | NO `_migrations`, NO `serp_darklaunch_meta` |
 | **DARKLAUNCH** (`serp_staging_darklaunch`, `serp_prod_darklaunch`) | Replica PLUS Odoo overlay (normal BOMs, MOs, SVL, POs). Worker dual-writes Odoo-style ops here. `serp_prod_darklaunch` is the future production DB (~10.2k SOs, ~2k POs, ~5.5k pickings, ~34k stock_moves at cutover). | HAS `_migrations` + `serp_darklaunch_meta`  |
 
-- **`live_darklaunch_db`** (MCP key) = MySQL `serp_test` on **Hetzner `5.161.233.240:3306`** — the REAL live PRODUCTION darklaunch mirror (NOT a throwaway test DB), the canonical prod write target for the worker. Consistently _ahead_ of `serp_prod_darklaunch` (~35K moves vs ~34K). TZ = `America/Denver`.
+- **`serp_test`** (MCP key; the old `live_darklaunch_db` key was removed — same DB) = MySQL `serp_test` on **Hetzner `5.161.233.240:3306`** — the most-current darklaunch mirror (NOT a throwaway test DB), the canonical darklaunch write target for the worker. It is **staging SERP**, not production (prod is `serp_app` on the same host). Consistently _ahead_ of `serp_prod_darklaunch` (~35K moves vs ~34K). TZ = `America/Denver`.
 - **"compare-replica" tooling actually compares darklaunch.**
 - **Routing:** app DB via `SERP_ORM_ENV` / `ACTIVE_ODOO_DB_NAME` (default `local-staging` → `serp_staging_replica`); worker darklaunch via `DARKLAUNCH_DB_ENV` (`local-staging-darklaunch`, `live-darklaunch`). A single op writes to the normal replica AND independently to the darklaunch DB. An "empty list" of Odoo entities = config routing issue, NOT a bug.
 
@@ -1099,7 +1100,7 @@ Odoo is the **PULLER**. Sync state is tracked on the **Laravel side** via the `o
 
 - Key/value table present ONLY in darklaunch DBs (fingerprint distinguishing darklaunch from replica). Key `darklaunch_cutover_at` is the authoritative per-env go-live timestamp.
 - **Primary darklaunch cutover:** **2026-05-30 14:14 MT** (`2026-05-30 14:14:26 UTC`).
-- **Per-env reseeds:** prod darklaunch `2026-06-04 09:27:20`; staging `2026-06-03 11:52:27` (each env's `serp_darklaunch_meta.darklaunch_cutover_at` is authoritative; `serp_test`/`live_darklaunch_db` shares the prod key).
+- **Per-env reseeds:** prod darklaunch `2026-06-04 09:27:20`; staging `2026-06-03 11:52:27` (each env's `serp_darklaunch_meta.darklaunch_cutover_at` is authoritative; `serp_test` (MCP key `serp_test`) shares the prod key).
 
 #### Pre/post cutover behavior
 
@@ -1726,7 +1727,7 @@ A push/merge to `main` is **not live** until `deploy.sh` runs.
 | `serp_*_replica` (staging/prod) | Clean row-for-row mirror of manage/laravel*live, **zero Odoo overlay**, nearly empty shells | — |
 | `serp*\*\_darklaunch`(staging/prod) | Replica **plus** Odoo overlay (normal BOMs, MOs, SVL, POs) where the worker dual-writes |`SERP_DARKLAUNCH_ENABLED`|
 |`serp_shadow`(Hetzner) | Predecessor prod-traffic handler validation |`SERP_SHADOW_WRITES_ENABLED`|
-|`serp_test`(Hetzner`5.161.233.240`) | **REAL live PRODUCTION darklaunch mirror** (not a throwaway), MCP key `live_darklaunch_db`, consistently ~ahead of `serp_prod_darklaunch` | — |
+|`serp_test`(Hetzner`5.161.233.240`) | **Staging SERP / darklaunch mirror** (not a throwaway; not production — prod is `serp_app`), MCP key `serp_test` (old `live_darklaunch_db` key removed), consistently ~ahead of `serp_prod_darklaunch` | — |
 
 - **Fingerprints:** darklaunch has `_migrations` + `serp_darklaunch_meta`; replicas have neither and no Odoo-owned/manufacturing tables.
 - "**compare-replica**" tooling actually compares **darklaunch**, not the replica.
