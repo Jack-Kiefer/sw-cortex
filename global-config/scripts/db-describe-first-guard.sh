@@ -27,8 +27,10 @@ set -uo pipefail
 
 MARKER_DIR="$HOME/.claude/db-described"
 
-# Databases whose schema is institutional knowledge (the friction zone). `local` is NOT here.
-GATED_DBS="wishdesk wishdesk_dev laravel_live odoo odoo_staging retool serp_staging_replica serp_prod_replica serp_staging_darklaunch serp_prod_darklaunch live_darklaunch_db serp_app manage"
+# Databases whose schema is institutional knowledge (the friction zone). The
+# local Docker dev DBs (serp_local_prod, serp_local_staging, laravel_local) are
+# NOT here — same as the old `local` key was excluded.
+GATED_DBS="wishdesk wishdesk_dev laravel_live odoo odoo_staging retool serp_test serp_app manage"
 
 allow() { exit 0; }  # print nothing => allow
 

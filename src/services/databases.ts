@@ -150,69 +150,45 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       database: process.env.ODOO_STAGING_DB_NAME || '',
       // Public Odoo Cloud staging host over SSL — direct connection, no bastion.
     },
-    local: {
-      name: 'local',
+    // Local SERP DBs on the Docker MySQL (serp-mysql, 127.0.0.1:3307). They all
+    // share host/port with LOCAL_DB_* but default user/password to the
+    // container's devuser creds, because the shared LOCAL_DB_USER (`root`) is NOT
+    // granted on this container — inheriting it would connect-fail. Each key's
+    // database name is fixed; only the schema differs.
+    serp_local_prod: {
+      name: 'serp_local_prod',
       type: 'mysql',
       host: process.env.LOCAL_DB_HOST || '127.0.0.1',
       port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
-      user: process.env.LOCAL_DB_USER || 'root',
-      password: process.env.LOCAL_DB_PASSWORD || '',
-      // User picks the actual MySQL database name (e.g. serp_local, my_laravel_dev)
-      database: process.env.LOCAL_DB_NAME || '',
-      // No SSH for local database
+      user: process.env.LOCAL_DB_USER || 'devuser',
+      password: process.env.LOCAL_DB_PASSWORD || 'devpassword',
+      database: 'serp_local_prod',
     },
-    // SERP local DBs — four side-by-side schemas on the same local Docker MySQL
-    // as `local`, plus serp_test for pytest. Connection params are shared with
-    // `local`; only the database name differs. See SERP/CLAUDE.md for the
-    // semantics of each schema.
-    serp_staging_replica: {
-      name: 'serp_staging_replica',
+    serp_local_staging: {
+      name: 'serp_local_staging',
       type: 'mysql',
       host: process.env.LOCAL_DB_HOST || '127.0.0.1',
       port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
-      user: process.env.LOCAL_DB_USER || 'root',
-      password: process.env.LOCAL_DB_PASSWORD || '',
-      database: 'serp_staging_replica',
+      user: process.env.LOCAL_DB_USER || 'devuser',
+      password: process.env.LOCAL_DB_PASSWORD || 'devpassword',
+      database: 'serp_local_staging',
     },
-    serp_prod_replica: {
-      name: 'serp_prod_replica',
+    // The local `laravel_local` DB on the same Docker MySQL (serp-mysql,
+    // 127.0.0.1:3307) — the 13 Laravel catalog tables (components,
+    // receiver_products, …), schema-only, so the mixed Laravel pool has a LOCAL
+    // target instead of the remote `manage` DB. Its own env vars default to the
+    // serp-mysql container's devuser creds (same reason as the two keys above).
+    // Create/reset the DB with `npm run db:reset:laravel-local` in the SERP repo.
+    laravel_local: {
+      name: 'laravel_local',
       type: 'mysql',
-      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
-      user: process.env.LOCAL_DB_USER || 'root',
-      password: process.env.LOCAL_DB_PASSWORD || '',
-      database: 'serp_prod_replica',
+      host: process.env.LARAVEL_LOCAL_DB_HOST || process.env.LOCAL_DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.LARAVEL_LOCAL_DB_PORT || process.env.LOCAL_DB_PORT || '3307', 10),
+      user: process.env.LARAVEL_LOCAL_DB_USER || 'devuser',
+      password: process.env.LARAVEL_LOCAL_DB_PASSWORD || 'devpassword',
+      database: process.env.LARAVEL_LOCAL_DB_NAME || 'laravel_local',
     },
-    serp_staging_darklaunch: {
-      name: 'serp_staging_darklaunch',
-      type: 'mysql',
-      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
-      user: process.env.LOCAL_DB_USER || 'root',
-      password: process.env.LOCAL_DB_PASSWORD || '',
-      database: 'serp_staging_darklaunch',
-    },
-    serp_prod_darklaunch: {
-      name: 'serp_prod_darklaunch',
-      type: 'mysql',
-      host: process.env.LOCAL_DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.LOCAL_DB_PORT || '3307', 10),
-      user: process.env.LOCAL_DB_USER || 'root',
-      password: process.env.LOCAL_DB_PASSWORD || '',
-      database: 'serp_prod_darklaunch',
-    },
-    // Live darklaunch DB on Hetzner (the future production DB; mirror of the
-    // local darklaunch schemas). Connects directly — no SSH tunnel.
-    live_darklaunch_db: {
-      name: 'live_darklaunch_db',
-      type: 'mysql',
-      host: process.env.LIVE_DARKLAUNCH_DB_HOST || '',
-      port: parseInt(process.env.LIVE_DARKLAUNCH_DB_PORT || '3306', 10),
-      user: process.env.LIVE_DARKLAUNCH_DB_USER || '',
-      password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
-      database: process.env.LIVE_DARKLAUNCH_DB_NAME || 'serp_test',
-    },
-    // SERP app DB — same Hetzner host as live_darklaunch_db; only the database
+    // SERP app DB — same Hetzner host as serp_test; only the database
     // name differs (serp_app). Connects directly — no SSH tunnel.
     serp_app: {
       name: 'serp_app',
@@ -222,6 +198,19 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.LIVE_DARKLAUNCH_DB_USER || '',
       password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
       database: process.env.SERP_APP_DB_NAME || 'serp_app',
+    },
+    // serp_test — the live production darklaunch mirror on Hetzner (MySQL
+    // serp_test; the "test" name is a misnomer — it's the most-current copy).
+    // Same Hetzner host/creds as serp_app (LIVE_DARKLAUNCH_DB_*); only the
+    // database name differs. Connects directly — no SSH tunnel.
+    serp_test: {
+      name: 'serp_test',
+      type: 'mysql',
+      host: process.env.LIVE_DARKLAUNCH_DB_HOST || '',
+      port: parseInt(process.env.LIVE_DARKLAUNCH_DB_PORT || '3306', 10),
+      user: process.env.LIVE_DARKLAUNCH_DB_USER || '',
+      password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
+      database: process.env.LIVE_DARKLAUNCH_DB_NAME || 'serp_test',
     },
     manage: {
       name: 'manage',
@@ -671,8 +660,34 @@ export async function queryDatabase(
         throw enrichError(retryErr, config, finalQuery, true);
       }
     }
+    const missingDb = enrichMissingDbError(err, config);
+    if (missingDb) throw missingDb;
     throw await enrichSchemaError(err, config, finalQuery);
   }
+}
+
+// The database name resolves fine but the schema itself doesn't exist yet
+// (MySQL ER_BAD_DB_ERROR / Postgres 3D000). For a LOCAL dev DB this means the
+// dev hasn't created it — turn the bare "Unknown database 'laravel_local'" into
+// an actionable message pointing at the reset command, so it reads as "not
+// seeded yet", not a confusing connection error.
+function enrichMissingDbError(err: unknown, config: DatabaseConfig): Error | null {
+  const code = (err as { code?: string })?.code;
+  const msg = (err instanceof Error ? err.message : String(err)) || '';
+  const isMissingDb =
+    code === 'ER_BAD_DB_ERROR' ||
+    code === '3D000' ||
+    /Unknown database|database "?[\w-]+"? does not exist/i.test(msg);
+  if (!isMissingDb) return null;
+
+  const isLocal = config.host === '127.0.0.1' || config.host === 'localhost';
+  const hint =
+    config.name === 'laravel_local'
+      ? "This DB isn't created yet — run `npm run db:reset:laravel-local` in the SERP repo to build its schema, then retry."
+      : isLocal
+        ? `This local DB doesn't exist on ${config.host}:${config.port} yet — create/seed it, then retry.`
+        : `The '${config.database}' schema doesn't exist on ${config.host}. Check the database name.`;
+  return new Error(`Database '${config.database}' not found on '${config.name}'. ${hint}`);
 }
 
 // Turn a raw connection failure into an actionable message so the caller applies

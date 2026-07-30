@@ -9,7 +9,7 @@ This is the institutional memory an AI assistant **cannot** reconstruct from sch
 - `laravel_live` is **NOT** "the SERP database" — it is SugarWish's PRODUCTION Laravel e-commerce DB that co-hosts a thin, near-empty `serp_*` bridge. Live SERP data lives in the **darklaunch** DBs. When Jack says "live" he means `laravel_live`.
 - SERP has **NO** dedicated production DB (as of June 2026) — it runs on the live Laravel/MySQL cluster. There is no `serp_prod` server.
 - `*_replica` = clean, sparse, **pure Laravel mirror with ZERO Odoo data**; `*_darklaunch` = the full live Odoo-MERGED dataset the worker writes. **Never** interchange these names.
-- `live_darklaunch_db` (MySQL `serp_test` on Hetzner `5.161.233.240:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB.
+- The `serp_test` MCP key (MySQL `serp_test` on Hetzner `5.161.233.240:3306`) is the **REAL live production darklaunch mirror** — the name "test" is a **lie**; it is the most-current copy, not a throwaway/pytest DB. (The old `live_darklaunch_db` MCP key was removed; `serp_test` points at the same DB.)
 - Join SERP/darklaunch to Odoo on **`odoo_id`**, **NEVER** `id = id`. Durable origin test: `odoo_id IS NULL` = SERP-native, `IS NOT NULL` = Odoo-sourced. **NOT** any `id >= 1_000_000_000` range (that scheme was reversed the next day).
 - The Odoo sync flag column is intentionally misspelled **`oddo_synchronized`** (double-d, one o) — match it exactly. Value `3` = stuck/archived-SKU, `5` = error.
 - `stock_move`/`serp_stock_move` `state` enum is positive: `draft`,`confirmed`,`waiting`,`partially_available`,`assigned`,`done`,`cancel`. **`assigned` = stock RESERVED/ready-to-pick, NOT shipped.** `done` is the only state that moved inventory.
@@ -275,27 +275,24 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **10 MySQL, 3 PostgreSQL.** Several `serp_*` DBs are **disposable local rebuilds**, NOT peer remote servers. `retool` is a shared multi-app DB, NOT SERP-owned.
 
-| Database (MCP key)                 | Engine     | Role                                                                                                                          |
-| ---------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `wishdesk`                         | MySQL      | WishDesk/WishWorks CS+CRM+billing (179 tables, SSH tunnel)                                                                    |
-| `wishdesk_dev`                     | MySQL      | WishDesk dev/staging (~5,121 users, partial sandbox)                                                                          |
-| `laravel_live`                     | MySQL      | SugarWish/Laravel **PROD** — orders/customers (SSH tunnel); co-hosts ~70 sparse `serp_*` tables                               |
-| `manage`                           | MySQL      | SugarWish/Laravel **STAGING** (~8% of prod); holds SERP's upstream ORM tables + `serp_res_users` auth                         |
-| `local` (→`serp_local`)            | MySQL      | SERP dev partial schema (`LOCAL_DB_NAME`); all `serp_*` + ~3,091–3,449 products; **missing** `ec_order`/`items`/`kits`/orders |
-| `serp_prod_replica`                | MySQL      | Verbatim mirror of `laravel_live`, ZERO Odoo data — near-empty shell                                                          |
-| `serp_staging_replica`             | MySQL      | Verbatim mirror of `manage`, ZERO Odoo data — near-empty shell                                                                |
-| `serp_prod_darklaunch`             | MySQL      | Odoo PROD + `laravel_live` merged — future prod DB (lagging local snapshot)                                                   |
-| `serp_staging_darklaunch`          | MySQL      | Odoo STAGING + `manage` merged — active staging SERP DB                                                                       |
-| `live_darklaunch_db` (`serp_test`) | MySQL      | **Live PROD darklaunch** on Hetzner `5.161.233.240:3306`; canonical/most-current write target                                 |
-| `odoo`                             | PostgreSQL | Odoo 15 ERP PROD — inventory/accounting source of truth                                                                       |
-| `odoo_staging`                     | PostgreSQL | Near-identical staging clone (lags prod ~2 weeks / ~110k orders)                                                              |
-| `retool`                           | PostgreSQL | Shared BI + SERP sync engine + auth bridge + AI observability + forecasting (~165 tables)                                     |
+| Database (MCP key)                      | Engine     | Role                                                                                                                                 |
+| --------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `wishdesk`                              | MySQL      | WishDesk/WishWorks CS+CRM+billing (179 tables, SSH tunnel)                                                                           |
+| `wishdesk_dev`                          | MySQL      | WishDesk dev/staging (~5,121 users, partial sandbox)                                                                                 |
+| `laravel_live`                          | MySQL      | SugarWish/Laravel **PROD** — orders/customers (SSH tunnel); co-hosts ~70 sparse `serp_*` tables                                      |
+| `manage`                                | MySQL      | SugarWish/Laravel **STAGING** (~8% of prod); holds SERP's upstream ORM tables + `serp_res_users` auth                                |
+| `serp_local_prod`, `serp_local_staging` | MySQL      | Local Docker (serp-mysql, `127.0.0.1:3307`, devuser) — local SERP prod/staging schemas                                               |
+| `laravel_local`                         | MySQL      | Local Docker (serp-mysql, `127.0.0.1:3307`, devuser) — 13 Laravel catalog tables, schema-only                                        |
+| `serp_test`                             | MySQL      | **Live PROD darklaunch** on Hetzner `5.161.233.240:3306`; canonical/most-current write target (old `live_darklaunch_db` key removed) |
+| `odoo`                                  | PostgreSQL | Odoo 15 ERP PROD — inventory/accounting source of truth                                                                              |
+| `odoo_staging`                          | PostgreSQL | Near-identical staging clone (lags prod ~2 weeks / ~110k orders)                                                                     |
+| `retool`                                | PostgreSQL | Shared BI + SERP sync engine + auth bridge + AI observability + forecasting (~165 tables)                                            |
 
 ### Fingerprinting
 
 - **Table prefix:** `serp_stock_move` = SERP's **MySQL mirror** of an Odoo model; same name **without** `serp_` (`stock_move`, `sale_order`) = native **Odoo PostgreSQL**. SugarWish/Laravel: `giftcards_card`, `ec_order`, `cart`, `preselect_orders`, `company`. WishDesk/CRM: `swcrm_*`, `swcrm_z_gmail_*`, `design_*`, `ds_*`, `orders_*`, `sw_billing_*`.
 - **Darklaunch vs replica:** darklaunch DBs _only_ have `_migrations` + `serp_darklaunch_meta`. **Absence of `serp_darklaunch_meta` = it's a replica**, not darklaunch.
-- `live_darklaunch_db` is consistently **AHEAD** of local `serp_prod_darklaunch` (e.g. ~35,983 vs ~34,289 moves) — treat it as canonical; the local is a lagging snapshot. Rebuild via `npm run db:push:prod-darklaunch`; **pause the worker first** (`pm2 stop serp-workers`) or get MySQL **1412 "table definition changed"**. Local Docker darklaunch: `127.0.0.1:3307`, user `devuser`.
+- `serp_test` (live) is consistently **AHEAD** of local `serp_prod_darklaunch` (e.g. ~35,983 vs ~34,289 moves) — treat it as canonical; the local is a lagging snapshot. Rebuild via `npm run db:push:prod-darklaunch`; **pause the worker first** (`pm2 stop serp-workers`) or get MySQL **1412 "table definition changed"**. Local Docker darklaunch: `127.0.0.1:3307`, user `devuser`.
 
 ### Two Separate Flags (do not conflate)
 

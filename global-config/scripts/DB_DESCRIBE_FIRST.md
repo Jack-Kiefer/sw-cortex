@@ -38,8 +38,8 @@ exact table and tells you to `describe_table` it, then re-issue — which is the
 - Fail-**open**: any parse/marker error allows the query — a guard bug must never wedge queries.
 
 Gated DBs: `wishdesk`, `wishdesk_dev`, `laravel_live`, `odoo`, `odoo_staging`, `retool`,
-`serp_staging_replica`, `serp_prod_replica`, `serp_staging_darklaunch`, `serp_prod_darklaunch`,
-`live_darklaunch_db`, `serp_app`, `manage` — everything except `local`.
+`serp_test`, `serp_app`, `manage` — everything except the local Docker dev DBs
+(`serp_local_prod`, `serp_local_staging`, `laravel_local`).
 
 ## Wiring
 
