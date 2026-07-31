@@ -14,20 +14,20 @@ These are the exact keys wired in `src/services/databases.ts` (the server the
 hub's `mcp__db__*` tools call). MCP server changes need a Claude Code restart to
 take effect.
 
-| Database             | Type       | MCP Database Name    | Purpose                                                                             |
-| -------------------- | ---------- | -------------------- | ---------------------------------------------------------------------------------- |
-| WishDesk             | MySQL      | `wishdesk`           | WishDesk ticketing (via SSH tunnel)                                                 |
-| WishDesk Dev         | MySQL      | `wishdesk_dev`       | WishDesk dev/staging (direct)                                                       |
-| Laravel Live         | MySQL      | `laravel_live`       | **Production** SugarWish e-commerce/orders (AWS RDS, via SSH tunnel)                |
-| Manage               | MySQL      | `manage`             | Laravel **staging** (direct)                                                        |
-| Odoo                 | PostgreSQL | `odoo`               | ERP data (prod, direct/SSL)                                                         |
-| Odoo Staging         | PostgreSQL | `odoo_staging`       | ERP data (staging, direct/SSL)                                                      |
-| Retool               | PostgreSQL | `retool`             | Analytics/dashboards (direct/SSL)                                                   |
-| SERP Local Prod      | MySQL      | `serp_local_prod`    | Local Docker (serp-mysql, `127.0.0.1:3307`, devuser) — local SERP prod schema       |
-| SERP Local Staging   | MySQL      | `serp_local_staging` | Local Docker (same container) — local SERP staging schema                           |
-| Laravel Local        | MySQL      | `laravel_local`      | Local Docker (same container) — 13 Laravel catalog tables, schema-only              |
-| SERP App             | MySQL      | `serp_app`           | **Live/prod SERP app DB** on Hetzner (`LIVE_DARKLAUNCH_DB_*` host, DB `serp_app`)    |
-| SERP Test            | MySQL      | `serp_test`          | **Staging SERP / darklaunch mirror** on Hetzner (same host, DB `serp_test`)          |
+| Database           | Type       | MCP Database Name    | Purpose                                                                           |
+| ------------------ | ---------- | -------------------- | --------------------------------------------------------------------------------- |
+| WishDesk           | MySQL      | `wishdesk`           | WishDesk ticketing (via SSH tunnel)                                               |
+| WishDesk Dev       | MySQL      | `wishdesk_dev`       | WishDesk dev/staging (direct)                                                     |
+| Laravel Live       | MySQL      | `laravel_live`       | **Production** SugarWish e-commerce/orders (AWS RDS, via SSH tunnel)              |
+| Manage             | MySQL      | `manage`             | Laravel **staging** (direct)                                                      |
+| Odoo               | PostgreSQL | `odoo`               | ERP data (prod, direct/SSL)                                                       |
+| Odoo Staging       | PostgreSQL | `odoo_staging`       | ERP data (staging, direct/SSL)                                                    |
+| Retool             | PostgreSQL | `retool`             | Analytics/dashboards (direct/SSL)                                                 |
+| SERP Local Prod    | MySQL      | `serp_local_prod`    | Local Docker (serp-mysql, `127.0.0.1:3307`, devuser) — local SERP prod schema     |
+| SERP Local Staging | MySQL      | `serp_local_staging` | Local Docker (same container) — local SERP staging schema                         |
+| Laravel Local      | MySQL      | `laravel_local`      | Local Docker (same container) — 13 Laravel catalog tables, schema-only            |
+| SERP App           | MySQL      | `serp_app`           | **Live/prod SERP app DB** on Hetzner (`LIVE_DARKLAUNCH_DB_*` host, DB `serp_app`) |
+| SERP Test          | MySQL      | `serp_test`          | **Staging SERP / darklaunch mirror** on Hetzner (same host, DB `serp_test`)       |
 
 All databases are accessed via unified MCP tools:
 

@@ -479,20 +479,20 @@ This section is the per-database, per-table, per-column reference for SugarWish'
 
 SugarWish runs **13 databases** across MySQL and PostgreSQL. The unified `mcp__db__*` tools address them by these MCP names (from `.claude/rules/databases.md`):
 
-| MCP name                                          | Engine     | Role                                                                                                         |
-| ------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| `wishdesk`                                        | MySQL      | WishDesk/SWAC CS+CRM+design+billing (SSH tunnel)                                                             |
-| `wishdesk_dev`                                    | MySQL      | WishDesk dev twin (~5K vs ~64K prod users; has in-progress tables not yet in prod)                           |
-| `laravel_live` / `sugarwish`                      | MySQL      | **LIVE** Sugarwish e-commerce/order domain (AWS RDS `database-1.cqqg1tfyyubp.us-east-1`, SSH tunnel)         |
-| `manage`                                          | MySQL      | Laravel **staging** DB; also hosts SERP ORM upstream tables; renamed 2026-05-11 from "laravel staging"       |
-| `odoo`                                            | PostgreSQL | **Production** ERP/inventory/accounting source of truth (Odoo 15, cloud-hosted on Odoo.sh — no shell access) |
-| `odoo_staging`                                    | PostgreSQL | Odoo staging (credentials rotate frequently — check `#odoo-prixite`)                                         |
-| `retool`                                          | PostgreSQL | Analytics/ops + SERP sync engine + SERP auth bridge + forecast caches (~123-165 tables; **NOT SERP-owned**)  |
-| `serp_local_prod`, `serp_local_staging`           | MySQL      | Local Docker (serp-mysql, port 3307, devuser) — local SERP prod/staging schemas                             |
-| `laravel_local`                                   | MySQL      | Local Docker (same container) — 13 Laravel catalog tables, schema-only                                       |
-| `serp_test`                                        | MySQL      | **Staging SERP / darklaunch mirror** on Hetzner `5.161.233.240:3306` (old `live_darklaunch_db` key removed)  |
-| `serp_app`                                         | MySQL      | **Live/prod SERP app DB** on same Hetzner host, DB `serp_app`                                                |
-| _(concepts, no MCP key)_ `serp_prod_replica`, `serp_staging_replica`, `serp_prod_darklaunch`, `serp_staging_darklaunch` | MySQL | Replica (no Odoo overlay) / replica + Odoo overlay — real DBs, but no longer addressable MCP keys |
+| MCP name                                                                                                                | Engine     | Role                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| `wishdesk`                                                                                                              | MySQL      | WishDesk/SWAC CS+CRM+design+billing (SSH tunnel)                                                             |
+| `wishdesk_dev`                                                                                                          | MySQL      | WishDesk dev twin (~5K vs ~64K prod users; has in-progress tables not yet in prod)                           |
+| `laravel_live` / `sugarwish`                                                                                            | MySQL      | **LIVE** Sugarwish e-commerce/order domain (AWS RDS `database-1.cqqg1tfyyubp.us-east-1`, SSH tunnel)         |
+| `manage`                                                                                                                | MySQL      | Laravel **staging** DB; also hosts SERP ORM upstream tables; renamed 2026-05-11 from "laravel staging"       |
+| `odoo`                                                                                                                  | PostgreSQL | **Production** ERP/inventory/accounting source of truth (Odoo 15, cloud-hosted on Odoo.sh — no shell access) |
+| `odoo_staging`                                                                                                          | PostgreSQL | Odoo staging (credentials rotate frequently — check `#odoo-prixite`)                                         |
+| `retool`                                                                                                                | PostgreSQL | Analytics/ops + SERP sync engine + SERP auth bridge + forecast caches (~123-165 tables; **NOT SERP-owned**)  |
+| `serp_local_prod`, `serp_local_staging`                                                                                 | MySQL      | Local Docker (serp-mysql, port 3307, devuser) — local SERP prod/staging schemas                              |
+| `laravel_local`                                                                                                         | MySQL      | Local Docker (same container) — 13 Laravel catalog tables, schema-only                                       |
+| `serp_test`                                                                                                             | MySQL      | **Staging SERP / darklaunch mirror** on Hetzner `5.161.233.240:3306` (old `live_darklaunch_db` key removed)  |
+| `serp_app`                                                                                                              | MySQL      | **Live/prod SERP app DB** on same Hetzner host, DB `serp_app`                                                |
+| _(concepts, no MCP key)_ `serp_prod_replica`, `serp_staging_replica`, `serp_prod_darklaunch`, `serp_staging_darklaunch` | MySQL      | Replica (no Odoo overlay) / replica + Odoo overlay — real DBs, but no longer addressable MCP keys            |
 
 **SERP's 4-DB matrix**: `{prod, staging} × {replica, darklaunch}`, all MySQL with `serp_*` tables.
 
@@ -1727,7 +1727,7 @@ A push/merge to `main` is **not live** until `deploy.sh` runs.
 | `serp_*_replica` (staging/prod) | Clean row-for-row mirror of manage/laravel*live, **zero Odoo overlay**, nearly empty shells | — |
 | `serp*\*\_darklaunch`(staging/prod) | Replica **plus** Odoo overlay (normal BOMs, MOs, SVL, POs) where the worker dual-writes |`SERP_DARKLAUNCH_ENABLED`|
 |`serp_shadow`(Hetzner) | Predecessor prod-traffic handler validation |`SERP_SHADOW_WRITES_ENABLED`|
-|`serp_test`(Hetzner`5.161.233.240`) | **Staging SERP / darklaunch mirror** (not a throwaway; not production — prod is `serp_app`), MCP key `serp_test` (old `live_darklaunch_db` key removed), consistently ~ahead of `serp_prod_darklaunch` | — |
+|`serp_test`(Hetzner`5.161.233.240`) | **Staging SERP / darklaunch mirror** (not a throwaway; not production — prod is `serp_app`), MCP key `serp_test`(old`live_darklaunch_db`key removed), consistently ~ahead of`serp_prod_darklaunch` | — |
 
 - **Fingerprints:** darklaunch has `_migrations` + `serp_darklaunch_meta`; replicas have neither and no Odoo-owned/manufacturing tables.
 - "**compare-replica**" tooling actually compares **darklaunch**, not the replica.
