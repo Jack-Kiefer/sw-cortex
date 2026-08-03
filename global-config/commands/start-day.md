@@ -504,6 +504,36 @@ watermark — that belongs to the weekly full run, and stamping it here would ma
 > `DICTIONARY.md` is enough — don't also hand-edit `CLAUDE.md` unless Jack asks. If something big
 > changed and a full reconcile is warranted, flag it and suggest Jack run `/refresh-knowledge`.
 
+### Step 3b — Refresh the column manifest · orchestrator (main thread, NOT a workflow agent)
+
+`knowledge/COLUMN_MANIFEST.md` is the **generated** half of the KB: exact column names for the
+~60 hottest tables, indexed by the knowledge MCP alongside `DICTIONARY.md`. It exists because
+column-guessing was ~50% of all tooling friction (391 `Unknown column` errors + 77 describe-first
+guard fires in one 7-day audit). It only helps if it matches live — **a stale column list is worse
+than none**, so regenerate it every morning:
+
+```bash
+cd ~/Desktop/Projects/sw-cortex && npm run kb:columns
+```
+
+This is a deterministic, read-only command (DESCRIBE / `information_schema` only) — no judgment
+involved, so it runs on the **orchestrator** thread, not in a Wave A agent, and it does NOT go
+through Step 3's propose-then-apply contract.
+
+Notes:
+
+- **Partial failure is normal and non-fatal.** A cold Odoo host or a dropped tunnel makes some
+  tables unreadable; the generator isolates each table, keeps everything it did read, and lists the
+  failures under "Tables that could not be read." Do **not** retry in a loop and do **not** treat it
+  as broken — report the count and move on.
+- **Never hand-edit the file.** To add a table, add it to `HOT_TABLES` in
+  `scripts/generate-column-manifest.ts` and rerun. Adding a table that just burned you is the
+  intended maintenance loop.
+- If `git status` shows the manifest changed, that's a real schema change — worth a line in the
+  briefing, and worth asking whether `DICTIONARY.md` needs a matching semantic update.
+
+**Return:** one line — tables written, databases covered, and any unreadable tables.
+
 ### Step 4 — Slack triage · `phase('Triage')` agent (needs Step 1 done first)
 
 > **This agent runs in `phase('Triage')`, only after the Slack sync barrier clears** (or
@@ -787,6 +817,7 @@ not just what was recommended — and list anything deferred under "needs Jack":
 
 ### 📚 Knowledge base (living doc)
 - <N facts updated / M added in DICTIONARY.md, or "nothing new to fold in">
+- Column manifest: <N tables across M DBs refreshed; "unchanged" or "schema changed: <table(s)>"; note any unreadable>
 
 ### 📝 Meeting notes
 - <synced N new/updated Docs → C chunks, or "already current — nothing new" / "skipped (skip-sync)" / "Drive unavailable — skipped">

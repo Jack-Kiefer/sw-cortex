@@ -16,6 +16,8 @@
     "meetings:sync": "tsx scripts/sync-meetings.ts",
     "plans:sync": "tsx scripts/sync-meetings.ts -- --plans-only",
     "knowledge:sync": "tsx scripts/sync-meetings.ts",
+    "kb:columns": "tsx scripts/generate-column-manifest.ts",
+    "kb:columns:check": "tsx scripts/generate-column-manifest.ts --check",
     "sync:all": "tsx scripts/sync-meetings.ts && tsx scripts/sync-slack-encrypted.ts",
     "format": "prettier --write \"src/**/*.{ts,js,json}\"",
     "lint": "eslint src",

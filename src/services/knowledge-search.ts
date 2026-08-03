@@ -17,7 +17,10 @@ import { generateEmbedding, generateEmbeddings } from './embeddings.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const CACHE_PATH = path.join(REPO_ROOT, 'knowledge', 'kb', 'embeddings-cache.json');
-const DEFAULT_FILES = ['DICTIONARY.md'];
+// DICTIONARY.md carries the semantics; COLUMN_MANIFEST.md carries the exact
+// column names (generated — see scripts/generate-column-manifest.ts). Both are
+// indexed so "what columns does X have?" and "what does X mean?" both resolve.
+const DEFAULT_FILES = ['DICTIONARY.md', 'knowledge/COLUMN_MANIFEST.md'];
 const MAX_CHUNK_CHARS = 6000; // text-embedding-3-small caps at 8191 tokens; stay well under
 const CACHE_VERSION = 1;
 
