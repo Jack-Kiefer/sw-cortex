@@ -188,6 +188,15 @@
             "command": "/Users/jackkief/.claude/scripts/save-for-later-merge-hook.sh"
           }
         ]
+      },
+      {
+        "matcher": "mcp__db__describe_table|mcp__db__list_tables|mcp__knowledge__search_knowledge",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/db-record-described.sh"
+          }
+        ]
       }
     ],
     "SessionEnd": [
@@ -195,7 +204,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); sid=$(printf '%s' \"$input\" | jq -r '.session_id // empty' 2>/dev/null); [ -n \"$sid\" ] || sid=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$sid\" ] && rm -f \"$HOME/.claude/tab-titles/$sid\" \"$HOME/.claude/tab-titles/$sid.notified\""
+            "command": "input=$(cat); sid=$(printf '%s' \"$input\" | jq -r '.session_id // empty' 2>/dev/null); [ -n \"$sid\" ] || sid=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$sid\" ] && rm -f \"$HOME/.claude/tab-titles/$sid\" \"$HOME/.claude/tab-titles/$sid.notified\" \"$HOME/.claude/db-described/$sid\""
           }
         ]
       }
@@ -216,6 +225,15 @@
           {
             "type": "command",
             "command": "/Users/jackkief/.claude/scripts/repo-write-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__db__query_database",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/db-describe-first-guard.sh"
           }
         ]
       }
