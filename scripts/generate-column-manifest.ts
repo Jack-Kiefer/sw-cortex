@@ -35,7 +35,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describeTable, listTables, listDatabases, closeAllPools } from '../src/services/databases.js';
+import {
+  describeTable,
+  listTables,
+  listDatabases,
+  closeAllPools,
+} from '../src/services/databases.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_PATH = path.join(REPO_ROOT, 'knowledge', 'COLUMN_MANIFEST.md');
@@ -174,7 +179,11 @@ async function resolveTargets(args: Args): Promise<Array<[string, string[]]>> {
   return targets;
 }
 
-function renderTable(db: string, table: string, cols: Array<{ column: string; type: string }>): string {
+function renderTable(
+  db: string,
+  table: string,
+  cols: Array<{ column: string; type: string }>
+): string {
   // One heading per table => one retrievable chunk per table.
   // The column list is rendered as a single comma-joined line: it embeds well
   // and reads fast, and the agent overwhelmingly needs the NAMES, not the types.
@@ -205,7 +214,7 @@ function renderDoc(
     '`npm run kb:columns`. Hand edits are overwritten and, worse, silently rot —',
     'a stale column list is more dangerous than a missing one.',
     '',
-    'This file answers ONE question: *what are this table\'s real column names?*',
+    "This file answers ONE question: *what are this table's real column names?*",
     'For what the columns MEAN, which database is authoritative, and the join',
     'invariants, read `DICTIONARY.md` — that is still the source of truth for',
     'semantics. Nothing here overrides it.',
@@ -236,7 +245,12 @@ function renderDoc(
     );
   }
 
-  return [...head, ...body, ...tail].join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+  return (
+    [...head, ...body, ...tail]
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd() + '\n'
+  );
 }
 
 async function main(): Promise<void> {
