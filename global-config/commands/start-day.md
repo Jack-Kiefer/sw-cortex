@@ -69,12 +69,13 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    below). The sync is the **only** thing the workflow waits on.
 3. **`phase('Wave A')` — fan out the read steps with `parallel()`.** One `agent()` call each
    for **Step 0** (health-check), **Step 2** (tickets), **Step 2b** (PRs/deploy), **Step 2c**
-   (saved-for-later chats), **Step 2d** (SERPY draft integrity), **Step 3** (KB touch-up), **Step 5**
+   (saved-for-later chats), **Step 2d** (SERPY draft integrity), **Step 2e** (SERPY sync fidelity),
+   **Step 3** (KB touch-up), **Step 5**
    (Claude-setup diagnostic). Each
    agent's prompt **is the step body below**;
    each must `return` exactly the compact result block that step specifies — give each a `schema`
    (or a tight "return only this panel" instruction) so the returns come back clean. These have no
-   inter-dependencies, so a single `parallel([...])` barrier collecting all five is correct here.
+   inter-dependencies, so a single `parallel([...])` barrier collecting them all is correct here.
    - Step 0 and Step 5 both touch the live setup; Step 0 owns the **only** live MCP probes (Step 5
      stays transcript-only) — keep that split in their prompts so they don't double-probe.
    - **Step 5's agent is read-only but its `fixes` get APPLIED by the orchestrator after Wave A**
@@ -419,6 +420,109 @@ reconciling`) + one line per flagged MO (mo_id · draft · builds-vs-is · wrong
 - **Stuck ops** — if none, omit or `✅ no failed/dlq SERPY ops in 14d`. If any, `🔴 N stuck SERPY op(s)
 never retried` + one line each (entity_type · draft · error), pointer "retry via `/api/admin/sync-queue`
   or re-stage — failed rows are never auto-repicked."
+
+### Step 2e — SERPY sync fidelity (did the draft land in Odoo as entered?) · Wave A agent
+
+> **Workflow-agent contract.** One `agent()` in `phase('Wave A')`'s `parallel()`. **Fully
+> read-only** (`mcp__db__*` SELECTs against `serp_app` + `odoo` only — never writes). Returns the
+> rendered `### 🔬 SERPY sync fidelity` panel and nothing else.
+
+**The invariant: what the operator entered is what Odoo must show.** Step 2d asks whether an op's
+identity fields agree with *each other*; this Step asks a different question — whether the values a
+human actually typed **survived the trip into Odoo unchanged**. An op can be perfectly
+self-consistent (right BOM, right product) and still land with the wrong *numbers*.
+
+**Why this exists (the blind spot it closes).** From 2026-05-20 to 2026-07-31 a darklaunch-gated
+branch in `workers/handlers/manufacturing.py` rebuilt MO components from the BOM ratio
+(`bom_qty × product_qty/bom_qty`) instead of the payload's operator-counted quantity — **721 MOs /
+914 RM lines / 130,061 lb** of raw material recorded from a formula rather than the counted
+packing slip. Step 2d passed it every morning for ten weeks (identity was consistent — only the
+quantities were wrong), and the **drift monitor went quiet precisely because of the bug**: Odoo had
+started computing quantities the same way the replica did, so the two systems agreed. **Any check
+whose oracle is "do SERP and Odoo match" is structurally blind to this.** The only oracle that
+catches it is the operator's own input. That is what this Step compares against.
+
+**The check — for each recently-synced op, diff the payload's human-entered values against the
+Odoo record it produced.** Payloads live in `serp_app` (MySQL); the resulting records live in
+`odoo` (Postgres) — a two-query cross-DB join done in the agent, not one SQL statement.
+
+1. **Pull recent successfully-synced ops** from `serp_app`. Note the `sync_target='odoo'` filter —
+   darklaunch-targeted rows never produced a live Odoo record and would be pure false positives:
+
+   ```sql
+   SELECT id AS queue_id, odoo_id AS mo_id, entity_type, status, created_at,
+     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.draft_id'))    AS draft_id,
+     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.description'))  AS descr,
+     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.author_email')) AS author,
+     CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.product_qty')) AS DECIMAL(16,4)) AS product_qty,
+     JSON_EXTRACT(payload,'$.components') AS components
+   FROM odoo_sync_queue_live
+   WHERE entity_type='mrp_production' AND operation='create'
+     AND status IN ('synced','partial') AND sync_target='odoo' AND odoo_id IS NOT NULL
+     AND created_at >= (NOW() - INTERVAL 14 DAY)
+   ORDER BY created_at DESC;
+   ```
+
+2. **Pull what Odoo actually recorded** for those MOs — the raw-material moves are the payload's
+   `components[]` counterpart (join on `raw_material_production_id`, NOT `production_id`, which is
+   the finished-good move):
+
+   ```sql
+   SELECT sm.raw_material_production_id AS mo_id, sm.product_id,
+          COALESCE(pp.default_code, pt.default_code) AS sku,
+          sm.product_uom_qty, sm.state
+   FROM stock_move sm
+   JOIN product_product  pp ON pp.id = sm.product_id
+   JOIN product_template pt ON pt.id = pp.product_tmpl_id
+   WHERE sm.raw_material_production_id IN (<distinct mo_ids>)
+     AND sm.state <> 'cancel';
+   -- finished-good qty + the MO's own header, same round trip:
+   SELECT id AS mo_id, product_id, product_qty, state FROM mrp_production WHERE id IN (<distinct mo_ids>);
+   ```
+
+3. **Compare, per component, payload → Odoo.** Match payload `components[].product_id` to the move's
+   `product_id`. Flag when:
+   - **QTY DRIFT** — `abs(payload.quantity − move.product_uom_qty) > 0.01` (absolute tolerance; these
+     are counted pounds/units, so anything past a rounding cent is real). **This is the darklaunch
+     signature.** When it fires, also report what the BOM ratio *would* have given
+     (`payload.bom_qty_ratio × payload.product_qty`) — if the Odoo value equals the ratio result
+     while the payload says otherwise, say so explicitly: that is the formula-overwrote-the-count
+     failure, not a stray edit.
+   - **MISSING COMPONENT** — a payload component with no corresponding raw move (silently dropped).
+   - **EXTRA COMPONENT** — a raw move for a product the payload never listed (silently added).
+   - **HEADER DRIFT** — `mrp_production.product_qty` ≠ payload `product_qty`, or
+     `mrp_production.product_id` ≠ payload `product_id`.
+
+   **Do NOT flag** `location_id`/`location_dest_id` divergence as an error — putaway rules and the
+   unbuild location-grounding legitimately rewrite these; note them only if you flag the row for
+   another reason.
+
+4. **Report the human consequence, not the diff.** Per flagged MO:
+   `MO <mo_id> (draft #<draft_id>, <author>): <sku> entered <payload_qty> → Odoo recorded
+<odoo_qty> (Δ<diff>)` and, when it matches the ratio, `— equals BOM ratio <ratio>×<product_qty>,
+   i.e. the count was overwritten`. Aggregate the total drifted quantity per SKU so the size of the
+   reconciliation is visible at a glance.
+
+**Extending to other op types (the general shape).** The framework is payload-field → Odoo-record
+comparison; MO is simply the first map, and it is the one with confirmed damage. To add an op type,
+define: which Odoo table its `odoo_id` points at, which payload fields are **operator-entered** (vs
+derived//enriched), and the tolerance for each. Natural next maps — `stock_transfer` → `stock_move`
+qty + src/dest, `po_receiving` → received qty vs entered, `inventory_adjustment` → counted qty vs
+`stock_quant`. **Only compare fields a human actually typed** — comparing derived/enriched fields
+generates noise and trains Jack to ignore the panel.
+
+**Bound it:** dedupe id lists before `IN (…)`, cap at 14 days for the daily run, and skip ops whose
+`odoo_id` no longer resolves (deleted/merged in Odoo — note, don't flag). If either DB errors or
+times out, note it in the panel and move on — never block the briefing.
+
+**Return:** the `### 🔬 SERPY sync fidelity` panel:
+
+- If clean: `✅ SERPY→Odoo fidelity (last 14d): N MO ops verified — every entered quantity matches
+Odoo.` (State N — a silent "no findings" is indistinguishable from a check that silently matched
+  nothing.)
+- If any: `🔴 N op(s) where Odoo ≠ what was entered` + one line per flagged MO per step 4, plus the
+  pointer "reconcile in Odoo (adjust the RM move / unbuild+rebuild); if the Δ equals the BOM ratio,
+  suspect a handler recomputing the payload — check whether a flag-gated branch is live."
 
 ### Step 2c — Saved-for-later chats · Wave A agent
 
@@ -810,6 +914,10 @@ not just what was recommended — and list anything deferred under "needs Jack":
 ### 🧯 SERPY draft integrity
 - ✅ SERPY MO drafts (last 14d): all bom↔product↔sku consistent  (or "🔴 <N> mismatched MO op(s):")
 - 🔴 MO <mo_id> (draft #<id>): bom builds <sku_a> but product is <sku_b> — wrongly consumed <RM ×qty>; reconcile in Odoo
+
+### 🔬 SERPY sync fidelity
+- ✅ SERPY→Odoo (last 14d): <N> MO ops verified — every entered quantity matches Odoo
+- 🔴 MO <mo_id> (draft #<id>, <author>): <sku> entered <qty_in> → Odoo recorded <qty_odoo> (Δ<diff>)<, equals BOM ratio — the count was overwritten>
 
 ### 🗂️ Saved for later
 - <title> · <repo> · `<branch>` · <age> — next: <one-line next step>   (`/resume-later` to pick up)
