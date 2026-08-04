@@ -428,9 +428,9 @@ never retried` + one line each (entity_type · draft · error), pointer "retry v
 > rendered `### 🔬 SERPY sync fidelity` panel and nothing else.
 
 **The invariant: what the operator entered is what Odoo must show.** Step 2d asks whether an op's
-identity fields agree with *each other*; this Step asks a different question — whether the values a
+identity fields agree with _each other_; this Step asks a different question — whether the values a
 human actually typed **survived the trip into Odoo unchanged**. An op can be perfectly
-self-consistent (right BOM, right product) and still land with the wrong *numbers*.
+self-consistent (right BOM, right product) and still land with the wrong _numbers_.
 
 **Why this exists (the blind spot it closes).** From 2026-05-20 to 2026-07-31 a darklaunch-gated
 branch in `workers/handlers/manufacturing.py` rebuilt MO components from the BOM ratio
@@ -484,7 +484,7 @@ Odoo record it produced.** Payloads live in `serp_app` (MySQL); the resulting re
    `product_id`. Flag when:
    - **QTY DRIFT** — `abs(payload.quantity − move.product_uom_qty) > 0.01` (absolute tolerance; these
      are counted pounds/units, so anything past a rounding cent is real). **This is the darklaunch
-     signature.** When it fires, also report what the BOM ratio *would* have given
+     signature.** When it fires, also report what the BOM ratio _would_ have given
      (`payload.bom_qty_ratio × payload.product_qty`) — if the Odoo value equals the ratio result
      while the payload says otherwise, say so explicitly: that is the formula-overwrote-the-count
      failure, not a stray edit.
