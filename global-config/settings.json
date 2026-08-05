@@ -128,7 +128,10 @@
       "mcp__slack-search",
       "mcp__logs"
     ],
-    "deny": ["Bash(git stash:*)", "Bash(git stash)"]
+    "deny": [
+      "Bash(git stash:*)",
+      "Bash(git stash)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
@@ -216,6 +219,10 @@
           {
             "type": "command",
             "command": "input=$(cat); cmd=$(echo \"$input\" | jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -qE '(^|[^a-zA-Z0-9_-])git[[:space:]]+stash([[:space:]]|$)'; then jq -n '{hookSpecificOutput: {hookEventName: \"PreToolUse\", permissionDecision: \"deny\", permissionDecisionReason: \"Blocked: `git stash` is forbidden in this codebase (CLAUDE.md). Use `git show HEAD:path/to/file` or `git diff HEAD -- path` to compare against HEAD. To check if a test failure is pre-existing, run the test on a clean checkout or trust that if your diff does not touch related code, the failure is not yours. Never stash, even briefly, even with explicit paths.\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "command": "input=$(cat); cmd=$(echo \"$input\" | jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -Eq 'python3?[[:space:]]+-c[[:space:]]+\"' && echo \"$cmd\" | grep -q '\\\\\"'; then jq -n '{hookSpecificOutput: {hookEventName: \"PreToolUse\", permissionDecision: \"deny\", permissionDecisionReason: \"Blocked: a `python3 -c \\\"...\\\"` body contains backslash-escaped double-quotes (\\\\\\\"). This leaks a literal backslash into Python source -> SyntaxError: unexpected character after line continuation. Fix: single-quote the -c body (python3 -c '\"'\"'...'\"'\"') and use single-quoted Python string literals (o.get('\"'\"'level'\"'\"')), so no double-quote needs escaping; or pipe a  python3 - <<'\"'\"'PY'\"'\"' ... PY  heredoc (quoted delimiter, no interpolation) with single-quoted Python literals.\"}}'; fi"
           }
         ]
       },
