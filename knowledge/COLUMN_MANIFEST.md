@@ -594,11 +594,11 @@ id int · ticket_id varchar(20) · created_at datetime · updated_at datetime ·
 
 #### wishdesk.proposals
 
-**Columns (31):** id, company_id, user_id, rep_id, created_by, proposal_name, status, quantity, total_budget, recipient_list_status, proposal_url_path, occasion, content, details_json, recipient_json, recipient_file, metadata, created_at, updated_at, deleted_at, approved_at, user_last_access, send_date, size_name_id, parent_proposal_id, sender_email, email_sent, digital_branding, physical_branding, merchandise, is_pinned
+**Columns (32):** id, company_id, user_id, rep_id, created_by, proposal_name, status, quantity, total_budget, recipient_list_status, proposal_url_path, occasion, content, details_json, recipient_json, recipient_file, metadata, created_at, updated_at, deleted_at, approved_at, user_last_access, send_date, size_name_id, parent_proposal_id, sender_email, email_sent, digital_branding, physical_branding, merchandise, is_pinned, email_claimed_at
 
 <details><summary>with types</summary>
 
-id int · company_id int · user_id int · rep_id int · created_by int · proposal_name varchar(255) · status varchar(50) · quantity int · total_budget decimal(10,2) · recipient_list_status enum('has_list','no_list') · proposal_url_path varchar(255) · occasion varchar(255) · content json · details_json json · recipient_json json · recipient_file varchar(255) · metadata json · created_at datetime · updated_at datetime · deleted_at datetime · approved_at datetime · user_last_access datetime · send_date date · size_name_id int · parent_proposal_id int · sender_email varchar(255) · email_sent datetime · digital_branding json · physical_branding json · merchandise json · is_pinned tinyint(1)
+id int · company_id int · user_id int · rep_id int · created_by int · proposal_name varchar(255) · status varchar(50) · quantity int · total_budget decimal(10,2) · recipient_list_status enum('has_list','no_list') · proposal_url_path varchar(255) · occasion varchar(255) · content json · details_json json · recipient_json json · recipient_file varchar(255) · metadata json · created_at datetime · updated_at datetime · deleted_at datetime · approved_at datetime · user_last_access datetime · send_date date · size_name_id int · parent_proposal_id int · sender_email varchar(255) · email_sent datetime · digital_branding json · physical_branding json · merchandise json · is_pinned tinyint(1) · email_claimed_at datetime
 
 </details>
 
