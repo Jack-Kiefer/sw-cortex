@@ -39,11 +39,16 @@ def norm(t):
 tables = []
 # Identifier following a table-introducing keyword. We capture only the table token; a
 # trailing alias is naturally excluded.
+# An optional LATERAL after the keyword is consumed so it is never itself captured, and a
+# trailing `(` marks a table FUNCTION (JSON_TABLE, UNNEST, ...) rather than a base table —
+# those can never be describe_table'd, so capturing them would block the query forever.
 pat = re.compile(
-    r"\b(?:from|join|update|into|delete\s+from)\s+([`\"]?[a-z_][a-z0-9_.]*[`\"]?)",
+    r"\b(?:from|join|update|into|delete\s+from)\s+(?:lateral\s+)?([`\"]?[a-z_][a-z0-9_.]*[`\"]?)\s*(\()?",
     re.I,
 )
 for m in pat.finditer(low):
+    if m.group(2):                    # identifier followed by '(' => table function, not a table
+        continue
     raw = m.group(1)
     base = raw.strip('`"')
     if base in cte:
