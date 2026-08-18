@@ -15,17 +15,11 @@
 set -euo pipefail
 
 # --- Allowlist: absolute repo roots that may be written ---
-# NOTE: `herdr` is Jack's PUBLIC fork of the open-source herdrdev/herdr (Apache 2.0),
-# NOT a SugarWish repo. It is writable ONLY for generic, upstream-worthy Herdr changes.
-# NEVER commit anything personal or SugarWish-related to it (company code, DB names,
-# internal paths, SERP/SWAC/darklaunch details, credentials, or references to SugarWish
-# systems) — the fork is public. See the "no personal/corporate content" rule in ~/CLAUDE.md.
 WRITABLE_ROOTS=(
   "/Users/jackkief/Desktop/Projects/SERP"
   "/Users/jackkief/Desktop/Projects/SWAC"
   "/Users/jackkief/Desktop/Projects/sw-cortex"
   "/Users/jackkief/Desktop/Projects/sugarwish-infrastructure"
-  "/Users/jackkief/Desktop/Projects/herdr"
 )
 
 input="$(cat)"
