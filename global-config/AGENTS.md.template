@@ -36,9 +36,11 @@ the house rules; your brief (`.codex-brief.md` if present) is your complete scop
 
 ## Repos (context, not permission — your sandbox enforces the real boundary)
 
-Writable repos in this workspace: **SERP, SWAC, sw-cortex**. Everything else
-(`sugarwish-laravel`, `livery`, `sw-design`, `swirl`, `sugarwish-infrastructure`) is
-read-only — if a fix belongs there, report it, don't attempt it.
+Writable repos in this workspace: **SERP, SWAC, sw-cortex**, and **`herdr`** (Jack's
+PUBLIC fork of open-source `herdrdev/herdr` — writable ONLY for generic Herdr changes;
+NEVER commit anything personal or SugarWish-related to it, the fork is public).
+Everything else (`sugarwish-laravel`, `livery`, `sw-design`, `swirl`,
+`sugarwish-infrastructure`) is read-only — if a fix belongs there, report it, don't attempt it.
 
 ## Data / SQL
 
