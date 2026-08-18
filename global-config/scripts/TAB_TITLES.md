@@ -1,11 +1,35 @@
 # Custom Terminal Tab Titles for Claude Code Sessions
 
-**Last Updated:** 2026-06-17
+**Last Updated:** 2026-08-18
 
 Gives every Claude Code session a custom name/status on its terminal tab
 (`🔍 researching · slug`, `🙋 approve? · slug`, `✅ done · slug`) instead of
 the auto-generated conversation summary. Driven by `/serp-analyze`, the global
 "Terminal Tab Status" standard in `~/CLAUDE.md`, and `/tab-title <name>`.
+
+## Herdr sessions (primary since 2026-08)
+
+Sessions launched by `/go`/`/launch` open as **Herdr tabs** when the `herdr`
+server is running (one workspace per repo, one tab per task — see
+`launch-repo-session.sh`). Herdr needs NO step-0 setup: it honors OSC 0/2
+natively, so the `terminalSequence` escapes the hooks emit paint the pane's
+`terminal_title` as-is. Two title surfaces exist there:
+
+- **pane `terminal_title`** — driven by the OSC escapes (hooks + set-tab-title.sh),
+  shown in the sidebar row; includes the transient `· <activity>` suffix.
+- **tab LABEL** (the tab bar) — a separate value; `set-tab-title.sh` mirrors the
+  persisted semantic title onto it via `herdr tab rename $HERDR_TAB_ID` whenever
+  `HERDR_ENV`/`HERDR_TAB_ID` are set (they're exported inside every Herdr pane).
+
+`close-own-tab.sh` closes a Herdr session's own tab via `herdr tab close
+$HERDR_TAB_ID` (no tty walk). The `ctrl+shift+enter` binding in
+`~/.config/herdr/config.toml` (machine-local, like VS Code's settings) runs
+`herdr-new-go-tab.sh` → new hub tab with claude running and `/go ` pre-typed.
+Herdr's own sidebar agent status (working/blocked/done) is detected
+automatically and needs nothing from us.
+
+Everything below is the VS Code path — still fully supported as the fallback
+when Herdr isn't running.
 
 ## PREREQUISITE (step 0): VS Code needs `${sequence}` in its tab-title template
 

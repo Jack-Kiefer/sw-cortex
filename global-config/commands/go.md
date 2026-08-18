@@ -1,6 +1,6 @@
 # Command: go
 
-The **task entry point.** `/go` opens a **real Claude Code session in the right project** (a new VS Code terminal tab, labeled for the project, with that repo's full native commands + MCP tools) and — unless you only named a repo — kicks off the work there with **a slash command chosen by intent**: an **actionable** task (fix/add/change) fires **`/serp-analyze`** (SERP) — full research → build → PR — and a **pure question** fires **`/research`** — investigate → answer → stop. `/go` = pick the repo, pick the command, launch it. (`/launch` is the keep-this-tab-open variant for already-scoped fixes — see the `/launch` command.)
+The **task entry point.** `/go` opens a **real Claude Code session in the right project** (a new terminal tab — Herdr when its server is running, else VS Code — labeled for the project, with that repo's full native commands + MCP tools) and — unless you only named a repo — kicks off the work there with **a slash command chosen by intent**: an **actionable** task (fix/add/change) fires **`/serp-analyze`** (SERP) — full research → build → PR — and a **pure question** fires **`/research`** — investigate → answer → stop. `/go` = pick the repo, pick the command, launch it. (`/launch` is the keep-this-tab-open variant for already-scoped fixes — see the `/launch` command.)
 
 `/go` ALWAYS lands you in a writable repo — **SERP, SWAC, or sw-cortex**. Tasks that are really about a read-only repo (livery, sugarwish-laravel, sw-design, swirl, sugarwish-infrastructure) route to the writable repo where you'd actually make the change.
 
@@ -188,9 +188,9 @@ Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-t
 ## Step 4 — Report
 
 - **One line**: which repo you routed to and which command it's running, e.g. "Routed to **SERP** — opening an `/serp-analyze` session for the forecast zeros (research → build → PR)." or for a question: "Routed to **SERP** — opening a `/research` session to answer how the redemption curve feeds size_projections."
-- A new terminal tab opens **automatically** (the Go Launcher VS Code extension watches `~/.claude/go-queue/` and opens a terminal per request — no keypress, no Accessibility), titled with the task. It stays open at `✅ done` — Jack closes it himself when he's done with it. Tell Jack to switch to it; it's working with that repo's full native tooling. This hub session stays put.
+- A new terminal tab opens **automatically** — in **Herdr** when its server is running (the launcher drives the `herdr` CLI directly: workspace per repo, tab per task), else in VS Code (the Go Launcher extension watches `~/.claude/go-queue/` — no keypress, no Accessibility) — titled with the task. It stays open at `✅ done` — Jack closes it himself when he's done with it. Tell Jack to switch to it; it's working with that repo's full native tooling. This hub session stays put.
 - **For an actionable `/serp-analyze` launch, the build happens IN that session** — research flows straight to a PR, no bounce back to the hub. For a `/research` launch (pure question), the session answers and stops; if it surfaces a fixable issue you can later spin the fix into its own tab with `/launch` (→ `/implement`).
-- If no tab appears, the extension may not be loaded yet (needs a VS Code reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
+- If no tab appears: in Herdr, check `herdr status` (server running?); in VS Code, the extension may not be loaded yet (needs a window reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
 
 `/go` does NOT do the work in THIS session — it classifies, routes, picks the command (`/serp-analyze` for actionable, `/research` for a question), and launches it in a new tab.
 

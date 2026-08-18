@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# close-own-tab.sh — ask the Go Launcher extension to close THIS session's terminal tab.
+# close-own-tab.sh — close THIS session's terminal tab (Herdr tab, or VS Code via the
+# Go Launcher extension).
 #
 # Used ONLY by explicit close commands (/save-for-later). NOT part of post-merge teardown —
 # sessions leave their tab open at ✅ done after a PR merges; Jack closes tabs himself
@@ -18,6 +19,19 @@
 # real tty — the SAME walk launch-repo-session.sh and set-tab-title.sh use.
 
 set -euo pipefail
+
+# Herdr session: panes export HERDR_TAB_ID (inherited by claude and its tool shells) —
+# close our own tab directly through the herdr CLI, no tty walk needed.
+if [ -n "${HERDR_TAB_ID:-}" ]; then
+  HERDR_BIN="$(command -v herdr 2>/dev/null || true)"
+  [ -n "$HERDR_BIN" ] || { [ -x "$HOME/.local/bin/herdr" ] && HERDR_BIN="$HOME/.local/bin/herdr"; } || true
+  if [ -n "$HERDR_BIN" ] && "$HERDR_BIN" tab close "$HERDR_TAB_ID" >/dev/null 2>&1; then
+    echo "close-own-tab: requested close of this Herdr tab ($HERDR_TAB_ID)."
+    exit 0
+  fi
+  echo "close-own-tab: herdr tab close failed — tab left open." >&2
+  exit 0   # best-effort, same as the VS Code path
+fi
 
 QUEUE_DIR="$HOME/.claude/go-queue"
 mkdir -p "$QUEUE_DIR"

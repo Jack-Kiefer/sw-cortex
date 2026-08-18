@@ -43,5 +43,14 @@ printf '%s' "$TITLE" > "$DIR/$sid"
 # The interactive shell HAS a tty (unlike hooks); fall back silently if it doesn't.
 { printf '\033]0;%s\007' "$TITLE" > /dev/tty; } 2>/dev/null
 
+# Herdr session: the OSC above (and the hooks' terminalSequence) drive the PANE's
+# terminal_title; the TAB bar shows the tab LABEL, a separate value — mirror the semantic
+# status onto it so the Herdr tab reads the same as a VS Code tab would. Best-effort.
+if [ -n "$HERDR_TAB_ID" ]; then
+  HERDR_BIN=$(command -v herdr 2>/dev/null)
+  [ -n "$HERDR_BIN" ] || HERDR_BIN="$HOME/.local/bin/herdr"
+  [ -x "$HERDR_BIN" ] && "$HERDR_BIN" tab rename "$HERDR_TAB_ID" "$TITLE" >/dev/null 2>&1
+fi
+
 echo "tab titled: $TITLE"
 exit 0
