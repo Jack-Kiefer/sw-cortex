@@ -19,6 +19,7 @@ WRITABLE_ROOTS=(
   "/Users/jackkief/Desktop/Projects/SERP"
   "/Users/jackkief/Desktop/Projects/SWAC"
   "/Users/jackkief/Desktop/Projects/sw-cortex"
+  "/Users/jackkief/Desktop/Projects/sugarwish-infrastructure"
 )
 
 input="$(cat)"
