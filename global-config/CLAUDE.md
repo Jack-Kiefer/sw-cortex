@@ -58,11 +58,14 @@ Running the SWAC app on your machine and signing in (`SWAC` = `WishDesk`; root `
 
 ## Terminal Tab Status (every session, every project)
 
-Keep this session's terminal tab title showing what you're doing. Set it as soon as the first real task starts, and **update it often — on every meaningful step, not only at phase transitions** — so Jack gets a live read on progress. Advance the `· <label>` as the work moves (`🔨 applying fix · extension.js` → `🔨 applying fix · settings.json` → `🧪 verifying · shellcheck`), not just when the emoji changes. Between your updates the `--activity` PostToolUse hook already appends a live `· <activity>` suffix (`· editing extension.js`, `· running npm`) automatically, so the tab moves on every tool call; your job is to keep the semantic `<status> · <label>` current so that base title stays accurate:
+Keep this session's terminal tab title showing what you're doing. Set it as soon as the first real task starts, and **update it often — on every meaningful step, not only at phase transitions** — so Jack gets a live read on progress. The title is a **short plain-English description of the current work**, led by a status emoji — write it the way you'd tell a colleague in a few words (`🔨 Fixing the scrap digest`, `🙋 Waiting on kit-edit approval`, `📦 PR open for serpy MO batch fix`), **not** the old terse `<status> · <slug>` shorthand. Advance the description as the work moves (`🔨 Editing the extension` → `🔨 Editing settings.json` → `🧪 Running shellcheck`), not just when the emoji changes. Between your updates the `--activity` PostToolUse hook still appends a live `· <activity>` suffix (`· editing extension.js`, `· running npm`) automatically, so the tab moves on every tool call; your job is to keep the semantic description current so that base title stays accurate:
 
 ```bash
-~/.claude/scripts/set-tab-title.sh "<emoji> <status> · <label>"
+~/.claude/scripts/set-tab-title.sh "<emoji> <short description of the current work>"
+# e.g.  "🔨 Fixing the scrap digest"   "🙋 Waiting on kit-edit approval"   "🧪 Running the test suite"
 ```
+
+Keep the description to a handful of words — long enough to read as a phrase, short enough to fit the sidebar. Prefer a real subject (`the scrap digest`, `kit-edit approval`, `the copier cap`) over a bare slug. No `·` or `—` separators in the base title (those read as clutter); the only `·` that appears is the automatic `· <activity>` suffix the hook adds, and the only `—` is the `--did` trail below.
 
 | Emoji | When                                                  |
 | ----- | ----------------------------------------------------- |
@@ -78,19 +81,19 @@ Keep this session's terminal tab title showing what you're doing. Set it as soon
 | 🚀    | merged                                                |
 | ✅    | task finished                                         |
 
-These are the steps a full `/implement` session moves through, in order: `🔍 researching → 📋 planning → 🙋 approve? → 🔨 applying fix → 🧪 verifying → 📝 committing → ⬆️ pushing → 📦 PR open → 🚀 merged → ✅ done`. Not every task hits every step (a pure research `/go` stops at `🙋`/`✅`); emit the ones that apply, in this order. Set 🙋/❓/📦/✅ — the **idle** states — **before ending the turn**, since that's what Jack sees while the tab sits.
+These are the steps a full `/implement` session moves through, in order (each is just an emoji choice — the words are your own description of that step): `🔍 researching → 📋 planning → 🙋 approve? → 🔨 applying the fix → 🧪 verifying → 📝 committing → ⬆️ pushing → 📦 PR open → 🚀 merged → ✅ done`. Not every task hits every step (a pure research `/go` stops at `🙋`/`✅`); emit the ones that apply, in this order. Set 🙋/❓/📦/✅ — the **idle** states — **before ending the turn**, since that's what Jack sees while the tab sits.
 
-**Log what you've DONE with `--did`, not just what you're doing.** The `<status> · <label>` says where you are *now*; add a short past-tense `--did "<phrase>"` each time you FINISH a meaningful step, so the tab also carries a breadcrumb of accomplishments and a full on-disk summary Jack can read. Pass it alongside the status (or on its own to log a step without changing the title):
+**Log what you've DONE with `--did`, not just what you're doing.** The description says where you are *now*; add a short past-tense `--did "<phrase>"` each time you FINISH a meaningful step, so the tab also carries a breadcrumb of accomplishments and a full on-disk summary Jack can read. Pass it alongside the status (or on its own to log a step without changing the title):
 
 ```bash
-~/.claude/scripts/set-tab-title.sh "🔨 fixing copier cap" --did "raised COPY_LIMIT 2000→8000"
-~/.claude/scripts/set-tab-title.sh "🧪 verifying"          --did "added regression test"
-# tab then reads:  🧪 verifying — added regression test, raised COPY_LIMIT 2000→8000
+~/.claude/scripts/set-tab-title.sh "🔨 Fixing the copier cap" --did "raised COPY_LIMIT 2000→8000"
+~/.claude/scripts/set-tab-title.sh "🧪 Running the tests"      --did "added regression test"
+# tab then reads:  🧪 Running the tests — added regression test, raised COPY_LIMIT 2000→8000
 ```
 
 The tab shows the current step plus the **last two** `--did` phrases (`<title> — a, b`, capped so it never overflows the sidebar); the **complete** running summary of everything done accrues to `~/.claude/tab-titles/$CLAUDE_CODE_SESSION_ID.log` (read it for the full record). Emit a `--did` at each real milestone — fix applied, test passing, PR opened (`--did "opened PR #882"`), merged — keeping each phrase short and past-tense. It layers under the transient `· <activity>` and `❓ question` overlays and survives idle re-paints, exactly like the base title.
 
-`<label>` = 1–3-word task label (kebab-case fine). The global hooks (Stop/Notification/SubagentStop → `tab-title-hook.sh`) re-stamp the latest value automatically; update the label freely as you go, just don't re-set the exact same string back-to-back (no value churn — a changed step is always worth setting). **Question popup → `❓ question`:** whenever Claude Code shows a popup that needs Jack (a permission/tool-approval prompt, an MCP elicitation dialog, or a background-session input request), the `Notification` hook automatically flips the tab to `❓ question · <label>` — you don't set this yourself; it layers on top of your status transiently and clears when Jack answers. **Auto-flip on reply:** when Jack replies to a tab sitting in a waiting state (🙋 or ❓), the `UserPromptSubmit` hook automatically demotes the leading emoji to 🔨 (keeping the label) — so a tab only says "approve?"/"blocked"/"question" while it's _actually_ waiting on him. You don't need to clear 🙋/❓ yourself on the next turn; just set the next real status (🔨/🧪/📝/…) when you reach it. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
+The description is a short phrase (a handful of words — a real subject, not a bare slug). The global hooks (Stop/Notification/SubagentStop → `tab-title-hook.sh`) re-stamp the latest value automatically; update the description freely as you go, just don't re-set the exact same string back-to-back (no value churn — a changed step is always worth setting). **Question popup → `❓ question`:** whenever Claude Code shows a popup that needs Jack (a permission/tool-approval prompt, an MCP elicitation dialog, or a background-session input request), the `Notification` hook automatically flips the tab to `❓ question · <label>` — you don't set this yourself; it layers on top of your status transiently and clears when Jack answers. **Auto-flip on reply:** when Jack replies to a tab sitting in a waiting state (🙋 or ❓), the `UserPromptSubmit` hook automatically demotes the leading emoji to 🔨 (keeping the label) — so a tab only says "approve?"/"blocked"/"question" while it's _actually_ waiting on him. You don't need to clear 🙋/❓ yourself on the next turn; just set the next real status (🔨/🧪/📝/…) when you reach it. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
 
 ## IMPORTANT: Search the Knowledge Base First
 
