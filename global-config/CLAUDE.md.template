@@ -15,10 +15,11 @@ How Jack wants Claude to work. These override the urge to be "helpful" by doing 
 
 ## Terminal Tab Status (every session, every project)
 
-Keep this session's terminal tab title showing what you're doing. Set it as soon as the first real task starts, and update it at every status change:
+Keep this session's terminal tab title showing what you're doing. Set it as soon as the first real task starts, and update it at every status change. The title is a **short plain-English description of the current work**, led by a status emoji (`🔨 Fixing the scrap digest`, `🙋 Waiting on kit-edit approval`) — not a terse `<status> · <slug>` shorthand, and no `·`/`—` separators in the base title:
 
 ```bash
-~/.claude/scripts/set-tab-title.sh "<emoji> <status> · <label>"
+~/.claude/scripts/set-tab-title.sh "<emoji> <short description of the current work>"
+# e.g.  "🔨 Fixing the scrap digest"   "🙋 Waiting on kit-edit approval"
 ```
 
 | Emoji | When |
@@ -31,7 +32,7 @@ Keep this session's terminal tab title showing what you're doing. Set it as soon
 | 📦 | PR opened, awaiting merge decision |
 | ✅ | task finished |
 
-`<label>` = 1–3-word task label (kebab-case fine). Set 🙋/❓/✅ **before ending the turn** — that's the state Jack sees while the tab sits idle. The global hooks (Stop/Notification/PostToolUse → `tab-title-hook.sh`) re-stamp the latest value automatically, so only update it at transitions, never repeatedly. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
+The description is a short phrase (a handful of words — a real subject, not a bare slug). Set 🙋/❓/✅ **before ending the turn** — that's the state Jack sees while the tab sits idle. The global hooks (Stop/Notification/PostToolUse → `tab-title-hook.sh`) re-stamp the latest value automatically, so only update it at transitions, never repeatedly. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
 
 ## IMPORTANT: Search the Knowledge Base First
 
