@@ -1,6 +1,6 @@
 # Command: launch
 
-`/launch` is **the fix-launcher that keeps the original tab open.** It opens a real Claude Code session in the right repo (new VS Code terminal tab, that repo's native commands + MCP tools) and kicks off the work there. It reuses all of `/go`'s routing/intake machinery, with three differences: it does **NOT** close the tab you ran it from, it can **launch several sessions at once**, and for SERP it fires **`/implement`** (build the scoped fix) by default — or **`/research`** when you only want to investigate in the new tab.
+`/launch` is **the fix-launcher that keeps the original tab open.** It opens a real Claude Code session in the right repo (new terminal tab — Herdr when its server is running, else VS Code — that repo's native commands + MCP tools) and kicks off the work there. It reuses all of `/go`'s routing/intake machinery, with three differences: it does **NOT** close the tab you ran it from, it can **launch several sessions at once**, and for SERP it fires **`/implement`** (build the scoped fix) by default — or **`/research`** when you only want to investigate in the new tab.
 
 Use `/launch` when the fix is already scoped (typically right after a `/go` or `/research` pass) and you want to spin it off into its own tab while staying where you are. `/launch` runs **`/implement` by default** (build the scoped fix → PR), or **`/research`** when you say `research`/`investigate` (investigate in the new tab, report, stop — no build). (`/go` closes the originating tab once the new one opens; `/launch` leaves it open.)
 
@@ -109,7 +109,7 @@ Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkie
 
 - **One line per launched session**: which repo, the mode (research/impl), and why — same format as `/go` Step 4. For a multi-launch, one line each.
 - New tabs open **automatically**; each stays open at `✅ done` — Jack closes them himself. **This tab stays open too** — tell Jack to switch to the new tab(s) if he wants; this session stays put either way.
-- If no tab appears, the extension may not be loaded — reload the VS Code window.
+- If no tab appears: in Herdr check `herdr status`; in VS Code the extension may not be loaded — reload the window.
 
 ## Plain-English equivalent (no slash needed)
 

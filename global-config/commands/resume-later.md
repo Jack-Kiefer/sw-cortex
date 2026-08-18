@@ -5,7 +5,7 @@ description: List saved-for-later chats and relaunch one as a real session in it
 # Command: resume-later
 
 Pick up a previously `/save-for-later`'d chat. Lists your active saves; when you choose one
-it **launches a real Claude Code session in that save's repo** (a new VS Code terminal tab,
+it **launches a real Claude Code session in that save's repo** (a new terminal tab — Herdr when its server is running, else VS Code —
 that repo's full tooling), seeded to read the save file, get back on the right branch, and
 continue where you left off.
 
