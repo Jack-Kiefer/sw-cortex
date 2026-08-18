@@ -127,6 +127,42 @@ const HOT_TABLES: Record<string, string[]> = {
     'res_users',
   ],
   wishdesk: ['orders_tickets', 'sw_billing_tickets', 'swcrm_actions', 'proposals'],
+  // `manage` (Laravel STAGING) is in the describe-first guard's GATED_DBS but had
+  // ZERO manifest coverage, so the guard's cheap escape hatch (a KB column
+  // lookup) structurally could not be satisfied for it — 9 guard blocks in the
+  // 3 days to 2026-08-18 were unavoidable rather than an adoption failure.
+  // Table names below were confirmed against live `manage` via list_tables on
+  // 2026-08-18. Note the Odoo-shaped tables here are `serp_`-PREFIXED — there is
+  // no bare `mrp_bom` / `product_category` / `product_supplierinfo` on this DB.
+  manage: [
+    // order domain
+    'ec_order',
+    'preselect_orders',
+    'receiver_orders',
+    'buyer_orders',
+    'component_orders',
+    'order_queue_batches',
+    // product / kit domain
+    'components',
+    'component_kits',
+    'kits',
+    'receiver_products',
+    'buyer_products',
+    'receiver_product_inventory',
+    'feature_attributes',
+    'items',
+    'product_type',
+    // SERP bridge tables that live on manage (publisher targets)
+    'serp_published_kits',
+    'serp_published_stock',
+    'serp_mrp_bom',
+    'serp_mrp_bom_line',
+    'serp_product_category',
+    'serp_product_supplierinfo',
+    // uom
+    'serp_uom_uom',
+    'serp_uom_category',
+  ],
 };
 
 interface Args {
