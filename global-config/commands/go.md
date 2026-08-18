@@ -29,13 +29,25 @@ Examples:
 
 ## Step 0 — Bare repo name? Just launch it.
 
-If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex, case-insensitive) with no task, open that repo's session **bare — no analyze, no prompt**:
+If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex, case-insensitive) with no task (`wishdesk` → SWAC), open that repo's session **bare — no analyze, no prompt** — two cases:
 
-```bash
-~/.claude/scripts/launch-repo-session.sh <REPO_ROOT>
-```
+- **This session runs in a Herdr pane (`HERDR_PANE_ID` set — check with `echo $HERDR_PANE_ID`):** swap THIS tab in place — same tab and position, its base directory switches to the repo:
 
-(`wishdesk` → SWAC.) Report which repo opened, tell Jack to switch to the new tab, done. Skip the rest.
+  ```bash
+  ~/.claude/scripts/herdr-switch-repo.sh <REPO_ROOT>
+  ```
+
+  Then say in ONE line that the tab is swapping to that repo, and **END THE TURN IMMEDIATELY with no further tool calls** — the swap waits for this turn to end, exits this claude, and boots a fresh one cwd'd at the repo (this session is what gets replaced).
+
+- **Otherwise (VS Code / no Herdr pane):** launch a bare session the normal way:
+
+  ```bash
+  ~/.claude/scripts/launch-repo-session.sh <REPO_ROOT>
+  ```
+
+  Report which repo opened, tell Jack to switch to the new tab, done.
+
+Either way, skip the rest.
 
 ## Step 0.1 — Bare ticket number? It's a WishWorks ticket → SWAC, and carry the ticket ID to the PR.
 
