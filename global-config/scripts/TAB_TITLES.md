@@ -74,7 +74,7 @@ hooks (read session_id from stdin JSON; have no tty):
      └─ SubagentStop re-asserts the PARENT's title after a child finishes
      └─ PostToolUse re-asserts after EVERY tool call, so a mid-run
         set-tab-title.sh paints on the next tool call instead of waiting for idle
-  SessionEnd → inline `rm` of the session's title file (GC)
+  SessionEnd → inline `rm` of the session's title file + .did/.log/.notified (GC)
 ```
 
 Children CANNOT paint the parent tab (their terminalSequence targets their own
@@ -85,6 +85,32 @@ the next idle hook — the per-tool-call hot-path I/O is the accepted cost, kept
 cheap by the hook's early `exit 0` when no title file exists and `suppressOutput`.
 The model's `set-tab-title.sh` calls win over the default, because the default
 no-ops once a title file exists.
+
+## Done-trail: `--did` (what the session has accomplished)
+
+Beyond the current-step status, the tab can carry a running breadcrumb of what the
+session has FINISHED, plus a full on-disk summary:
+
+```
+set-tab-title.sh "🔨 fixing cap" --did "raised COPY_LIMIT 2000→8000"
+set-tab-title.sh --did "added regression test"      # keeps current title, logs a step
+set-tab-title.sh "🧪 verifying" --did "npm test green"
+  → tab reads:  🧪 verifying — npm test green, added regression test
+```
+
+- `--did "<phrase>"` prepends a short phrase to the session's **done-trail**
+  (`~/.claude/tab-titles/$sid.did`, newest-first, one phrase per line) and appends a
+  timestamped line to the **full summary** (`$sid.log`, append-only, oldest-first).
+- The tab title is composed as `"<base title> — <last 2 dids>"`, capped (~44 chars of
+  tail) so it never blows out the Herdr sidebar. Give a title, a `--did`, or both.
+- `tab-title-hook.sh` re-reads `.did` and re-asserts the same composed title on every
+  Stop/Notification/PostToolUse, so the breadcrumb survives idle re-paints and layers
+  correctly UNDER the transient `· <activity>` suffix and the `❓ question` override.
+- The **full summary of everything done** is `$sid.log` — read it for the complete
+  record (the tab only shows the last two). `--clear` and SessionEnd remove both files.
+
+Keep each `--did` phrase short and past-tense ("capped copier", "added test", "opened
+PR #882") — it's a glanceable log of accomplishments, not a sentence.
 
 ## Components
 

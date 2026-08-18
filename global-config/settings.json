@@ -204,7 +204,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); sid=$(printf '%s' \"$input\" | jq -r '.session_id // empty' 2>/dev/null); [ -n \"$sid\" ] || sid=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$sid\" ] && rm -f \"$HOME/.claude/tab-titles/$sid\" \"$HOME/.claude/tab-titles/$sid.notified\" \"$HOME/.claude/db-described/$sid\""
+            "command": "input=$(cat); sid=$(printf '%s' \"$input\" | jq -r '.session_id // empty' 2>/dev/null); [ -n \"$sid\" ] || sid=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$sid\" ] && rm -f \"$HOME/.claude/tab-titles/$sid\" \"$HOME/.claude/tab-titles/$sid.notified\" \"$HOME/.claude/tab-titles/$sid.did\" \"$HOME/.claude/tab-titles/$sid.log\" \"$HOME/.claude/db-described/$sid\""
           }
         ]
       }

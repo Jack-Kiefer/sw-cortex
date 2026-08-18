@@ -34,14 +34,33 @@ F="$HOME/.claude/tab-titles/$sid"
 title=$(sed -E 's/^\[[^]]+\] //' "$F")
 [ -n "$title" ] || exit 0
 
-# `out` is what we actually emit this invocation — starts as the persisted title and may be
-# transiently overridden below (question popup) or extended (live activity). $F is never touched.
-out="$title"
-# The "label" part of the stored title (what follows "· ", else the title minus its lead emoji).
+# The "label" part of the stored BASE title (what follows "· ", else the title minus its lead
+# emoji) — computed before the done-trail is folded in, so the question override reads clean.
 case "$title" in
   *"· "*) label=${title##*· } ;;
   *) label=${title#* } ;;
 esac
+
+# --- Done-trail → "<title> — <last-two-dids>" (persisted; set-tab-title.sh --did writes it) ---
+# set-tab-title.sh --did records what the session has finished in <sid>.did (newest-first, one
+# phrase per line; the full timestamped history lives in <sid>.log). Re-assert that breadcrumb
+# on the title here so a Stop/Notification/prompt re-paint keeps showing it — same rendering the
+# setter used. This is NOT transient: it's part of the persisted status, appended before any
+# transient activity/question layer below. `titled` = base title + done-trail.
+titled="$title"
+DIDF="$F.did"
+if [ -s "$DIDF" ]; then
+  dtail=$(awk 'NR>1{printf ", "}{printf "%s",$0}' "$DIDF")
+  if [ -n "$dtail" ]; then
+    dlen=$(printf '%s' "$dtail" | wc -c | tr -d ' ')
+    [ "$dlen" -gt 44 ] && dtail=$(printf '%s' "$dtail" | cut -c1-44)…
+    titled="$title — $dtail"
+  fi
+fi
+
+# `out` is what we actually emit this invocation — starts as the persisted title+trail and may
+# be transiently overridden below (question popup) or extended (live activity). $F is never touched.
+out="$titled"
 
 # --- Question popup → "❓ question · <label>" (Notification hook, transient) --------------
 # Claude Code fires Notification with a notification_type discriminator. When it's a prompt
@@ -89,10 +108,11 @@ if [ "$1" = "--activity" ]; then
     "") act="" ;;
     *) act="$tool" ;;  # MCP/other tools: show the tool name
   esac
-  # Cap the activity so the suffix never blows out the tab width.
+  # Cap the activity so the suffix never blows out the tab width. Appends to the composed
+  # title+trail ($titled) so the live "· <activity>" rides after the done-breadcrumb.
   if [ -n "$act" ]; then
     act=$(printf '%s' "$act" | cut -c1-24)
-    out="$title · $act"
+    out="$titled · $act"
   fi
 fi
 
