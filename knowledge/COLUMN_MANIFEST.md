@@ -4,7 +4,7 @@ Exact column names for the tables that agents query most. Regenerate with
 `npm run kb:columns`. Hand edits are overwritten and, worse, silently rot —
 a stale column list is more dangerous than a missing one.
 
-This file answers ONE question: _what are this table's real column names?_
+This file answers ONE question: *what are this table's real column names?*
 For what the columns MEAN, which database is authoritative, and the join
 invariants, read `DICTIONARY.md` — that is still the source of truth for
 semantics. Nothing here overrides it.
@@ -176,7 +176,7 @@ id int unsigned · name varchar(255) · first_name varchar(255) · last_name var
 
 ## serp_test
 
-#### serp_test.\_migrations
+#### serp_test._migrations
 
 **Columns (3):** version, filename, applied_at
 
@@ -358,7 +358,7 @@ id bigint · worker varchar(128) · env varchar(64) · kind enum('poller','cron'
 
 ## serp_app
 
-#### serp_app.\_migrations
+#### serp_app._migrations
 
 **Columns (3):** version, filename, applied_at
 
@@ -619,5 +619,237 @@ id int · ticket_number varchar(20) · category varchar(100) · request_type var
 <details><summary>with types</summary>
 
 id bigint · title varchar(255) · category_name varchar(255) · due_date datetime · completed_date datetime · completed tinyint(1) · details text · status varchar(50) · priority int · percent_complete int · start_date datetime · publicly_visible tinyint(1) · responsible_user_id int · owner_user_id bigint · assigned_by_user_id bigint · created_user_id bigint · assigned_team_id bigint · assigned_date datetime · email_id bigint · opportunity_id bigint · stage_name varchar(255) · parent_task_id bigint · reminder_date datetime · expiration_date datetime · reminder_sent tinyint(1) · owner_visible tinyint(1) · recurrence varchar(255) · recurrence_type enum('none','daily','weekly','monthly','yearly','workday') · recurrence_interval int · recurrence_days_of_week varchar(20) · recurrence_end_date date · recurrence_parent_id bigint · created_at datetime · updated_at datetime · record_id bigint unsigned · sales_rep varchar(255) · user_responsible bigint unsigned · responsible_user_name varchar(255) · owner_user_name varchar(255) · created_user_name varchar(255) · assigned_by_user_name varchar(255) · pipeline_name varchar(255) · completed_due_date_diff varchar(255) · assigned_team_name varchar(255) · linked_contact_name varchar(255) · linked_lead_name varchar(255) · opportunity_name varchar(255) · linked_organization_name varchar(255) · category_id bigint · stage_id bigint · metadata json · created_by_type enum('user','api','repeat','workflow','import') · insightly_task_id_gen varchar(64) · source_event_id varchar(128)
+
+</details>
+
+## manage
+
+#### manage.buyer_orders
+
+**Columns (27):** id, order_id, increment_id, preselect_master_id, company_id, user_id, product_sku, confirmation_email_sent_at, link_email_sent_at, status, preselect_status, store_id, customer_is_guest, customer_email, customer_firstname, customer_lastname, love_letters, ordered_by, privacy_restricted, api, restricted, remote_ip, browser_information, test_order, suspected_fraud, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id bigint unsigned · order_id bigint · increment_id bigint · preselect_master_id bigint · company_id bigint · user_id bigint · product_sku varchar(255) · confirmation_email_sent_at timestamp · link_email_sent_at timestamp · status varchar(255) · preselect_status varchar(255) · store_id int · customer_is_guest int · customer_email varchar(255) · customer_firstname varchar(255) · customer_lastname varchar(255) · love_letters tinyint(1) · ordered_by int · privacy_restricted tinyint(1) · api tinyint(1) · restricted tinyint(1) · remote_ip text · browser_information varchar(255) · test_order tinyint(1) · suspected_fraud tinyint(1) · created_at timestamp · updated_at timestamp
+
+</details>
+
+#### manage.buyer_products
+
+**Columns (48):** id, odoo_id, sku, type, category, name, reports_name, subtitle, description, pdp_description, price, price2016, dd_charge, number_of_candies, weight, fee_to_can, fee_to_intl, imageurl, sort_key, disabled, product_type, cover_image, receiver_size, subtitle_html, created_at, updated_at, deleted_at, wine, receiver_confirm_image, us_standard_shipping_fee, us_expedited_shipping_fee, ca_shipping_fee, default_kit, item_multiplier, product_configuration_id, size_name_id, select_image_url, seasonal_kit, seasonal_image, wishlinks_enabled, is_stacked, gift_card_fee, sw_fulfill, template_name, pdp_special_label, accessory_id, location_id, custom_location_id
+
+<details><summary>with types</summary>
+
+id int · odoo_id int · sku varchar(255) · type varchar(150) · category varchar(150) · name varchar(150) · reports_name varchar(255) · subtitle varchar(150) · description text · pdp_description longtext · price float(7,2) · price2016 float(7,2) · dd_charge float(5,2) · number_of_candies int · weight float(7,2) · fee_to_can float(7,2) · fee_to_intl int · imageurl varchar(255) · sort_key int · disabled tinyint · product_type int · cover_image varchar(255) · receiver_size json · subtitle_html varchar(255) · created_at timestamp · updated_at timestamp · deleted_at datetime · wine tinyint(1) · receiver_confirm_image varchar(255) · us_standard_shipping_fee double(8,2) · us_expedited_shipping_fee double(8,2) · ca_shipping_fee double(8,2) · default_kit bigint · item_multiplier int unsigned · product_configuration_id bigint unsigned · size_name_id bigint unsigned · select_image_url varchar(255) · seasonal_kit bigint · seasonal_image varchar(255) · wishlinks_enabled tinyint(1) · is_stacked tinyint(1) · gift_card_fee decimal(10,2) · sw_fulfill tinyint(1) · template_name varchar(255) · pdp_special_label varchar(255) · accessory_id bigint unsigned · location_id bigint unsigned · custom_location_id bigint unsigned
+
+</details>
+
+#### manage.component_kits
+
+**Columns (6):** id, kit_id, component_id, quantity, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id bigint unsigned · kit_id int · component_id bigint unsigned · quantity int · created_at timestamp · updated_at timestamp
+
+</details>
+
+#### manage.component_orders
+
+**Columns (12):** id, order_id, component_id, quantity, created_at, updated_at, order_type, component_sku, component_name, inventory_source, accessory_images_id, location_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · order_id int · component_id bigint unsigned · quantity int · created_at timestamp · updated_at timestamp · order_type varchar(255) · component_sku varchar(50) · component_name varchar(50) · inventory_source enum('odoo','serp') · accessory_images_id bigint unsigned · location_id bigint unsigned
+
+</details>
+
+#### manage.components
+
+**Columns (25):** id, odoo_id, inventory_source, sku, prod_slip_sku, name, company_id, description, inventory_quantity(deleted), status(deleted), sort_key, drop_level(deleted), number_of_picks, start_date, end_date, hide, created_at, updated_at, tax_code_id, tax_description, mi_inventory_qty(deleted), location_override, location_2_status(deleted), shelf_id, image_url
+
+<details><summary>with types</summary>
+
+id bigint unsigned · odoo_id varchar(255) · inventory_source enum('odoo','serp') · sku varchar(50) · prod_slip_sku varchar(255) · name varchar(50) · company_id int unsigned · description varchar(255) · inventory_quantity(deleted) int · status(deleted) tinyint · sort_key int · drop_level(deleted) int · number_of_picks int · start_date date · end_date date · hide tinyint · created_at timestamp · updated_at timestamp · tax_code_id bigint unsigned · tax_description mediumtext · mi_inventory_qty(deleted) int · location_override varchar(255) · location_2_status(deleted) tinyint(1) · shelf_id int · image_url varchar(255)
+
+</details>
+
+#### manage.ec_order
+
+**Columns (76):** id, order_id, increment_id, company_id, user_id, giftcards_card_id, status, store_id, customer_email, customer_firstname, customer_lastname, remote_ip, total_item_count, sendergiftmsg, gift_code, telephone, postcode, shipping_firstname, shipping_lastname, shipping_name, shipping_company, shipping_address, shipping_address2, shipping_city, shipping_state, shipping_country, shipping_created_at, carrier, service, tracking_number, ship_date, shipping_cost, notes, love_letters, created_at, updated_at, created_at_shipping, product_type, browser_information, size, is_imported, expedited_shipping, platform_fee, taxable_total, gift_total, gift_total_picks, pick_value, avatax_status, sales_tax, delivery_status, delivery_date, curated, delivery_mail_sent, tracking_mail_sent, fedex_checked_at, oddo_synchronized, serp_sync, co_ship_tax, shipping_label_url, component_imported, test_order, is_stacked, address_validation, ship_date_odoo_synchronized, ship_date_serp_synchronized, vendor_imported, vendor_order_number, expected_delivery_date, label_created_at, sw_fulfill, expected_delivery_mail_sent, delivery_note, recipient_survey_sent, recipient_survey_sent_at, source, merchandise_selections
+
+<details><summary>with types</summary>
+
+id bigint unsigned · order_id bigint · increment_id bigint · company_id int · user_id int · giftcards_card_id int · status varchar(255) · store_id int · customer_email varchar(255) · customer_firstname varchar(255) · customer_lastname varchar(255) · remote_ip text · total_item_count int · sendergiftmsg blob · gift_code varchar(255) · telephone varchar(255) · postcode varchar(255) · shipping_firstname varchar(255) · shipping_lastname varchar(255) · shipping_name varchar(255) · shipping_company varchar(255) · shipping_address varchar(255) · shipping_address2 varchar(255) · shipping_city varchar(255) · shipping_state varchar(255) · shipping_country varchar(255) · shipping_created_at datetime · carrier varchar(255) · service varchar(255) · tracking_number varchar(255) · ship_date date · shipping_cost decimal(10,5) · notes text · love_letters tinyint · created_at timestamp · updated_at timestamp · created_at_shipping datetime · product_type int unsigned · browser_information varchar(255) · size int · is_imported tinyint · expedited_shipping enum('Standard Shipping','2-Day','Overnight') · platform_fee double(8,2) · taxable_total double(8,2) · gift_total double(8,2) · gift_total_picks int unsigned · pick_value double(8,2) · avatax_status enum('not-processed','processed','sent','skipped','adjusted','voided','cancelled','locked') · sales_tax double(8,2) · delivery_status varchar(255) · delivery_date varchar(255) · curated tinyint(1) · delivery_mail_sent tinyint(1) · tracking_mail_sent tinyint(1) · fedex_checked_at datetime · oddo_synchronized tinyint(1) · serp_sync tinyint · co_ship_tax double(8,2) · shipping_label_url varchar(255) · component_imported tinyint · test_order tinyint(1) · is_stacked tinyint(1) · address_validation tinyint · ship_date_odoo_synchronized tinyint · ship_date_serp_synchronized tinyint · vendor_imported tinyint(1) · vendor_order_number varchar(255) · expected_delivery_date date · label_created_at timestamp · sw_fulfill tinyint(1) · expected_delivery_mail_sent timestamp · delivery_note text · recipient_survey_sent tinyint(1) · recipient_survey_sent_at timestamp · source tinyint · merchandise_selections json
+
+</details>
+
+#### manage.feature_attributes
+
+**Columns (7):** id, feature_id, attribute_key_label, attribute_key, attribute_value, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id bigint unsigned · feature_id bigint unsigned · attribute_key_label varchar(100) · attribute_key varchar(100) · attribute_value text · created_at timestamp · updated_at timestamp
+
+</details>
+
+#### manage.items
+
+**Columns (14):** id, order_id, product_name, product_sku, qty_ordered, order_type, created_at, updated_at, deleted_at, parent_sku, parent_name, product_id, odoo_sync, vendor_cost
+
+<details><summary>with types</summary>
+
+id int · order_id bigint · product_name text · product_sku varchar(255) · qty_ordered int · order_type enum('receiver-order','preselect-order','sweet-shoppe-order') · created_at timestamp · updated_at timestamp · deleted_at datetime · parent_sku varchar(255) · parent_name varchar(255) · product_id int unsigned · odoo_sync tinyint(1) · vendor_cost decimal(8,2)
+
+</details>
+
+#### manage.kits
+
+**Columns (8):** id, name, description, buyer_product_id, created_at, updated_at, company_id, deleted_at
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(255) · description varchar(255) · buyer_product_id int · created_at timestamp · updated_at timestamp · company_id int unsigned · deleted_at timestamp
+
+</details>
+
+#### manage.order_queue_batches
+
+**Columns (32):** id, buyer_order_id, order_type, preselect_master_id, batch_uuid, batch_number, total_batches, recipients_in_batch, total_recipients, quantity, queue_name, queue_job_ids, queue_connection, status, queued_at, started_at, completed_at, failed_at, recipients_processed, recipients_succeeded, recipients_failed, retry_count, max_retries, last_error, error_details, processing_time_seconds, average_time_per_recipient, payload, result_data, created_at, updated_at, notified
+
+<details><summary>with types</summary>
+
+id bigint unsigned · buyer_order_id bigint unsigned · order_type varchar(255) · preselect_master_id varchar(255) · batch_uuid char(36) · batch_number int unsigned · total_batches int unsigned · recipients_in_batch int unsigned · total_recipients int unsigned · quantity int · queue_name varchar(100) · queue_job_ids json · queue_connection varchar(50) · status varchar(255) · queued_at timestamp · started_at timestamp · completed_at timestamp · failed_at timestamp · recipients_processed int unsigned · recipients_succeeded int unsigned · recipients_failed int unsigned · retry_count int unsigned · max_retries int unsigned · last_error text · error_details json · processing_time_seconds decimal(10,2) · average_time_per_recipient decimal(10,4) · payload json · result_data json · created_at timestamp · updated_at timestamp · notified tinyint(1)
+
+</details>
+
+#### manage.preselect_orders
+
+**Columns (106):** id, user_id, company_id, proposal_id, branding_record_id, digital_branding_price, physical_branding_price, merchandise_price, status, size, product_type, item_count, quantity, locations, insert_id, candies, receiver_firstname, receiver_lastname, receiver_email, receiver_phone, receiver_company, receiver_address1, receiver_address2, receiver_city, receiver_zip, receiver_country, receiver_state, requested_ship_date, note, buyers_note, subtotal, corporate_discount, volume_discount, shipping, total, shipped_date, shipping_method, carrier, service, tracking_number, shipping_cost, type, invoice_by_user, paid, modified_by, placed_at, coupon_code, coupon_discount, referal_discount, payment_method, transaction_id, deep_dish, dd_charge, credit_discount, insert_total_price, created_at, updated_at, created_at_shipping, deleted_at, shipping_id, intl_shipping, is_printed, is_pdf_generated, internal_notes, expedited_shipping, stockout, expedited_shipping_price, platform_fee, taxable_total, gift_total, gift_total_picks, pick_value, avatax_status, sales_tax, delivery_status, delivery_date, tracking_mail_sent, fedex_checked_at, card_type, last_four, production_slip_batch, fulfill_center, has_component, master_id, ecard_upload_id, boxcard_image_path, oddo_synchronized, serp_sync, co_ship_tax, label_downloaded, shipping_label_url, component_imported, test_order, reissue_id, is_imported, seasonal_box, ship_date_odoo_synchronized, ship_date_serp_synchronized, theme_id, expected_delivery_date, label_created_at, sw_fulfill, expected_delivery_mail_sent, vendor_order_id, delivery_note, recipient_id
+
+<details><summary>with types</summary>
+
+id int · user_id int · company_id int · proposal_id bigint unsigned · branding_record_id bigint unsigned · digital_branding_price decimal(15,2) · physical_branding_price decimal(15,2) · merchandise_price decimal(15,2) · status enum('pending','completed','canceled','deleted','shipped','on_hold') · size int · product_type int · item_count int · quantity double(15,4) · locations varchar(255) · insert_id int · candies varchar(255) · receiver_firstname varchar(255) · receiver_lastname varchar(255) · receiver_email varchar(255) · receiver_phone varchar(50) · receiver_company varchar(255) · receiver_address1 varchar(255) · receiver_address2 varchar(255) · receiver_city varchar(255) · receiver_zip varchar(50) · receiver_country varchar(100) · receiver_state varchar(255) · requested_ship_date date · note mediumblob · buyers_note text · subtotal double(15,4) · corporate_discount decimal(15,4) · volume_discount double(15,4) · shipping double(15,4) · total double(15,4) · shipped_date date · shipping_method varchar(255) · carrier varchar(255) · service varchar(255) · tracking_number varchar(255) · shipping_cost decimal(10,5) · type enum('preselect','sweet-shoppe','sweetificate') · invoice_by_user tinyint · paid tinyint · modified_by int · placed_at datetime · coupon_code varchar(255) · coupon_discount decimal(10,2) · referal_discount decimal(10,2) · payment_method varchar(255) · transaction_id varchar(255) · deep_dish tinyint(1) · dd_charge float(10,2) · credit_discount float(10,2) · insert_total_price float(10,2) · created_at timestamp · updated_at timestamp · created_at_shipping datetime · deleted_at datetime · shipping_id int · intl_shipping double(15,2) · is_printed tinyint · is_pdf_generated tinyint(1) · internal_notes text · expedited_shipping enum('Standard Shipping','2-Day','Overnight') · stockout tinyint(1) · expedited_shipping_price double(15,4) · platform_fee double(8,2) · taxable_total double(8,2) · gift_total double(8,2) · gift_total_picks int unsigned · pick_value double(8,2) · avatax_status enum('not-processed','processed','sent','skipped','adjusted','voided','cancelled','locked') · sales_tax double(8,2) · delivery_status varchar(255) · delivery_date varchar(255) · tracking_mail_sent tinyint(1) · fedex_checked_at datetime · card_type varchar(255) · last_four varchar(255) · production_slip_batch bigint unsigned · fulfill_center varchar(255) · has_component tinyint(1) · master_id bigint · ecard_upload_id int · boxcard_image_path varchar(255) · oddo_synchronized tinyint(1) · serp_sync tinyint · co_ship_tax double(8,2) · label_downloaded tinyint(1) · shipping_label_url varchar(255) · component_imported tinyint · test_order tinyint(1) · reissue_id bigint unsigned · is_imported tinyint(1) · seasonal_box tinyint(1) · ship_date_odoo_synchronized tinyint · ship_date_serp_synchronized tinyint · theme_id bigint unsigned · expected_delivery_date date · label_created_at timestamp · sw_fulfill tinyint(1) · expected_delivery_mail_sent timestamp · vendor_order_id varchar(255) · delivery_note text · recipient_id varchar(255)
+
+</details>
+
+#### manage.product_type
+
+**Columns (41):** id, name, url_key, sort_key, select_text, order_link, default_theme, custom_image_sku, receiver_type_icon_url, exclude_canada, image_url, created_at, updated_at, wishlinks_enabled, turn_time, shipping_carrier, locations, wine, select, confirmation_page_image, tracking_hero_image_url, product_line, type_description, type_page_image_url, type_icon_url, excludes_us, excludes_international, primary_prepick_locations, prepick_confirm_image_url, cocktails, get_labels, choose_use_name, disclaimer, bypass_odoo, use_vendor_order_number, exclude_avatax, send_wine_delivery_notice, exclude_prepick, survey_skips_items, default_awning, default_location_id
+
+<details><summary>with types</summary>
+
+id int unsigned · name varchar(255) · url_key varchar(255) · sort_key int · select_text text · order_link varchar(200) · default_theme int · custom_image_sku varchar(200) · receiver_type_icon_url varchar(255) · exclude_canada tinyint · image_url varchar(200) · created_at timestamp · updated_at timestamp · wishlinks_enabled tinyint(1) · turn_time varchar(255) · shipping_carrier varchar(255) · locations varchar(255) · wine tinyint(1) · select tinyint(1) · confirmation_page_image varchar(255) · tracking_hero_image_url varchar(255) · product_line int unsigned · type_description text · type_page_image_url varchar(255) · type_icon_url varchar(255) · excludes_us tinyint(1) · excludes_international tinyint(1) · primary_prepick_locations varchar(255) · prepick_confirm_image_url varchar(255) · cocktails tinyint(1) · get_labels tinyint(1) · choose_use_name tinyint(1) · disclaimer mediumtext · bypass_odoo tinyint · use_vendor_order_number tinyint(1) · exclude_avatax tinyint(1) · send_wine_delivery_notice tinyint(1) · exclude_prepick tinyint(1) · survey_skips_items tinyint(1) · default_awning varchar(255) · default_location_id bigint unsigned
+
+</details>
+
+#### manage.receiver_orders
+
+**Columns (6):** id, order_id, buyer_confirm_email_sent_at, created_at, updated_at, recipient_survey_sent
+
+<details><summary>with types</summary>
+
+id bigint unsigned · order_id bigint unsigned · buyer_confirm_email_sent_at timestamp · created_at timestamp · updated_at timestamp · recipient_survey_sent tinyint(1)
+
+</details>
+
+#### manage.receiver_product_inventory
+
+**Columns (9):** receiver_product_id, on_hand_qty, reserved_qty, unsynced_demand_qty, unreserved_outbound_qty, reservation_hold_qty, prelist_qty, available_qty, sellable_qty
+
+<details><summary>with types</summary>
+
+receiver_product_id int · on_hand_qty decimal(16,4) · reserved_qty decimal(16,4) · unsynced_demand_qty decimal(16,4) · unreserved_outbound_qty decimal(16,4) · reservation_hold_qty decimal(16,4) · prelist_qty decimal(16,4) · available_qty decimal(16,4) · sellable_qty decimal(16,4)
+
+</details>
+
+#### manage.receiver_products
+
+**Columns (47):** product_id, sku, prod_slip_sku, name, image_name, full_image, description, short_description, ingredients, category, status, sort_key, inventory_qty, mi_inventory_qty, start_date, end_date, premium, sweet_shoppe, product_type, created_at, updated_at, deleted_at, archive, inventory_link, notes, tax_code_id, purchase_url, tax_description, purchase_button_label_text, drop_level, shipcompliant_id, location_2_status, vendor_id, inventory_updated_at, sw_inventory_updated_at, odoo_inventory, prelist_qty, tango_utid, show_on_flavors, vendor_cost, location_id, is_core, sku_type, exclude_international, hs_code, country_of_origin, customs_description
+
+<details><summary>with types</summary>
+
+product_id int · sku varchar(255) · prod_slip_sku varchar(255) · name text · image_name varchar(255) · full_image varchar(255) · description text · short_description text · ingredients text · category int · status varchar(50) · sort_key float · inventory_qty int · mi_inventory_qty int · start_date date · end_date date · premium tinyint · sweet_shoppe tinyint · product_type int · created_at timestamp · updated_at timestamp · deleted_at datetime · archive tinyint(1) · inventory_link int · notes text · tax_code_id bigint unsigned · purchase_url varchar(255) · tax_description mediumtext · purchase_button_label_text varchar(255) · drop_level int · shipcompliant_id bigint · location_2_status tinyint(1) · vendor_id bigint unsigned · inventory_updated_at datetime · sw_inventory_updated_at datetime · odoo_inventory int · prelist_qty int · tango_utid varchar(255) · show_on_flavors tinyint(1) · vendor_cost decimal(8,2) · location_id bigint unsigned · is_core tinyint(1) · sku_type varchar(16) · exclude_international tinyint(1) · hs_code varchar(15) · country_of_origin char(2) · customs_description varchar(35)
+
+</details>
+
+#### manage.serp_mrp_bom
+
+**Columns (18):** id, code, product_id, product_tmpl_id, product_qty, type, active, company_id, sequence, product_uom_id, create_uid, write_uid, create_date, write_date, odoo_id, ready_to_produce, consumption, picking_type_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · code varchar(50) · product_id bigint unsigned · product_tmpl_id bigint unsigned · product_qty decimal(16,4) · type enum('normal','phantom') · active tinyint(1) · company_id int · sequence int · product_uom_id bigint · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint · ready_to_produce varchar(20) · consumption varchar(16) · picking_type_id bigint
+
+</details>
+
+#### manage.serp_mrp_bom_line
+
+**Columns (14):** id, bom_id, product_id, product_tmpl_id, product_qty, product_uom_id, sequence, company_id, create_uid, write_uid, create_date, write_date, odoo_id, operation_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · bom_id bigint · product_id bigint unsigned · product_tmpl_id bigint unsigned · product_qty decimal(16,4) · product_uom_id bigint · sequence int · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint · operation_id bigint
+
+</details>
+
+#### manage.serp_product_category
+
+**Columns (10):** id, name, complete_name, parent_id, parent_path, create_uid, write_uid, create_date, write_date, odoo_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(100) · complete_name varchar(255) · parent_id bigint unsigned · parent_path varchar(255) · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
+
+</details>
+
+#### manage.serp_product_supplierinfo
+
+**Columns (22):** id, name, partner_id, odoo_partner_id, product_id, product_tmpl_id, odoo_product_id, product_name, product_code, price, min_qty, delay, sequence, currency_id, date_start, date_end, company_id, create_uid, write_uid, create_date, write_date, odoo_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name bigint · partner_id bigint · odoo_partner_id bigint · product_id bigint unsigned · product_tmpl_id bigint unsigned · odoo_product_id bigint · product_name varchar(255) · product_code varchar(100) · price decimal(12,4) · min_qty decimal(12,4) · delay int · sequence int · currency_id int · date_start date · date_end date · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
+
+</details>
+
+#### manage.serp_published_kits
+
+**Columns (6):** buyer_product_id, recipe_key, component_id, quantity, sequence, computed_at
+
+<details><summary>with types</summary>
+
+buyer_product_id int · recipe_key varchar(100) · component_id bigint unsigned · quantity decimal(16,4) · sequence int · computed_at datetime
+
+</details>
+
+#### manage.serp_published_stock
+
+**Columns (7):** product_id, receiver_product_id, component_id, on_hand_qty, reserved_qty, unreserved_outbound_qty, computed_at
+
+<details><summary>with types</summary>
+
+product_id bigint unsigned · receiver_product_id int · component_id bigint unsigned · on_hand_qty decimal(16,4) · reserved_qty decimal(16,4) · unreserved_outbound_qty decimal(16,4) · computed_at datetime
+
+</details>
+
+#### manage.serp_uom_category
+
+**Columns (7):** id, name, create_uid, create_date, write_uid, write_date, odoo_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(100) · create_uid int · create_date timestamp · write_uid int · write_date timestamp · odoo_id bigint
+
+</details>
+
+#### manage.serp_uom_uom
+
+**Columns (12):** id, name, category_id, factor, rounding, active, uom_type, create_uid, create_date, write_uid, write_date, odoo_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(100) · category_id bigint unsigned · factor decimal(20,10) · rounding decimal(20,10) · active tinyint(1) · uom_type enum('reference','bigger','smaller') · create_uid int · create_date timestamp · write_uid int · write_date timestamp · odoo_id bigint
 
 </details>
