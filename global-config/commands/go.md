@@ -2,7 +2,7 @@
 
 The **task entry point.** `/go` opens a **real Claude Code session in the right project** (a new terminal tab — Herdr when its server is running, else VS Code — labeled for the project, with that repo's full native commands + MCP tools) and — unless you only named a repo — kicks off the work there with **a slash command chosen by intent**: an **actionable** task (fix/add/change) fires **`/serp-analyze`** (SERP) — full research → build → PR — and a **pure question** fires **`/research`** — investigate → answer → stop. `/go` = pick the repo, pick the command, launch it. (`/launch` is the keep-this-tab-open variant for already-scoped fixes — see the `/launch` command.)
 
-`/go` ALWAYS lands you in a writable repo — **SERP, SWAC, sw-cortex, or `herdr`** (the last being Jack's public fork of open-source `herdrdev/herdr` — writable only for generic Herdr changes, never anything personal/SugarWish-related). Tasks that are really about a read-only repo (livery, sugarwish-laravel, sw-design, swirl, sugarwish-infrastructure) route to the writable repo where you'd actually make the change.
+`/go` ALWAYS lands you in a writable repo — **SERP, SWAC, or sw-cortex**. Tasks that are really about a read-only repo (livery, sugarwish-laravel, sw-design, swirl, sugarwish-infrastructure) route to the writable repo where you'd actually make the change.
 
 ## Usage
 
