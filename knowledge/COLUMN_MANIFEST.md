@@ -182,7 +182,7 @@ id int unsigned · name varchar(255) · first_name varchar(255) · last_name var
 
 <details><summary>with types</summary>
 
-version varchar(50) · filename varchar(255) · applied_at datetime
+version varchar(255) · filename varchar(255) · applied_at datetime
 
 </details>
 
@@ -364,7 +364,7 @@ id bigint · worker varchar(128) · env varchar(64) · kind enum('poller','cron'
 
 <details><summary>with types</summary>
 
-version varchar(50) · filename varchar(255) · applied_at datetime
+version varchar(255) · filename varchar(255) · applied_at datetime
 
 </details>
 

@@ -128,7 +128,10 @@
       "mcp__slack-search",
       "mcp__logs"
     ],
-    "deny": ["Bash(git stash:*)", "Bash(git stash)"]
+    "deny": [
+      "Bash(git stash:*)",
+      "Bash(git stash)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
@@ -238,6 +241,15 @@
           {
             "type": "command",
             "command": "/Users/jackkief/.claude/scripts/db-describe-first-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__github__search_code",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/github-search-code-guard.sh"
           }
         ]
       }
