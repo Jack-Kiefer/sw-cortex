@@ -20,6 +20,12 @@ if (!existsSync(dbDir)) {
 const sqlite = new Database(DB_PATH);
 sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
+// synchronous=FULL fsyncs every commit. The default in WAL mode is NORMAL, which
+// does NOT fsync per commit — so a write committed seconds before the process is
+// abruptly killed (e.g. reminders-up.sh restarting the long-lived slack-handler)
+// can be lost. That exact race dropped a reminder "Delete" click: the Slack ack
+// went out but the row never persisted as cancelled, so the loop re-fired forever.
+sqlite.pragma('synchronous = FULL');
 
 // Create Drizzle instance with schema
 export const db = drizzle(sqlite, { schema });
@@ -27,8 +33,16 @@ export const db = drizzle(sqlite, { schema });
 // Export schema for convenience
 export * from './schema.js';
 
-// Close database connection (for cleanup)
+// Close database connection (for cleanup). Checkpoint the WAL into the main DB
+// first so a clean shutdown always leaves committed writes durable in tasks.db,
+// then close (which finalizes the connection). Long-lived writers (slack-handler)
+// call this from a SIGTERM/SIGINT handler so a restart never drops a button write.
 export function closeDb(): void {
+  try {
+    sqlite.pragma('wal_checkpoint(TRUNCATE)');
+  } catch {
+    // Best-effort: if the checkpoint fails, still close cleanly.
+  }
   sqlite.close();
 }
 
