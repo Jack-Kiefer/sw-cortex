@@ -84,6 +84,7 @@ fi
 # a tiny activity phrase from the tool + its input; append it as a "· <activity>" suffix to the
 # CURRENT emitted title. Persisted $F is untouched, so the model's semantic status still wins
 # and the suffix simply reflects "what it's doing right now" between the model's own updates.
+is_testing=0   # set when THIS tool call looks like testing/verifying → live status picks 🧪 not 🔨
 if [ "$1" = "--activity" ]; then
   tool=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)
   act=""
@@ -101,9 +102,23 @@ if [ "$1" = "--activity" ]; then
       # First bare word of the command (skip leading VAR=val assignments), capped.
       verb=$(printf '%s' "$cmd" | tr '\n' ' ' | awk '{for(i=1;i<=NF;i++){if($i!~/=/){print $i;exit}}}')
       [ -n "$verb" ] && act="running $verb"
+      # Does the command look like a test/verify/lint/typecheck run? If so the live-status
+      # block below shows 🧪 (testing) rather than 🔨 (building). Match the whole command
+      # (not just the first word) so "npm run test:e2e", "npx vitest", "pytest -q" all count.
+      case " $(printf '%s' "$cmd" | tr '\n' ' ') " in
+        *" test"*|*" vitest"*|*"jest"*|*"pytest"*|*" tsc"*|*"typecheck"*|*" lint"*|*"eslint"*|*" verify"*|*"npm run test"*|*"npm test"*)
+          is_testing=1 ;;
+      esac
       ;;
     Grep|Glob) act="searching" ;;
-    Task) act="delegating" ;;
+    Task)
+      act="delegating"
+      # A verify/review subagent is a testing activity → 🧪.
+      sa=$(printf '%s' "$input" | jq -r '.tool_input.subagent_type // .tool_input.description // empty' 2>/dev/null)
+      case "$sa" in
+        *verify-app*|*code-review*|*security-review*|*verify*) is_testing=1 ;;
+      esac
+      ;;
     WebFetch|WebSearch) act="web" ;;
     "") act="" ;;
     *) act="$tool" ;;  # MCP/other tools: show the tool name
@@ -114,6 +129,47 @@ if [ "$1" = "--activity" ]; then
     act=$(printf '%s' "$act" | cut -c1-24)
     out="$titled · $act"
   fi
+fi
+
+# --- Working NOW → force 🔨/🧪 so a busy tab can never show a checkmark (transient) --------
+# The whole point: the leading status emoji must reflect what the agent is ACTUALLY doing right
+# now, not a self-report the model froze earlier. The reliable "working right now" signal is the
+# hook EVENT itself, not Herdr's screen-scraped agent_status (which reads "idle" even mid-turn):
+# PostToolUse (--activity) fires only WHILE a turn is active — a tool just ran and the turn
+# hasn't stopped — so on --activity the agent is, by definition, working. When working, a
+# ✅/🔍/🙋 leading emoji is a lie; force it to 🔨 (building) or 🧪 (testing) so a busy tab can
+# NEVER show a checkmark (Jack: "if it is working on something don't do the check mark"). This
+# fires on EVERY tool call, so the emoji flips within one tool call of work starting — including
+# the moment a re-prompted ✅ tab starts working again.
+#
+# NON-working repaints (--bell = Stop/Notification, plain SubagentStop) are left alone: idle/done
+# keeps the session's own ✅/🔍, and a waiting/blocked pane is carried by Herdr's own live dot in
+# the sidebar (no emoji forced — Jack: "for waiting don't have anything because herdr has a dot").
+# This override is TRANSIENT — it rewrites $out only, never $F. Skipped when $out already leads ❓
+# (a live question popup override must win).
+if [ "$1" = "--activity" ]; then
+  case "$out" in
+    "❓ "*) : ;;  # question popup override active — don't touch it
+    *)
+      # Pick the forced emoji: the live tool wins (test/verify/lint/review → 🧪); else keep the
+      # model's own 🔨/🧪 if it chose one; else default to 🔨 (building).
+      if [ "$is_testing" = 1 ]; then
+        femoji="🧪"
+      else
+        case "$out" in
+          "🧪 "*) femoji="🧪" ;;
+          *)      femoji="🔨" ;;
+        esac
+      fi
+      # Strip whatever status emoji currently leads $out (any of the known set), then prepend
+      # the forced one — keeping the description, "· activity" suffix, and "— trail" intact.
+      rest="$out"
+      for e in "🔨" "🧪" "🔍" "📋" "🙋" "❓" "📦" "✅" "📝" "⬆️" "🚀" "🎯" "❌"; do
+        case "$rest" in "$e "*) rest="${rest#"$e" }"; break ;; esac
+      done
+      out="$femoji $rest"
+      ;;
+  esac
 fi
 
 # OSC 0 sets the tab/window title. All sequences below are on Claude Code's

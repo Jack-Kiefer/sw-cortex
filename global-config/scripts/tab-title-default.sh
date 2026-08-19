@@ -18,21 +18,27 @@ F="$DIR/$sid"
 if [ -f "$F" ]; then
   title=$(sed -E 's/^\[[^]]+\] //' "$F")
   # On UserPromptSubmit ONLY (caller passes "--prompt"): if the tab is currently in a
-  # WAITING state — 🙋 (approve?) or ❓ (blocked) — Jack just replied, so the session is
-  # no longer waiting on him. Demote the leading emoji to 🔨 (working) and keep the
-  # "· label" intact, then persist it so the next re-assert keeps the working state.
-  # SessionStart (no "--prompt") never demotes — it only re-asserts verbatim.
+  # RESTING state — 🙋 (approve?), ❓ (blocked), or ✅ (done) — Jack just replied, so the
+  # session is no longer waiting/finished: it's working again NOW. Demote the leading emoji
+  # to 🔨 (working) and keep the "· label" intact, then persist it so the next re-assert keeps
+  # the working state. ✅ is included because a re-prompted "done" tab must drop its checkmark
+  # the instant Jack asks it something (Jack: "if I ask a question after it does checkmark it
+  # should remove it"). SessionStart (no "--prompt") never demotes — it only re-asserts verbatim.
   if [ "$1" = "--prompt" ]; then
     case "$title" in
-      "🙋 "*|"❓ "*)
+      "🙋 "*|"❓ "*|"✅ "*)
         # Rebuild as "🔨 <label>". If the title has a "· " separator, the label is what
         # follows it ("🙋 approve? · merge-quants" → "🔨 applying fix · merge-quants");
-        # otherwise just swap the leading emoji ("🙋 approve?" → "🔨 applying fix").
+        # otherwise strip the leading status emoji and keep the description
+        # ("✅ Reminders fixed" → "🔨 Reminders fixed"), so the words Jack chose survive.
         case "$title" in
           *"· "*) title="🔨 applying fix · ${title##*· }" ;;
-          *) title="🔨 applying fix" ;;
+          *) title="🔨 ${title#* }" ;;
         esac
         printf '%s' "$title" > "$F"
+        # A fresh turn starts here — drop the stale done-notification marker so a later ✅
+        # can toast again, matching the tab's new working→done cycle.
+        rm -f "$F.notified"
         ;;
     esac
   fi
@@ -48,10 +54,12 @@ else
     repo=$(basename "$cwd" 2>/dev/null)
     [ -n "$repo" ] || repo="session"
     # The sw-cortex hub is the long-lived manual session Jack keeps open — never /go-launched,
-    # so it always lands on this floor. "🔍 sw-cortex · session" wrongly reads the repo as the
-    # status and says nothing useful; name it what it is.
+    # so it always lands on this floor. Plain "hub" with NO leading emoji (Jack: "I don't want
+    # the 🎯 for hub anymore"): Herdr's own live state_icon carries the status, and the moment
+    # the hub takes a task it sets its own 🔨/🔍/… over this floor anyway. "🔍 sw-cortex ·
+    # session" is likewise avoided — it wrongly reads the repo as the status.
     if [ "$repo" = "sw-cortex" ]; then
-      title="🎯 hub"
+      title="hub"
     else
       title="🔍 $repo · session"
     fi
