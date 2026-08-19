@@ -212,8 +212,15 @@ Run these eight checks:
 started …` if it booted them; `♻️ repaired …` if it restarted an unhealthy handler; ⚠️ with the
    script's warning if the token is invalid (remedy: "fix the duplicate/corrupt `JACK_SLACK_BOT_TOKEN`
    in `.env` — it must be an `xoxb-` token, not `T…` — then re-run `reminders-up.sh`; also check
-   `/tmp/sw-cortex-slack-handler.log`"). These two + the Docker check (#8) are the only Step 0 items
-   permitted to start/restart anything; everything else stays report-only.
+   `/tmp/sw-cortex-slack-handler.log`"). **Also ensure the between-mornings self-heal is installed:**
+   `bash /Users/jackkief/Desktop/Projects/sw-cortex/scripts/launchd/install-reminders-agent.sh` — this
+   loads a macOS LaunchAgent (`com.jackkief.sw-cortex-reminders`) that re-runs `reminders-up.sh` at
+   login and every 10 min, so the handler no longer stays dead between `/start-day`s (the gap that let
+   reminders re-fire for days). It is idempotent (bootout→bootstrap) and self-diagnosing: if the agent
+   exits `2` / prints a **Full Disk Access** block (launchd can't read the `~/Desktop` repo without FDA
+   on `/bin/bash`), surface that one-time remedy — grant FDA to `/bin/bash` in System Settings →
+   Privacy & Security → Full Disk Access, then re-run the installer. These two + the Docker check (#8)
+   are the only Step 0 items permitted to start/restart anything; everything else stays report-only.
 
 **Return:** the rendered `### 🩺 Setup health` panel (the agent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).

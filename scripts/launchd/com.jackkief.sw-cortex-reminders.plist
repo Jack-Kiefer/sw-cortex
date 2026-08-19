@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Self-heals the local /remind services on Jack's Mac.
+
+  reminders-up.sh brings up (and health-checks) two local background processes:
+  the Socket Mode button handler (scripts/slack-handler.ts — makes the
+  snooze/done/delete buttons work) and the every-60s checker loop
+  (scripts/check-reminders.ts — fires due reminders). Both die whenever the Mac
+  sleeps/restarts, and nothing but /start-day check #9 used to restart them — a
+  MANUAL dependency. If a morning was skipped or the Mac restarted mid-day, the
+  button handler stayed dead and reminders re-fired forever (⚠️ on every click).
+
+  This agent removes that manual dependency: reminders-up.sh runs at login
+  (RunAtLoad) and every 10 minutes (StartInterval=600), so a dead handler
+  self-heals within ~10 min. reminders-up.sh is idempotent — it reports
+  "already running" and does nothing when both processes are healthy — so the
+  10-minute cadence is cheap and safe.
+
+  PATH must be set explicitly: launchd gives a minimal environment, so npx/node
+  (Homebrew, /opt/homebrew/bin) would not be found otherwise.
+
+  Install/reload: bash scripts/launchd/install-reminders-agent.sh
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.jackkief.sw-cortex-reminders</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jackkief/Desktop/Projects/sw-cortex/scripts/reminders-up.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key><string>/Users/jackkief</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>600</integer>
+  <key>StandardOutPath</key><string>/tmp/sw-cortex-reminders-agent.log</string>
+  <key>StandardErrorPath</key><string>/tmp/sw-cortex-reminders-agent.log</string>
+</dict>
+</plist>
