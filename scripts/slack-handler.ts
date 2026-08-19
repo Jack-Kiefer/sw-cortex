@@ -9,7 +9,7 @@ import 'dotenv/config';
 import pkg from '@slack/bolt';
 const { App } = pkg;
 import type { BlockAction, ButtonAction } from '@slack/bolt';
-import { initDb } from '../src/db/index.js';
+import { initDb, closeDb } from '../src/db/index.js';
 import {
   getReminder,
   snoozeReminder,
@@ -22,6 +22,26 @@ const log = createLogger('slack-handler');
 
 // Initialize database
 initDb();
+
+// Graceful shutdown: this handler is long-lived, and reminders-up.sh restarts it
+// (e.g. from /start-day). Without a clean close, a SIGTERM/SIGINT can kill the
+// process between a button-click commit and the WAL being checkpointed, dropping
+// the write — the reminder-re-fires-after-delete bug. Close the DB (which
+// checkpoints the WAL) on shutdown so every acknowledged click is durable.
+let shuttingDown = false;
+function shutdown(signal: string): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  log.info('Shutting down', { signal });
+  try {
+    closeDb();
+  } catch (error) {
+    log.error('Error closing DB on shutdown', error as Error, { signal });
+  }
+  process.exit(0);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 // The reminder bot is Jack Bot (its own Socket-Mode Slack app), NOT SERPY. The
 // bot token (xoxb, JACK_SLACK_BOT_TOKEN) and app-level token (xapp,

@@ -74,8 +74,19 @@ if handler_running; then
   else
     # Present-but-unhealthy: the process exists but its token is bad, so it's
     # silently eating clicks. Kill it and restart so it re-reads a fixed .env.
-    pkill -f "slack-handler.ts" >/dev/null 2>&1
-    sleep 1
+    # Send SIGTERM (not SIGKILL) and wait a beat so the handler runs its shutdown
+    # hook — closeDb() checkpoints the WAL, so any in-flight button write is made
+    # durable before we replace the process (otherwise a click can be dropped and
+    # the reminder re-fires forever). Fall back to SIGKILL only if it won't exit.
+    pkill -TERM -f "slack-handler.ts" >/dev/null 2>&1
+    for _ in 1 2 3 4 5; do
+      handler_running || break
+      sleep 1
+    done
+    if handler_running; then
+      pkill -KILL -f "slack-handler.ts" >/dev/null 2>&1
+      sleep 1
+    fi
     if [ "$(env_get JACK_SLACK_BOT_TOKEN)" != "" ] && token_ok; then
       start_handler
       repaired+=("button-handler")
