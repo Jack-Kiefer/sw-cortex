@@ -83,7 +83,7 @@ Keep the description to a handful of words — long enough to read as a phrase, 
 
 These are the steps a full `/implement` session moves through, in order (each is just an emoji choice — the words are your own description of that step): `🔍 researching → 📋 planning → 🙋 approve? → 🔨 applying the fix → 🧪 verifying → 📝 committing → ⬆️ pushing → 📦 PR open → 🚀 merged → ✅ done`. Not every task hits every step (a pure research `/go` stops at `🙋`/`✅`); emit the ones that apply, in this order. Set 🙋/❓/📦/✅ — the **idle** states — **before ending the turn**, since that's what Jack sees while the tab sits.
 
-**Log what you've DONE with `--did`, not just what you're doing.** The description says where you are *now*; add a short past-tense `--did "<phrase>"` each time you FINISH a meaningful step, so the tab also carries a breadcrumb of accomplishments and a full on-disk summary Jack can read. Pass it alongside the status (or on its own to log a step without changing the title):
+**Log what you've DONE with `--did`, not just what you're doing.** The description says where you are _now_; add a short past-tense `--did "<phrase>"` each time you FINISH a meaningful step, so the tab also carries a breadcrumb of accomplishments and a full on-disk summary Jack can read. Pass it alongside the status (or on its own to log a step without changing the title):
 
 ```bash
 ~/.claude/scripts/set-tab-title.sh "🔨 Fixing the copier cap" --did "raised COPY_LIMIT 2000→8000"

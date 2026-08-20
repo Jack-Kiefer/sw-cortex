@@ -17,7 +17,7 @@ sync, but nothing waits on it.)
 /start-day skip-diagnostic   # skip the Claude-setup diagnostic step (Step 5)
 /start-day skip-shutdown # skip the worktree shutdown step (Step 6 — leave all worktrees)
 /start-day skip-reseed   # skip the weekly WishDesk local reseed (Step 7)
-/start-day days=7        # widen the diagnostic / KB look-back window (default 3 days)
+/start-day days=7        # widen the diagnostic / KB look-back window (default 2 days)
 ```
 
 `$ARGUMENTS` may contain `skip-sync`, `skip-kb`, `skip-diagnostic`, `skip-shutdown`, `skip-reseed`, and/or `days=N`.
@@ -363,7 +363,7 @@ catch) so a hidden mismatch can't sit unnoticed.
 identity lives in `odoo` (Postgres) — so this is a two-query cross-DB join done in the agent, not
 one SQL statement.
 
-1. **Pull recent SERPY MO ops** from `serp_app` (last ~14 days is enough for a daily run; widen on
+1. **Pull recent SERPY MO ops** from `serp_app` (last ~2 days is enough for a daily run; widen on
    demand). Query with `mcp__db__query_database { database: "serp_app", query: … }`:
 
    ```sql
@@ -376,7 +376,7 @@ one SQL statement.
    WHERE entity_type='mrp_production' AND operation='create'
      AND status IN ('synced','partial')
      AND JSON_EXTRACT(payload,'$.bom_id') IS NOT NULL
-     AND created_at >= (NOW() - INTERVAL 14 DAY)
+     AND created_at >= (NOW() - INTERVAL 2 DAY)
    ORDER BY created_at DESC;
    ```
 
@@ -409,22 +409,22 @@ bom <bom_id> builds <bom_sku> but product_id <product_id> is <product_sku>`. If 
    op that hard-**failed** and was never retried — `failed` rows are never auto-repicked, so a needed
    MO just never happened). In the same `serp_app` pull, add a second bucket: any `odoo_sync_queue_live`
    row (ANY `entity_type`, not just MO) with `status IN ('failed','dlq')` and
-   `created_at >= NOW() - INTERVAL 14 DAY`. Report each as `stuck: <entity_type> "<descr>" (draft
+   `created_at >= NOW() - INTERVAL 2 DAY`. Report each as `stuck: <entity_type> "<descr>" (draft
 #<id>) — <first line of error_message>`. This is a distinct signal from the mismatch (a mismatch
    reports success; a stuck op reports failure) — surface both, they hide in the same drafts.
 
 **Bound it:** dedupe the id lists before the `IN (…)` (don't send thousands of ids), and cap the
-window at 14 days for the daily run. If either DB errors or times out, note it in the panel and move
+window at 2 days for the daily run. If either DB errors or times out, note it in the panel and move
 on — never block the briefing.
 
 **Return:** the `### 🧯 SERPY draft integrity` panel with up to two sub-lines:
 
-- **Mismatches** — if none, `✅ SERPY MO drafts (last 14d): all bom↔product↔sku consistent — no hidden
+- **Mismatches** — if none, `✅ SERPY MO drafts (last 2d): all bom↔product↔sku consistent — no hidden
 mismatches.` If any, a `🔴` header (`N mismatched MO op(s) — wrong RM likely consumed, needs
 reconciling`) + one line per flagged MO (mo_id · draft · builds-vs-is · wrongly-consumed RM), and
   the pointer "reconcile in Odoo (unbuild the MO / inventory-adjust the RM); the sync-side guard (PR
   #485) blocks new ones."
-- **Stuck ops** — if none, omit or `✅ no failed/dlq SERPY ops in 14d`. If any, `🔴 N stuck SERPY op(s)
+- **Stuck ops** — if none, omit or `✅ no failed/dlq SERPY ops in 2d`. If any, `🔴 N stuck SERPY op(s)
 never retried` + one line each (entity_type · draft · error), pointer "retry via `/api/admin/sync-queue`
   or re-stage — failed rows are never auto-repicked."
 
@@ -466,7 +466,7 @@ Odoo record it produced.** Payloads live in `serp_app` (MySQL); the resulting re
    FROM odoo_sync_queue_live
    WHERE entity_type='mrp_production' AND operation='create'
      AND status IN ('synced','partial') AND sync_target='odoo' AND odoo_id IS NOT NULL
-     AND created_at >= (NOW() - INTERVAL 14 DAY)
+     AND created_at >= (NOW() - INTERVAL 2 DAY)
    ORDER BY created_at DESC;
    ```
 
@@ -518,13 +518,13 @@ qty + src/dest, `po_receiving` → received qty vs entered, `inventory_adjustmen
 `stock_quant`. **Only compare fields a human actually typed** — comparing derived/enriched fields
 generates noise and trains Jack to ignore the panel.
 
-**Bound it:** dedupe id lists before `IN (…)`, cap at 14 days for the daily run, and skip ops whose
+**Bound it:** dedupe id lists before `IN (…)`, cap at 2 days for the daily run, and skip ops whose
 `odoo_id` no longer resolves (deleted/merged in Odoo — note, don't flag). If either DB errors or
 times out, note it in the panel and move on — never block the briefing.
 
 **Return:** the `### 🔬 SERPY sync fidelity` panel:
 
-- If clean: `✅ SERPY→Odoo fidelity (last 14d): N MO ops verified — every entered quantity matches
+- If clean: `✅ SERPY→Odoo fidelity (last 2d): N MO ops verified — every entered quantity matches
 Odoo.` (State N — a silent "no findings" is indistinguishable from a check that silently matched
   nothing.)
 - If any: `🔴 N op(s) where Odoo ≠ what was entered` + one line per flagged MO per step 4, plus the
@@ -572,15 +572,15 @@ the single "none parked" line.
 
 Unless `skip-kb` was passed, do a **lightweight, incremental** pass — NOT the full
 `/refresh-knowledge` workflow (that's the weekly, multi-agent, token-heavy rebuild; do not run it
-here). The goal is small: look at what happened / what was learned **in the past day** and update
+here). The goal is small: look at what happened / what was learned **in the past 2 days** and update
 or correct anything in `DICTIONARY.md` that's now out of date.
 
-Scope it to the recent transcripts (default the last day; if `days=N` was passed, use that window):
+Scope it to the recent transcripts (default the last 2 days; if `days=N` was passed, use that window):
 
-1. Find which transcripts changed in the window (default 1 day):
+1. Find which transcripts changed in the window (default 2 days):
 
    ```bash
-   find ~/.claude/projects -maxdepth 2 -name '*.jsonl' -mtime -1
+   find ~/.claude/projects -maxdepth 2 -name '*.jsonl' -mtime -2
    ```
 
    (Top-level `*.jsonl` only — skip `subagents/` and `workflows/` subdirs, which have no human turns.)
@@ -651,10 +651,10 @@ Notes:
 > immediately, if `skip-sync`). It reads the index Step 1 wrote. Returns the "needs your
 > attention" item list.
 
-Find what Jack hasn't responded to and what needs attention from the **past day**.
+Find what Jack hasn't responded to and what needs attention from the **past 2 days**.
 
 Use `mcp__slack-search__search_slack_messages` (and `get_slack_context` / `get_slack_thread` to
-expand the interesting hits) with `afterDate` = yesterday's date. Run several angled searches —
+expand the interesting hits) with `afterDate` = the date 2 days ago. Run several angled searches —
 direct mentions of Jack, questions in his channels, threads he's in, anything addressed to him —
 since semantic search won't surface everything from one query.
 
@@ -706,10 +706,10 @@ go-launcher check).
 1. **Mine the transcripts — BOTH tool-errors AND Jack's corrections.** Two signals, both load-bearing:
 
    **(a) Tool-error friction.** Run the extractor (stdlib-only, read-only) over the look-back window
-   (default 3 days; if `days=N` was passed, use it):
+   (default 2 days; if `days=N` was passed, use it):
 
    ```bash
-   python3 ~/.claude/scripts/claude-setup-friction.py --days 3 --json
+   python3 ~/.claude/scripts/claude-setup-friction.py --days 2 --json
    ```
 
    It scans top-level `*.jsonl` across **all** repos' project dirs (the Claude setup is global,
@@ -919,11 +919,11 @@ not just what was recommended — and list anything deferred under "needs Jack":
 - #<num> · <title> · (yours / review requested)   — open PRs awaiting you, or "no open PRs"
 
 ### 🧯 SERPY draft integrity
-- ✅ SERPY MO drafts (last 14d): all bom↔product↔sku consistent  (or "🔴 <N> mismatched MO op(s):")
+- ✅ SERPY MO drafts (last 2d): all bom↔product↔sku consistent  (or "🔴 <N> mismatched MO op(s):")
 - 🔴 MO <mo_id> (draft #<id>): bom builds <sku_a> but product is <sku_b> — wrongly consumed <RM ×qty>; reconcile in Odoo
 
 ### 🔬 SERPY sync fidelity
-- ✅ SERPY→Odoo (last 14d): <N> MO ops verified — every entered quantity matches Odoo
+- ✅ SERPY→Odoo (last 2d): <N> MO ops verified — every entered quantity matches Odoo
 - 🔴 MO <mo_id> (draft #<id>, <author>): <sku> entered <qty_in> → Odoo recorded <qty_odoo> (Δ<diff>)<, equals BOM ratio — the count was overwritten>
 
 ### 🗂️ Saved for later
@@ -940,7 +940,7 @@ not just what was recommended — and list anything deferred under "needs Jack":
 ### 🧹 Worktrees
 - <N removed (clean+idle), M kept in use (dirty/unpushed/live), K protected skipped — or "none to clean">
 
-### 💬 Needs your attention (Slack, past day)
+### 💬 Needs your attention (Slack, past 2 days)
 - [#channel](<slack-permalink>) · <person>: <the ask>  (you haven't replied)
 - ...
 
