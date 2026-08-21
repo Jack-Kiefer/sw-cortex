@@ -135,16 +135,6 @@ export function markReminderInteracted(id: number): Reminder {
     .get();
 }
 
-// Update the Slack message timestamp (for message updates)
-export function updateReminderSlackTs(id: number, slackMessageTs: string): Reminder {
-  return db
-    .update(reminders)
-    .set({ slackMessageTs, lastRemindedAt: new Date() })
-    .where(eq(reminders.id, id))
-    .returning()
-    .get();
-}
-
 // Shape the check-reminders job expects. taskTitle is always undefined now
 // (the tasks model was removed) but kept for call-site compatibility.
 type DueReminder = { reminder: Reminder; taskTitle?: string };
@@ -166,22 +156,4 @@ export function getDueReminders(): DueReminder[] {
     .all();
 
   return [...pendingDue, ...snoozedDue].map((reminder) => ({ reminder }));
-}
-
-// Get reminders that need re-reminding (sent but not interacted, > 24h since last reminder).
-export function getRemindersNeedingRereminder(): DueReminder[] {
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-  return db
-    .select()
-    .from(reminders)
-    .where(
-      and(
-        eq(reminders.status, REMINDER_STATUS.SENT),
-        eq(reminders.interacted, false),
-        lte(reminders.lastRemindedAt, oneDayAgo)
-      )
-    )
-    .all()
-    .map((reminder) => ({ reminder }));
 }
