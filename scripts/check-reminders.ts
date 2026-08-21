@@ -8,12 +8,7 @@
 import 'dotenv/config';
 import { WebClient } from '@slack/web-api';
 import { initDb } from '../src/db/index.js';
-import {
-  getDueReminders,
-  getRemindersNeedingRereminder,
-  markReminderSent,
-  updateReminderSlackTs,
-} from '../src/services/reminders.js';
+import { getDueReminders, markReminderSent } from '../src/services/reminders.js';
 import { createLogger } from '../src/services/logger.js';
 
 const log = createLogger('reminders');
@@ -128,17 +123,13 @@ async function sendReminderWithButtons(
 async function processReminders(): Promise<void> {
   // Get new due reminders
   const dueReminders = getDueReminders();
-  // Get reminders that need re-reminding (sent > 24h ago, no interaction)
-  const rereminders = getRemindersNeedingRereminder();
 
-  const total = dueReminders.length + rereminders.length;
-
-  if (total === 0) {
+  if (dueReminders.length === 0) {
     log.info('No reminders to process');
     return;
   }
 
-  log.info('Processing reminders', { due: dueReminders.length, rereminders: rereminders.length });
+  log.info('Processing reminders', { due: dueReminders.length });
 
   // Process new due reminders
   for (const { reminder, taskTitle } of dueReminders) {
@@ -149,22 +140,6 @@ async function processReminders(): Promise<void> {
       log.info('Sent reminder', { reminderId: reminder.id, message: reminder.message, messageTs });
     } else {
       log.error('Failed to send reminder', { reminderId: reminder.id, message: reminder.message });
-    }
-  }
-
-  // Process re-reminders (reminders that were sent but not interacted with)
-  for (const { reminder, taskTitle } of rereminders) {
-    const messageTs = await sendReminderWithButtons(
-      reminder.id,
-      `🔁 *Re-reminder*: ${reminder.message}`,
-      taskTitle
-    );
-
-    if (messageTs) {
-      updateReminderSlackTs(reminder.id, messageTs);
-      log.info('Re-reminded', { reminderId: reminder.id, message: reminder.message, messageTs });
-    } else {
-      log.error('Failed to re-remind', { reminderId: reminder.id, message: reminder.message });
     }
   }
 }
