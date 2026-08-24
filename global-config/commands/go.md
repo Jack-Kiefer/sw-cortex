@@ -160,6 +160,8 @@ Append the tab-status rider to whichever command you fire so the session keeps i
 
 For a **`/research`** launch (pure question), the rider is: `set the tab title with set-tab-title.sh as you go (🔍 while researching, 🙋 when presenting the answer, ✅ when answered).`
 
+**Also append the session-mesh check** to every launch rider so the new session notices if another session is already on the same work (see the Session Mesh section of `~/CLAUDE.md`): ` — first call mcp__sessions__check_overlap { task: "<the task>" }; if it overlaps a peer, send that peer ONE heads-up via mcp__sessions__message_session and tell Jack, otherwise just proceed.` So the full SERP rider becomes tab-status + this. (Skip only if the mesh isn't available — the tool will error and the session works solo.)
+
 So a SERP `/go fix the forecast zeros on live-products` becomes the launcher prompt:
 `/serp-analyze fix the forecast zeros on live-products — set the tab title with set-tab-title.sh as you go (🔍 researching → 🔨 building → 📦 PR → ✅ done; 🙋/❓ when it needs you).`
 

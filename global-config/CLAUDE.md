@@ -95,6 +95,29 @@ The tab shows the current step plus the **last two** `--did` phrases (`<title> �
 
 The description is a short phrase (a handful of words — a real subject, not a bare slug). The global hooks (Stop/Notification/SubagentStop → `tab-title-hook.sh`) re-stamp the latest value automatically; update the description freely as you go, just don't re-set the exact same string back-to-back (no value churn — a changed step is always worth setting). **Question popup → `❓ question`:** whenever Claude Code shows a popup that needs Jack (a permission/tool-approval prompt, an MCP elicitation dialog, or a background-session input request), the `Notification` hook automatically flips the tab to `❓ question · <label>` — you don't set this yourself; it layers on top of your status transiently and clears when Jack answers. **Auto-flip on reply:** when Jack replies to a tab sitting in a waiting state (🙋 or ❓), the `UserPromptSubmit` hook automatically demotes the leading emoji to 🔨 (keeping the label) — so a tab only says "approve?"/"blocked"/"question" while it's _actually_ waiting on him. You don't need to clear 🙋/❓ yourself on the next turn; just set the next real status (🔨/🧪/📝/…) when you reach it. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
 
+## Session Mesh — every session can see, and coordinate with, the others (`mcp__sessions__*`)
+
+Jack runs **many** Claude Code sessions at once (each a Herdr tab — SERP work, SWAC work, hub tasks). The **`sessions` MCP server** is the shared nervous system that ties them together: from ANY session you can see the whole board, tell when two sessions are working the same thing, read a peer's output, and message a peer. It fuses Herdr's live pane data (repo, status, and the tab title each session keeps current) into one view — so the tab titles you maintain per the section above are also what every OTHER session reads to know what you're doing. Keep them accurate; they ARE the coordination signal.
+
+| Need to…                                   | Do this                                                          |
+| ------------------------------------------ | ---------------------------------------------------------------- |
+| See every running session + what it's on   | `mcp__sessions__list_sessions` (name, repo, status, task, pane)  |
+| Check if a peer is already on YOUR task     | `mcp__sessions__check_overlap { task }`                          |
+| Read a peer session's recent output         | `mcp__sessions__read_session { paneId, lines? }`                 |
+| Message a peer session                       | `mcp__sessions__message_session { target, text }`                |
+
+Each `list_sessions` / `check_overlap` entry carries the peer's **`paneId`** (e.g. `w8:p2C`) — that's the `target`/`paneId` you pass to read or message it. `status` is `working` | `idle` | `done` | `blocked`; `task` is the peer's live tab title (what it's doing right now).
+
+**The coordination policy — this is how Jack wants sessions to behave (don't deviate):**
+
+1. **On launch, check for overlap.** When a session starts real work on a task (a `/go`/`/serp-analyze`/`/swac-analyze`/`/launch` session, or any session picking up a substantial task), call **`check_overlap { task: "<your task, with any PR#/WW-####/file>" }`** early — before diving in.
+2. **If you overlap a peer: send ONE heads-up, then tell Jack.** Message the `suggestedPeer` **once** via `message_session` — a short "heads up, I'm also on `<task>` — are you handling it, or should I take `<a different slice>`?" — **and** surface the overlap to Jack in your reply (who the peer is, what it's on, what you sent). One message, not a conversation.
+3. **No overlap → just work.** Don't announce yourself, don't ping anyone. Silence is the default.
+4. **Don't chatter, don't drive.** Sessions message each other **only when it matters** (an overlap, a genuine coordination need, a question a peer can answer) — never a constant back-channel. `message_session` is a **message**, not a handoff: it drops a prompt in the peer's queue for its next turn; it does **not** take over, wait on, or key-inject the peer. You never redirect another session's work — that's Jack's call.
+5. **Jack drives coordination.** When Jack asks "what's everything doing?", "who else is on X?", "tell serp-24 to…", "read what that session found" — use these tools to answer/act. When in doubt about messaging a peer, surface it to Jack rather than firing it off.
+
+This works from every repo (SERP, SWAC, sw-cortex) because it's an MCP server, not a per-repo command. Under the hood it's the `herdr agent list/read/prompt` socket API; the tools just make it uniform and enforce the policy above. (Requires the Herdr server running — the normal state when Jack launches the hub. If Herdr isn't up, the tools return an error and you fall back to working solo.)
+
 ## IMPORTANT: Search the Knowledge Base First
 
 The SugarWish institutional knowledge base — systems, database schemas, table-by-table notes, people/ownership, business rules, gotchas — is semantically searchable via the `knowledge` MCP server:
@@ -342,6 +365,24 @@ workflows and run history — always current, unlike the stale JSON exports unde
 `list_workflows` returns summaries (`id`, `name`, `active`, `tags`); pass an `id` to
 `get_workflow` for the full node/connection JSON. `list_executions` `status` is
 `success` | `error` | `waiting`.
+
+### Session Mesh (`mcp__sessions__*`)
+
+See and coordinate with every OTHER Claude Code session running right now (each a Herdr
+tab). Full behavior + the coordination policy is in the **Session Mesh** section above —
+this is just the tool catalog.
+
+| Need to...                              | Do this                                             |
+| --------------------------------------- | --------------------------------------------------- |
+| See every running session + its task    | `mcp__sessions__list_sessions`                      |
+| Check if a peer is already on your task | `mcp__sessions__check_overlap { task }`             |
+| Read a peer's recent output             | `mcp__sessions__read_session { paneId, lines? }`    |
+| Message a peer session                  | `mcp__sessions__message_session { target, text }`   |
+
+**Policy in one line:** on launch, `check_overlap` on your task; if you overlap a peer, send
+it **one** heads-up with `message_session` and tell Jack; otherwise don't message anyone.
+Sessions observe and coordinate-when-it-matters — they don't chatter and never drive each
+other. (Backed by the `herdr agent` socket API; needs the Herdr server up.)
 
 ## Global Config Management
 
