@@ -1,6 +1,8 @@
 ---
 description: Mark a saved-for-later chat done (active -> closed), with a closing note
 ---
+> **Effort:** this command is mechanical — run it at **low reasoning effort**. Flipping a save-file status is mechanical bookkeeping. Escalate only if something genuinely ambiguous comes up.
+
 
 # Command: close-later
 

@@ -1,5 +1,7 @@
 # Command: shutdown
 
+> **Effort:** this command is mechanical — run it at **low reasoning effort**. Sweeping worktrees is a deterministic, non-interactive script. Escalate only if something genuinely ambiguous comes up.
+
 Sweep **all writable repos** (SERP, SWAC, sw-cortex) and shut down every worktree that **isn't in use** — kill its dev server, remove the worktree, delete its branch — leaving anything still in use untouched. The global, cross-repo version of SERP's per-worktree `/shutdown-worktree`. **Fully non-interactive: never ask Jack questions.** Safety comes from defaults, not prompts: anything in use is kept and reported.
 
 ## Usage

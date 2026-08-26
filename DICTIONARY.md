@@ -3430,3 +3430,105 @@ There are **two different box-SKU vocabularies** — do not conflate them:
 - **Placeholder order** = a pre-picked order parked because its SKU is OOS, auto-filed to `#placeholder-orders` for manual warehouse placement. **Replacement order** = reshipment of a lost/damaged/wrong item via `sugarwish.com/products/replacement`.
 - **Shop / Shopped** = warehouse jargon for picking/packing a gift order (NOT customer-facing shopping).
 - **Glitch** = an operational incident (non-dev staff file it; devs replicate, then a separate **Bug** ticket must be Product-prioritized). **Feature** = a new-capability request.
+
+## Claude Code MCP Tool Reference (GitHub, Slack, Logs, n8n, Session Mesh, Knowledge)
+
+Tool catalogs for the MCP servers wired into every Claude Code session via `~/.mcp.json`.
+These moved out of the always-on `~/CLAUDE.md` so they cost nothing until a session
+actually needs them — search this section when you need the exact tool name or arguments.
+(Database access — `mcp__db__*` — deliberately stays inline in `~/CLAUDE.md`, because it
+carries the mandatory describe-first HARD GATE that prevents column-guessing.)
+
+### GitHub (`mcp__github__*`) — read-only repo access
+
+| Need to...     | Do this                                              |
+| -------------- | ---------------------------------------------------- |
+| List repos     | `mcp__github__list_repos`                            |
+| Search code    | `mcp__github__search_code { query, repo? }`          |
+| Get file       | `mcp__github__get_file { repo, path, ref? }`         |
+| List files     | `mcp__github__list_files { repo, path? }`            |
+| List branches  | `mcp__github__list_branches { repo }`                |
+| List commits   | `mcp__github__list_commits { repo, branch?, path? }` |
+| List PRs       | `mcp__github__list_pull_requests { repo, state? }`   |
+| Get PR details | `mcp__github__get_pull_request { repo, pr_number }`  |
+
+**Always pass `ref`** — without it these default to the repo's default branch, which is
+usually NOT the branch you want. SERP: prod `main`, dev `dev`. SWAC: prod `live`, dev
+`development`, staging `staging`. sugarwish-odoo: prod `main`, staging `staging_new`.
+sugarwish-laravel: prod `blue`. Never assume `main` is correct.
+**HARD RULE:** never use `search_code` on a locally-checked-out repo (SERP/SWAC/sw-cortex)
+— use `rg`/Explore. It uses GitHub query grammar, not substrings.
+
+### Slack search (`mcp__slack-search__*`) — semantic search over history
+
+| Need to...        | Do this                                                                  |
+| ----------------- | ------------------------------------------------------------------------ |
+| Search messages   | `mcp__slack-search__search_slack_messages { query, afterDate?, limit? }` |
+| Get context       | `mcp__slack-search__get_slack_context { channelId, timestamp }`          |
+| Get thread        | `mcp__slack-search__get_slack_thread { channelId, threadTs }`            |
+| Check sync status | `mcp__slack-search__get_slack_sync_status`                               |
+
+Workflow: search first, then pull context on interesting hits using the returned
+`channelId` + `timestamp`. Indexing syncs via `npm run slack:sync` in sw-cortex.
+
+### Slack posting / reading (`mcp__jack-slack__*`)
+
+| Need to...           | Do this                                                         |
+| -------------------- | --------------------------------------------------------------- |
+| Post a message       | `mcp__jack-slack__slack_post_message { channel, text }`         |
+| Reply in a thread    | `mcp__jack-slack__slack_reply_to_thread { channel, thread_ts }` |
+| Read channel history | `mcp__jack-slack__slack_get_channel_history { channel }`        |
+| Read thread replies  | `mcp__jack-slack__slack_get_thread_replies { channel, ts }`     |
+| List channels        | `mcp__jack-slack__slack_list_channels`                          |
+| Look up user / users | `mcp__jack-slack__slack_get_user_profile` / `slack_get_users`   |
+| Add a reaction       | `mcp__jack-slack__slack_add_reaction { channel, ts, name }`     |
+
+**Identity rule (still enforced in `~/CLAUDE.md`):** automated/agent posts ALWAYS go
+through `mcp__jack-slack__*` (posts as the jackbot app), NEVER
+`mcp__claude_ai_Slack__slack_send_message`, which posts as Jack the human.
+
+### Logs (`mcp__logs__*`) — sw-cortex service logs
+
+| Need to...     | Do this                                                        |
+| -------------- | -------------------------------------------------------------- |
+| Search logs    | `mcp__logs__search_logs { service?, level?, search?, since? }` |
+| Recent logs    | `mcp__logs__get_recent_logs { limit? }`                        |
+| Recent errors  | `mcp__logs__get_recent_errors { limit? }`                      |
+| Log statistics | `mcp__logs__get_log_stats`                                     |
+
+### n8n (`mcp__n8n__*`) — live self-hosted instance, read-only
+
+| Need to...            | Do this                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| List workflows        | `mcp__n8n__list_workflows { active?, limit? }`               |
+| Get one workflow JSON | `mcp__n8n__get_workflow { id }`                              |
+| List recent runs      | `mcp__n8n__list_executions { workflowId?, status?, limit? }` |
+| Get one run's detail  | `mcp__n8n__get_execution { id, include_data? }`              |
+
+Reads the ACTUAL running workflows via the REST API — always current, unlike the stale
+JSON exports under `workflows/n8n/`. `status` is `success` | `error` | `waiting`.
+
+### Session Mesh (`mcp__sessions__*`) — see/coordinate with other running sessions
+
+| Need to...                              | Do this                                           |
+| --------------------------------------- | ------------------------------------------------- |
+| See every running session + its task    | `mcp__sessions__list_sessions`                    |
+| Check if a peer is already on your task | `mcp__sessions__check_overlap { task }`           |
+| Read a peer's recent output             | `mcp__sessions__read_session { paneId, lines? }`  |
+| Message a peer session                  | `mcp__sessions__message_session { target, text }` |
+
+Each entry carries the peer's `paneId` (e.g. `w8:p2C`) — that is the `target`/`paneId` for
+read/message. `status` is `working` | `idle` | `done` | `blocked`; `task` is the peer's live
+tab title. The coordination POLICY (check overlap on launch, one heads-up, never chatter,
+never drive another session) stays in `~/CLAUDE.md` — it is behavior, not lookup.
+Backed by the `herdr agent` socket API; needs the Herdr server up.
+
+### Knowledge base (`mcp__knowledge__*`)
+
+| Need to...               | Do this                                              |
+| ------------------------ | ---------------------------------------------------- |
+| Search the KB            | `mcp__knowledge__search_knowledge { query, limit? }` |
+| Expand truncated section | `mcp__knowledge__get_knowledge_section { section }`  |
+
+Indexes `DICTIONARY.md` + `knowledge/COLUMN_MANIFEST.md` (overridable via the
+`KNOWLEDGE_FILES` env var, which REPLACES the defaults rather than extending them).

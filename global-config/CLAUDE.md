@@ -20,6 +20,8 @@ How Jack wants Claude to work. These override the urge to be "helpful" by doing 
 - **Pulling a main clone (SERP _or_ SWAC — sync / post-merge) — handle the dirty tree FIRST, never let `git pull` error on it.** Both the SERP main clone (`…/Projects/SERP`, parked on `dev`) and the SWAC main clone (`…/Projects/SWAC`, parked on `development`) are routinely dirtied by the dev-server watcher (`package-lock.json` churn) and stray in-place edits, so a bare `git pull`/`pull --ff-only` fails with `cannot pull with rebase: You have unstaged changes` or `Your local changes to the following files would be overwritten by merge`. Before any pull of a main clone: run `git -C <root> status --porcelain`. If the ONLY dirty paths are known watcher churn (`package-lock.json`), discard just those (`git -C <root> checkout -- package-lock.json`) then pull. If anything ELSE is dirty, STOP and report the dirty paths to Jack — do NOT `git stash` (forbidden), do NOT `git checkout --` real edits, do NOT force-pull. **If you don't actually need the clone updated (you're only demoing/reading a merged feature), don't fight the pull at all — run a fresh `/tmp` worktree pinned to `origin/<branch>` and leave the clone untouched.** (Editing a main clone in place is already NEVER — all work goes in a worktree; see [[check-branch-before-editing-main-clone]]. This rule is specifically about the read-only sync/post-merge pull leaving the clone un-updatable.)
 - **`git pull` refuses on "local changes" but `git status` says CLEAN → check `git ls-files -v <file>` FIRST; a leading `S` = the `skip-worktree` bit is set (an intentional pin), NOT a git bug or a stale cache.** This is the trap that looks like index corruption: `skip-worktree` tells git to **ignore the working copy by design**, so `git status`/`diff`/`diff-files`/`diff-index HEAD` all report **clean** no matter what the file contains — yet `merge`/`pull` DO respect the bit and refuse to overwrite it, and `git checkout -- <file>` / `git restore` refuse with **`pathspec 'X' did not match`**. That exact combination (pull-refuses + status-clean + checkout-says-pathspec-didn't-match) is the skip-worktree signature; it is commonly used to pin a locally-modified config (e.g. an env/DB-config file) so pulls never clobber it. Do NOT spiral re-running `status`/plumbing (it's cached-by-design and keeps "lying"). Diagnose ONCE: `git ls-files -v <file>` (`S`⇒skip-worktree, `h`⇒assume-unchanged), and `git hash-object <file>` vs `git rev-parse HEAD:<file>` for the real content. If it's a `skip-worktree` pin on a MAIN CLONE, treat the pinned edit as **Jack's intentional local config** — STOP and ask before clearing it (it's a deliberate guard, not junk). To clear (only when told): `git update-index --no-skip-worktree <file>` → `git checkout -- <file>` → pull. (A rarer variant with no skip-worktree bit is a genuine stale stat-cache from an mtime-preserving rewrite; there `git update-index --again <file>` forces the re-hash. Either way: content-hash decides, never a status loop.) (SWAC session, 2026-07-08: ~10 rounds flip-flopping clean/modified/tracked/untracked on `server/db-config.ts` — it had `skip-worktree` set pinning a local `ssl: undefined` dev-SSL tweak; see [[git-status-clean-but-pull-refuses-stale-stat-cache]].)
 - **Waiting on a background command = end the turn with plain text, ZERO tool calls.** When a `run_in_background` command (test suite, build, seed) is still running, do NOT poll: never run a no-op Bash (`:`, `true`, `echo`) as a pseudo-wait, and don't re-Read the output file on every intermediate task-notification wake-up. The harness re-invokes you when the command exits; an intermediate wake just means "new output" — say one short line (or advance other work) and stop. "Waiting for the completion notification" is a legitimate final paragraph when the next step depends on that result — you are blocked on the tool, not leaving a promise unfulfilled. (One SERP session burned 161 `Bash(:)` no-ops and ~12k tokens spinning in wait loops, 2026-07-02.)
+- **Keep the session SHORT — compact at ~150k context, hand off at ~250k.** This is the single biggest lever on token cost, and it is counter-intuitive: every turn re-sends the whole accumulated conversation, so a long session pays for its early turns hundreds of times over and its cost grows roughly with the SQUARE of its turn count. Measured across Jack's own transcripts: cache-read **per turn** climbs 92k (sessions under 50 turns) → 157k (50-150) → 234k (150-400) → 362k (400-1000) → **457k (1000+)**, and the 8% of sessions over 400 turns burn **56% of all tokens ever spent**. So: at **~150k** run `/compact-global` (lossy but recoverable — it keeps working in the same tab); at **~250k**, or whenever a task is actually finished, `/save-for-later` and resume fresh rather than piling a new task onto a hot session. **A fresh session per task is the default**, not a fallback — `/go` exists precisely so a new task gets a new tab instead of extending this one. When a sub-investigation will be long or read-heavy, delegate it to a subagent (`Explore`/`general-purpose`) so the bulk output lands in the agent's context and only the conclusion returns to yours. None of this is about being terse in a single reply — it is about not carrying dead context forward.
+- **Locate before you Read; don't pull a whole large file for one function.** `Read` is ~40% of tool calls and 82% of its bytes come from calls over 5 KB — and every one of those bytes is re-sent on every later turn of the session. Use `Grep`/`rg` to find the relevant region first, then `Read` with `offset`/`limit` around it. Read a file in full when you genuinely need the whole thing (you're rewriting it, or it's small); don't when you need one symbol. Same rule for `Bash`: pipe long output through `head`/`tail`/`grep` rather than dumping a full test/build log into context. The failure this prevents is real — one session `Read` the same file 71 times. (This is about avoiding *redundant* and *oversized* reads; it never licenses skipping a read you actually needed — see "Read before Edit".)
 - **No scratch files, minimal comments.** Don't create summary/scratch `.md` files or add explanatory comments unless asked. Keep output minimal and inline.
 - **A correction from Jack is a directive to fix the setup so it can't recur — not just to fix this instance.** When Jack tells you that you did something wrong ("no…", "stop…", "don't…", "why did you…", "from now on…", "use my messages as clear directive"), treat it as the strongest possible signal: identify what you did wrong, fix it _here_, AND land a durable change so the next agent doesn't repeat it — a session memory, a `~/CLAUDE.md`/rules line, a settings/config change, or a fix in the relevant repo. Don't re-explain or apologize; make the behaviour impossible (or at least documented) going forward. (`/start-day` Step 5 does this automatically each run by mining both tool-errors and Jack's corrections and auto-applying the fixes.)
 - **Browser automation: only send a `target`/`ref` you got from the IMMEDIATELY-PRIOR snapshot.** `browser_type`/`browser_click`/`computer` failing with `expected string, received undefined → at target` means the call fired before the ref existed — it regressed 3 friction windows running (17→23→19×, all SERP) because "snapshot first" as advice never bit. So treat it as a hard precondition: your prior tool call must be a `snapshot`/`read_page`/`navigate`/`find` that RETURNED the concrete ref string you're about to put in `target`. If `target` would be a variable you haven't populated from a just-returned snapshot, you don't have the ref yet — snapshot/wait, then type. Never send `target: undefined`; never _retry_ a failed undefined-target call with the same input — re-snapshot. (See [[playwright-snapshot-before-type]].)
@@ -136,6 +138,22 @@ mcp__knowledge__get_knowledge_section { section: "Serpy" }   # full text when a 
 
 The obvious-looking inference is often documented as **wrong** — that's what the KB exists to catch. Search it the way you'd search the web: cheap, early, often.
 
+**This is a HARD GATE for SUBAGENTS AND WORKFLOW RESEARCHERS, not just the lead.** A cheap
+fan-out worker (haiku/sonnet) starts with far less ambient context than the session that
+spawned it, so it must search MORE, not less — a haiku agent with a good KB hit beats a
+haiku agent reasoning from a gap. **Every researcher/subagent prompt you write MUST instruct
+the agent to run `mcp__knowledge__search_knowledge` (2-5 queries: the task's own terms AND
+the adjacent ones — the neighboring system, the cross-system flow, the data source behind
+it) BEFORE forming any conclusion, and to chase every new term a hit surfaces.** An agent
+that reports a conclusion having run zero KB searches has not done the job — treat that
+result as unverified. This applies to `Agent`/`Task` spawns, `Workflow` `agent()` calls, and
+the `research-team` roster alike.
+
+**Why this matters more as the instruction files get smaller:** reference material is being
+deliberately moved OUT of the always-on context and INTO the KB (that is what makes sessions
+cheap). That trade only holds if the searching actually happens. Content that moved is not
+gone — it is one `search_knowledge` call away — but nobody will find it by accident.
+
 **Updating the KB:** it indexes `sw-cortex/DICTIONARY.md` directly — edit that file and the index refreshes itself on the next search (no ingest step). `/refresh-knowledge` distills new session learnings into the doc.
 
 ## Looking Up a WishWorks Ticket (WW-###)
@@ -236,154 +254,26 @@ mcp__db__query_database_from_file {
 mcp__db__describe_table { database: "laravel_live", table: "orders" }
 ```
 
-### Slack Search (`mcp__slack-search__*`)
+### The other MCP servers — GitHub, Slack, Logs, n8n, Session Mesh, Knowledge
 
-Semantic search across Jack's Slack history. **Use this when:**
-
-- Looking for past discussions about a topic
-- Finding who said something or when
-- Searching for decisions, context, or background info
-- User asks "what did we discuss about X" or "find that Slack message about Y"
-
-#### Tools
-
-| Need to...        | Do this                                                                  |
-| ----------------- | ------------------------------------------------------------------------ |
-| Search messages   | `mcp__slack-search__search_slack_messages { query, afterDate?, limit? }` |
-| Get context       | `mcp__slack-search__get_slack_context { channelId, timestamp }`          |
-| Get thread        | `mcp__slack-search__get_slack_thread { channelId, threadTs }`            |
-| Check sync status | `mcp__slack-search__get_slack_sync_status`                               |
-
-**Workflow**: Search first, then get context for interesting results:
+Their full tool catalogs live in the **knowledge base**, not here, so they cost nothing
+until a session needs them. Look one up with:
 
 ```
-# 1. Search for topic
-mcp__slack-search__search_slack_messages { query: "purchase order approval" }
-
-# 2. Get surrounding conversation (use channelId + timestamp from results)
-mcp__slack-search__get_slack_context { channelId: "C123", timestamp: 1704067200 }
+mcp__knowledge__search_knowledge { query: "Claude Code MCP Tool Reference <server>" }
 ```
 
-Slack message indexing is synced via `npm run slack:sync` in sw-cortex (manual / scheduled).
+covering `mcp__github__*` (read-only repo access — **always pass `ref`**; default branches
+are usually wrong: SERP `dev`, SWAC `development`, laravel `blue`), `mcp__slack-search__*`
+(semantic history search), `mcp__jack-slack__*` (posting — **as jackbot**), `mcp__logs__*`,
+`mcp__n8n__*` (live workflows), `mcp__sessions__*` (the session mesh), and
+`mcp__knowledge__*` itself. The behavioral RULES that govern them stay inline in this file
+(the jackbot-not-Jack identity rule above, and the Session Mesh coordination policy) — only
+the lookup tables moved.
 
-### GitHub Access (`mcp__github__*`)
-
-Read-only access to configured repos.
-
-#### Repositories & Branches
-
-| Repo                  | Production | Development      | Staging       | Workflow                   |
-| --------------------- | ---------- | ---------------- | ------------- | -------------------------- |
-| **SERP**              | `main`     | `dev`            | -             | dev → main → manual deploy |
-| **SWAC**              | `live`     | `development`    | `staging`     | dev → staging → live       |
-| **sugarwish-odoo**    | `main`     | -                | `staging_new` | staging_new → main         |
-| **sugarwish-laravel** | `blue`     | feature branches | -             | SUG-\* branches → blue     |
-
-**Environments**:
-
-- SWAC: `desk.sugarwish.com` (live), `desk2.sugarwish.com` (dev), `desk3.sugarwish.com` (staging)
-- SERP: deploy from `main` is a **manual** `ssh … bash deploy.sh` step — it does **NOT** auto-deploy. (CI runs on push to `main`, but deploy is manual.)
-
-**IMPORTANT - Always specify the correct branch**:
-
-- When exploring current/active work, use the **Development** or **Staging** branch
-- When checking production code, use the **Production** branch
-- If unsure which branch, **ask the user** or use `list_branches` to see options
-- **Never assume `main` is correct** - check the table above
-
-#### Tools
-
-| Need to...     | Do this                                              |
-| -------------- | ---------------------------------------------------- |
-| List repos     | `mcp__github__list_repos`                            |
-| Search code    | `mcp__github__search_code { query, repo? }`          |
-| Get file       | `mcp__github__get_file { repo, path, ref? }`         |
-| List files     | `mcp__github__list_files { repo, path? }`            |
-| List branches  | `mcp__github__list_branches { repo }`                |
-| List commits   | `mcp__github__list_commits { repo, branch?, path? }` |
-| List PRs       | `mcp__github__list_pull_requests { repo, state? }`   |
-| Get PR details | `mcp__github__get_pull_request { repo, pr_number }`  |
-
-Use `ref` parameter to specify branch/tag/commit:
-
-```
-mcp__github__get_file { repo: "sugarwish-odoo", path: "file.py", ref: "development" }
-mcp__github__list_files { repo: "sugarwish-odoo", path: "models", ref: "staging" }
-mcp__github__list_commits { repo: "SERP", branch: "dev" }
-```
-
-Without `ref`, tools default to the repo's default branch (usually `main`).
-
-### Knowledge Base (`mcp__knowledge__*`)
-
-Semantic search over `sw-cortex/DICTIONARY.md` — SugarWish systems, table-by-table notes, people/ownership, business rules, gotchas. See "Search the Knowledge Base First" above.
-
-| Need to...               | Do this                                              |
-| ------------------------ | ---------------------------------------------------- |
-| Search the KB            | `mcp__knowledge__search_knowledge { query, limit? }` |
-| Expand truncated section | `mcp__knowledge__get_knowledge_section { section }`  |
-
-### Slack Posting / Reading (`mcp__jack-slack__*`)
-
-Post and read Slack directly (distinct from `slack-search`, which is semantic search over history).
-
-| Need to...           | Do this                                                         |
-| -------------------- | --------------------------------------------------------------- |
-| Post a message       | `mcp__jack-slack__slack_post_message { channel, text }`         |
-| Reply in a thread    | `mcp__jack-slack__slack_reply_to_thread { channel, thread_ts }` |
-| Read channel history | `mcp__jack-slack__slack_get_channel_history { channel }`        |
-| Read thread replies  | `mcp__jack-slack__slack_get_thread_replies { channel, ts }`     |
-| List channels        | `mcp__jack-slack__slack_list_channels`                          |
-| Look up user / users | `mcp__jack-slack__slack_get_user_profile` / `slack_get_users`   |
-| Add a reaction       | `mcp__jack-slack__slack_add_reaction { channel, ts, name }`     |
-
-### Logs (`mcp__logs__*`)
-
-Search and analyze sw-cortex service logs.
-
-| Need to...     | Do this                                                        |
-| -------------- | -------------------------------------------------------------- |
-| Search logs    | `mcp__logs__search_logs { service?, level?, search?, since? }` |
-| Recent logs    | `mcp__logs__get_recent_logs { limit? }`                        |
-| Recent errors  | `mcp__logs__get_recent_errors { limit? }`                      |
-| Log statistics | `mcp__logs__get_log_stats`                                     |
-
-### n8n Workflows (`mcp__n8n__*`)
-
-Read-only access to the **live self-hosted n8n instance** (via its REST API at
-`N8N_HOST`, e.g. `http://localhost:5678`, using `N8N_API_KEY`). Reads the actual running
-workflows and run history — always current, unlike the stale JSON exports under
-`workflows/n8n/`. No write operations (can't create/activate/execute workflows).
-
-| Need to...            | Do this                                                      |
-| --------------------- | ------------------------------------------------------------ |
-| List workflows        | `mcp__n8n__list_workflows { active?, limit? }`               |
-| Get one workflow JSON | `mcp__n8n__get_workflow { id }`                              |
-| List recent runs      | `mcp__n8n__list_executions { workflowId?, status?, limit? }` |
-| Get one run's detail  | `mcp__n8n__get_execution { id, include_data? }`              |
-
-`list_workflows` returns summaries (`id`, `name`, `active`, `tags`); pass an `id` to
-`get_workflow` for the full node/connection JSON. `list_executions` `status` is
-`success` | `error` | `waiting`.
-
-### Session Mesh (`mcp__sessions__*`)
-
-See and coordinate with every OTHER Claude Code session running right now (each a Herdr
-tab). Full behavior + the coordination policy is in the **Session Mesh** section above —
-this is just the tool catalog.
-
-| Need to...                              | Do this                                             |
-| --------------------------------------- | --------------------------------------------------- |
-| See every running session + its task    | `mcp__sessions__list_sessions`                      |
-| Check if a peer is already on your task | `mcp__sessions__check_overlap { task }`             |
-| Read a peer's recent output             | `mcp__sessions__read_session { paneId, lines? }`    |
-| Message a peer session                  | `mcp__sessions__message_session { target, text }`   |
-
-**Policy in one line:** on launch, `check_overlap` on your task; if you overlap a peer, send
-it **one** heads-up with `message_session` and tell Jack; otherwise don't message anyone.
-Sessions observe and coordinate-when-it-matters — they don't chatter and never drive each
-other. (Backed by the `herdr agent` socket API; needs the Herdr server up.)
-
+**Two standing rules that survive the move:** never use `mcp__github__search_code` on a
+locally-checked-out repo (SERP/SWAC/sw-cortex) — use `rg`/Explore; and automated Slack
+posts always go through `mcp__jack-slack__*`, never `mcp__claude_ai_Slack__*`.
 ## Global Config Management
 
 The `global-config/` directory in `sw-cortex` contains commands, skills, and settings that sync to `~/.claude` for use across all projects.

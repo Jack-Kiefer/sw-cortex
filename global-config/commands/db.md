@@ -1,5 +1,7 @@
 # Command: db
 
+> **Effort:** this command is mechanical — run it at **low reasoning effort**. Running a read-only query and formatting rows is mechanical; raise effort only if the RESULT needs real analysis. Escalate only if something genuinely ambiguous comes up.
+
 Query Jack's databases (read-only).
 
 ## Usage
