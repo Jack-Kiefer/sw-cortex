@@ -1,8 +1,8 @@
 ---
 description: Set a sticky custom name for this terminal tab (or --clear to return to automatic titles)
 ---
-> **Effort:** this command is mechanical — run it at **low reasoning effort**. Setting a tab title is a single scripted Bash call. Escalate only if something genuinely ambiguous comes up.
 
+> **Effort:** this command is mechanical — run it at **low reasoning effort**. Setting a tab title is a single scripted Bash call. Escalate only if something genuinely ambiguous comes up.
 
 Set a custom title on this session's terminal tab. Run exactly:
 
