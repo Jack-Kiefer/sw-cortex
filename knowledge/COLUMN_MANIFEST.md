@@ -94,6 +94,16 @@ id bigint unsigned · order_id bigint · increment_id bigint · company_id int �
 
 </details>
 
+#### laravel_live.feature_attributes
+
+**Columns (7):** id, feature_id, attribute_key_label, attribute_key, attribute_value, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id bigint unsigned · feature_id bigint unsigned · attribute_key_label varchar(100) · attribute_key varchar(100) · attribute_value text · created_at timestamp · updated_at timestamp
+
+</details>
+
 #### laravel_live.giftcards_card
 
 **Columns (109):** card_id, user_id, company_id, favorites_id, proposal_id, branding_record_id, discount_percent, discount_amount, discount_per_item, initial_true_amount, current_true_amount, final_amount, digital_branding_price, physical_branding_price, merchandise_price, paid, card_code, card_amount, card_balance, card_status, card_type, mail_from, mail_to, mail_to_email, mail_message, order_id, created_time, updated_time, canceled_time, product_id, product_sku, mail_delivery_date, send_time_requested, card_currency, is_mail_sent, mail_sent_date_time, sw_sku, mail_from_email, notes, first_follow_up, second_follow_up, third_follow_up, shipping_paid_for, consumer_card, invoice_by_user, delivery_method, updated_at, deleted_at, product_type, image_type, image_path, type, use_count, used_count, privacy_restricted, no_follow_up, referal_discount, whitelist_on, delivery_status, wishlink, expiration_date, credit_discount, reason, opens, clicks, expedited_shipping, ordered_as_guest, expedited_shipping_price, ecard_upload_id, custom_image_price, autodonation, insert_price, first_follow_up_at, second_follow_up_at, third_follow_up_at, first_follow_up_scheduled_for, second_follow_up_scheduled_for, third_follow_up_scheduled_for, canadian_shipping_amount, fourth_follow_up, fourth_follow_up_at, coupon_discount, coupon_code_applied, product_selections, expiration_warning_one, expiration_warning_one_at, expiration_warning_two, expiration_warning_two_at, sender_confirmation_at, 30_day_sent_at, seasonal_kit, product_configuration_id, redeem_only, customer_sms_number, message_id, wishlink_ecard_option, survey_id, test_card, skip_ecard, seasonal_kit_until, stacked_size, product_selections_gift2, gift1_price, gift2_price, contact_id, hold_until_date, maw_autodonate_date, sub_scheduled, recipient_id
@@ -101,6 +111,16 @@ id bigint unsigned · order_id bigint · increment_id bigint · company_id int �
 <details><summary>with types</summary>
 
 card_id bigint unsigned · user_id int · company_id int · favorites_id int · proposal_id bigint unsigned · branding_record_id bigint unsigned · discount_percent decimal(12,4) · discount_amount decimal(12,2) · discount_per_item decimal(12,2) · initial_true_amount decimal(12,2) · current_true_amount decimal(12,2) · final_amount decimal(12,2) · digital_branding_price decimal(15,2) · physical_branding_price decimal(15,2) · merchandise_price decimal(15,2) · paid tinyint · card_code varchar(64) · card_amount decimal(12,2) · card_balance decimal(12,2) · card_status tinyint unsigned · card_type enum('print','email','offline','sms') · mail_from varchar(255) · mail_to varchar(255) · mail_to_email varchar(255) · mail_message blob · order_id bigint · created_time datetime · updated_time datetime · canceled_time datetime · product_id int · product_sku varchar(255) · mail_delivery_date date · send_time_requested varchar(255) · card_currency varchar(50) · is_mail_sent tinyint(1) · mail_sent_date_time datetime · sw_sku varchar(255) · mail_from_email varchar(255) · notes text · first_follow_up tinyint · second_follow_up tinyint · third_follow_up tinyint · shipping_paid_for varchar(120) · consumer_card tinyint · invoice_by_user tinyint · delivery_method enum('email','message','print','wishlink','sms') · updated_at timestamp · deleted_at datetime · product_type int · image_type varchar(50) · image_path text · type varchar(50) · use_count int · used_count int · privacy_restricted tinyint(1) · no_follow_up tinyint(1) · referal_discount double(10,2) · whitelist_on tinyint(1) · delivery_status int · wishlink tinyint(1) · expiration_date date · credit_discount float(10,2) · reason varchar(50) · opens tinyint · clicks tinyint · expedited_shipping enum('Standard Shipping','2-Day','Overnight') · ordered_as_guest tinyint(1) · expedited_shipping_price double(15,4) · ecard_upload_id int · custom_image_price double(8,2) · autodonation tinyint(1) · insert_price double(8,2) · first_follow_up_at datetime · second_follow_up_at datetime · third_follow_up_at datetime · first_follow_up_scheduled_for date · second_follow_up_scheduled_for date · third_follow_up_scheduled_for date · canadian_shipping_amount decimal(8,2) · fourth_follow_up tinyint(1) · fourth_follow_up_at datetime · coupon_discount decimal(8,2) · coupon_code_applied tinyint(1) · product_selections varchar(255) · expiration_warning_one tinyint(1) · expiration_warning_one_at datetime · expiration_warning_two tinyint(1) · expiration_warning_two_at datetime · sender_confirmation_at datetime · 30_day_sent_at timestamp · seasonal_kit bigint · product_configuration_id bigint unsigned · redeem_only tinyint(1) · customer_sms_number varchar(255) · message_id varchar(255) · wishlink_ecard_option varchar(255) · survey_id bigint unsigned · test_card tinyint(1) · skip_ecard tinyint(1) · seasonal_kit_until date · stacked_size smallint unsigned · product_selections_gift2 varchar(255) · gift1_price decimal(12,4) · gift2_price decimal(12,4) · contact_id bigint unsigned · hold_until_date date · maw_autodonate_date date · sub_scheduled tinyint(1) · recipient_id varchar(255)
+
+</details>
+
+#### laravel_live.inventory_reservations
+
+**Columns (11):** id, preselect_order_master_id, master_id, product_id, quantity, company_id, user_id, expires_at, status, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id bigint unsigned · preselect_order_master_id bigint · master_id bigint · product_id bigint · quantity bigint · company_id bigint · user_id bigint · expires_at timestamp · status enum('active','expired','converted','canceled') · created_at timestamp · updated_at timestamp
 
 </details>
 
@@ -134,6 +154,16 @@ id bigint unsigned · name varchar(255) · column varchar(255) · created_at tim
 
 </details>
 
+#### laravel_live.preselect_orders
+
+**Columns (106):** id, user_id, company_id, proposal_id, branding_record_id, digital_branding_price, physical_branding_price, merchandise_price, status, size, product_type, item_count, quantity, locations, insert_id, candies, receiver_firstname, receiver_lastname, receiver_email, receiver_phone, receiver_company, receiver_address1, receiver_address2, receiver_city, receiver_zip, receiver_country, receiver_state, requested_ship_date, note, buyers_note, subtotal, corporate_discount, volume_discount, shipping, total, shipped_date, shipping_method, carrier, service, tracking_number, shipping_cost, type, invoice_by_user, paid, modified_by, placed_at, coupon_code, coupon_discount, referal_discount, payment_method, transaction_id, deep_dish, dd_charge, credit_discount, insert_total_price, created_at, updated_at, created_at_shipping, deleted_at, shipping_id, intl_shipping, is_printed, is_pdf_generated, internal_notes, expedited_shipping, stockout, expedited_shipping_price, platform_fee, taxable_total, gift_total, gift_total_picks, pick_value, avatax_status, sales_tax, delivery_status, delivery_date, tracking_mail_sent, fedex_checked_at, card_type, last_four, production_slip_batch, fulfill_center, has_component, master_id, ecard_upload_id, boxcard_image_path, oddo_synchronized, serp_sync, co_ship_tax, label_downloaded, shipping_label_url, component_imported, test_order, reissue_id, is_imported, seasonal_box, ship_date_odoo_synchronized, ship_date_serp_synchronized, theme_id, expected_delivery_date, label_created_at, sw_fulfill, vendor_order_id, expected_delivery_mail_sent, delivery_note, recipient_id
+
+<details><summary>with types</summary>
+
+id int · user_id int · company_id int · proposal_id bigint unsigned · branding_record_id bigint unsigned · digital_branding_price decimal(15,2) · physical_branding_price decimal(15,2) · merchandise_price decimal(15,2) · status enum('pending','completed','canceled','deleted','shipped','on_hold') · size int · product_type int · item_count int · quantity double(15,4) · locations varchar(255) · insert_id int · candies varchar(255) · receiver_firstname varchar(255) · receiver_lastname varchar(255) · receiver_email varchar(255) · receiver_phone varchar(50) · receiver_company varchar(255) · receiver_address1 varchar(255) · receiver_address2 varchar(255) · receiver_city varchar(255) · receiver_zip varchar(50) · receiver_country varchar(100) · receiver_state varchar(255) · requested_ship_date date · note mediumblob · buyers_note text · subtotal double(15,4) · corporate_discount decimal(15,4) · volume_discount double(15,4) · shipping double(15,4) · total double(15,4) · shipped_date date · shipping_method varchar(255) · carrier varchar(255) · service varchar(255) · tracking_number varchar(255) · shipping_cost decimal(10,5) · type enum('preselect','sweet-shoppe','sweetificate') · invoice_by_user tinyint · paid tinyint · modified_by int · placed_at datetime · coupon_code varchar(255) · coupon_discount decimal(10,2) · referal_discount decimal(10,2) · payment_method varchar(255) · transaction_id varchar(255) · deep_dish tinyint(1) · dd_charge float(10,2) · credit_discount float(10,2) · insert_total_price float(10,2) · created_at timestamp · updated_at timestamp · created_at_shipping datetime · deleted_at datetime · shipping_id int · intl_shipping double(15,2) · is_printed tinyint · is_pdf_generated tinyint(1) · internal_notes text · expedited_shipping enum('Standard Shipping','2-Day','Overnight') · stockout tinyint(1) · expedited_shipping_price double(15,4) · platform_fee double(8,2) · taxable_total double(8,2) · gift_total double(8,2) · gift_total_picks int unsigned · pick_value double(8,2) · avatax_status enum('not-processed','processed','sent','skipped','adjusted','voided','cancelled','locked') · sales_tax double(8,2) · delivery_status varchar(255) · delivery_date varchar(255) · tracking_mail_sent tinyint(1) · fedex_checked_at datetime · card_type varchar(255) · last_four varchar(255) · production_slip_batch bigint unsigned · fulfill_center varchar(255) · has_component tinyint(1) · master_id bigint · ecard_upload_id int · boxcard_image_path varchar(255) · oddo_synchronized tinyint(1) · serp_sync tinyint · co_ship_tax double(8,2) · label_downloaded tinyint(1) · shipping_label_url varchar(255) · component_imported tinyint · test_order tinyint(1) · reissue_id bigint unsigned · is_imported tinyint(1) · seasonal_box tinyint(1) · ship_date_odoo_synchronized tinyint · ship_date_serp_synchronized tinyint · theme_id bigint unsigned · expected_delivery_date date · label_created_at timestamp · sw_fulfill tinyint(1) · vendor_order_id varchar(255) · expected_delivery_mail_sent timestamp · delivery_note text · recipient_id varchar(255)
+
+</details>
+
 #### laravel_live.product_type
 
 **Columns (41):** id, name, url_key, sort_key, select_text, order_link, default_theme, custom_image_sku, receiver_type_icon_url, exclude_canada, image_url, created_at, updated_at, wishlinks_enabled, turn_time, shipping_carrier, locations, wine, select, confirmation_page_image, tracking_hero_image_url, product_line, type_description, type_page_image_url, type_icon_url, excludes_us, excludes_international, primary_prepick_locations, prepick_confirm_image_url, cocktails, get_labels, choose_use_name, disclaimer, bypass_odoo, use_vendor_order_number, exclude_avatax, send_wine_delivery_notice, exclude_prepick, survey_skips_items, default_awning, default_location_id
@@ -141,6 +171,16 @@ id bigint unsigned · name varchar(255) · column varchar(255) · created_at tim
 <details><summary>with types</summary>
 
 id int unsigned · name varchar(255) · url_key varchar(255) · sort_key int · select_text text · order_link varchar(200) · default_theme int · custom_image_sku varchar(200) · receiver_type_icon_url varchar(255) · exclude_canada tinyint · image_url varchar(200) · created_at timestamp · updated_at timestamp · wishlinks_enabled tinyint(1) · turn_time varchar(255) · shipping_carrier varchar(255) · locations varchar(255) · wine tinyint(1) · select tinyint(1) · confirmation_page_image varchar(255) · tracking_hero_image_url varchar(255) · product_line int unsigned · type_description text · type_page_image_url varchar(255) · type_icon_url varchar(255) · excludes_us tinyint(1) · excludes_international tinyint(1) · primary_prepick_locations varchar(255) · prepick_confirm_image_url varchar(255) · cocktails tinyint(1) · get_labels tinyint(1) · choose_use_name tinyint(1) · disclaimer mediumtext · bypass_odoo tinyint · use_vendor_order_number tinyint(1) · exclude_avatax tinyint(1) · send_wine_delivery_notice tinyint(1) · exclude_prepick tinyint(1) · survey_skips_items tinyint(1) · default_awning varchar(255) · default_location_id bigint unsigned
+
+</details>
+
+#### laravel_live.receiver_product_inventory
+
+**Columns (9):** receiver_product_id, on_hand_qty, reserved_qty, unsynced_demand_qty, unreserved_outbound_qty, reservation_hold_qty, prelist_qty, available_qty, sellable_qty
+
+<details><summary>with types</summary>
+
+receiver_product_id int · on_hand_qty decimal(16,4) · reserved_qty decimal(16,4) · unsynced_demand_qty decimal(16,4) · unreserved_outbound_qty decimal(16,4) · reservation_hold_qty decimal(16,4) · prelist_qty decimal(16,4) · available_qty decimal(16,4) · sellable_qty decimal(16,4)
 
 </details>
 
@@ -161,6 +201,26 @@ id bigint unsigned · order_id bigint unsigned · insert_id bigint unsigned · s
 <details><summary>with types</summary>
 
 product_id int · sku varchar(255) · prod_slip_sku varchar(255) · name text · image_name varchar(255) · full_image varchar(255) · description text · short_description text · ingredients text · category int · status varchar(50) · sort_key float · inventory_qty int · mi_inventory_qty int · start_date date · end_date date · premium tinyint · sweet_shoppe tinyint · product_type int · created_at timestamp · updated_at timestamp · deleted_at datetime · archive tinyint(1) · inventory_link int · notes text · tax_code_id bigint unsigned · purchase_url varchar(255) · tax_description mediumtext · purchase_button_label_text varchar(255) · drop_level int · shipcompliant_id bigint · location_2_status tinyint(1) · vendor_id bigint unsigned · inventory_updated_at datetime · sw_inventory_updated_at datetime · odoo_inventory int · prelist_qty int · tango_utid varchar(255) · show_on_flavors tinyint(1) · vendor_cost decimal(8,2) · location_id bigint unsigned · is_core tinyint(1) · sku_type varchar(16) · exclude_international tinyint(1) · hs_code varchar(15) · country_of_origin char(2) · customs_description varchar(35)
+
+</details>
+
+#### laravel_live.serp_published_kits
+
+**Columns (6):** buyer_product_id, recipe_key, component_id, quantity, sequence, computed_at
+
+<details><summary>with types</summary>
+
+buyer_product_id int · recipe_key varchar(100) · component_id bigint unsigned · quantity decimal(16,4) · sequence int · computed_at datetime
+
+</details>
+
+#### laravel_live.serp_published_stock
+
+**Columns (7):** product_id, receiver_product_id, component_id, on_hand_qty, reserved_qty, unreserved_outbound_qty, computed_at
+
+<details><summary>with types</summary>
+
+product_id bigint unsigned · receiver_product_id int · component_id bigint unsigned · on_hand_qty decimal(16,4) · reserved_qty decimal(16,4) · unreserved_outbound_qty decimal(16,4) · computed_at datetime
 
 </details>
 
@@ -206,6 +266,26 @@ id bigint unsigned · move_id bigint unsigned · name varchar(255) · sequence i
 
 </details>
 
+#### serp_test.serp_cron
+
+**Columns (21):** id, cron_key, cron_name, env, active, at_time, interval_minutes, window_start, window_end, tz, skip_weekends, nextcall, last_fire_key, lastcall, last_result_signature, last_thread_ts, cycle_timeout_s, live_query_timeout_s, priority, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id bigint · cron_key varchar(50) · cron_name varchar(255) · env varchar(64) · active tinyint(1) · at_time time · interval_minutes int · window_start time · window_end time · tz varchar(64) · skip_weekends tinyint(1) · nextcall datetime · last_fire_key varchar(32) · lastcall datetime · last_result_signature varchar(64) · last_thread_ts varchar(32) · cycle_timeout_s int · live_query_timeout_s int · priority int · created_at datetime · updated_at datetime
+
+</details>
+
+#### serp_test.serp_ir_exports
+
+**Columns (6):** id, name, resource, user_id, create_date, write_date
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(255) · resource varchar(255) · user_id bigint · create_date datetime · write_date datetime
+
+</details>
+
 #### serp_test.serp_mrp_bom
 
 **Columns (18):** id, code, product_id, product_tmpl_id, product_qty, type, active, company_id, sequence, product_uom_id, create_uid, write_uid, create_date, write_date, odoo_id, ready_to_produce, consumption, picking_type_id
@@ -223,6 +303,16 @@ id bigint unsigned · code varchar(50) · product_id bigint unsigned · product_
 <details><summary>with types</summary>
 
 id bigint unsigned · bom_id bigint · product_id bigint unsigned · product_tmpl_id bigint unsigned · product_qty decimal(16,4) · product_uom_id bigint · sequence int · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint · operation_id bigint
+
+</details>
+
+#### serp_test.serp_product_category
+
+**Columns (10):** id, name, complete_name, parent_id, parent_path, create_uid, write_uid, create_date, write_date, odoo_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(100) · complete_name varchar(255) · parent_id bigint unsigned · parent_path varchar(255) · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
 
 </details>
 
@@ -293,6 +383,16 @@ id bigint unsigned · name varchar(64) · ec_order_id bigint · preselect_order_
 <details><summary>with types</summary>
 
 id bigint unsigned · order_id bigint · item_id bigint · component_order_id bigint · name text · sequence int · product_id bigint · product_uom_qty decimal(16,4) · product_uom bigint · qty_delivered decimal(16,4) · qty_invoiced decimal(16,4) · customer_lead double · price_unit decimal(16,4) · price_subtotal decimal(16,4) · price_total decimal(16,4) · price_tax double · price_reduce decimal(16,4) · discount decimal(5,2) · state enum('draft','sent','sale','done','cancel') · invoice_status enum('upselling','invoiced','to invoice','no') · order_partner_id bigint · salesman_id bigint · currency_id bigint · company_id int · odoo_id bigint · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp
+
+</details>
+
+#### serp_test.serp_stock_location
+
+**Columns (23):** id, name, complete_name, location_id, parent_path, usage, scrap_location, return_location, barcode, posx, posy, posz, active, comment, cyclic_inventory_frequency, last_inventory_date, next_inventory_date, company_id, create_uid, write_uid, create_date, write_date, odoo_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(100) · complete_name varchar(255) · location_id bigint unsigned · parent_path varchar(255) · usage enum('internal','supplier','customer','inventory','production','transit','view') · scrap_location tinyint(1) · return_location tinyint(1) · barcode varchar(50) · posx int · posy int · posz int · active tinyint(1) · comment text · cyclic_inventory_frequency int · last_inventory_date date · next_inventory_date date · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
 
 </details>
 
@@ -368,6 +468,56 @@ version varchar(255) · filename varchar(255) · applied_at datetime
 
 </details>
 
+#### serp_app.odoo_sync_queue_live
+
+**Columns (20):** id, entity_type, entity_id, operation, payload, status, attempts, max_attempts, last_attempt_at, next_attempt_at, error_message, error_details, odoo_id, odoo_response, created_at, updated_at, synced_at, priority, idempotency_key, sync_target
+
+<details><summary>with types</summary>
+
+id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20) · payload json · status varchar(20) · attempts int · max_attempts int · last_attempt_at datetime · next_attempt_at datetime · error_message text · error_details json · odoo_id bigint · odoo_response json · created_at datetime · updated_at datetime · synced_at datetime · priority int · idempotency_key varchar(255) · sync_target varchar(20)
+
+</details>
+
+#### serp_app.prelist_qty_log
+
+**Columns (11):** id, product_id, sku, delta, qty_after, changed_at, reason, source, draft_id, odoo_product_id, mo_odoo_id
+
+<details><summary>with types</summary>
+
+id bigint · product_id bigint · sku varchar(100) · delta int · qty_after int · changed_at datetime · reason varchar(255) · source enum('serpy','sync-cron','manual','backfill-inferred') · draft_id bigint · odoo_product_id bigint · mo_odoo_id bigint
+
+</details>
+
+#### serp_app.serp_ai_messages_live
+
+**Columns (16):** id, draft_id, seq, turn_id, role, kind, content, tool_name, tool_call_id, duration_ms, tokens_in, tokens_out, model, error_type, user_id, created_at
+
+<details><summary>with types</summary>
+
+id bigint · draft_id bigint · seq int · turn_id bigint · role text · kind text · content json · tool_name text · tool_call_id text · duration_ms int · tokens_in int · tokens_out int · model text · error_type text · user_id bigint · created_at datetime
+
+</details>
+
+#### serp_app.serp_ai_turns_live
+
+**Columns (30):** turn_id, draft_id, user_id, user_email, system_prompt, prompt_version, classified_types, classify_confidences, classify_reasoning, classify_hint, model, input_tokens, output_tokens, total_tokens, tool_calls_count, agent_rounds, tool_timings, schema_validation_errors, duration_ms, status, error_type, error_message, created_at, cache_creation_input_tokens, cache_read_input_tokens, classifier_input_tokens, classifier_output_tokens, vision_input_tokens, vision_output_tokens, chunk_selection
+
+<details><summary>with types</summary>
+
+turn_id bigint · draft_id bigint · user_id bigint · user_email text · system_prompt mediumtext · prompt_version text · classified_types json · classify_confidences json · classify_reasoning text · classify_hint text · model text · input_tokens int · output_tokens int · total_tokens int · tool_calls_count int · agent_rounds int · tool_timings json · schema_validation_errors json · duration_ms int · status text · error_type text · error_message text · created_at datetime · cache_creation_input_tokens int · cache_read_input_tokens int · classifier_input_tokens int · classifier_output_tokens int · vision_input_tokens int · vision_output_tokens int · chunk_selection json
+
+</details>
+
+#### serp_app.serp_cron
+
+**Columns (21):** id, cron_key, cron_name, env, active, at_time, interval_minutes, window_start, window_end, tz, skip_weekends, nextcall, last_fire_key, lastcall, last_result_signature, last_thread_ts, cycle_timeout_s, live_query_timeout_s, priority, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id bigint · cron_key varchar(50) · cron_name varchar(255) · env varchar(64) · active tinyint(1) · at_time time · interval_minutes int · window_start time · window_end time · tz varchar(64) · skip_weekends tinyint(1) · nextcall datetime · last_fire_key varchar(32) · lastcall datetime · last_result_signature varchar(64) · last_thread_ts varchar(32) · cycle_timeout_s int · live_query_timeout_s int · priority int · created_at datetime · updated_at datetime
+
+</details>
+
 #### serp_app.serp_draft_operations_live
 
 **Columns (20):** id, user_id, operation_type, title, data, notes, status, submitted_at, approved_by, approved_at, rejection_reason, created_at, updated_at, slack_channel_id, slack_message_ts, sync_target, sync_targets, last_assistant_seq, classified_types, image_descriptions
@@ -375,6 +525,16 @@ version varchar(255) · filename varchar(255) · applied_at datetime
 <details><summary>with types</summary>
 
 id bigint · user_id bigint · operation_type varchar(50) · title varchar(512) · data json · notes text · status varchar(20) · submitted_at datetime · approved_by bigint · approved_at datetime · rejection_reason text · created_at datetime · updated_at datetime · slack_channel_id varchar(50) · slack_message_ts varchar(50) · sync_target varchar(20) · sync_targets text · last_assistant_seq int · classified_types json · image_descriptions json
+
+</details>
+
+#### serp_app.serp_stock_location
+
+**Columns (23):** id, name, complete_name, location_id, parent_path, usage, scrap_location, return_location, barcode, posx, posy, posz, active, comment, cyclic_inventory_frequency, last_inventory_date, next_inventory_date, company_id, create_uid, write_uid, create_date, write_date, odoo_id
+
+<details><summary>with types</summary>
+
+id bigint unsigned · name varchar(100) · complete_name varchar(255) · location_id bigint unsigned · parent_path varchar(255) · usage enum('internal','supplier','customer','inventory','production','transit','view') · scrap_location tinyint(1) · return_location tinyint(1) · barcode varchar(50) · posx int · posy int · posz int · active tinyint(1) · comment text · cyclic_inventory_frequency int · last_inventory_date date · next_inventory_date date · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
 
 </details>
 
@@ -594,11 +754,11 @@ id int · ticket_id varchar(20) · created_at datetime · updated_at datetime ·
 
 #### wishdesk.proposals
 
-**Columns (32):** id, company_id, user_id, rep_id, created_by, proposal_name, status, quantity, total_budget, recipient_list_status, proposal_url_path, occasion, content, details_json, recipient_json, recipient_file, metadata, created_at, updated_at, deleted_at, approved_at, user_last_access, send_date, size_name_id, parent_proposal_id, sender_email, email_sent, digital_branding, physical_branding, merchandise, is_pinned, email_claimed_at
+**Columns (33):** id, company_id, user_id, rep_id, created_by, proposal_name, status, quantity, total_budget, recipient_list_status, proposal_url_path, occasion, content, details_json, recipient_json, recipient_file, metadata, created_at, updated_at, deleted_at, approved_at, user_last_access, send_date, size_name_id, parent_proposal_id, sender_email, email_sent, digital_branding, physical_branding, merchandise, is_pinned, email_claimed_at, is_internal_ship_to_parent
 
 <details><summary>with types</summary>
 
-id int · company_id int · user_id int · rep_id int · created_by int · proposal_name varchar(255) · status varchar(50) · quantity int · total_budget decimal(10,2) · recipient_list_status enum('has_list','no_list') · proposal_url_path varchar(255) · occasion varchar(255) · content json · details_json json · recipient_json json · recipient_file varchar(255) · metadata json · created_at datetime · updated_at datetime · deleted_at datetime · approved_at datetime · user_last_access datetime · send_date date · size_name_id int · parent_proposal_id int · sender_email varchar(255) · email_sent datetime · digital_branding json · physical_branding json · merchandise json · is_pinned tinyint(1) · email_claimed_at datetime
+id int · company_id int · user_id int · rep_id int · created_by int · proposal_name varchar(255) · status varchar(50) · quantity int · total_budget decimal(10,2) · recipient_list_status enum('has_list','no_list') · proposal_url_path varchar(255) · occasion varchar(255) · content json · details_json json · recipient_json json · recipient_file varchar(255) · metadata json · created_at datetime · updated_at datetime · deleted_at datetime · approved_at datetime · user_last_access datetime · send_date date · size_name_id int · parent_proposal_id int · sender_email varchar(255) · email_sent datetime · digital_branding json · physical_branding json · merchandise json · is_pinned tinyint(1) · email_claimed_at datetime · is_internal_ship_to_parent tinyint(1)
 
 </details>
 
