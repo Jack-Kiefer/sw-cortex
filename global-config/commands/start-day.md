@@ -740,6 +740,30 @@ go-launcher check).
    biting → propose the sharper wording. Corrections are **high-priority fixes** — weight them above
    tool-error volume, since they're Jack explicitly telling Claude to stop a behaviour.
 
+   > **Filter the noise first.** A raw `no`/`stop`/`don't`/`actually` match is ~50% false positives —
+   > it catches skill/command BODIES being loaded, pasted `<teammate-message>`/`<task-notification>`
+   > payloads, and neutral "don't"/"never" inside normal instructions, none of which are corrections.
+   > Drop any candidate whose text is >~1500 chars, starts with a skill-body/`<teammate`/`<task`
+   > marker, or is heading-heavy (a doc/skill body) before classifying. Weight a pattern by how many
+   > DISTINCT sessions it appears in, not raw count.
+
+   **(c) Claude's OWN self-retractions — where it caught its own mistake.** A third signal, invisible
+   to (a) and (b) because it needs no tool error and no Jack correction: moments where an ASSISTANT
+   turn walked back an earlier claim in the SAME session — "I was wrong", "I incorrectly said", "turns
+   out I was wrong", "to correct myself", "I misread", "scratch that", "on closer look". Grep the
+   assistant text of the window's transcripts for those phrases and read the surrounding turn. These
+   cluster into a small, high-value root-cause taxonomy — **guessed-not-verified** (stated a
+   fact/negative from a proxy instead of checking the primary source), **jumped-to-conclusion** (ran
+   with the first tidy narrative before testing the premise), **misread-code** (a check absent from one
+   file/layer that lived elsewhere), **diagnostic-tool-artifact** (an empty compare-to-self diff, a
+   truncated page, a dangling LEFT-JOIN NULL read as real state). Emit a `fix` (`kind: "note"`) for a
+   recurring class, and dedup HARD against existing memories — several of these root causes already
+   have one (`asserted-effect-fired-verify-live-output-not-code`,
+   `answer-what-jack-points-at-not-your-inferred-narrative`, `reconciling-system-snapshot-not-proof-of-fixed`,
+   `check-absence-in-the-whole-flow-not-one-file-or-layer`, `diagnostic-tool-artifact-not-ground-truth`),
+   so a recurrence means sharpen the existing one, not a new memory. A root cause that keeps losing to
+   prose across runs is a candidate for a **hook** (`kind: "config"`/`repo`), not a fifth sharpening.
+
 2. **Diagnose the top clusters** (by count). For each meaningful one, classify it into ONE of three
    buckets, and emit a structured `fix` object (see Return) describing the durable change so the
    orchestrator can apply it:
@@ -800,18 +824,43 @@ rationale: "<why this stops the friction>" }`.
 > **Orchestrator applies the `fixes` (on the main thread, after the agent returns) — Jack's standing
 > auto-fix directive.** For each fix, in this safe order, and report what was applied in the briefing:
 >
+> **⚠️ sw-cortex-repo writes ship as ONE PR to `main`, never inline on the hub.** Memory files are
+> the ONLY exception — they live OUTSIDE the repo (`~/.claude/projects/*/memory/`), so write them
+> inline as before. But every fix that touches a **tracked sw-cortex file** — `global-config/CLAUDE.md`,
+> `settings.json`→`global-config/settings.json`, `DICTIONARY.md`, a `global-config/scripts/*` hook,
+> a command/skill — must land via a **cortex PR built in a `/tmp` worktree**, per the hub-model rule
+> (never `git checkout` a branch in the hub; never edit a synced file on the hub's `main`). So the
+> orchestrator **batches all repo-tracked fixes into a single worktree, one PR** at the end of Step 5,
+> rather than editing the hub in place:
+>
+> 1. If any fix targets a tracked sw-cortex file, once — `git -C <sw-cortex-root> worktree add
+>    /tmp/cortex-pr-startday-fixes-<date> -b start-day/fixes-<date>`.
+> 2. Apply every such fix **inside that worktree** (edit the worktree's `global-config/CLAUDE.md`,
+>    `global-config/settings.json`, etc. — never the hub copy, never `~/.claude/settings.json` directly).
+> 3. Commit + push + `gh pr create --base main`, then report the PR link in the briefing under
+>    "🩺 Claude-setup friction." **Do NOT auto-merge** — leave it for Jack to review (config/rule
+>    changes to the always-on setup are exactly what he wants eyes on), unless the run was invoked with
+>    an explicit merge directive. Remove the worktree only after merge (a later run or Jack).
+>
+> For each fix, in this safe order, and report what was applied in the briefing:
+>
 > - `kind: "note"`, `target: memory:<slug>` → **write or update** the memory file under
 >   `…/sw-cortex/memory/` (one fact per file, with frontmatter; if `<slug>` exists, sharpen it in
->   place — never duplicate) and add/refresh its one-line pointer in `MEMORY.md`.
-> - `kind: "note"`, `target: ~/CLAUDE.md` → add/refine the working-style bullet in
->   `…/sw-cortex/global-config/CLAUDE.md` (the symlinked source; never hand-edit `~/CLAUDE.md`).
+>   place — never duplicate) and add/refresh its one-line pointer in `MEMORY.md`. **INLINE — memories
+>   are outside the repo, no PR.** (Keep `MEMORY.md` under its read-size limit — if it's near the cap,
+>   compact entries to one line each; detail lives in the topic files.)
+> - `kind: "note"`, `target: ~/CLAUDE.md` → add/refine the working-style bullet in the **worktree's**
+>   `global-config/CLAUDE.md` (never hand-edit `~/CLAUDE.md` or the hub copy). **Goes in the batched
+>   cortex PR.**
 > - `kind: "config"`, `target: settings.json` → add the exact `permissions.allow` entry (or env/MCP
->   change) to `~/.claude/settings.json` **only if it's strictly additive and safe** (a read-only
->   command allowlist, a missing-module install). Use the `update-config` skill's conventions.
->   **NEVER** add a permission that loosens a guardrail Claude correctly fought (no `git stash`, no
->   making a read-only repo writable) — those are always `note`s, enforced by the bucket rules above.
+>   change) to the **worktree's** `global-config/settings.json` **only if it's strictly additive and
+>   safe** (a read-only command allowlist, a missing-module install). Use the `update-config` skill's
+>   conventions. **NEVER** add a permission that loosens a guardrail Claude correctly fought (no `git
+>   stash`, no making a read-only repo writable) — those are always `note`s, enforced by the bucket
+>   rules above. **Goes in the batched cortex PR** (a settings change is exactly the kind of thing Jack
+>   wants to review before it's live).
 > - `kind: "config"`, `target: shell` (e.g. `pip install …`) → run it if it's a safe, idempotent
->   install; otherwise surface it as a one-liner for Jack.
+>   install; otherwise surface it as a one-liner for Jack. (Not a repo file — no PR.)
 > - `kind: "repo"`, `target: repo:SERP` → **do NOT edit SERP inline from the hub.** Auto-`/launch`
 >   a session to implement the fix: run `~/.claude/scripts/launch-repo-session.sh --keep-original
 /Users/jackkief/Desktop/Projects/SERP "<payload task prompt>"` (fire-and-forget — it opens a real
@@ -825,10 +874,16 @@ rationale: "<why this stops the friction>" }`.
 > - `kind: "repo"`, `target: repo:SWAC` → **make the change locally** — apply the SWAC code edit
 >   directly on the main thread (SWAC is writable from the hub), or open a quick local edit; don't
 >   `/launch` for it. _(Jack's directive 2026-06-24: "for wishdesk just make them locally.")_
->   After applying config/`~/CLAUDE.md`/MCP-template changes, **`bash scripts/sync-global-config.sh
-push`** so `~/.claude` picks them up (and note in the briefing if a Claude Code restart is needed,
->   e.g. for `.ts` MCP or `mcp.json` changes). Memory files need no sync. If a fix is ambiguous or
->   would touch something risky, **don't apply it — list it under "needs Jack" in the panel** instead.
+>
+> **`sync-global-config.sh push` happens AFTER the cortex PR merges, not during Step 5.** Because
+> repo-tracked config/`CLAUDE.md`/hook changes now ship in the batched PR (above), they don't reach
+> `~/.claude` until that PR is merged and the hub fast-forwards — so the sync is a post-merge step
+> (Jack's, or a later `/start-day`/session that lands the merge), not something Step 5 runs against an
+> unmerged worktree. Only run `sync-global-config.sh push` in Step 5 if a fix was genuinely applied to
+> the hub directly (there should be none now except memories, which need no sync). Note in the briefing
+> whether a Claude Code restart will be needed on merge (`.ts` MCP or `mcp.json` changes). Memory files
+> need no sync and are live immediately. If a fix is ambiguous or would touch something risky, **don't
+> apply it — list it under "needs Jack" in the panel** instead.
 
 ### Step 6 — Shut down not-in-use worktrees · orchestrator (the one destructive step)
 
