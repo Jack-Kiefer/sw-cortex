@@ -3532,3 +3532,88 @@ Backed by the `herdr agent` socket API; needs the Herdr server up.
 
 Indexes `DICTIONARY.md` + `knowledge/COLUMN_MANIFEST.md` (overridable via the
 `KNOWLEDGE_FILES` env var, which REPLACES the defaults rather than extending them).
+
+## Claude Code token spend — measured cost model (2026-08-25)
+
+Where Claude Code tokens actually go, measured across all 780 usage-bearing transcripts in
+`~/.claude/projects` (27.2B cache-read tokens). Recorded here so the analysis is not
+re-derived from scratch every time the question comes up.
+
+### The shape of the spend
+
+| component    | share |
+| ------------ | ----- |
+| cache READS  | 74%   |
+| cache writes | 18%   |
+| output       | 8%    |
+
+**Cost is dominated by context RE-READING, not by work done.** Every turn re-sends the whole
+accumulated conversation, so cache-read per turn climbs with session length:
+
+| session length | cache-read per turn |
+| -------------- | ------------------- |
+| < 50 turns     | 92k                 |
+| 50-150         | 157k                |
+| 150-400        | 234k                |
+| 400-1000       | 362k                |
+| 1000+          | **457k**            |
+
+Cost per turn quintuples, so a session's TOTAL cost grows roughly with the **square of its
+turn count**. Concentration follows: the 63 sessions over 400 turns (8% of all sessions)
+burned **56% of all cache-read tokens ever spent**; sessions under 50 turns were 1.3%.
+Simulated per-turn caps: a 200k cap saves 36.3%, 150k saves 49.0%, 300k saves 18.9%.
+
+**Practical consequence:** session LENGTH is the dominant lever, model/effort tier is second,
+and instruction-file size is a distant third (the always-on baseline was 11.9% of SERP
+cache-read). A fresh session per task beats a long-running one by a wide margin.
+
+### Answered: `attachment` records are NOT billed input
+
+In the largest transcript, `attachment` records were 2,166 entries / 6.5 MB / 17% of the file
+on disk — which looks alarming until you check what they are: 1,285 `hook_success` (hook
+stdout, mostly empty `content`), 800 `total_tokens_reminder`, and a long tail of
+`skill_listing` / `deferred_tools_delta` / `agent_listing_delta`. They are a **distinct
+record type** from `user`/`assistant`, and only 4 of 2,166 contained a usage block. They are
+local harness/UI bookkeeping, **not replayed as API input**.
+
+**So do NOT trim hook output to save tokens** — it saves nothing and would break the
+tab-status and write-guard signals that depend on hook stdout. On-disk transcript size is a
+poor proxy for billed context generally: base64 screenshots ARE billed and re-sent every
+turn (39% of that same transcript), while these attachment records are not.
+
+### Decided: KEEP `opus[1m]` — do not drop to a 200k window
+
+`~/.claude/settings.json` sets `"model": "opus[1m]"`. The 1M window is what *permits* a
+session to reach 967k instead of hitting a wall that forces a hand-off, so it looks like the
+obvious thing to cut. **It was measured and rejected.**
+
+Peak-context distribution across 782 sessions: p50 = 161k, p90 = 418k, p99 = 792k, max 988k.
+
+| peaked over | sessions      |
+| ----------- | ------------- |
+| 200k        | 322 (**41%**) |
+| 300k        | 169 (22%)     |
+| 400k        | 88 (11%)      |
+| 500k        | 55 (7%)       |
+| 700k        | 13 (1.7%)     |
+
+**41% of sessions exceed 200k.** A hard 200k window would fail four in ten sessions
+mid-task — a workflow regression, not a token optimization, and the failure lands
+unpredictably in the middle of real work (large diff reviews, wide refactors). The right
+control is the *behavioral* budget (compact ~150k / hand off ~250k), which reduces the same
+tokens without a hard failure mode: it makes long sessions rare instead of impossible.
+
+Revisit only after the context-budget policy has real data behind it — if the peak
+distribution shifts down and the >200k tail thins out, the 1M tier becomes harmless headroom
+rather than an enabler, and the question stops mattering either way.
+
+### What actually reduces spend
+
+1. **Shorter sessions** — compact ~150k, hand off ~250k, one task per session.
+2. **Cheap models for fan-out** — haiku/sonnet researchers, Opus for synthesis and for
+   writing production code. Research agents are cheap-tier; code authors and the pre-PR
+   review gate are not.
+3. **Fewer/narrower reads** — grep before Read, `offset`/`limit` on big files, screenshots
+   only to verify.
+4. **Path-scoped rules** — a rules file without `paths:` frontmatter loads into every
+   session in the repo.

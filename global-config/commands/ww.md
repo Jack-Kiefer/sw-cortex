@@ -1,5 +1,14 @@
 # Command: ww
 
+> **This file is large (~2,500 lines / ~41.6k tokens) and it sits in the session prefix,
+> so it is re-read on EVERY subsequent turn.** Measured: `/ww` sessions carry ~20% of their
+> cache-read cost just re-sending this file, and the worst one ran 166 turns. So: **do one
+> ticket per session and finish**, and if a `/ww` session passes ~150k context, `/compact-global`
+> before continuing (this file's rules stay in the compacted summary; you do not need it
+> re-read verbatim to keep working). Don't chain several tickets into one long `/ww` session
+> — start a fresh one per ticket.
+
+
 ## Auto-Update (Run FIRST — before anything else)
 
 Before doing anything, check if the `/ww` command file is up to date. Run this Python heredoc (pure Python — does NOT shell-out to curl, so it works under strict secret-pattern hooks that would block a `curl -H "Authorization: token $SWIRL_GITHUB_TOKEN" ...` pattern):
