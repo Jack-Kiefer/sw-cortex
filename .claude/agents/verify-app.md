@@ -2,6 +2,7 @@
 name: verify-app
 description: End-to-end application verification - tests, type checks, lint, manual verification
 allowed-tools: Bash, Read, Grep, Glob
+model: haiku
 ---
 
 # Subagent: verify-app

@@ -1,5 +1,7 @@
 # Command: remind
 
+> **Effort:** this command is mechanical — run it at **low reasoning effort**. Parsing a reminder and writing a row is mechanical. Escalate only if something genuinely ambiguous comes up.
+
 Set a Slack reminder for yourself. Parses natural language ("remind me to X in 30 minutes" / "ping Seth tomorrow at 3pm"), stores it, and the every-minute job DMs you when it's due — with **snooze** and **delete** buttons right on the Slack message.
 
 ## Usage

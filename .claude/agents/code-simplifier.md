@@ -2,6 +2,7 @@
 name: code-simplifier
 description: Simplify code after feature completion - reduce complexity, improve readability
 allowed-tools: Read, Edit, Grep, Glob, Bash
+model: sonnet
 ---
 
 # Subagent: code-simplifier

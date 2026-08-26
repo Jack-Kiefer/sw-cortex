@@ -79,6 +79,13 @@ const HOT_TABLES: Record<string, string[]> = {
     'branding_records',
     'users',
     'company_users_pivot',
+    // added from measured describe_table misses (14d window)
+    'receiver_product_inventory',
+    'preselect_orders',
+    'serp_published_stock',
+    'serp_published_kits',
+    'inventory_reservations',
+    'feature_attributes',
   ],
   serp_test: [
     'serp_sale_order',
@@ -99,12 +106,24 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_account_move_line',
     'odoo_sync_queue',
     '_migrations',
+    // added from measured describe_table misses (14d window)
+    'serp_stock_location',
+    'serp_product_category',
+    'serp_cron',
+    'serp_ir_exports',
   ],
   serp_app: [
     'serp_draft_operations_live',
     'serpy_op_rules',
     'serp_worker_run_history',
     '_migrations',
+    // added from measured describe_table misses (14d window)
+    'odoo_sync_queue_live',
+    'serp_ai_messages_live',
+    'serp_ai_turns_live',
+    'serp_cron',
+    'prelist_qty_log',
+    'serp_stock_location',
   ],
   odoo: [
     'sale_order',
