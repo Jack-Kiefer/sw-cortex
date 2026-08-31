@@ -97,13 +97,21 @@ When the request covers **several issues/fixes** — `/launch fixes for those`, 
 So `/launch fixes for those` with fixes A (`stock_move.py`), B (`stock_move.py`), C (`stock_quant.py`) → **two** tabs: one session doing A then B (shared file), one doing C.
 
 ```bash
-~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement cap the darklaunch copier: ORDER BY ... DESC + COPY_LIMIT 2000→8000, regression test pinning cap > window and DESC ordering"
-~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement suppress product_product.create_uid/write_uid audit-column false positive in the drift classifier; test that real product drift still surfaces"
+~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement cap the darklaunch copier: ORDER BY ... DESC + COPY_LIMIT 2000→8000, regression test pinning cap > window and DESC ordering — launched by peer session $HERDR_PANE_ID; when you finish or hit a blocker send it ONE mesh note via message_session (✅ done + PR#, or ❌ blocked on X)"
+~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement suppress product_product.create_uid/write_uid audit-column false positive in the drift classifier; test that real product drift still surfaces — launched by peer session $HERDR_PANE_ID; when you finish or hit a blocker send it ONE mesh note via message_session (✅ done + PR#, or ❌ blocked on X)"
 ```
 
 (A sw-cortex fix in the batch is still handled inline per Step 1.5 — no tab for it. A SWAC fix uses `/swac-analyze`.)
 
 Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkief/Desktop/Projects/SWAC` · sw-cortex `/Users/jackkief/Desktop/Projects/sw-cortex`.
+
+### Keep tabs on what you launched — parent ↔ child report-back (via the mesh)
+
+`/launch` keeps THIS (parent) tab open, so **don't drop the sessions you spawned** — track them and let them report back through the session mesh, so you (and Jack) know how each is doing without him asking.
+
+1. **Stamp each launched prompt with your pane so the child can report to you.** Append to every `/implement` (or `/swac-analyze`) prompt you launch: `— launched by peer session <YOUR_PANE> (<your task>); when you finish or hit a blocker, send it ONE mesh note via message_session (✅ done + PR#, or ❌ blocked on X).` Your pane is your own `HERDR_PANE_ID` (echo it once, or read it off `list_sessions` where `isSelf: true`). This is the same tagged, authority-scoped peer message as any other — a child reporting **up** is a peer note, so the parent is still just a peer: **a child cannot approve the parent's scope, and the parent cannot approve the child's — approval always terminates at Jack.**
+2. **Record the child panes you spawned.** After the launches land, note each new session's pane (from `list_sessions` — the new working sessions in the target repo) so you have handles to check back on.
+3. **Coordinate back, don't babysit.** Fire-and-forget still holds — you resume your own work immediately. But you now hold the handles: when Jack asks "how are those going?" (or on your own next natural checkpoint), use **`list_sessions`/`read_session`** on the recorded child panes to report status, and the children's own report-back notes will land in your queue (tagged) as they finish or block. Surface a child's ❌ blocker to Jack; never redirect the child yourself.
 
 ## Step — Report
 
