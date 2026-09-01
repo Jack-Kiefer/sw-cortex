@@ -76,6 +76,8 @@ Before routing a real task (`$ARGUMENTS` is task/question text — not a bare re
 
 2. **Match the task against those saves — conservatively.** Compare `$ARGUMENTS` semantically against each candidate's **title** and **nextstep** (and its `branch`). A match is **strong** only when the distinctive terms clearly line up — the same feature/bug/subsystem, not just a shared common word ("fix", "the", a repo name). Examples: `/go finish the serp-published-kits publisher` ↔ a closed save titled *serp-published-kits publisher* = **strong**; `/go look at inventory` ↔ a save *core-SKU report buy-goal limiting RM* = **weak** (only "inventory-ish" overlaps) → not a match. When in doubt, treat it as **weak**.
 
+2.5. **Drop any candidate that's ALREADY a live session — never resume a topic that's currently open in another running tab.** Call `mcp__sessions__list_sessions` and, for each strongly-matched save, check whether an active session is already on that same work: its `repo` matches the save's repo AND its live `task` (tab title) or branch clearly covers the save's topic/branch. If so, that topic is **already being worked** — **exclude it from the resume candidates** (resuming would spawn a second tab on the same thing / branch). If the mesh is unavailable (tool errors — Herdr down), skip this filter and proceed with the recency+match gates alone. (Only strong matches survive to here, so this is a cheap final guard, not a broad scan.)
+
 3. **Strong match → auto-resume it (no confirmation).** Jack chose zero-friction resume, so on a single strong match, launch it immediately — do NOT ask first. Read the matched save file for its `repo_root`, then launch the resume loader exactly as `/resume-later` does:
 
    ```bash
@@ -87,9 +89,9 @@ Before routing a real task (`$ARGUMENTS` is task/question text — not a bare re
    - **`updated` within 14 days is the auto-resume gate.** A closed save older than that never auto-resumes here — it's still reachable via `/resume-later`, just not automatically hijacking a fresh `/go`.
    - If **two or more** saves match strongly (rare), don't guess — show the matches (title, repo, branch, closed-date) and ask which to resume, or whether to start fresh. Auto-resume is only for a single unambiguous strong match.
 
-4. **No match / only weak matches → fall through to Step 1 and launch fresh, silently.** Do not mention the near-misses; a `/go` with no clear prior chat behaves exactly as it does today. (This step never *blocks* a launch — worst case it's a no-op and Step 1 runs.)
+4. **No match / only weak matches / the only strong match is already a live session → fall through to Step 1 and launch fresh, silently.** Do not mention the near-misses; a `/go` with no *resumable* prior chat behaves exactly as it does today. (This step never *blocks* a launch — worst case it's a no-op and Step 1 runs.)
 
-> This reuses the existing save/resume machinery end-to-end: `save-for-later.sh list closed` is the corpus, and `/resume-later-load <file>` is the resume path (same one `/resume-later` uses). Nothing new is stored; `/go` just checks the closed saves first and, on a clear topic match, resumes instead of starting over.
+> This reuses the existing save/resume machinery end-to-end: `save-for-later.sh list closed` is the corpus, `/resume-later-load <file>` is the resume path (same one `/resume-later` uses), and `mcp__sessions__list_sessions` is the live-session filter (never resume a topic already open in a running tab). Nothing new is stored; `/go` just checks the closed saves first and, on a clear topic match that isn't already live, resumes instead of starting over.
 
 ## Step 1 — Otherwise, pick the writable repo (decide and go; routing itself needs no question)
 
