@@ -56,7 +56,8 @@ const tools: Tool[] = [
     description:
       'The unified board of every Claude Code session running on this machine right now. ' +
       'Returns each session as { name, repo, status, task, cwd, paneId, focused, isSelf } — ' +
-      'name is the address to message it, task is its live tab title (what it is currently ' +
+      'name is a friendly first name ("Joe", "Jeff") auto-assigned to every session and the ' +
+      'address to message it, task is its live tab title (what it is currently ' +
       'doing), status is working|idle|done|blocked, and paneId is the handle for read_session. ' +
       'Use this to see what everything else is working on and where to look.',
     inputSchema: { type: 'object', properties: {} },
@@ -97,7 +98,8 @@ const tools: Tool[] = [
       properties: {
         paneId: {
           type: 'string',
-          description: 'The peer session\'s Herdr pane id, e.g. "w8:p2C".',
+          description:
+            'The peer session\'s friendly name (e.g. "Jeff") or Herdr pane id (e.g. "w8:p2C").',
         },
         lines: {
           type: 'number',
@@ -128,7 +130,8 @@ const tools: Tool[] = [
         target: {
           type: 'string',
           description:
-            'The peer to message — its paneId (e.g. "w8:p2C") from list_sessions/check_overlap.',
+            'The peer to message — its friendly name (e.g. "Jeff") or its paneId (e.g. "w8:p2C"), ' +
+            'both from list_sessions/check_overlap. Prefer the name; pane ids still work.',
         },
         text: { type: 'string', description: 'The message text.' },
       },
@@ -150,7 +153,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'list_sessions': {
         const sessions = await listSessions(SELF_PANE);
-        result = sessions.map((s) => ({ name: s.paneId, ...s }));
+        result = sessions;
         break;
       }
       case 'check_overlap': {
