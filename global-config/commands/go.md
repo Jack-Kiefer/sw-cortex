@@ -60,6 +60,39 @@ If `$ARGUMENTS` is ONLY a ticket reference — `WW-###`, `WW###`, or a bare numb
 
 If the ticket can't be fetched (not found in `active/`, no SWIRL token), say so in one line and ask whether to proceed with just the ticket ID as the scope. Then continue to the launch. (A ticket number **with** extra task text — `/go WW-065 also fix the sleeve` — is not "bare": treat it as a normal task in Step 1, but still carry the `WW-###` through to the branch/PR per point 4.)
 
+## Step 0.2 — Already have a recently-closed chat on this exact topic? Resume THAT instead of starting fresh.
+
+Before routing a real task (`$ARGUMENTS` is task/question text — not a bare repo name or bare ticket, both handled above), check whether Jack **just recently closed a saved chat on the same thing**. If so, resuming that chat — with its full context, branch, and next-step — beats launching a cold session that re-derives everything. This is the "see if I have a conversation recently closed on this and resume it" behavior.
+
+1. **List the recently-closed saves.** Run:
+
+   ```bash
+   ~/.claude/scripts/save-for-later.sh list closed
+   ```
+
+   Each line is TSV: `file<TAB>title<TAB>repo<TAB>branch<TAB>pr<TAB>updated<TAB>nextstep`. If there are **none**, skip straight to Step 1 (launch fresh) — say nothing about it.
+
+   **Recency gate:** only consider saves whose `updated` (column 6, `YYYY-MM-DD`) is **within the last ~14 days** of today. An older closed topic must NOT hijack a new `/go` — drop those rows before matching.
+
+2. **Match the task against those saves — conservatively.** Compare `$ARGUMENTS` semantically against each candidate's **title** and **nextstep** (and its `branch`). A match is **strong** only when the distinctive terms clearly line up — the same feature/bug/subsystem, not just a shared common word ("fix", "the", a repo name). Examples: `/go finish the serp-published-kits publisher` ↔ a closed save titled *serp-published-kits publisher* = **strong**; `/go look at inventory` ↔ a save *core-SKU report buy-goal limiting RM* = **weak** (only "inventory-ish" overlaps) → not a match. When in doubt, treat it as **weak**.
+
+2.5. **Drop any candidate that's ALREADY a live session — never resume a topic that's currently open in another running tab.** Call `mcp__sessions__list_sessions` and, for each strongly-matched save, check whether an active session is already on that same work: its `repo` matches the save's repo AND its live `task` (tab title) or branch clearly covers the save's topic/branch. If so, that topic is **already being worked** — **exclude it from the resume candidates** (resuming would spawn a second tab on the same thing / branch). If the mesh is unavailable (tool errors — Herdr down), skip this filter and proceed with the recency+match gates alone. (Only strong matches survive to here, so this is a cheap final guard, not a broad scan.)
+
+3. **Strong match → auto-resume it (no confirmation).** Jack chose zero-friction resume, so on a single strong match, launch it immediately — do NOT ask first. Read the matched save file for its `repo_root`, then launch the resume loader exactly as `/resume-later` does:
+
+   ```bash
+   ~/.claude/scripts/launch-repo-session.sh <repo_root_from_save> "/resume-later-load <absolute-path-to-matched-save-file>"
+   ```
+
+   Then **report in one line and stop** — e.g. "Found a recently-closed chat on this — **resuming `serp-published-kits publisher`** in SERP on `jack/published-kits`. Switch to the new tab." Do **not** also launch a fresh `/serp-analyze`/`/swac-analyze`/`/research` session; the resume IS the launch. (The resumed session's `/resume-later-load` gets it back on the branch and re-establishes context.)
+
+   - **`updated` within 14 days is the auto-resume gate.** A closed save older than that never auto-resumes here — it's still reachable via `/resume-later`, just not automatically hijacking a fresh `/go`.
+   - If **two or more** saves match strongly (rare), don't guess — show the matches (title, repo, branch, closed-date) and ask which to resume, or whether to start fresh. Auto-resume is only for a single unambiguous strong match.
+
+4. **No match / only weak matches / the only strong match is already a live session → fall through to Step 1 and launch fresh, silently.** Do not mention the near-misses; a `/go` with no *resumable* prior chat behaves exactly as it does today. (This step never *blocks* a launch — worst case it's a no-op and Step 1 runs.)
+
+> This reuses the existing save/resume machinery end-to-end: `save-for-later.sh list closed` is the corpus, `/resume-later-load <file>` is the resume path (same one `/resume-later` uses), and `mcp__sessions__list_sessions` is the live-session filter (never resume a topic already open in a running tab). Nothing new is stored; `/go` just checks the closed saves first and, on a clear topic match that isn't already live, resumes instead of starting over.
+
 ## Step 1 — Otherwise, pick the writable repo (decide and go; routing itself needs no question)
 
 Choose exactly ONE of SERP / SWAC / sw-cortex. Read-only repos (Odoo, sugarwish-laravel, livery, sw-design, swirl, infra) resolve to the writable repo that owns the change you'd make. Match the task against these — pick by the strongest signal:
@@ -210,7 +243,7 @@ Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-t
 
 ## Plain-English equivalent (no slash needed)
 
-When Jack asks conversationally — "look into Y in a go", "spin up a session for X", "open a session to dig into X", "fix X in a new go", "just open serp" — treat it EXACTLY like `/go`: same routing, same bare-vs-task logic, same **intent-picks-the-command** launch (`/serp-analyze` for an actionable fix/change, `/research` for a pure question), run the launcher immediately, no confirmation. "fix X in a new go" is **actionable** → it fires `/serp-analyze` (research → build → PR) in the new tab. A pure "how/why does X work" → `/research`. (To skip research and go straight to building an already-scoped fix while keeping this tab open, that's `/launch` → `/implement`, not `/go`.)
+When Jack asks conversationally — "look into Y in a go", "spin up a session for X", "open a session to dig into X", "fix X in a new go", "just open serp" — treat it EXACTLY like `/go`: same routing, same bare-vs-task logic, same **recently-closed-chat check (Step 0.2 — resume a matching recently-closed save instead of starting fresh)**, same **intent-picks-the-command** launch (`/serp-analyze` for an actionable fix/change, `/research` for a pure question), run the launcher immediately, no confirmation. "fix X in a new go" is **actionable** → it fires `/serp-analyze` (research → build → PR) in the new tab. A pure "how/why does X work" → `/research`. (To skip research and go straight to building an already-scoped fix while keeping this tab open, that's `/launch` → `/implement`, not `/go`.)
 
 **Launch fixes into their own tabs:** when Jack says **"launch fixes for those"** / "launch a fix for each" / names specific ones — that's the `/launch` command: route+classify each fix and fire **one `/implement` session per fix** (SERP), keeping the original tab open. One terminal per fix, never one session bundling several (subject to `/launch`'s same-file coalescing gate).
 
