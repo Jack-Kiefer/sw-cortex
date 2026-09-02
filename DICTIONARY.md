@@ -209,7 +209,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 - **AI inventory-ops agent** (Slack bot `SERPY` / `SERPY Dev`, user `U096P936NQ7`). Code in `backend/serpy/`. NOT a dev experiment, NOT a typo for SERP, NOT a human.
 - Ops describe inventory changes in plain English → Serpy generates structured JSON ops → human approval → pushed to Odoo via XML-RPC. Drafts post to **`#inventorymanagement`** (`C03G8LP36P6`) for approval; web UI `serp.sugarwish.com/serpy/<draft_id>`.
-- Pipeline: `classify_intent → find_products → propose_operations → DRAFT (serp_draft_operations/_live) → /save-raw-draft` (validates against `OpTypeRegistry` in `serpy/ops/types.py`) `→ /ai-submit` (DRAFT→PENDING_APPROVAL) → human approval → `odoo_sync_queue_live` (Retool PG) → odoo-sync worker (~30s poll) → XML-RPC + local mirror + Laravel (`manage` MySQL).
+- Pipeline: `classify_intent → find_products → propose_operations → DRAFT (serp_draft_operations/_live) → /save-raw-draft` (validates against `OpTypeRegistry` in `serpy/ops/types.py`) `→ /ai-submit` (DRAFT→PENDING_APPROVAL) → human approval → `serpy_sync_queue` (`serp_app` MySQL; was `odoo_sync_queue_live` in Retool PG until 2026-08-31) → odoo-sync worker (~30s poll) → XML-RPC + local mirror + Laravel (`manage` MySQL).
 - Lifecycle: `DRAFT → PENDING_APPROVAL → APPROVED → EXECUTED`. Drafts numbered ("Draft #860"). **Nothing hits DB or Odoo until approved.** Rule: "don't change anything about who can approve serpy."
 - Drafts are **per-user**, keyed by Retool `serp_users.id`, **not** Slack id.
 - In `x/y synced`: `y` = total ops, `x` = succeeded into Odoo. **Partial count = Odoo-side validation rejection, NOT a SERP failure.**
@@ -495,13 +495,15 @@ Not a support-only DB. Full CS+CRM+design+billing platform (internally "WishWork
 
 Environment separation is by table-name **suffix**, not separate DBs. Production = **`_live`** tables.
 
-| Domain                    | Local                                          | Prod                                                     |
-| ------------------------- | ---------------------------------------------- | -------------------------------------------------------- |
-| draft-ops                 | `serp_draft_operations`                        | `serp_draft_operations_live`                             |
-| inventory-counts          | `serp_inventory_counts`                        | `serp_inventory_counts_live`                             |
-| AI messages/turns         | `serp_ai_messages_dev`, `serp_ai_turns_dev`    | `serp_ai_messages_live`, `serp_ai_turns_live`            |
-| Odoo sync queue + breaker | `odoo_sync_queue`, `odoo_sync_circuit_breaker` | `odoo_sync_queue_live`, `odoo_sync_circuit_breaker_live` |
-| auth / user / forecast    | (no suffix)                                    | (no suffix)                                              |
+| Domain                    | Local                                          | Prod                                                                                                                 |
+| ------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| draft-ops                 | `serp_draft_operations`                        | **`serpy_drafts`** (was `serp_draft_operations_live`)                                                                |
+| inventory-counts          | `serp_inventory_counts`                        | `serp_inventory_counts_live`                                                                                         |
+| AI messages/turns         | `serp_ai_messages_dev`, `serp_ai_turns_dev`    | **`serpy_messages`, `serpy_turns`** (were `serp_ai_*_live`)                                                          |
+| Odoo sync queue + breaker | `odoo_sync_queue`, `odoo_sync_circuit_breaker` | **`serpy_sync_queue`, `serpy_sync_circuit_breaker`** (were `odoo_sync_queue_live`, `odoo_sync_circuit_breaker_live`) |
+| auth / user / forecast    | (no suffix)                                    | (no suffix)                                                                                                          |
+
+⚠️ **The `_live` suffix convention no longer holds for the Serpy surface.** Around **2026-08-31** those prod tables were renamed into a flat `serpy_*` namespace in **`serp_app` MySQL** (no suffix), and the old `*_live` names survive only as frozen `*_backup` copies. See the `odoo_sync_queue (Serpy → Odoo)` section — a stale-name query returns real-but-old rows rather than erroring.
 
 - **Auth/AI:** Token tables `serp_refresh_tokens`/`serp_password_reset_tokens` are documented as Retool PG but actually live in **MySQL** (serp ORM). Serpy drafts-as-conversations (Apr 2026): event stream in `serp_ai_messages_{dev,live}` + `serp_ai_turns_{dev,live}`. Legacy `serp_ai_prompt_logs_live` is read-only/older.
 - **`orders`** — mirror of SugarWish/Magento orders. `increment_id = '300' + id`. `path_status` = CS/routing classification (NOT fulfillment): includes `Test Account` (~62k rows — **filter out**), size buckets.
@@ -558,7 +560,7 @@ Environment separation is by table-name **suffix**, not separate DBs. Production
 
 ### `odoo_sync_queue` (Outbound Bus, SERP → Odoo)
 
-- Lives in **Retool PostgreSQL** (`RETOOL_DATABASE_URL`), tables `odoo_sync_queue_live`/`_dev`. Direction is **SERP → Odoo via XML-RPC**, NOT Odoo → SERP. Worker: asyncio, ~30s poll, batches 50 (but **`BATCH_SIZE=1` in prod**), priority ASC then created_at ASC. Statuses: `pending → processing → done/synced/failed/partial/cancelled/dlq`.
+- Lives in **`serp_app` MySQL** (Hetzner), table **`serpy_sync_queue`** — renamed 2026-08-31 and moved off Retool PostgreSQL (`RETOOL_DATABASE_URL`, `odoo_sync_queue_live`/`_dev`), whose copy is now frozen at 2026-06-26. Direction is **SERP → Odoo via XML-RPC**, NOT Odoo → SERP. Worker: asyncio, ~30s poll, batches 50 (but **`BATCH_SIZE=1` in prod**), priority ASC then created_at ASC. Statuses: `pending → processing → done/synced/failed/partial/cancelled/dlq`.
 
 | `sync_target`     | ~Count | Target                                                |
 | ----------------- | ------ | ----------------------------------------------------- |
@@ -594,7 +596,7 @@ Orders that never reach Odoo intentionally get `odoo_id=NULL`. `inventory_source
 | `create_component_everywhere` / `create_receiver_product_everywhere` | Odoo + Laravel + SERP             |
 | `create_serp_tracked_component`                                      | Laravel + SERP only (**no Odoo**) |
 
-- `create_uid=55` = Jack's shared login used by BOTH Serpy AND manual edits — **NOT** a Serpy signal. Canonical provenance ledger = `odoo_sync_queue_live` (search by `odoo_id` or `payload->>'sku'`). `origin` carries `'SERP Batch #<draft_id> op <n>'`. Manual UI imports fingerprinted by `ir_model_data.module='__export__'`.
+- `create_uid=55` = Jack's shared login used by BOTH Serpy AND manual edits — **NOT** a Serpy signal. Canonical provenance ledger = `serpy_sync_queue` (in `serp_app` MySQL; renamed from `odoo_sync_queue_live` 2026-08-31) (search by `odoo_id` or `payload->>'sku'`). `origin` carries `'SERP Batch #<draft_id> op <n>'`. Manual UI imports fingerprinted by `ir_model_data.module='__export__'`.
 
 ### `odoo_id_stamper` (post-create stamping) — RETIRED 2026-06-25
 
@@ -1421,7 +1423,7 @@ It turns plain-language ops (Slack `/serpy` or web UI `serp.sugarwish.com/serpy/
 **Op routing is per-op-type, hardcoded — not decided at runtime per attribute.** Op families by target: `odoo_*` (create/update BOM, MO, po*receipt, po_confirm, create_component_everywhere, create_odoo_product), `serp*\_`(local phantom kits: serp_update_kit),`laravel\_\_`(manage MySQL: laravel_update_kit, laravel_update_receiver_product), plus create_product, inventory adjustment, transfer, archive, swap. A single op can write multiple systems. Retool front-end splits by DB: "Odoo Updates", "SERP Updates", "Laravel Updates", "Multi-DB Updates".`sync_target` is currently a DRAFT-level column (`odoo`/`serp`/`both`; prod is 100% `odoo`); per-operation routing is built in the backend but lacks the frontend dropdown.
 
 - ❌ "Draft #683: 2/3 synced to Odoo" — x/y synced means x succeeded INTO Odoo, y = total ops; a partial count = Odoo-side validation REJECTED some ops, NOT a SERP failure.
-- **Provenance bounds (product-creation go-lives):** `product_template` 2026-03-24, `create_product` 2026-04-13, `create_receiver_product_everywhere` 2026-05-05 — anything before its path's go-live cannot have been Serpy. `create_uid=55` (jack@sugarwish.com) is NOT a reliable Serpy signal (covers Serpy AND Jack's manual edits); authoritative ledger is `odoo_sync_queue_live`.
+- **Provenance bounds (product-creation go-lives):** `product_template` 2026-03-24, `create_product` 2026-04-13, `create_receiver_product_everywhere` 2026-05-05 — anything before its path's go-live cannot have been Serpy. `create_uid=55` (jack@sugarwish.com) is NOT a reliable Serpy signal (covers Serpy AND Jack's manual edits); authoritative ledger is `serpy_sync_queue` (in `serp_app`; renamed from `odoo_sync_queue_live` 2026-08-31).
 
 ---
 
@@ -1513,7 +1515,7 @@ SugarWish runs **14 databases** across MySQL and PostgreSQL (the 14th, `serp_app
 - **`ec_order`, `giftcards_card`, `buyer_products`, `receiver_products`, `components`, `kits`, `preselect_orders`, `items`, `branding_records`** → **Laravel** (`laravel_live`/`manage`).
 - **`serp_users`, `serp_draft_operations`, `odoo_sync_queue*`, `sa_projections_cache`, `size_projections*`, `sku_projections`, `quickbooks_dashboard`, `opportunities` (Insightly)** → **Retool** PostgreSQL.
 - **Fingerprint tables**: historically `_migrations` + `serp_darklaunch_meta` present → darklaunch DB (replicas lacked both). ⚠️ **`serp_darklaunch_meta` was DROPPED 2026-08-03 (commit `809a4d8f9`) — this fingerprint no longer holds;** identify a darklaunch DB by worker-written rows (`id != odoo_id`) / per-order SERP flags instead. Replicas have NO Odoo-owned/manufacturing tables.
-- **Suffix convention in Retool**: BASE locally, `_dev` locally for AI tables, `_live` in prod (e.g. `serp_draft_operations` vs `serp_draft_operations_live`; `serp_ai_messages_dev` vs `serp_ai_messages_live`; `odoo_sync_queue` / `odoo_sync_queue_dev` / `odoo_sync_queue_live`). `_live` tables hold real prod data with far higher row counts. Auth/user/forecast tables have NO suffix.
+- **Suffix convention in Retool**: BASE locally, `_dev` locally for AI tables, `_live` in prod (e.g. `serp_draft_operations` vs `serp_draft_operations_live`; `serp_ai_messages_dev` vs `serp_ai_messages_live`; `odoo_sync_queue` / `odoo_sync_queue_dev` / `odoo_sync_queue_live`). `_live` tables hold real prod data with far higher row counts. Auth/user/forecast tables have NO suffix. ⚠️ **Superseded for the Serpy surface (2026-08-31)** — those prod tables were renamed into a flat `serpy_*` namespace in `serp_app` MySQL (no suffix); see the `odoo_sync_queue (Serpy → Odoo)` section.
 
 ❌ AI assumes `laravel_live` is SERP-only or pure orders → ✅ Reality: it's the live Sugarwish app DB that ALSO co-hosts early `serp_*` pilot tables which are essentially **empty** (~19 `serp_sale_order`, 0 POs) — NOT live SERP data. Live SERP data lives in the darklaunch DBs.
 
@@ -2014,7 +2016,9 @@ This is the single most important sync fact and the source of the most subtle bu
 
 ### odoo_sync_queue (Serpy → Odoo)
 
-**Table:** `odoo_sync_queue` / `odoo_sync_queue_dev` / `odoo_sync_queue_live` — lives in **Retool PostgreSQL** (not SERP MySQL; easier to manage). Suffix convention: plain/`_dev` locally, `_live` in prod.
+**Table (CURRENT):** `serpy_sync_queue` in **`serp_app` MySQL** (Hetzner). Renamed out of the `odoo_*`/`_live` naming around **2026-08-31**, when the whole Serpy surface moved to a `serpy_*` namespace in `serp_app`: `odoo_sync_queue_live` → **`serpy_sync_queue`**, `serp_draft_operations_live` → **`serpy_drafts`**, plus `serpy_messages`, `serpy_turns`, `serpy_op_rules`, `serpy_prompt_logs`, `serpy_sync_circuit_breaker`. Same column set as before (`entity_type`, `operation`, `payload`, `status`, `sync_target`, `odoo_id`, `error_message`, …), so old queries work once the table name is swapped.
+
+⚠️ **The old names are DEAD — do not query them.** `serp_app` keeps `odoo_sync_queue_live_backup` / `serp_draft_operations_live_backup` (frozen 2026-08-31), and **Retool PostgreSQL still has an `odoo_sync_queue_live` that froze 2026-06-26** — both return real rows, so a stale-name query SUCCEEDS and silently reports old data instead of erroring. Verify with `MAX(created_at)` before trusting any row from a `*_live` or Retool copy. (Historical: the queue formerly lived in Retool PG with the plain/`_dev`/`_live` suffix convention.)
 
 - **Triggered** when a Serpy draft is approved. Executes warehouse ops (pickings, MOs, BOMs, POs, bills) against **live Odoo via XML-RPC** and **mirrors to darklaunch**. **PO receipts flow through HERE** (not the darklaunch order worker).
 - **Worker** (`odoo_sync_worker.py`, ~1,685 lines): polls every **~30s**; `BATCH_SIZE = 1` in prod (isolates failures); orders by `priority ASC, created_at ASC`.
@@ -2037,13 +2041,13 @@ This is the single most important sync fact and the source of the most subtle bu
 
 #### Serpy provenance / go-live bounds
 
-Authoritative ledger of "was this Serpy?" is `odoo_sync_queue_live`. Product-creation path go-lives (anything before its path's go-live cannot have been Serpy):
+Authoritative ledger of "was this Serpy?" is `serpy_sync_queue` (in `serp_app` MySQL; renamed from `odoo_sync_queue_live` 2026-08-31 — the old name is a frozen `_backup`). Product-creation path go-lives (anything before its path's go-live cannot have been Serpy):
 
 - `product_template`: **2026-03-24**
 - `create_product`: **2026-04-13**
 - `create_receiver_product_everywhere`: **2026-05-05**
 
-⚠️ **`create_uid=55` is NOT a reliable Serpy signal** — uid 55 = `jack@sugarwish.com` = both Serpy writes AND Jack's manual edits. Confirm via `odoo_sync_queue_live`. `ir_model_data.module='__export__'` = manual CSV/XLSX import via Odoo UI (NOT Serpy).
+⚠️ **`create_uid=55` is NOT a reliable Serpy signal** — uid 55 = `jack@sugarwish.com` = both Serpy writes AND Jack's manual edits. Confirm via `serpy_sync_queue` (in `serp_app`; renamed from `odoo_sync_queue_live` 2026-08-31). `ir_model_data.module='__export__'` = manual CSV/XLSX import via Odoo UI (NOT Serpy).
 
 ---
 
@@ -2225,7 +2229,7 @@ This rule **layers on top of** the expected-noise triage below — it does not d
 
 ⚠️ Darklaunch shipment processing is **intentionally SLOW** (~27s local / 47–66s prod per shipment, serial, ~130 per-move UPDATEs). This is a deliberate costing-parity choice to match `account_move.sequence_number` ordering — **do NOT batch to "optimize"** (batching breaks compare-costing parity with Odoo).
 
-⚠️ **odoo-sync "Sync cycle wedged: 3 consecutive timeouts at 180s"** (`CYCLE_TIMEOUT=180s`, `MAX_CONSECUTIVE_TIMEOUTS=3`) is a DIFFERENT, self-recovering incident from darklaunch event-loop starvation: a downstream socket idle-dropped without RST; `asyncio.wait_for` converts the hang to a logged TimeoutError; circuit breaker recovers within the hour. Marker `"[Recovered from stuck processing]"` in `odoo_sync_queue_live` (8 events ever, 0 dups).
+⚠️ **odoo-sync "Sync cycle wedged: 3 consecutive timeouts at 180s"** (`CYCLE_TIMEOUT=180s`, `MAX_CONSECUTIVE_TIMEOUTS=3`) is a DIFFERENT, self-recovering incident from darklaunch event-loop starvation: a downstream socket idle-dropped without RST; `asyncio.wait_for` converts the hang to a logged TimeoutError; circuit breaker recovers within the hour. Marker `"[Recovered from stuck processing]"` in `serpy_sync_queue` (was `odoo_sync_queue_live`; 8 events ever, 0 dups).
 
 ---
 
@@ -2651,7 +2655,7 @@ This is the highest-value section for an AI assistant working in SugarWish's sta
 
 - Draft-ops / inventory-counts / prompt-logs: **base** name locally, `_live` in prod (`serp_draft_operations` vs `serp_draft_operations_live`).
 - AI message/turn tables: `_dev` locally, `_live` in prod (`serp_ai_messages_dev` / `_live`).
-- Sync queue: plain / `_dev` / `_live` (`odoo_sync_queue`, `odoo_sync_queue_dev`, `odoo_sync_queue_live`).
+- Sync queue: **now `serpy_sync_queue` in `serp_app` MySQL** (renamed 2026-08-31 from the plain / `_dev` / `_live` trio `odoo_sync_queue`, `odoo_sync_queue_dev`, `odoo_sync_queue_live`).
 - Auth/user/forecast tables: **NO suffix**.
 - `_live` tables hold real prod data with **far higher row counts**.
 
@@ -3044,7 +3048,7 @@ A push/merge to `main` is **not live** until `deploy-k8s.sh main` runs on the no
 #### Product write-routing is hardcoded per op type
 
 ⚠️ **AI assumes** Serpy decides product write-routing at runtime per attribute.
-✅ **Reality:** Routing is **hardcoded per op type**; the AI only chooses the op type. A single op can write Odoo + SERP + Laravel and keep IDs wired. Provenance bounds (creation-path go-lives): `product_template` 2026-03-24, `create_product` 2026-04-13, `create_receiver_product_everywhere` 2026-05-05 — anything before its path's go-live **cannot** have been Serpy. `create_uid=55` (jack@sugarwish.com) is NOT a reliable Serpy signal (it's both Serpy writes AND Jack's manual edits) — confirm via `odoo_sync_queue_live`; `ir_model_data.module='__export__'` = manual CSV import, not Serpy.
+✅ **Reality:** Routing is **hardcoded per op type**; the AI only chooses the op type. A single op can write Odoo + SERP + Laravel and keep IDs wired. Provenance bounds (creation-path go-lives): `product_template` 2026-03-24, `create_product` 2026-04-13, `create_receiver_product_everywhere` 2026-05-05 — anything before its path's go-live **cannot** have been Serpy. `create_uid=55` (jack@sugarwish.com) is NOT a reliable Serpy signal (it's both Serpy writes AND Jack's manual edits) — confirm via `serpy_sync_queue` (in `serp_app`; renamed from `odoo_sync_queue_live` 2026-08-31); `ir_model_data.module='__export__'` = manual CSV import, not Serpy.
 
 #### Serpy guards are fact-triggered, not semantic search
 

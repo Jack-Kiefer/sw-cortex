@@ -104,4 +104,10 @@ EOF
 
 [ -n "$missing" ] || allow
 
-deny "describe-first guard: no describe_table/list_tables/knowledge lookup ran this session for: ${missing} (db: ${database}). Run mcp__db__describe_table on it (or mcp__knowledge__search_knowledge), then re-issue the query. This prevents the schema-guessing that has been the #1 recurring friction — see CLAUDE.md 'HARD GATE before the FIRST query'."
+deny "describe-first guard: no describe_table/list_tables/knowledge lookup ran this session for: ${missing} (db: ${database}).
+
+FASTEST FIX — most hot tables are ALREADY documented, no DB round-trip needed: run mcp__knowledge__search_knowledge { query: \"${missing} columns\" }. knowledge/COLUMN_MANIFEST.md carries exact column lists for the hottest tables in laravel_live/serp_test/serp_app/odoo/wishdesk/manage, and a knowledge search SATISFIES this guard. Fall back to mcp__db__describe_table only if the manifest has no entry.
+
+ALSO ASK, BEFORE YOU RE-ISSUE: is '${database}' the right database? This guard checks that COLUMNS exist — it CANNOT catch a query aimed at the wrong DB, which succeeds and returns real-but-wrong rows. ${missing} may exist in laravel_live AND serp_app AND serp_test AND manage AND odoo with completely different data. For kits/BOM/product questions the live SoT is laravel_live, NOT serp_app. An all-zero or empty result is a wrong-DB signal until proven otherwise. Name the DB and why in the sentence before your query.
+
+See CLAUDE.md 'HARD GATE before the FIRST query'."
