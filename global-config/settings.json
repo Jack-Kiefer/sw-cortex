@@ -128,7 +128,10 @@
       "mcp__slack-search",
       "mcp__logs"
     ],
-    "deny": ["Bash(git stash:*)", "Bash(git stash)"]
+    "deny": [
+      "Bash(git stash:*)",
+      "Bash(git stash)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
@@ -220,6 +223,10 @@
           {
             "type": "command",
             "command": "input=$(cat); cmd=$(echo \"$input\" | jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -Eq 'python3?[[:space:]]+-c[[:space:]]+\"' && echo \"$cmd\" | grep -q '\\\\\"'; then jq -n '{hookSpecificOutput: {hookEventName: \"PreToolUse\", permissionDecision: \"deny\", permissionDecisionReason: \"Blocked: a `python3 -c \\\"...\\\"` body contains backslash-escaped double-quotes (\\\\\\\"). This leaks a literal backslash into Python source -> SyntaxError: unexpected character after line continuation. Fix: single-quote the -c body (python3 -c '\"'\"'...'\"'\"') and use single-quoted Python string literals (o.get('\"'\"'level'\"'\"')), so no double-quote needs escaping; or pipe a  python3 - <<'\"'\"'PY'\"'\"' ... PY  heredoc (quoted delimiter, no interpolation) with single-quoted Python literals.\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/memory-pressure-guard.sh"
           }
         ]
       },

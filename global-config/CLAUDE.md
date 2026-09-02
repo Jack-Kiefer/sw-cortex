@@ -33,6 +33,48 @@ How Jack wants Claude to work. These override the urge to be "helpful" by doing 
 - **`run_in_background` is a `Bash`-only flag — passing it to `Workflow` (or any non-Bash tool) hard-fails with `InputValidationError: An unexpected parameter \`run_in_background\` was provided`.** A Workflow is _already_ asynchronous: you launch it and the harness re-invokes you when it finishes, exactly like a backgrounded Bash command, so there is nothing to background. The failure shape is always identical — a `Workflow` call carrying `run_in_background: "true"` alongside `script`/`description` (7× in the 3 days to 2026-08-14, across SERP research fan-outs and one SWAC run). Send `Workflow` only `script` (plus an optional `description`), then **end the turn with plain text and zero tool calls** while it runs — the same waiting discipline as a background Bash job. On this error, drop the flag and resend unchanged; don't also rewrite the script.
 - **`git stash` is forbidden — and the read-only `git stash list` is forbidden too, INCLUDING when it is buried inside a larger command.** The ban is already documented, yet 5 attempts were blocked in the 3 days to 2026-08-17 (SERP 4, SWAC 1) and **2 of those were merely `git stash list`**, fired to inspect whether anything was stashed. The newly-observed detail: the blocked calls were **compound commands that bundled `git stash list` with unrelated real work** — e.g. `cd … && git stash list 2>&1; echo "=== does our new code trigger SERP401? ===" && npm run lint`. The whole command was denied, so the `npm run lint` never ran either. **A forbidden fragment poisons the entire call.** Never smuggle `git stash list` into a compound command as a "while I'm here" check — you lose the real work alongside it. The block is correct and is not a bug to route around: **do not re-issue it via a different shell form, a compound command, or a subagent.** To see uncommitted work use `git diff HEAD` (or `git status --porcelain` for just the file list); to compare against committed state use `git show HEAD:path/to/file`. If you genuinely need to know whether a stash exists, ask Jack — never probe for it, in any command shape.
 
+## Machine memory — serialize heavy runs, never pile them up
+
+This Mac is **16 GB** and runs many Claude sessions at once. On **2026-09-02 it hard-crashed**
+from memory exhaustion: the VM compressor hit ~8.9 GB, jetsam killed ~360 processes, then
+started suspending real apps ("swap exhaustion": Chrome, Slack, Docker, ghostty, Chrome for
+Testing), logged `System is unhealthy` and finally **`no victim found`** — nothing cheap left
+to kill, so it never recovered. WindowServer was watchdog-killed and **13 Claude sessions
+died with it.**
+
+The cause is structural, not bad luck: **SWAC's `package.json` sets
+`NODE_OPTIONS='--max-old-space-size=7168'` on every jest script** (and ~8192 on a typecheck).
+That is a **7–8 GB heap ceiling per process on a 16 GB machine** — two concurrent runs can
+claim more RAM than physically exists. On the day, three `tsc --noEmit` runs plus a Chromium
+were live at once. **SWAC is read-only from the hub, so the cap cannot be fixed at its source.**
+
+**The rules:**
+
+- **One heavy run at a time, machine-wide.** Before starting a typecheck, jest/vitest run,
+  build, or any browser/Playwright automation, check **`herdr agent list`** (or
+  `mcp__sessions__list_sessions`) for a peer already doing one. If a peer is mid-run, wait or
+  message it to coordinate a slot — do not start a second in parallel.
+- **A `memory-pressure-guard.sh` PreToolUse hook enforces this mechanically.** It denies a
+  heavy Bash command when free RAM is under 1.5 GB, swap has under 800 MB left, or two heavy
+  processes are already running. Under normal conditions it passes everything through. **A
+  deny is the guard working — do not route around it** with a different shell form or a
+  subagent; wait for memory, or cap the heap yourself
+  (`NODE_OPTIONS="--max-old-space-size=3072"`, jest `--maxWorkers=2`) and say why it could not wait.
+- **Cap the heap when you must run SWAC tests.** Prefix
+  `NODE_OPTIONS="--max-old-space-size=3072"` rather than inheriting the repo's 7 GB ceiling.
+- **Each session spawns its own MCP servers** — 9 restored sessions meant ~300 node processes
+  and 12 Playwright servers. They are cheap idle (each Playwright stub ~0 MB resident) and
+  **respawn on demand if killed**, so killing them buys nothing; the cost only lands when
+  several launch a Chromium (~0.5–1.5 GB each) at once. Serialize browser work like any other
+  heavy run.
+- **Check before you pile on:** `sysctl -n vm.swapusage` and free pages via `vm_stat`. Wired
+  memory above ~4 GB with near-zero free is the danger zone that preceded the crash.
+
+**Recovering from a crash:** nothing is lost. Herdr persists its layout to
+`~/.config/herdr/session.json` and every conversation is a `.jsonl` under
+`~/.claude/projects/`, so lost tabs come back with **`/restore-sessions`** — each resumed onto
+its original conversation via `claude --resume`, full history intact.
+
 ## Orchestrator / Repo Routing (hub model)
 
 sw-cortex is the **single Claude Code hub** Jack launches — normally as a **Herdr** tab (`herdr`, workspace `sw-cortex`, run `claude` once; sessions persist in Herdr's background server), or in VS Code (open only sw-cortex; `.vscode/settings.json` pins new terminals to its root). `/go <task>` is the **one entry point** — it auto-detects the involved repo(s) and opens a real session in the right writable repo, which then runs a slash command chosen by intent: **`/serp-analyze`** for an actionable task (research → build → PR) or **`/research`** for a pure question (investigate → answer → stop). There is no `/work` command and no repo-pick prompt. (`/serp-analyze` and `/deploy` are **repo-local** commands — they live in each repo's `.claude/commands/` and run from inside that repo's session, not from the hub; `/research` is a global command available in every session.)
