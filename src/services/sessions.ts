@@ -56,6 +56,28 @@ interface HerdrAgent {
 
 /** A single session in the fused board. */
 export interface SessionInfo {
+  /**
+   * Friendly, human-readable handle — a first name like "Joe" or "Jeff".
+   *
+   * This is what Jack and other sessions use to refer to a session instead of
+   * decoding an opaque pane id. It is stored ON THE PANE (Herdr's per-pane
+   * `label`, set via `herdr pane rename`), NOT in a file here — pane ids get
+   * reaped and reissued, so anything keyed on the id would go stale; a label
+   * lives and dies with the pane it names.
+   *
+   * Auto-assigned by `ensureNames` on first sighting, so every session HAS a
+   * name from the moment it appears; nobody has to name anything.
+   */
+  name: string;
+  /**
+   * The name of the session that LAUNCHED this one, if any — the family tree.
+   *
+   * Stored alongside the name in the same pane label as `Name^Parent` (see
+   * PARENT_SEP), so it inherits the property that makes names correct: it lives
+   * and dies with the pane, and can never go stale the way a file keyed on a
+   * reusable pane id would. Empty for a root session Jack started himself.
+   */
+  parentName: string;
   /** Repo/workspace label, e.g. "SERP", "SWAC", "sw-cortex". */
   repo: string;
   /** Live status: working | idle | done | blocked | unknown. */
@@ -70,6 +92,149 @@ export interface SessionInfo {
   focused: boolean;
   /** True for the session making the call (so callers can exclude themselves). */
   isSelf: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Friendly session names
+// ---------------------------------------------------------------------------
+
+/**
+ * The pool of names auto-assigned to unnamed sessions.
+ *
+ * Short, unambiguous, easy to say out loud and easy to type as a message
+ * target. Deliberately ordinary first names: the point is that "tell Jeff" is
+ * memorable in a way "tell w8:p5C" is not. Ordered, so assignment is stable and
+ * predictable rather than random — the first unnamed session is always Joe.
+ *
+ * A name is only ever held by ONE live pane at a time; when a pane is reaped its
+ * name returns to the pool and can be reused by a later session.
+ */
+const NAME_POOL = [
+  'Joe', 'Jeff', 'Dave', 'Sam', 'Kate', 'Nina', 'Omar', 'Rosa',
+  'Theo', 'Ivy', 'Leo', 'Mia', 'Gus', 'Cleo', 'Hank', 'June',
+  'Rex', 'Vera', 'Wes', 'Zara',
+];
+
+/**
+ * Separator packing a parent into the pane label: `Jeff^Kate` = "Jeff,
+ * launched by Kate".
+ *
+ * `^` is deliberate — it is not a name character, so it cannot appear in a
+ * name and split one by accident, and it survives shell/JSON round-trips
+ * without quoting.
+ */
+const PARENT_SEP = '^';
+
+/** Split a raw pane label into its { name, parent } halves. */
+export function parseLabel(label: string): { name: string; parent: string } {
+  const i = label.indexOf(PARENT_SEP);
+  if (i < 0) return { name: label, parent: '' };
+  return { name: label.slice(0, i), parent: label.slice(i + 1) };
+}
+
+/** Pack a name + optional parent back into a pane label. */
+export function formatLabel(name: string, parent?: string): string {
+  return parent ? `${name}${PARENT_SEP}${parent}` : name;
+}
+
+/** Raw pane record from `herdr pane list` (only the fields we use). */
+interface HerdrPane {
+  pane_id?: string;
+  label?: string;
+}
+
+/**
+ * Read every pane's current label → { paneId: label }.
+ *
+ * Labels come from `herdr pane list`, NOT `herdr agent list` — the agent
+ * listing does not carry them. Best-effort: a failure here degrades to pane-id
+ * naming rather than breaking the board.
+ */
+async function paneLabels(): Promise<Record<string, string>> {
+  try {
+    const out = await herdr(['pane', 'list']);
+    const parsed = JSON.parse(out) as { result?: { panes?: HerdrPane[] } };
+    const map: Record<string, string> = {};
+    for (const p of parsed.result?.panes ?? []) {
+      if (p.pane_id && p.label) map[p.pane_id] = p.label;
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+/** Persist a name onto its pane so it survives across listings and sessions. */
+async function setPaneLabel(paneId: string, name: string): Promise<void> {
+  try {
+    await herdr(['pane', 'rename', paneId, name]);
+  } catch {
+    // Non-fatal: the name is still used for THIS listing, it just will not
+    // stick. Better an unpersisted name than a broken board.
+  }
+}
+
+/**
+ * Give every pane in `paneIds` a name, assigning pool names to unnamed ones.
+ *
+ * Existing labels always win — a name Jack set by hand is never overwritten,
+ * and an already-assigned name is stable across calls. Only genuinely unnamed
+ * panes draw from the pool, skipping names currently held by a live pane so two
+ * sessions can never share one. When the pool is exhausted the pane keeps its
+ * id as its name (a correct, if unfriendly, fallback rather than a collision).
+ *
+ * Writes are fire-and-forget per pane and failures are swallowed, so a rename
+ * that does not stick degrades the name rather than the listing.
+ */
+async function ensureNames(
+  paneIds: string[],
+): Promise<{ names: Record<string, string>; parents: Record<string, string> }> {
+  const labels = await paneLabels();
+  const names: Record<string, string> = {};
+  const parents: Record<string, string> = {};
+  for (const [paneId, raw] of Object.entries(labels)) {
+    const { name, parent } = parseLabel(raw);
+    names[paneId] = name;
+    parents[paneId] = parent;
+  }
+
+  const taken = new Set(Object.values(names).map((n) => n.toLowerCase()));
+  const assignments: Array<Promise<void>> = [];
+
+  for (const paneId of paneIds) {
+    if (!paneId || names[paneId]) continue;
+    const next = NAME_POOL.find((n) => !taken.has(n.toLowerCase()));
+    if (!next) continue; // pool exhausted → falls back to the pane id
+    names[paneId] = next;
+    taken.add(next.toLowerCase());
+    // A pane launched by /launch already carries its parent in the label
+    // (see claimName); preserve it when filling in a missing name.
+    assignments.push(setPaneLabel(paneId, formatLabel(next, parents[paneId])));
+  }
+
+  await Promise.all(assignments);
+  return { names, parents };
+}
+
+/**
+ * Claim a name for a freshly-launched pane, recording who launched it.
+ *
+ * Called by the launcher (via the `claim-session-name` bin) right after Herdr
+ * hands back a new pane id, so the child is named and parented BEFORE its
+ * session boots — the tree is correct from the first listing rather than
+ * whenever someone happens to call list_sessions.
+ *
+ * `parent` is the launching session's NAME (not its pane id): names are what
+ * the tree renders, and a name outlives the specific pane id in a way that
+ * keeps the tree readable.
+ */
+export async function claimName(paneId: string, parent?: string): Promise<string> {
+  const labels = await paneLabels();
+  const taken = new Set(Object.values(labels).map((raw) => parseLabel(raw).name.toLowerCase()));
+  const existing = labels[paneId];
+  const name = existing ? parseLabel(existing).name : NAME_POOL.find((n) => !taken.has(n.toLowerCase())) ?? paneId;
+  await setPaneLabel(paneId, formatLabel(name, parent));
+  return name;
 }
 
 /** Map a workspace_id → its repo label (SERP / SWAC / sw-cortex / …). */
@@ -99,14 +264,19 @@ export async function listSessions(selfPaneId?: string): Promise<SessionInfo[]> 
   const out = await herdr(['agent', 'list']);
   const parsed = JSON.parse(out) as { result?: { agents?: HerdrAgent[] } };
   const agents = parsed.result?.agents ?? [];
+  const claudeAgents = agents.filter((a) => (a.agent ?? 'claude') === 'claude');
   const labels = await workspaceLabels();
+  // Name every session before building the board, so a brand-new pane is
+  // already "Joe" the first time it is listed rather than a pane id.
+  const { names, parents } = await ensureNames(claudeAgents.map((a) => a.pane_id ?? ''));
 
-  return agents
-    .filter((a) => (a.agent ?? 'claude') === 'claude')
+  return claudeAgents
     .map((a) => {
       const paneId = a.pane_id ?? '';
       const cwd = a.foreground_cwd || a.cwd || '';
       return {
+        name: names[paneId] || paneId,
+        parentName: parents[paneId] || '',
         repo: labels[a.workspace_id ?? ''] ?? basename(cwd) ?? 'unknown',
         status: a.agent_status ?? 'unknown',
         task: (a.terminal_title_stripped || a.terminal_title || '').trim(),
@@ -313,7 +483,7 @@ export async function checkOverlap(task: string, selfPaneId?: string): Promise<O
 
 /** Read a peer session's recent terminal output. */
 export async function readSession(paneId: string, lines = 60): Promise<string> {
-  const out = await herdr(['agent', 'read', paneId]);
+  const out = await herdr(['agent', 'read', await resolveTarget(paneId)]);
   const all = out.split('\n');
   return all.slice(Math.max(0, all.length - lines)).join('\n');
 }
@@ -332,19 +502,26 @@ export async function readSession(paneId: string, lines = 60): Promise<string> {
  */
 async function wrapPeerMessage(text: string, selfPaneId?: string): Promise<string> {
   let sender = selfPaneId ? `peer ${selfPaneId}` : 'a peer Claude session';
+  // Prefer the friendly name in the reply hint so the receiver answers with
+  // "Joe" rather than having to copy a pane id back.
+  let replyTo = selfPaneId;
   if (selfPaneId) {
     try {
       const me = (await listSessions(selfPaneId)).find((s) => s.paneId === selfPaneId);
       if (me) {
+        // Lead with the name, keep the pane id alongside it — the name is what
+        // a human remembers, the id is what stays unambiguous if names change.
+        const who = me.name && me.name !== selfPaneId ? `${me.name} (${selfPaneId})` : selfPaneId;
         const label = [me.repo, me.task && `"${me.task}"`].filter(Boolean).join(' · ');
-        sender = `peer ${selfPaneId}${label ? ` · ${label}` : ''}`;
+        sender = `peer ${who}${label ? ` · ${label}` : ''}`;
+        if (me.name) replyTo = me.name;
       }
     } catch {
       // best-effort attribution; fall back to the bare pane id
     }
   }
-  const replyHint = selfPaneId
-    ? `Reply via message_session { target: "${selfPaneId}" } for coordination only.`
+  const replyHint = replyTo
+    ? `Reply via message_session { target: "${replyTo}" } for coordination only.`
     : 'Reply via message_session for coordination only.';
   return (
     `[session-mesh · from ${sender}]\n` +
@@ -371,12 +548,40 @@ async function wrapPeerMessage(text: string, selfPaneId?: string): Promise<strin
  *
  * @param selfPaneId - the sender's own HERDR_PANE_ID, for attribution
  */
+/**
+ * Resolve a message/read target to a concrete pane id.
+ *
+ * Accepts EITHER a friendly name ("Jeff", case-insensitive) or a raw pane id
+ * ("w8:p5C"). Pane ids are always accepted so existing callers, older docs, and
+ * anything holding an id keep working unchanged — the name is an addition, not
+ * a replacement.
+ *
+ * An unmatched target is returned as-is: it is passed through to Herdr, which
+ * produces its own clear error, rather than us inventing a wrong pane to send
+ * someone's message to.
+ */
+export async function resolveTarget(target: string): Promise<string> {
+  if (!target) return target;
+  // A pane id (w8:p5C) is already concrete — no lookup needed.
+  if (/^w\d+:p[A-Za-z0-9]+$/.test(target)) return target;
+
+  const labels = await paneLabels();
+  const wanted = target.trim().toLowerCase();
+  for (const [paneId, raw] of Object.entries(labels)) {
+    // Compare the NAME half only — the label may also carry a parent suffix.
+    if (parseLabel(raw).name.trim().toLowerCase() === wanted) return paneId;
+  }
+  return target;
+}
+
 export async function messageSession(
   target: string,
   text: string,
   selfPaneId?: string,
 ): Promise<string> {
+  const paneId = await resolveTarget(target);
   const wrapped = await wrapPeerMessage(text, selfPaneId);
-  await herdr(['agent', 'prompt', target, wrapped]);
-  return `Message delivered to ${target} (tagged as a peer note from ${selfPaneId ?? 'this session'}). It will see it on its next turn.`;
+  await herdr(['agent', 'prompt', paneId, wrapped]);
+  const shown = paneId === target ? target : `${target} (${paneId})`;
+  return `Message delivered to ${shown} (tagged as a peer note from ${selfPaneId ?? 'this session'}). It will see it on its next turn.`;
 }
