@@ -69,6 +69,15 @@ export interface SessionInfo {
    * name from the moment it appears; nobody has to name anything.
    */
   name: string;
+  /**
+   * The name of the session that LAUNCHED this one, if any — the family tree.
+   *
+   * Stored alongside the name in the same pane label as `Name^Parent` (see
+   * PARENT_SEP), so it inherits the property that makes names correct: it lives
+   * and dies with the pane, and can never go stale the way a file keyed on a
+   * reusable pane id would. Empty for a root session Jack started himself.
+   */
+  parentName: string;
   /** Repo/workspace label, e.g. "SERP", "SWAC", "sw-cortex". */
   repo: string;
   /** Live status: working | idle | done | blocked | unknown. */
@@ -105,6 +114,28 @@ const NAME_POOL = [
   'Theo', 'Ivy', 'Leo', 'Mia', 'Gus', 'Cleo', 'Hank', 'June',
   'Rex', 'Vera', 'Wes', 'Zara',
 ];
+
+/**
+ * Separator packing a parent into the pane label: `Jeff^Kate` = "Jeff,
+ * launched by Kate".
+ *
+ * `^` is deliberate — it is not a name character, so it cannot appear in a
+ * name and split one by accident, and it survives shell/JSON round-trips
+ * without quoting.
+ */
+const PARENT_SEP = '^';
+
+/** Split a raw pane label into its { name, parent } halves. */
+export function parseLabel(label: string): { name: string; parent: string } {
+  const i = label.indexOf(PARENT_SEP);
+  if (i < 0) return { name: label, parent: '' };
+  return { name: label.slice(0, i), parent: label.slice(i + 1) };
+}
+
+/** Pack a name + optional parent back into a pane label. */
+export function formatLabel(name: string, parent?: string): string {
+  return parent ? `${name}${PARENT_SEP}${parent}` : name;
+}
 
 /** Raw pane record from `herdr pane list` (only the fields we use). */
 interface HerdrPane {
@@ -155,22 +186,55 @@ async function setPaneLabel(paneId: string, name: string): Promise<void> {
  * Writes are fire-and-forget per pane and failures are swallowed, so a rename
  * that does not stick degrades the name rather than the listing.
  */
-async function ensureNames(paneIds: string[]): Promise<Record<string, string>> {
+async function ensureNames(
+  paneIds: string[],
+): Promise<{ names: Record<string, string>; parents: Record<string, string> }> {
   const labels = await paneLabels();
-  const taken = new Set(Object.values(labels).map((n) => n.toLowerCase()));
+  const names: Record<string, string> = {};
+  const parents: Record<string, string> = {};
+  for (const [paneId, raw] of Object.entries(labels)) {
+    const { name, parent } = parseLabel(raw);
+    names[paneId] = name;
+    parents[paneId] = parent;
+  }
+
+  const taken = new Set(Object.values(names).map((n) => n.toLowerCase()));
   const assignments: Array<Promise<void>> = [];
 
   for (const paneId of paneIds) {
-    if (!paneId || labels[paneId]) continue;
+    if (!paneId || names[paneId]) continue;
     const next = NAME_POOL.find((n) => !taken.has(n.toLowerCase()));
     if (!next) continue; // pool exhausted → falls back to the pane id
-    labels[paneId] = next;
+    names[paneId] = next;
     taken.add(next.toLowerCase());
-    assignments.push(setPaneLabel(paneId, next));
+    // A pane launched by /launch already carries its parent in the label
+    // (see claimName); preserve it when filling in a missing name.
+    assignments.push(setPaneLabel(paneId, formatLabel(next, parents[paneId])));
   }
 
   await Promise.all(assignments);
-  return labels;
+  return { names, parents };
+}
+
+/**
+ * Claim a name for a freshly-launched pane, recording who launched it.
+ *
+ * Called by the launcher (via the `claim-session-name` bin) right after Herdr
+ * hands back a new pane id, so the child is named and parented BEFORE its
+ * session boots — the tree is correct from the first listing rather than
+ * whenever someone happens to call list_sessions.
+ *
+ * `parent` is the launching session's NAME (not its pane id): names are what
+ * the tree renders, and a name outlives the specific pane id in a way that
+ * keeps the tree readable.
+ */
+export async function claimName(paneId: string, parent?: string): Promise<string> {
+  const labels = await paneLabels();
+  const taken = new Set(Object.values(labels).map((raw) => parseLabel(raw).name.toLowerCase()));
+  const existing = labels[paneId];
+  const name = existing ? parseLabel(existing).name : NAME_POOL.find((n) => !taken.has(n.toLowerCase())) ?? paneId;
+  await setPaneLabel(paneId, formatLabel(name, parent));
+  return name;
 }
 
 /** Map a workspace_id → its repo label (SERP / SWAC / sw-cortex / …). */
@@ -204,7 +268,7 @@ export async function listSessions(selfPaneId?: string): Promise<SessionInfo[]> 
   const labels = await workspaceLabels();
   // Name every session before building the board, so a brand-new pane is
   // already "Joe" the first time it is listed rather than a pane id.
-  const names = await ensureNames(claudeAgents.map((a) => a.pane_id ?? ''));
+  const { names, parents } = await ensureNames(claudeAgents.map((a) => a.pane_id ?? ''));
 
   return claudeAgents
     .map((a) => {
@@ -212,6 +276,7 @@ export async function listSessions(selfPaneId?: string): Promise<SessionInfo[]> 
       const cwd = a.foreground_cwd || a.cwd || '';
       return {
         name: names[paneId] || paneId,
+        parentName: parents[paneId] || '',
         repo: labels[a.workspace_id ?? ''] ?? basename(cwd) ?? 'unknown',
         status: a.agent_status ?? 'unknown',
         task: (a.terminal_title_stripped || a.terminal_title || '').trim(),
@@ -502,8 +567,9 @@ export async function resolveTarget(target: string): Promise<string> {
 
   const labels = await paneLabels();
   const wanted = target.trim().toLowerCase();
-  for (const [paneId, name] of Object.entries(labels)) {
-    if (name.trim().toLowerCase() === wanted) return paneId;
+  for (const [paneId, raw] of Object.entries(labels)) {
+    // Compare the NAME half only — the label may also carry a parent suffix.
+    if (parseLabel(raw).name.trim().toLowerCase() === wanted) return paneId;
   }
   return target;
 }

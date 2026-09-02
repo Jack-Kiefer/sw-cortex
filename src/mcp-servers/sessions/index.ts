@@ -55,7 +55,9 @@ const tools: Tool[] = [
     name: 'list_sessions',
     description:
       'The unified board of every Claude Code session running on this machine right now. ' +
-      'Returns each session as { name, repo, status, task, cwd, paneId, focused, isSelf } — ' +
+      'Returns each session as { name, parentName, repo, status, task, cwd, paneId, focused, ' +
+      'isSelf } — parentName is the session that LAUNCHED this one (empty for a session Jack ' +
+      'started himself), so the board doubles as a family tree of who spawned whom. ' +
       'name is a friendly first name ("Joe", "Jeff") auto-assigned to every session and the ' +
       'address to message it, task is its live tab title (what it is currently ' +
       'doing), status is working|idle|done|blocked, and paneId is the handle for read_session. ' +
