@@ -104,7 +104,7 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_mrp_bom_line',
     'serp_worker_run_history',
     'serp_account_move_line',
-    'odoo_sync_queue',
+    'serpy_sync_queue', // renamed from odoo_sync_queue on 2026-08-31 (see serp_app below)
     '_migrations',
     // added from measured describe_table misses (14d window)
     'serp_stock_location',
@@ -113,14 +113,19 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_ir_exports',
   ],
   serp_app: [
-    'serp_draft_operations_live',
+    // The Serpy surface was renamed into a flat serpy_* namespace on 2026-08-31
+    // (serp_draft_operations_live -> serpy_drafts, odoo_sync_queue_live -> serpy_sync_queue,
+    // serp_ai_messages_live/serp_ai_turns_live -> serpy_messages/serpy_turns). The old
+    // names survive only as frozen *_backup copies, so they read as "unreadable" here.
+    'serpy_drafts',
+    'serpy_sync_queue',
+    'serpy_messages',
+    'serpy_turns',
     'serpy_op_rules',
+    'serpy_sync_circuit_breaker',
     'serp_worker_run_history',
     '_migrations',
     // added from measured describe_table misses (14d window)
-    'odoo_sync_queue_live',
-    'serp_ai_messages_live',
-    'serp_ai_turns_live',
     'serp_cron',
     'prelist_qty_log',
     'serp_stock_location',
@@ -144,8 +149,21 @@ const HOT_TABLES: Record<string, string[]> = {
     'purchase_order_line',
     'res_partner',
     'res_users',
+    // added from measured describe_table misses (2026-09-02 window)
+    'product_category',
+    'mail_message',
   ],
   wishdesk: ['orders_tickets', 'sw_billing_tickets', 'swcrm_actions', 'proposals'],
+  // Laravel staging. Gated by the describe-first guard but previously unmanifested,
+  // so every query against it paid a live round-trip. Seeded from measured guard hits
+  // (2026-09-02 window) plus their obvious siblings.
+  manage: [
+    'components',
+    'receiver_products',
+    'receiver_product_inventory',
+    'buyer_products',
+    'ec_order',
+  ],
 };
 
 interface Args {

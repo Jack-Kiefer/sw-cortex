@@ -4,7 +4,7 @@ Exact column names for the tables that agents query most. Regenerate with
 `npm run kb:columns`. Hand edits are overwritten and, worse, silently rot —
 a stale column list is more dangerous than a missing one.
 
-This file answers ONE question: _what are this table's real column names?_
+This file answers ONE question: *what are this table's real column names?*
 For what the columns MEAN, which database is authoritative, and the join
 invariants, read `DICTIONARY.md` — that is still the source of truth for
 semantics. Nothing here overrides it.
@@ -236,23 +236,13 @@ id int unsigned · name varchar(255) · first_name varchar(255) · last_name var
 
 ## serp_test
 
-#### serp_test.\_migrations
+#### serp_test._migrations
 
 **Columns (3):** version, filename, applied_at
 
 <details><summary>with types</summary>
 
 version varchar(255) · filename varchar(255) · applied_at datetime
-
-</details>
-
-#### serp_test.odoo_sync_queue
-
-**Columns (20):** id, entity_type, entity_id, operation, payload, status, attempts, max_attempts, last_attempt_at, next_attempt_at, error_message, error_details, odoo_id, odoo_response, created_at, updated_at, synced_at, priority, idempotency_key, sync_target
-
-<details><summary>with types</summary>
-
-id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20) · payload json · status varchar(20) · attempts int · max_attempts int · last_attempt_at datetime · next_attempt_at datetime · error_message text · error_details json · odoo_id bigint · odoo_response json · created_at datetime · updated_at datetime · synced_at datetime · priority int · idempotency_key varchar(255) · sync_target varchar(20)
 
 </details>
 
@@ -388,11 +378,11 @@ id bigint unsigned · order_id bigint · item_id bigint · component_order_id bi
 
 #### serp_test.serp_stock_location
 
-**Columns (23):** id, name, complete_name, location_id, parent_path, usage, scrap_location, return_location, barcode, posx, posy, posz, active, comment, cyclic_inventory_frequency, last_inventory_date, next_inventory_date, company_id, create_uid, write_uid, create_date, write_date, odoo_id
+**Columns (24):** id, name, complete_name, location_id, parent_path, usage, is_fulfillment, scrap_location, return_location, barcode, posx, posy, posz, active, comment, cyclic_inventory_frequency, last_inventory_date, next_inventory_date, company_id, create_uid, write_uid, create_date, write_date, odoo_id
 
 <details><summary>with types</summary>
 
-id bigint unsigned · name varchar(100) · complete_name varchar(255) · location_id bigint unsigned · parent_path varchar(255) · usage enum('internal','supplier','customer','inventory','production','transit','view') · scrap_location tinyint(1) · return_location tinyint(1) · barcode varchar(50) · posx int · posy int · posz int · active tinyint(1) · comment text · cyclic_inventory_frequency int · last_inventory_date date · next_inventory_date date · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
+id bigint unsigned · name varchar(100) · complete_name varchar(255) · location_id bigint unsigned · parent_path varchar(255) · usage enum('internal','supplier','customer','inventory','production','transit','view') · is_fulfillment tinyint(1) · scrap_location tinyint(1) · return_location tinyint(1) · barcode varchar(50) · posx int · posy int · posz int · active tinyint(1) · comment text · cyclic_inventory_frequency int · last_inventory_date date · next_inventory_date date · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
 
 </details>
 
@@ -456,25 +446,25 @@ id bigint · worker varchar(128) · env varchar(64) · kind enum('poller','cron'
 
 </details>
 
-## serp_app
-
-#### serp_app.\_migrations
-
-**Columns (3):** version, filename, applied_at
-
-<details><summary>with types</summary>
-
-version varchar(255) · filename varchar(255) · applied_at datetime
-
-</details>
-
-#### serp_app.odoo_sync_queue_live
+#### serp_test.serpy_sync_queue
 
 **Columns (20):** id, entity_type, entity_id, operation, payload, status, attempts, max_attempts, last_attempt_at, next_attempt_at, error_message, error_details, odoo_id, odoo_response, created_at, updated_at, synced_at, priority, idempotency_key, sync_target
 
 <details><summary>with types</summary>
 
 id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20) · payload json · status varchar(20) · attempts int · max_attempts int · last_attempt_at datetime · next_attempt_at datetime · error_message text · error_details json · odoo_id bigint · odoo_response json · created_at datetime · updated_at datetime · synced_at datetime · priority int · idempotency_key varchar(255) · sync_target varchar(20)
+
+</details>
+
+## serp_app
+
+#### serp_app._migrations
+
+**Columns (3):** version, filename, applied_at
+
+<details><summary>with types</summary>
+
+version varchar(255) · filename varchar(255) · applied_at datetime
 
 </details>
 
@@ -488,26 +478,6 @@ id bigint · product_id bigint · sku varchar(100) · delta int · qty_after int
 
 </details>
 
-#### serp_app.serp_ai_messages_live
-
-**Columns (16):** id, draft_id, seq, turn_id, role, kind, content, tool_name, tool_call_id, duration_ms, tokens_in, tokens_out, model, error_type, user_id, created_at
-
-<details><summary>with types</summary>
-
-id bigint · draft_id bigint · seq int · turn_id bigint · role text · kind text · content json · tool_name text · tool_call_id text · duration_ms int · tokens_in int · tokens_out int · model text · error_type text · user_id bigint · created_at datetime
-
-</details>
-
-#### serp_app.serp_ai_turns_live
-
-**Columns (30):** turn_id, draft_id, user_id, user_email, system_prompt, prompt_version, classified_types, classify_confidences, classify_reasoning, classify_hint, model, input_tokens, output_tokens, total_tokens, tool_calls_count, agent_rounds, tool_timings, schema_validation_errors, duration_ms, status, error_type, error_message, created_at, cache_creation_input_tokens, cache_read_input_tokens, classifier_input_tokens, classifier_output_tokens, vision_input_tokens, vision_output_tokens, chunk_selection
-
-<details><summary>with types</summary>
-
-turn_id bigint · draft_id bigint · user_id bigint · user_email text · system_prompt mediumtext · prompt_version text · classified_types json · classify_confidences json · classify_reasoning text · classify_hint text · model text · input_tokens int · output_tokens int · total_tokens int · tool_calls_count int · agent_rounds int · tool_timings json · schema_validation_errors json · duration_ms int · status text · error_type text · error_message text · created_at datetime · cache_creation_input_tokens int · cache_read_input_tokens int · classifier_input_tokens int · classifier_output_tokens int · vision_input_tokens int · vision_output_tokens int · chunk_selection json
-
-</details>
-
 #### serp_app.serp_cron
 
 **Columns (21):** id, cron_key, cron_name, env, active, at_time, interval_minutes, window_start, window_end, tz, skip_weekends, nextcall, last_fire_key, lastcall, last_result_signature, last_thread_ts, cycle_timeout_s, live_query_timeout_s, priority, created_at, updated_at
@@ -518,23 +488,13 @@ id bigint · cron_key varchar(50) · cron_name varchar(255) · env varchar(64) �
 
 </details>
 
-#### serp_app.serp_draft_operations_live
-
-**Columns (20):** id, user_id, operation_type, title, data, notes, status, submitted_at, approved_by, approved_at, rejection_reason, created_at, updated_at, slack_channel_id, slack_message_ts, sync_target, sync_targets, last_assistant_seq, classified_types, image_descriptions
-
-<details><summary>with types</summary>
-
-id bigint · user_id bigint · operation_type varchar(50) · title varchar(512) · data json · notes text · status varchar(20) · submitted_at datetime · approved_by bigint · approved_at datetime · rejection_reason text · created_at datetime · updated_at datetime · slack_channel_id varchar(50) · slack_message_ts varchar(50) · sync_target varchar(20) · sync_targets text · last_assistant_seq int · classified_types json · image_descriptions json
-
-</details>
-
 #### serp_app.serp_stock_location
 
-**Columns (23):** id, name, complete_name, location_id, parent_path, usage, scrap_location, return_location, barcode, posx, posy, posz, active, comment, cyclic_inventory_frequency, last_inventory_date, next_inventory_date, company_id, create_uid, write_uid, create_date, write_date, odoo_id
+**Columns (24):** id, name, complete_name, location_id, parent_path, usage, is_fulfillment, scrap_location, return_location, barcode, posx, posy, posz, active, comment, cyclic_inventory_frequency, last_inventory_date, next_inventory_date, company_id, create_uid, write_uid, create_date, write_date, odoo_id
 
 <details><summary>with types</summary>
 
-id bigint unsigned · name varchar(100) · complete_name varchar(255) · location_id bigint unsigned · parent_path varchar(255) · usage enum('internal','supplier','customer','inventory','production','transit','view') · scrap_location tinyint(1) · return_location tinyint(1) · barcode varchar(50) · posx int · posy int · posz int · active tinyint(1) · comment text · cyclic_inventory_frequency int · last_inventory_date date · next_inventory_date date · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
+id bigint unsigned · name varchar(100) · complete_name varchar(255) · location_id bigint unsigned · parent_path varchar(255) · usage enum('internal','supplier','customer','inventory','production','transit','view') · is_fulfillment tinyint(1) · scrap_location tinyint(1) · return_location tinyint(1) · barcode varchar(50) · posx int · posy int · posz int · active tinyint(1) · comment text · cyclic_inventory_frequency int · last_inventory_date date · next_inventory_date date · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
 
 </details>
 
@@ -548,6 +508,26 @@ id bigint · worker varchar(128) · env varchar(64) · kind enum('poller','cron'
 
 </details>
 
+#### serp_app.serpy_drafts
+
+**Columns (20):** id, user_id, operation_type, title, data, notes, status, submitted_at, approved_by, approved_at, rejection_reason, created_at, updated_at, slack_channel_id, slack_message_ts, sync_target, sync_targets, last_assistant_seq, classified_types, image_descriptions
+
+<details><summary>with types</summary>
+
+id bigint · user_id bigint · operation_type varchar(50) · title varchar(512) · data json · notes text · status varchar(20) · submitted_at datetime · approved_by bigint · approved_at datetime · rejection_reason text · created_at datetime · updated_at datetime · slack_channel_id varchar(50) · slack_message_ts varchar(50) · sync_target varchar(20) · sync_targets text · last_assistant_seq int · classified_types json · image_descriptions json
+
+</details>
+
+#### serp_app.serpy_messages
+
+**Columns (16):** id, draft_id, seq, turn_id, role, kind, content, tool_name, tool_call_id, duration_ms, tokens_in, tokens_out, model, error_type, user_id, created_at
+
+<details><summary>with types</summary>
+
+id bigint · draft_id bigint · seq int · turn_id bigint · role text · kind text · content json · tool_name text · tool_call_id text · duration_ms int · tokens_in int · tokens_out int · model text · error_type text · user_id bigint · created_at datetime
+
+</details>
+
 #### serp_app.serpy_op_rules
 
 **Columns (14):** chunk_id, tier, body, op_types, embed_text, priority, requires_chunks, tool_refs, active, created_by, updated_by, created_at, updated_at, content_hash
@@ -558,7 +538,47 @@ chunk_id varchar(128) · tier enum('op_core','op_detail') · body text · op_typ
 
 </details>
 
+#### serp_app.serpy_sync_circuit_breaker
+
+**Columns (13):** id, service_name, state, failure_count, success_count, last_failure_at, last_success_at, failure_threshold, success_threshold, reset_timeout_seconds, state_changed_at, created_at, updated_at
+
+<details><summary>with types</summary>
+
+id int · service_name varchar(50) · state varchar(20) · failure_count int · success_count int · last_failure_at datetime · last_success_at datetime · failure_threshold int · success_threshold int · reset_timeout_seconds int · state_changed_at datetime · created_at datetime · updated_at datetime
+
+</details>
+
+#### serp_app.serpy_sync_queue
+
+**Columns (20):** id, entity_type, entity_id, operation, payload, status, attempts, max_attempts, last_attempt_at, next_attempt_at, error_message, error_details, odoo_id, odoo_response, created_at, updated_at, synced_at, priority, idempotency_key, sync_target
+
+<details><summary>with types</summary>
+
+id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20) · payload json · status varchar(20) · attempts int · max_attempts int · last_attempt_at datetime · next_attempt_at datetime · error_message text · error_details json · odoo_id bigint · odoo_response json · created_at datetime · updated_at datetime · synced_at datetime · priority int · idempotency_key varchar(255) · sync_target varchar(20)
+
+</details>
+
+#### serp_app.serpy_turns
+
+**Columns (30):** turn_id, draft_id, user_id, user_email, system_prompt, prompt_version, classified_types, classify_confidences, classify_reasoning, classify_hint, model, input_tokens, output_tokens, total_tokens, tool_calls_count, agent_rounds, tool_timings, schema_validation_errors, duration_ms, status, error_type, error_message, created_at, cache_creation_input_tokens, cache_read_input_tokens, classifier_input_tokens, classifier_output_tokens, vision_input_tokens, vision_output_tokens, chunk_selection
+
+<details><summary>with types</summary>
+
+turn_id bigint · draft_id bigint · user_id bigint · user_email text · system_prompt mediumtext · prompt_version text · classified_types json · classify_confidences json · classify_reasoning text · classify_hint text · model text · input_tokens int · output_tokens int · total_tokens int · tool_calls_count int · agent_rounds int · tool_timings json · schema_validation_errors json · duration_ms int · status text · error_type text · error_message text · created_at datetime · cache_creation_input_tokens int · cache_read_input_tokens int · classifier_input_tokens int · classifier_output_tokens int · vision_input_tokens int · vision_output_tokens int · chunk_selection json
+
+</details>
+
 ## odoo
+
+#### odoo.mail_message
+
+**Columns (25):** id, subject, date, body, parent_id, model, res_id, record_name, message_type, subtype_id, mail_activity_type_id, is_internal, email_from, author_id, author_guest_id, reply_to_force_new, message_id, reply_to, mail_server_id, email_layout_xmlid, add_sign, create_uid, create_date, write_uid, write_date
+
+<details><summary>with types</summary>
+
+id integer · subject character varying · date timestamp without time zone · body text · parent_id integer · model character varying · res_id integer · record_name character varying · message_type character varying · subtype_id integer · mail_activity_type_id integer · is_internal boolean · email_from character varying · author_id integer · author_guest_id integer · reply_to_force_new boolean · message_id character varying · reply_to character varying · mail_server_id integer · email_layout_xmlid character varying · add_sign boolean · create_uid integer · create_date timestamp without time zone · write_uid integer · write_date timestamp without time zone
+
+</details>
 
 #### odoo.mrp_bom
 
@@ -587,6 +607,16 @@ id integer · product_id integer · product_tmpl_id integer · company_id intege
 <details><summary>with types</summary>
 
 id integer · message_main_attachment_id integer · name character varying · priority character varying · backorder_sequence integer · origin character varying · product_id integer · product_qty numeric · product_uom_id integer · lot_producing_id integer · qty_producing numeric · product_uom_qty double precision · picking_type_id integer · location_src_id integer · location_dest_id integer · date_planned_start timestamp without time zone · date_planned_finished timestamp without time zone · date_deadline timestamp without time zone · date_start timestamp without time zone · date_finished timestamp without time zone · bom_id integer · state character varying · reservation_state character varying · user_id integer · company_id integer · procurement_group_id integer · product_description_variants character varying · orderpoint_id integer · propagate_cancel boolean · is_locked boolean · is_planned boolean · production_location_id integer · consumption character varying · create_uid integer · create_date timestamp without time zone · write_uid integer · write_date timestamp without time zone · extra_cost double precision · analytic_account_id integer
+
+</details>
+
+#### odoo.product_category
+
+**Columns (13):** id, name, complete_name, parent_id, parent_path, create_uid, create_date, write_uid, write_date, removal_strategy_id, packaging_reserve_method, tic_category_id, sugarwish_id
+
+<details><summary>with types</summary>
+
+id integer · name character varying · complete_name character varying · parent_id integer · parent_path character varying · create_uid integer · create_date timestamp without time zone · write_uid integer · write_date timestamp without time zone · removal_strategy_id integer · packaging_reserve_method character varying · tic_category_id integer · sugarwish_id integer
 
 </details>
 
@@ -779,5 +809,57 @@ id int · ticket_number varchar(20) · category varchar(100) · request_type var
 <details><summary>with types</summary>
 
 id bigint · title varchar(255) · category_name varchar(255) · due_date datetime · completed_date datetime · completed tinyint(1) · details text · status varchar(50) · priority int · percent_complete int · start_date datetime · publicly_visible tinyint(1) · responsible_user_id int · owner_user_id bigint · assigned_by_user_id bigint · created_user_id bigint · assigned_team_id bigint · assigned_date datetime · email_id bigint · opportunity_id bigint · stage_name varchar(255) · parent_task_id bigint · reminder_date datetime · expiration_date datetime · reminder_sent tinyint(1) · owner_visible tinyint(1) · recurrence varchar(255) · recurrence_type enum('none','daily','weekly','monthly','yearly','workday') · recurrence_interval int · recurrence_days_of_week varchar(20) · recurrence_end_date date · recurrence_parent_id bigint · created_at datetime · updated_at datetime · record_id bigint unsigned · sales_rep varchar(255) · user_responsible bigint unsigned · responsible_user_name varchar(255) · owner_user_name varchar(255) · created_user_name varchar(255) · assigned_by_user_name varchar(255) · pipeline_name varchar(255) · completed_due_date_diff varchar(255) · assigned_team_name varchar(255) · linked_contact_name varchar(255) · linked_lead_name varchar(255) · opportunity_name varchar(255) · linked_organization_name varchar(255) · category_id bigint · stage_id bigint · metadata json · created_by_type enum('user','api','repeat','workflow','import') · insightly_task_id_gen varchar(64) · source_event_id varchar(128)
+
+</details>
+
+## manage
+
+#### manage.buyer_products
+
+**Columns (48):** id, odoo_id, sku, type, category, name, reports_name, subtitle, description, pdp_description, price, price2016, dd_charge, number_of_candies, weight, fee_to_can, fee_to_intl, imageurl, sort_key, disabled, product_type, cover_image, receiver_size, subtitle_html, created_at, updated_at, deleted_at, wine, receiver_confirm_image, us_standard_shipping_fee, us_expedited_shipping_fee, ca_shipping_fee, default_kit, item_multiplier, product_configuration_id, size_name_id, select_image_url, seasonal_kit, seasonal_image, wishlinks_enabled, is_stacked, gift_card_fee, sw_fulfill, template_name, pdp_special_label, accessory_id, location_id, custom_location_id
+
+<details><summary>with types</summary>
+
+id int · odoo_id int · sku varchar(255) · type varchar(150) · category varchar(150) · name varchar(150) · reports_name varchar(255) · subtitle varchar(150) · description text · pdp_description longtext · price float(7,2) · price2016 float(7,2) · dd_charge float(5,2) · number_of_candies int · weight float(7,2) · fee_to_can float(7,2) · fee_to_intl int · imageurl varchar(255) · sort_key int · disabled tinyint · product_type int · cover_image varchar(255) · receiver_size json · subtitle_html varchar(255) · created_at timestamp · updated_at timestamp · deleted_at datetime · wine tinyint(1) · receiver_confirm_image varchar(255) · us_standard_shipping_fee double(8,2) · us_expedited_shipping_fee double(8,2) · ca_shipping_fee double(8,2) · default_kit bigint · item_multiplier int unsigned · product_configuration_id bigint unsigned · size_name_id bigint unsigned · select_image_url varchar(255) · seasonal_kit bigint · seasonal_image varchar(255) · wishlinks_enabled tinyint(1) · is_stacked tinyint(1) · gift_card_fee decimal(10,2) · sw_fulfill tinyint(1) · template_name varchar(255) · pdp_special_label varchar(255) · accessory_id bigint unsigned · location_id bigint unsigned · custom_location_id bigint unsigned
+
+</details>
+
+#### manage.components
+
+**Columns (25):** id, odoo_id, inventory_source, sku, prod_slip_sku, name, company_id, description, inventory_quantity(deleted), status(deleted), sort_key, drop_level(deleted), number_of_picks, start_date, end_date, hide, created_at, updated_at, tax_code_id, tax_description, mi_inventory_qty(deleted), location_override, location_2_status(deleted), shelf_id, image_url
+
+<details><summary>with types</summary>
+
+id bigint unsigned · odoo_id varchar(255) · inventory_source enum('odoo','serp') · sku varchar(50) · prod_slip_sku varchar(255) · name varchar(50) · company_id int unsigned · description varchar(255) · inventory_quantity(deleted) int · status(deleted) tinyint · sort_key int · drop_level(deleted) int · number_of_picks int · start_date date · end_date date · hide tinyint · created_at timestamp · updated_at timestamp · tax_code_id bigint unsigned · tax_description mediumtext · mi_inventory_qty(deleted) int · location_override varchar(255) · location_2_status(deleted) tinyint(1) · shelf_id int · image_url varchar(255)
+
+</details>
+
+#### manage.ec_order
+
+**Columns (76):** id, order_id, increment_id, company_id, user_id, giftcards_card_id, status, store_id, customer_email, customer_firstname, customer_lastname, remote_ip, total_item_count, sendergiftmsg, gift_code, telephone, postcode, shipping_firstname, shipping_lastname, shipping_name, shipping_company, shipping_address, shipping_address2, shipping_city, shipping_state, shipping_country, shipping_created_at, carrier, service, tracking_number, ship_date, shipping_cost, notes, love_letters, created_at, updated_at, created_at_shipping, product_type, browser_information, size, is_imported, expedited_shipping, platform_fee, taxable_total, gift_total, gift_total_picks, pick_value, avatax_status, sales_tax, delivery_status, delivery_date, curated, delivery_mail_sent, tracking_mail_sent, fedex_checked_at, oddo_synchronized, serp_sync, co_ship_tax, shipping_label_url, component_imported, test_order, is_stacked, address_validation, ship_date_odoo_synchronized, ship_date_serp_synchronized, vendor_imported, vendor_order_number, expected_delivery_date, label_created_at, sw_fulfill, expected_delivery_mail_sent, delivery_note, recipient_survey_sent, recipient_survey_sent_at, source, merchandise_selections
+
+<details><summary>with types</summary>
+
+id bigint unsigned · order_id bigint · increment_id bigint · company_id int · user_id int · giftcards_card_id int · status varchar(255) · store_id int · customer_email varchar(255) · customer_firstname varchar(255) · customer_lastname varchar(255) · remote_ip text · total_item_count int · sendergiftmsg blob · gift_code varchar(255) · telephone varchar(255) · postcode varchar(255) · shipping_firstname varchar(255) · shipping_lastname varchar(255) · shipping_name varchar(255) · shipping_company varchar(255) · shipping_address varchar(255) · shipping_address2 varchar(255) · shipping_city varchar(255) · shipping_state varchar(255) · shipping_country varchar(255) · shipping_created_at datetime · carrier varchar(255) · service varchar(255) · tracking_number varchar(255) · ship_date date · shipping_cost decimal(10,5) · notes text · love_letters tinyint · created_at timestamp · updated_at timestamp · created_at_shipping datetime · product_type int unsigned · browser_information varchar(255) · size int · is_imported tinyint · expedited_shipping enum('Standard Shipping','2-Day','Overnight') · platform_fee double(8,2) · taxable_total double(8,2) · gift_total double(8,2) · gift_total_picks int unsigned · pick_value double(8,2) · avatax_status enum('not-processed','processed','sent','skipped','adjusted','voided','cancelled','locked') · sales_tax double(8,2) · delivery_status varchar(255) · delivery_date varchar(255) · curated tinyint(1) · delivery_mail_sent tinyint(1) · tracking_mail_sent tinyint(1) · fedex_checked_at datetime · oddo_synchronized tinyint(1) · serp_sync tinyint · co_ship_tax double(8,2) · shipping_label_url varchar(255) · component_imported tinyint · test_order tinyint(1) · is_stacked tinyint(1) · address_validation tinyint · ship_date_odoo_synchronized tinyint · ship_date_serp_synchronized tinyint · vendor_imported tinyint(1) · vendor_order_number varchar(255) · expected_delivery_date date · label_created_at timestamp · sw_fulfill tinyint(1) · expected_delivery_mail_sent timestamp · delivery_note text · recipient_survey_sent tinyint(1) · recipient_survey_sent_at timestamp · source tinyint · merchandise_selections json
+
+</details>
+
+#### manage.receiver_product_inventory
+
+**Columns (9):** receiver_product_id, on_hand_qty, reserved_qty, unsynced_demand_qty, unreserved_outbound_qty, reservation_hold_qty, prelist_qty, available_qty, sellable_qty
+
+<details><summary>with types</summary>
+
+receiver_product_id int · on_hand_qty decimal(16,4) · reserved_qty decimal(16,4) · unsynced_demand_qty decimal(16,4) · unreserved_outbound_qty decimal(16,4) · reservation_hold_qty decimal(16,4) · prelist_qty decimal(16,4) · available_qty decimal(16,4) · sellable_qty decimal(16,4)
+
+</details>
+
+#### manage.receiver_products
+
+**Columns (47):** product_id, sku, prod_slip_sku, name, image_name, full_image, description, short_description, ingredients, category, status, sort_key, inventory_qty, mi_inventory_qty, start_date, end_date, premium, sweet_shoppe, product_type, created_at, updated_at, deleted_at, archive, inventory_link, notes, tax_code_id, purchase_url, tax_description, purchase_button_label_text, drop_level, shipcompliant_id, location_2_status, vendor_id, inventory_updated_at, sw_inventory_updated_at, odoo_inventory, prelist_qty, tango_utid, show_on_flavors, vendor_cost, location_id, is_core, sku_type, exclude_international, hs_code, country_of_origin, customs_description
+
+<details><summary>with types</summary>
+
+product_id int · sku varchar(255) · prod_slip_sku varchar(255) · name text · image_name varchar(255) · full_image varchar(255) · description text · short_description text · ingredients text · category int · status varchar(50) · sort_key float · inventory_qty int · mi_inventory_qty int · start_date date · end_date date · premium tinyint · sweet_shoppe tinyint · product_type int · created_at timestamp · updated_at timestamp · deleted_at datetime · archive tinyint(1) · inventory_link int · notes text · tax_code_id bigint unsigned · purchase_url varchar(255) · tax_description mediumtext · purchase_button_label_text varchar(255) · drop_level int · shipcompliant_id bigint · location_2_status tinyint(1) · vendor_id bigint unsigned · inventory_updated_at datetime · sw_inventory_updated_at datetime · odoo_inventory int · prelist_qty int · tango_utid varchar(255) · show_on_flavors tinyint(1) · vendor_cost decimal(8,2) · location_id bigint unsigned · is_core tinyint(1) · sku_type varchar(16) · exclude_international tinyint(1) · hs_code varchar(15) · country_of_origin char(2) · customs_description varchar(35)
 
 </details>
