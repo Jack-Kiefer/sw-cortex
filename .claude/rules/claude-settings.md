@@ -110,6 +110,31 @@ Keep minimal - only personal overrides:
 | `Bash(npm run test*)`               | Use `Bash(npm run test:*)` (need `:*`) |
 | Old schema `permissions.bash.allow` | Use new `permissions.allow` array      |
 | `Read(**/.env*)` in deny            | Not supported, remove                  |
+| `Read(secret.txt)` in deny          | Use the absolute path (see below)      |
+
+## `Read()` deny rules must use ABSOLUTE paths
+
+A bare-name or `./`-relative `Read()` deny pattern makes Claude Code prompt on **unrelated**
+read-only Bash commands. The Bash permission checker treats `grep`/`cat`/`head` as reads and
+matches their paths against the `Read()` deny list — but a relative path after a `cd` cannot be
+statically resolved, so the checker can't prove it isn't the denied file and falls back to asking:
+
+> `grep` on 'global-config/commands/go.md' after a `cd` would search a directory that cannot be
+> determined here, and a `Read()` deny rule is configured; running it anyway.
+
+Every `cd X && grep … relative/path` in the repo then costs an approval prompt. Deny the file by
+its **absolute** path only:
+
+```json
+// GOOD - resolves unambiguously, no spurious prompts
+"deny": ["Read(//Users/jackkief/Desktop/Projects/sw-cortex/secret.txt)"]
+
+// BAD - shadows every unresolvable relative read path
+"deny": ["Read(secret.txt)", "Read(./secret.txt)"]
+```
+
+(Bash calls should use absolute paths anyway, per `~/CLAUDE.md` — this rule removes the penalty
+for the times they don't.)
 
 ## Debugging
 
