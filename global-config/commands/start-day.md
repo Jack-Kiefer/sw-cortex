@@ -126,11 +126,11 @@ git -C "$CX" worktree add "$WT" -b start-day/$(date +%Y-%m-%d) origin/main
 
 Then **every** tracked-file write in the run targets `$WT`, never `$CX`:
 
-| Step                            | Writes                             | Where it must go                                                    |
-| ------------------------------- | ---------------------------------- | ------------------------------------------------------------------- |
-| **3** (KB touch-up)             | `DICTIONARY.md`                    | `$WT/DICTIONARY.md` — Edit the worktree copy                        |
-| **3b** (column manifest)        | `knowledge/COLUMN_MANIFEST.md`     | run the generator **with `cwd: $WT`**: `cd "$WT" && npm run kb:columns` |
-| **5** (friction fixes)          | `global-config/*`, commands, hooks | `$WT/global-config/…` (already specified below)                     |
+| Step                     | Writes                             | Where it must go                                                        |
+| ------------------------ | ---------------------------------- | ----------------------------------------------------------------------- |
+| **3** (KB touch-up)      | `DICTIONARY.md`                    | `$WT/DICTIONARY.md` — Edit the worktree copy                            |
+| **3b** (column manifest) | `knowledge/COLUMN_MANIFEST.md`     | run the generator **with `cwd: $WT`**: `cd "$WT" && npm run kb:columns` |
+| **5** (friction fixes)   | `global-config/*`, commands, hooks | `$WT/global-config/…` (already specified below)                         |
 
 **Not covered by this rule** (they are outside the repo, so they need no worktree and no PR):
 memory files under `~/.claude/projects/*/memory/`, and `knowledge/meetings/*.md` (gitignored).
@@ -297,21 +297,43 @@ If `skip-sync`: note it, call `get_slack_sync_status`, and report the index's cu
 Jack knows what the triage in Step 4 is based on. (With `skip-sync` there's no sync to wait on, so
 Step 4 may run alongside the rest of Wave A.)
 
-**Also fast-forward the SERP main clone's `dev`** (belt-and-suspenders so it self-heals each
-morning even if a PR was merged elsewhere — GitHub UI, another machine — without touching this
-clone). Run this alongside the Slack sync; it's a fire-and-forget hub-side shell command, not a
-workflow agent. **Fast-forward only — never rebase, never stash** (a dirty local seed snapshot must
-not block it), and only when the clone is actually on `dev`:
+**Also fast-forward ALL THREE main clones** — SERP (`dev`), SWAC (`development`), and the hub
+itself (`main`) — belt-and-suspenders so each self-heals every morning even if a PR was merged
+elsewhere (GitHub UI, another machine) without touching that clone. **Nothing else auto-pulls
+these clones**: there is no cron, launchd timer, or hook that updates them, so this step is the
+_only_ thing standing between a clone and unbounded drift. (Covering SERP alone is what let the
+SWAC clone reach **1446 commits behind** unnoticed, 2026-09-03.)
+
+Run this alongside the Slack sync; it's a fire-and-forget hub-side shell command, not a workflow
+agent. **Fast-forward only — never rebase, never stash** (a dirty local seed snapshot must not
+block it), and only when a clone is actually on its expected branch:
 
 ```bash
-SERP=/Users/jackkief/Desktop/Projects/SERP
-if [ "$(git -C "$SERP" branch --show-current)" = "dev" ]; then
-  git -C "$SERP" fetch origin dev --quiet && git -C "$SERP" merge --ff-only origin/dev
-fi
+for spec in "SERP:dev" "SWAC:development" "sw-cortex:main"; do
+  ROOT="/Users/jackkief/Desktop/Projects/${spec%:*}"; BR="${spec#*:}"
+  NAME="$(basename "$ROOT")"
+  [ -d "$ROOT/.git" ] || { echo "$NAME: no clone — skipped"; continue; }
+  CUR="$(git -C "$ROOT" branch --show-current)"
+  [ "$CUR" = "$BR" ] || { echo "$NAME: on '$CUR', not '$BR' — skipped"; continue; }
+  git -C "$ROOT" fetch origin "$BR" --quiet 2>/dev/null || { echo "$NAME: fetch failed"; continue; }
+  BEHIND="$(git -C "$ROOT" rev-list --count "HEAD..origin/$BR")"
+  if [ "$BEHIND" = "0" ]; then
+    echo "$NAME: up to date"
+  elif git -C "$ROOT" merge --ff-only "origin/$BR" --quiet 2>/dev/null; then
+    echo "$NAME: fast-forwarded $BEHIND commit(s)"
+  else
+    echo "$NAME: ⚠️ $BEHIND behind, FF BLOCKED — $(git -C "$ROOT" status --porcelain | wc -l | tr -d ' ') dirty path(s)"
+  fi
+done
 ```
 
-If it's not on `dev` (mid-feature-branch), skip silently. If the fast-forward can't apply (local
-`dev` diverged — not a clean FF), note it in one line and move on; don't force anything. This
+**Report every line of that output in the briefing** — this is the load-bearing half. A clone that
+is skipped or blocked must be _named_, never silently passed over: silent skipping is exactly how
+the SWAC drift went unseen for months. A `⚠️ FF BLOCKED` line means either a dirty tree or a
+genuinely diverged local branch — surface the dirty paths to Jack and let him decide; do **not**
+force, rebase, stash, or `checkout --` real edits (see the dirty-clone rule in `~/CLAUDE.md`).
+
+A clone on a feature branch is a normal state (mid-work) — report it as skipped and move on. This
 mirrors the hub's own `pull --ff-only origin main` post-merge rule.
 
 ### Step 1b — Sync meeting notes from Drive · orchestrator (main thread, NOT a workflow agent)
@@ -557,7 +579,7 @@ Odoo record it produced.** Payloads live in `serp_app` (MySQL); the resulting re
 4. **Report the human consequence, not the diff.** Per flagged MO:
    `MO <mo_id> (draft #<draft_id>, <author>): <sku> entered <payload_qty> → Odoo recorded
 <odoo_qty> (Δ<diff>)` and, when it matches the ratio, `— equals BOM ratio <ratio>×<product_qty>,
-   i.e. the count was overwritten`. Aggregate the total drifted quantity per SKU so the size of the
+i.e. the count was overwritten`. Aggregate the total drifted quantity per SKU so the size of the
    reconciliation is visible at a glance.
 
 **Extending to other op types (the general shape).** The framework is payload-field → Odoo-record
