@@ -22,6 +22,17 @@ WRITABLE_ROOTS=(
   "/Users/jackkief/Desktop/Projects/sugarwish-infrastructure"
 )
 
+# --- Worktree-only repos: TRACKED files in the MAIN CLONE are read-only ---
+# All work in these repos goes in a worktree (CLAUDE.md: "NEVER git checkout a branch in the
+# hub working copy"; SERP/SWAC edits belong in a worktree, not the main clone). Edits still
+# land normally inside any linked worktree of the same repo, and untracked/gitignored files
+# (.env, scratch/, node_modules) stay editable in the clone so local setup still works.
+WORKTREE_ONLY_ROOTS=(
+  "/Users/jackkief/Desktop/Projects/SERP"
+  "/Users/jackkief/Desktop/Projects/SWAC"
+  "/Users/jackkief/Desktop/Projects/sw-cortex"
+)
+
 input="$(cat)"
 tool_name="$(printf '%s' "$input" | jq -r '.tool_name // ""')"
 
@@ -66,6 +77,41 @@ is_writable_root() {
   return 1
 }
 
+is_worktree_only_root() {
+  local root="$1" w
+  for w in "${WORKTREE_ONLY_ROOTS[@]}"; do
+    [ "$root" = "$(cd "$w" 2>/dev/null && pwd -P)" ] && return 0
+  done
+  return 1
+}
+
+# True when $1 is inside the MAIN working tree of its repo (not a linked worktree).
+# Discriminator: in a main clone git-dir == git-common-dir; in a linked worktree the
+# git-dir is <common>/worktrees/<name>, so they differ.
+in_main_working_tree() {
+  local dir="$1" gd gcd
+  while [ -n "$dir" ] && [ "$dir" != "/" ] && [ ! -d "$dir" ]; do
+    dir="$(dirname "$dir")"
+  done
+  [ -d "$dir" ] || return 1
+  gd="$(cd "$dir" 2>/dev/null && git rev-parse --path-format=absolute --git-dir 2>/dev/null)" || return 1
+  gcd="$(cd "$dir" 2>/dev/null && git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$gd" ] && [ -n "$gcd" ] || return 1
+  [ "$gd" = "$gcd" ]
+}
+
+# True when $1 is TRACKED by git. Untracked and gitignored files are exempt from the
+# main-clone block, so .env / scratch/ / node_modules stay editable in the clone.
+is_tracked_file() {
+  local fp="$1" dir
+  dir="$(dirname "$fp")"
+  while [ -n "$dir" ] && [ "$dir" != "/" ] && [ ! -d "$dir" ]; do
+    dir="$(dirname "$dir")"
+  done
+  [ -d "$dir" ] || return 1
+  (cd "$dir" 2>/dev/null && git ls-files --error-unmatch -- "$fp" >/dev/null 2>&1)
+}
+
 readonly_name() {
   # Friendly owner hint for the deny message, keyed by repo basename.
   case "$(basename "$1")" in
@@ -87,6 +133,16 @@ case "$tool_name" in
     [ -n "$root" ] || exit 0
     if ! is_writable_root "$root"; then
       deny "Blocked write to read-only repo $(readonly_name "$root"). Only SERP, SWAC, and sw-cortex are writable from the hub. Diagnose freely, but produce a hand-off note (what's wrong + file/line + the owner to ask) instead of editing. (repo-write-guard)"
+    fi
+    # Writable repo, but a TRACKED file in the MAIN CLONE → must go in a worktree.
+    if is_worktree_only_root "$root" && in_main_working_tree "$fp" && is_tracked_file "$fp"; then
+      name="$(basename "$root")"
+      deny "Blocked edit to a TRACKED file in the $name MAIN CLONE ($root). All work in $name goes in a worktree, never the main clone — it is a long-lived pinned checkout and edits/branch-switches there disrupt the running session. Create one and edit there instead:
+
+  git -C $root worktree add --force -B <branch> /tmp/<name>-<desc> origin/<base>
+  # then Edit/Write under /tmp/<name>-<desc>/... and commit with: git -C /tmp/<name>-<desc> ...
+
+Untracked and gitignored files (.env, scratch/) are still editable in the clone. (repo-write-guard)"
     fi
     ;;
 
