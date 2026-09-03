@@ -137,13 +137,24 @@ memory files under `~/.claude/projects/*/memory/`, and `knowledge/meetings/*.md`
 Step 6's worktree removal and Step 7's local reseed write no tracked files at all.
 
 **At the end of the run:** if `git -C "$WT" status --porcelain` is non-empty, commit + push + open
-ONE PR to `main` covering everything the run produced, and report its link in the briefing. If the
-worktree is clean (a quiet morning — no KB edit, manifest unchanged, no fixes), just remove it:
-`git -C "$CX" worktree remove "$WT"`. Either way the hub ends the run exactly as it started.
+ONE PR to `main` covering everything the run produced, and report its link in the briefing.
 
-**Then verify it:** end the routine with `git -C "$CX" status --porcelain` and confirm no tracked
-file is listed. If anything tracked is dirty, a step wrote to the hub — say so in the briefing
-rather than leaving it silent.
+**Then ALWAYS remove `$WT` — including after opening a PR.** The branch is pushed, so the local
+worktree has no further use; leaving it behind is what accumulated six stale `/tmp/cortex-pr-*`
+worktrees that later runs had to sweep. Removal is unconditional, not the clean-worktree case:
+
+```bash
+git -C "$CX" worktree remove "$WT"     # add --force only if the PR is already pushed
+git -C "$CX" worktree prune
+```
+
+The branch survives on the remote (and locally) for review/merge — removing the worktree does not
+touch it. On a quiet morning (no KB edit, manifest unchanged, no fixes) there is no PR and the same
+two commands run. Either way `$WT` is gone and the hub ends the run exactly as it started.
+
+**Then verify BOTH:** end the routine with `git -C "$CX" status --porcelain` (no tracked file may be
+listed) **and** `git -C "$CX" worktree list` (no `/tmp/cortex-pr-startday-*` entry may remain). If
+either check fails, say so in the briefing rather than leaving it silent.
 
 ### Step 0 — Setup health-check · Wave A agent
 
@@ -882,7 +893,9 @@ rationale: "<why this stops the friction>" }`.
 >    (covering Steps 3, 3b and 5 together); report the PR link in the briefing under
 >    "🩺 Claude-setup friction." **Do NOT auto-merge** — leave it for Jack to review (config/rule
 >    changes to the always-on setup are exactly what he wants eyes on), unless the run was invoked with
->    an explicit merge directive. Remove the worktree only after merge (a later run or Jack).
+>    an explicit merge directive. **The worktree is still removed at the end of the run** (see "The
+>    hub is never left dirty") — the pushed branch keeps the PR alive, so nothing is lost by removing
+>    it, and leaving it behind is what accumulates stale `/tmp` worktrees.
 >
 > For each fix, in this safe order, and report what was applied in the briefing:
 >
