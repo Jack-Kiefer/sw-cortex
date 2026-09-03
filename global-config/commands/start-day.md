@@ -96,15 +96,54 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    Wave A returned (so Step 0's worktree snapshot is captured). Skip it on `skip-shutdown`.
 7. **`return`** the collected result blocks from the workflow so you (the orchestrator) have all of
    them in hand. Then **you** — not the workflow — apply any `DICTIONARY.md` edits Step 3 proposed
-   (with the `Edit` tool, on the main thread) and assemble the **Morning Briefing** below. Print a
-   one-line `✅ Step N done` as each result lands so Jack sees progress.
+   (with the `Edit` tool, **inside the run's `/tmp` worktree** — see "The hub is never left dirty"
+   below) and assemble the **Morning Briefing** below. Print a one-line `✅ Step N done` as each
+   result lands so Jack sees progress.
 
 > **Why a workflow:** the steps are independent reads against different systems (git, GitHub,
 > SWIRL, Slack, transcripts) — fanning them out in one `parallel()` keeps the morning routine fast
 > and each agent's context focused, and the workflow gives Jack a live progress tree (`/workflows`).
 > The sync→triage order is the **only** thing that must be serial; the barrier above enforces it.
-> The two writes (the `DICTIONARY.md` touch-up and the Step 6 worktree shutdown) stay on the
-> **orchestrator/main thread**, never inside a workflow agent.
+> The writes (the `DICTIONARY.md` touch-up, the column-manifest regen, the Step 5 fixes and the
+> Step 6 worktree shutdown) stay on the **orchestrator/main thread**, never inside a workflow agent.
+
+### ⚠️ The hub is never left dirty — EVERY tracked-file write goes through ONE `/tmp` worktree
+
+**`/start-day` must never leave the hub checkout (`~/Desktop/Projects/sw-cortex`) with modified
+tracked files.** The hub is a long-lived pinned session parked on `main`; a routine that dirties it
+every morning blocks the next `git pull --ff-only` and leaves generated churn sitting in the working
+tree indefinitely. This is not advice — it is the invariant, and it covers **every** step, not just
+Step 5's friction fixes.
+
+**Create the worktree ONCE, at the top of the run, before any step that writes:**
+
+```bash
+CX=/Users/jackkief/Desktop/Projects/sw-cortex
+WT=/tmp/cortex-pr-startday-$(date +%Y%m%d)
+git -C "$CX" fetch origin main --quiet
+git -C "$CX" worktree add "$WT" -b start-day/$(date +%Y-%m-%d) origin/main
+```
+
+Then **every** tracked-file write in the run targets `$WT`, never `$CX`:
+
+| Step                            | Writes                             | Where it must go                                                    |
+| ------------------------------- | ---------------------------------- | ------------------------------------------------------------------- |
+| **3** (KB touch-up)             | `DICTIONARY.md`                    | `$WT/DICTIONARY.md` — Edit the worktree copy                        |
+| **3b** (column manifest)        | `knowledge/COLUMN_MANIFEST.md`     | run the generator **with `cwd: $WT`**: `cd "$WT" && npm run kb:columns` |
+| **5** (friction fixes)          | `global-config/*`, commands, hooks | `$WT/global-config/…` (already specified below)                     |
+
+**Not covered by this rule** (they are outside the repo, so they need no worktree and no PR):
+memory files under `~/.claude/projects/*/memory/`, and `knowledge/meetings/*.md` (gitignored).
+Step 6's worktree removal and Step 7's local reseed write no tracked files at all.
+
+**At the end of the run:** if `git -C "$WT" status --porcelain` is non-empty, commit + push + open
+ONE PR to `main` covering everything the run produced, and report its link in the briefing. If the
+worktree is clean (a quiet morning — no KB edit, manifest unchanged, no fixes), just remove it:
+`git -C "$CX" worktree remove "$WT"`. Either way the hub ends the run exactly as it started.
+
+**Then verify it:** end the routine with `git -C "$CX" status --porcelain` and confirm no tracked
+file is listed. If anything tracked is dirty, a step wrote to the hub — say so in the briefing
+rather than leaving it silent.
 
 ### Step 0 — Setup health-check · Wave A agent
 
@@ -600,7 +639,8 @@ Scope it to the recent transcripts (default the last 2 days; if `days=N` was pas
 
 4. **Return the proposed edits as text** (do NOT edit the file — the orchestrator applies them).
    For each: the exact existing line/section, the new wording, and a one-line why. The orchestrator
-   then writes them to `~/Desktop/Projects/sw-cortex/DICTIONARY.md` with the Edit tool; the knowledge
+   then writes them to **`$WT/DICTIONARY.md`** (the run's `/tmp` worktree — NEVER the hub copy at
+   `~/Desktop/Projects/sw-cortex/DICTIONARY.md`) with the Edit tool; the knowledge
    MCP re-indexes on the next search — no ingest step.
 
 Keep it surgical: a handful of targeted edits, not a rewrite. If the window surfaced nothing
@@ -624,7 +664,8 @@ guard fires in one 7-day audit). It only helps if it matches live — **a stale 
 than none**, so regenerate it every morning:
 
 ```bash
-cd ~/Desktop/Projects/sw-cortex && npm run kb:columns
+# Run it INSIDE the run's worktree so the hub is never dirtied (see "The hub is never left dirty").
+cd "$WT" && npm run kb:columns
 ```
 
 This is a deterministic, read-only command (DESCRIBE / `information_schema` only) — no judgment
@@ -640,7 +681,7 @@ Notes:
 - **Never hand-edit the file.** To add a table, add it to `HOT_TABLES` in
   `scripts/generate-column-manifest.ts` and rerun. Adding a table that just burned you is the
   intended maintenance loop.
-- If `git status` shows the manifest changed, that's a real schema change — worth a line in the
+- If `git -C "$WT" status --porcelain` shows the manifest changed, that's a real schema change — worth a line in the
   briefing, and worth asking whether `DICTIONARY.md` needs a matching semantic update.
 
 **Return:** one line — tables written, databases covered, and any unreadable tables.
@@ -828,16 +869,17 @@ rationale: "<why this stops the friction>" }`.
 > the ONLY exception — they live OUTSIDE the repo (`~/.claude/projects/*/memory/`), so write them
 > inline as before. But every fix that touches a **tracked sw-cortex file** — `global-config/CLAUDE.md`,
 > `settings.json`→`global-config/settings.json`, `DICTIONARY.md`, a `global-config/scripts/*` hook,
-> a command/skill — must land via a **cortex PR built in a `/tmp` worktree**, per the hub-model rule
-> (never `git checkout` a branch in the hub; never edit a synced file on the hub's `main`). So the
-> orchestrator **batches all repo-tracked fixes into a single worktree, one PR** at the end of Step 5,
-> rather than editing the hub in place:
+> a command/skill — goes into **`$WT`, the run's single `/tmp` worktree** created at the top of the
+> routine (see "The hub is never left dirty"), per the hub-model rule (never `git checkout` a branch
+> in the hub; never edit a synced file on the hub's `main`). Step 5's fixes are **not** a separate
+> worktree or a separate PR — they land in the same `$WT` as Step 3's KB edit and Step 3b's manifest,
+> and the whole run ships as ONE PR:
 >
-> 1. If any fix targets a tracked sw-cortex file, once — `git -C <sw-cortex-root> worktree add
-/tmp/cortex-pr-startday-fixes-<date> -b start-day/fixes-<date>`.
-> 2. Apply every such fix **inside that worktree** (edit the worktree's `global-config/CLAUDE.md`,
->    `global-config/settings.json`, etc. — never the hub copy, never `~/.claude/settings.json` directly).
-> 3. Commit + push + `gh pr create --base main`, then report the PR link in the briefing under
+> 1. `$WT` already exists (created at the top of the run) — do **not** create a second one here.
+> 2. Apply every such fix **inside `$WT`** (edit `$WT/global-config/CLAUDE.md`,
+>    `$WT/global-config/settings.json`, etc. — never the hub copy, never `~/.claude/settings.json` directly).
+> 3. The run's single commit + push + `gh pr create --base main` happens at the END of the routine
+>    (covering Steps 3, 3b and 5 together); report the PR link in the briefing under
 >    "🩺 Claude-setup friction." **Do NOT auto-merge** — leave it for Jack to review (config/rule
 >    changes to the always-on setup are exactly what he wants eyes on), unless the run was invoked with
 >    an explicit merge directive. Remove the worktree only after merge (a later run or Jack).
@@ -1013,7 +1055,8 @@ before ending the turn.
   `phase('Wave A')` fans out Step 0, 2, 2b, 2c, 3, 5 in a single `parallel()` while the Slack sync runs
   in the background; the sync→triage order is the **only** serial dependency — `phase('Triage')`
   (Step 4) waits on the sync barrier; then `phase('Shutdown')` (Step 6). The **orchestrator owns
-  the tab, the `DICTIONARY.md` writes, the Step 6 worktree shutdown, and the final briefing**; the
+  the tab, every tracked-file write (all of them into the run's single `/tmp` worktree `$WT` — the
+  hub is never left dirty), the Step 6 worktree shutdown, and the final briefing**; the
   workflow's agents only read + return their block.
 - **Printed order is load-bearing for reading, not execution.** The phases execute in parallel
   within Wave A (plus Step 6 after Wave A), but assemble the briefing top-to-bottom: health →
@@ -1038,8 +1081,9 @@ before ending the turn.
   to `/pending-deploy SERP`, which owns the real lint+test readiness gate. Don't run tests here.
 - **`DICTIONARY.md` is a living document.** Step 3 keeps it current with small daily edits —
   fold in / correct yesterday's learnings, never duplicate. The Step 3 agent **proposes**; the
-  orchestrator applies. The heavy reconcile stays with the weekly `/refresh-knowledge`; the daily
-  pass deliberately does **not** touch its watermark, so the two never collide.
+  orchestrator applies **in `$WT`, never the hub copy**. The heavy reconcile stays with the weekly
+  `/refresh-knowledge`; the daily pass deliberately does **not** touch its watermark, so the two
+  never collide.
 - **Step 5 (Claude-setup diagnostic + AUTO-FIX) is about the tooling, not the work.** It mines
   transcripts TWO ways: (a) tool-error friction via `claude-setup-friction.py` (read-only,
   stdlib-only — deliberately no third-party imports, since a missing module is one of the failures
@@ -1058,9 +1102,14 @@ before ending the turn.
   via `/shutdown` (orchestrator-run, never a workflow agent). It only ever touches writable repos'
   worktrees, keeps anything in use, and hard-skips the protected/locked set. Skip it with
   `skip-shutdown`. This is separate from Step 0's worktree check, which stays flag-only.
-- **Otherwise read-only and advisory.** Beyond the `DICTIONARY.md` touch-up and the Step 6 worktree
-  shutdown, this command never posts to Slack, never writes to a production DB, never archives a
-  ticket, and never applies a setup/config change. It surfaces and recommends; Jack acts.
+- **Otherwise read-only and advisory.** Beyond the `$WT` writes (KB touch-up, column manifest,
+  Step 5 fixes — all shipped as one PR) and the Step 6 worktree shutdown, this command never posts
+  to Slack, never writes to a production DB, never archives a ticket, and never applies a
+  setup/config change. It surfaces and recommends; Jack acts.
+- **The hub ends every run clean.** No tracked file in `~/Desktop/Projects/sw-cortex` may be
+  modified when the routine finishes — every write goes through `$WT`. The routine's last act is
+  `git -C <sw-cortex-root> status --porcelain`; anything tracked and dirty means a step wrote to the
+  hub and must be reported in the briefing, not left silent.
 - This command lives in `global-config/commands/` and its helper in `global-config/scripts/`
   (`claude-setup-friction.py`). After editing either, sync with
   `bash scripts/sync-global-config.sh push` so `~/.claude/commands/start-day.md` **and**

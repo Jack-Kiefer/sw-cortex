@@ -98,11 +98,7 @@ async function main() {
       // absolute tsx loader path in sync with mcp.json.template / generate-mcp-config.ts.
       mcpServers[server] = {
         command: 'node',
-        args: [
-          '--import',
-          resolve(projectRoot, 'node_modules/tsx/dist/loader.mjs'),
-          serverPath,
-        ],
+        args: ['--import', resolve(projectRoot, 'node_modules/tsx/dist/loader.mjs'), serverPath],
         cwd: projectRoot,
         env: {
           DOTENV_CONFIG_PATH: envPath,
