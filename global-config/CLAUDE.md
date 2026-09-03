@@ -231,6 +231,7 @@ WW-### tickets are dev-request **`.md` files in the `jasonbkiefer/SWIRL` repo** 
 | `/remind [what] [when]`        | Set a Slack reminder (snooze/delete buttons); list/delete |
 | `/shutdown [repo]`             | Remove all worktrees not in use (writable repos)          |
 | `/ww [description]`            | WishDesk work helper                                      |
+| `/nerf [text\|topic]`          | Fact-check + re-explain the last answer, short and plain  |
 | `/tab-title [name]`            | Set/clear this terminal tab title                         |
 | `/compact-global`              | Compact + resume global context                           |
 | `/save-for-later [note]`       | Save a rich summary of this chat, then close the tab      |
