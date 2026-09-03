@@ -101,13 +101,7 @@
       "Bash(DEBUG:*)",
       "Bash(TESTING:*)"
     ],
-    "deny": [
-      "Read(//Users/jackkief/Desktop/Projects/sw-cortex/secret.txt)",
-      "Read(./secret.txt)",
-      "Read(secret.txt)",
-      "Bash(cat * secret.txt)",
-      "Bash(cat secret.txt)"
-    ]
+    "deny": ["Read(//Users/jackkief/Desktop/Projects/sw-cortex/secret.txt)"]
   },
   "enableAllProjectMcpServers": true
 }
