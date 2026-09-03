@@ -15,48 +15,31 @@ const projectRoot = process.env.SW_CORTEX_ROOT || process.cwd();
 const envPath = resolve(projectRoot, '.env');
 const tasksDbPath = process.env.TASK_DB_PATH || resolve(projectRoot, 'tasks/tasks.db');
 
+// Run a TS MCP server via a single `node --import tsx` process instead of
+// `npx tsx`, which spawned a wrapper (npm exec) + tsx CLI + worker = 3 procs per
+// server. Collapsing to 1 proc cuts ~2 node processes and ~74MB RSS per server
+// per session (verified 2026-09-03). The absolute tsx loader path is required so
+// resolution is cwd-independent; keep it in sync with mcp.json.template.
+const tsxServer = (name: string) => ({
+  command: 'node',
+  args: [
+    '--import',
+    resolve(projectRoot, 'node_modules/tsx/dist/loader.mjs'),
+    resolve(projectRoot, `src/mcp-servers/${name}/index.ts`),
+  ],
+  cwd: projectRoot,
+  env: {
+    DOTENV_CONFIG_PATH: envPath,
+  },
+});
+
 // MCP servers available in sw-cortex
 const mcpServers: Record<string, object> = {
-  db: {
-    command: 'npx',
-    args: ['tsx', resolve(projectRoot, 'src/mcp-servers/db/index.ts')],
-    cwd: projectRoot,
-    env: {
-      DOTENV_CONFIG_PATH: envPath,
-    },
-  },
-  github: {
-    command: 'npx',
-    args: ['tsx', resolve(projectRoot, 'src/mcp-servers/github/index.ts')],
-    cwd: projectRoot,
-    env: {
-      DOTENV_CONFIG_PATH: envPath,
-    },
-  },
-  knowledge: {
-    command: 'npx',
-    args: ['tsx', resolve(projectRoot, 'src/mcp-servers/knowledge/index.ts')],
-    cwd: projectRoot,
-    env: {
-      DOTENV_CONFIG_PATH: envPath,
-    },
-  },
-  'slack-search': {
-    command: 'npx',
-    args: ['tsx', resolve(projectRoot, 'src/mcp-servers/slack-search/index.ts')],
-    cwd: projectRoot,
-    env: {
-      DOTENV_CONFIG_PATH: envPath,
-    },
-  },
-  logs: {
-    command: 'npx',
-    args: ['tsx', resolve(projectRoot, 'src/mcp-servers/logs/index.ts')],
-    cwd: projectRoot,
-    env: {
-      DOTENV_CONFIG_PATH: envPath,
-    },
-  },
+  db: tsxServer('db'),
+  github: tsxServer('github'),
+  knowledge: tsxServer('knowledge'),
+  'slack-search': tsxServer('slack-search'),
+  logs: tsxServer('logs'),
 };
 
 // Check which servers actually exist

@@ -94,9 +94,15 @@ async function main() {
   for (const server of serverDirs) {
     const serverPath = resolve(projectRoot, `src/mcp-servers/${server}/index.ts`);
     if (existsSync(serverPath)) {
+      // `node --import tsx` = 1 process per server (vs `npx tsx` = 3). Keep the
+      // absolute tsx loader path in sync with mcp.json.template / generate-mcp-config.ts.
       mcpServers[server] = {
-        command: 'npx',
-        args: ['tsx', serverPath],
+        command: 'node',
+        args: [
+          '--import',
+          resolve(projectRoot, 'node_modules/tsx/dist/loader.mjs'),
+          serverPath,
+        ],
         cwd: projectRoot,
         env: {
           DOTENV_CONFIG_PATH: envPath,
