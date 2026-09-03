@@ -145,6 +145,13 @@ The hub session you're already in **IS** a sw-cortex session — same cwd, same 
 
 So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `launch-repo-session.sh`.** There is **no `/serp-analyze` in sw-cortex** (it's a SERP-only command) — just do the work right here in the current session: research/diagnose the task inline and proceed. Say in one line that you're handling it in the hub (no new tab, to avoid double-loading context).
 
+**Title this tab as you work — the inline path needs it just as much as a launched one.** A launched session gets the tab-status rider in its prompt (Step 2); an inline hub task has no such prompt, so unless you call the setter yourself the tab keeps whatever floor the hook seeded and never reflects the work. So set it at the first real step and advance it as you go, exactly as the Terminal Tab Status section of `~/CLAUDE.md` describes:
+
+```bash
+~/.claude/scripts/set-tab-title.sh "\U0001f50d <what you're looking into>"   # then \U0001f528 building, \U0001f9ea verifying, \U0001f4e6 PR open, \u2705 done
+```
+
+
 A new terminal is only worth it when the task needs a **different** repo's toolset/cwd (SERP or SWAC). For sw-cortex there's nothing to gain — the hub already has everything.
 
 **But ship the change as a PR to `main`, built in a throwaway worktree — never commit to the hub's `main` and never `git checkout` a branch in the hub working copy.** "Inline" means the _session_ runs in the hub; it does **not** mean committing straight to `main`. A sw-cortex change makes a **PR to `main` exactly like SERP does**, and like SERP's `/deploy` the branch is made in a **separate git worktree under `/tmp`** so the hub's own checkout never leaves `main`:
