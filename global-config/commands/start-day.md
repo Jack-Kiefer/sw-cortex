@@ -96,53 +96,15 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    Wave A returned (so Step 0's worktree snapshot is captured). Skip it on `skip-shutdown`.
 7. **`return`** the collected result blocks from the workflow so you (the orchestrator) have all of
    them in hand. Then **you** — not the workflow — apply any `DICTIONARY.md` edits Step 3 proposed
-   (with the `Edit` tool, on the main thread, **inside the run worktree** — see below) and assemble
-   the **Morning Briefing**. Print a one-line `✅ Step N done` as each result lands so Jack sees
-   progress. Finish with **Step 7**, which ships every write as one PR and leaves the hub clean.
+   (with the `Edit` tool, on the main thread) and assemble the **Morning Briefing** below. Print a
+   one-line `✅ Step N done` as each result lands so Jack sees progress.
 
 > **Why a workflow:** the steps are independent reads against different systems (git, GitHub,
 > SWIRL, Slack, transcripts) — fanning them out in one `parallel()` keeps the morning routine fast
 > and each agent's context focused, and the workflow gives Jack a live progress tree (`/workflows`).
 > The sync→triage order is the **only** thing that must be serial; the barrier above enforces it.
-> The writes (the `DICTIONARY.md` touch-up, the column manifest, the Step 5 fixes, and the Step 6
-> worktree shutdown) stay on the **orchestrator/main thread**, never inside a workflow agent.
-
-### The run worktree — EVERY tracked-file write goes here, and ships as ONE PR
-
-**`/start-day` must never leave the hub working copy dirty.** The hub (`~/Desktop/Projects/sw-cortex`)
-is a long-lived session pinned to `main`; uncommitted edits there are invisible, block the next
-`git pull`, and get discarded. This has already happened — a run left 10 modified files
-(`DICTIONARY.md`, `knowledge/COLUMN_MANIFEST.md`, four `global-config/commands/*.md`,
-`global-config/CLAUDE.md`, `launch-repo-session.sh`, two `src/` files) sitting uncommitted until
-they had to be thrown away. **Anything the routine writes into a tracked sw-cortex file goes into a
-throwaway worktree and lands as a PR — no exceptions, no "small edit" carve-outs.**
-
-Create it **once per run, lazily** — the first time any step needs to write a tracked file:
-
-```bash
-DATE=$(date +%Y-%m-%d)
-WT=/tmp/cortex-pr-startday-$DATE
-git -C ~/Desktop/Projects/sw-cortex worktree add "$WT" -b start-day/$DATE
-```
-
-Then **every** tracked-file write in the whole routine targets `$WT/<path>`, never the hub path:
-
-| What writes                        | Step | Write it to                        |
-| ---------------------------------- | ---- | ---------------------------------- |
-| `DICTIONARY.md` KB edits           | 3    | `$WT/DICTIONARY.md`                |
-| `knowledge/COLUMN_MANIFEST.md`     | 3b   | `$WT/knowledge/COLUMN_MANIFEST.md` |
-| `global-config/CLAUDE.md` rules    | 5    | `$WT/global-config/CLAUDE.md`      |
-| `global-config/settings.json`      | 5    | `$WT/global-config/settings.json`  |
-| any `global-config/scripts/*` hook | 5    | `$WT/global-config/scripts/…`      |
-| any command/skill `.md`            | 5    | `$WT/global-config/…`              |
-
-**The only writes exempt from the PR** are things that are **not tracked sw-cortex files**: memory
-files under `~/.claude/projects/*/memory/` (outside the repo — write inline, live immediately),
-shell installs, and the Step 6 worktree removals. Everything else — including a one-line
-`DICTIONARY.md` touch-up — goes in the worktree.
-
-If a step's own body still says "write it to `~/Desktop/Projects/sw-cortex/<file>`", that is the
-hub path and it is **wrong** — rewrite it to `$WT/<file>`. This rule wins over any step body.
+> The two writes (the `DICTIONARY.md` touch-up and the Step 6 worktree shutdown) stay on the
+> **orchestrator/main thread**, never inside a workflow agent.
 
 ### Step 0 — Setup health-check · Wave A agent
 
@@ -638,9 +600,8 @@ Scope it to the recent transcripts (default the last 2 days; if `days=N` was pas
 
 4. **Return the proposed edits as text** (do NOT edit the file — the orchestrator applies them).
    For each: the exact existing line/section, the new wording, and a one-line why. The orchestrator
-   then writes them with the Edit tool to **`$WT/DICTIONARY.md` — the run worktree, NOT the hub
-   copy** (create the worktree first if this is the run's first tracked-file write; see "The run
-   worktree" above). They ship in the run's single PR and reach the knowledge MCP when it merges.
+   then writes them to `~/Desktop/Projects/sw-cortex/DICTIONARY.md` with the Edit tool; the knowledge
+   MCP re-indexes on the next search — no ingest step.
 
 Keep it surgical: a handful of targeted edits, not a rewrite. If the window surfaced nothing
 KB-worthy, return "nothing new to fold in." **Do not** stamp the `/refresh-knowledge`
@@ -663,9 +624,7 @@ guard fires in one 7-day audit). It only helps if it matches live — **a stale 
 than none**, so regenerate it every morning:
 
 ```bash
-# Generate in the RUN WORKTREE, never the hub — this file is tracked and must ship in the PR.
-# (Create $WT first if this is the run's first tracked-file write; see "The run worktree" above.)
-cd "$WT" && npm run kb:columns
+cd ~/Desktop/Projects/sw-cortex && npm run kb:columns
 ```
 
 This is a deterministic, read-only command (DESCRIBE / `information_schema` only) — no judgment
@@ -681,9 +640,8 @@ Notes:
 - **Never hand-edit the file.** To add a table, add it to `HOT_TABLES` in
   `scripts/generate-column-manifest.ts` and rerun. Adding a table that just burned you is the
   intended maintenance loop.
-- If `git -C "$WT" status` shows the manifest changed, that's a real schema change — worth a line
-  in the briefing, and worth asking whether `DICTIONARY.md` needs a matching semantic update. The
-  regenerated file is committed by Step 7 along with everything else; never leave it in the hub.
+- If `git status` shows the manifest changed, that's a real schema change — worth a line in the
+  briefing, and worth asking whether `DICTIONARY.md` needs a matching semantic update.
 
 **Return:** one line — tables written, databases covered, and any unreadable tables.
 
@@ -875,15 +833,14 @@ rationale: "<why this stops the friction>" }`.
 > orchestrator **batches all repo-tracked fixes into a single worktree, one PR** at the end of Step 5,
 > rather than editing the hub in place:
 >
-> Use **the run worktree `$WT`** defined in "The run worktree" above — the SAME one Step 3's
-> `DICTIONARY.md` edits and Step 3b's column manifest went into. Do **not** create a second
-> worktree or a second PR for Step 5's fixes; the whole run ships as one PR, opened by **Step 7**.
->
-> 1. If `$WT` doesn't exist yet (no earlier step needed it), create it now — one line, see above.
-> 2. Apply every such fix **inside `$WT`** (edit `$WT/global-config/CLAUDE.md`,
->    `$WT/global-config/settings.json`, etc. — never the hub copy, never `~/.claude/settings.json` directly).
-> 3. Leave committing/pushing/PR-opening to **Step 7**. Just note what you changed so Step 7 can
->    summarize it and the briefing can report it under "🩺 Claude-setup friction."
+> 1. If any fix targets a tracked sw-cortex file, once — `git -C <sw-cortex-root> worktree add
+/tmp/cortex-pr-startday-fixes-<date> -b start-day/fixes-<date>`.
+> 2. Apply every such fix **inside that worktree** (edit the worktree's `global-config/CLAUDE.md`,
+>    `global-config/settings.json`, etc. — never the hub copy, never `~/.claude/settings.json` directly).
+> 3. Commit + push + `gh pr create --base main`, then report the PR link in the briefing under
+>    "🩺 Claude-setup friction." **Do NOT auto-merge** — leave it for Jack to review (config/rule
+>    changes to the always-on setup are exactly what he wants eyes on), unless the run was invoked with
+>    an explicit merge directive. Remove the worktree only after merge (a later run or Jack).
 >
 > For each fix, in this safe order, and report what was applied in the briefing:
 >
@@ -899,7 +856,7 @@ rationale: "<why this stops the friction>" }`.
 >   change) to the **worktree's** `global-config/settings.json` **only if it's strictly additive and
 >   safe** (a read-only command allowlist, a missing-module install). Use the `update-config` skill's
 >   conventions. **NEVER** add a permission that loosens a guardrail Claude correctly fought (no `git
->   stash`, no making a read-only repo writable) — those are always `note`s, enforced by the bucket
+stash`, no making a read-only repo writable) — those are always `note`s, enforced by the bucket
 >   rules above. **Goes in the batched cortex PR** (a settings change is exactly the kind of thing Jack
 >   wants to review before it's live).
 > - `kind: "config"`, `target: shell` (e.g. `pip install …`) → run it if it's a safe, idempotent
@@ -918,12 +875,12 @@ rationale: "<why this stops the friction>" }`.
 >   directly on the main thread (SWAC is writable from the hub), or open a quick local edit; don't
 >   `/launch` for it. _(Jack's directive 2026-06-24: "for wishdesk just make them locally.")_
 >
-> **`sync-global-config.sh push` happens AFTER the run's PR merges, not during Step 5.** Because
+> **`sync-global-config.sh push` happens AFTER the cortex PR merges, not during Step 5.** Because
 > repo-tracked config/`CLAUDE.md`/hook changes now ship in the batched PR (above), they don't reach
 > `~/.claude` until that PR is merged and the hub fast-forwards — so the sync is a post-merge step
 > (Jack's, or a later `/start-day`/session that lands the merge), not something Step 5 runs against an
 > unmerged worktree. Only run `sync-global-config.sh push` in Step 5 if a fix was genuinely applied to
-> the hub directly (there should be none — memories live outside the repo and need no sync). Note in the briefing
+> the hub directly (there should be none now except memories, which need no sync). Note in the briefing
 > whether a Claude Code restart will be needed on merge (`.ts` MCP or `mcp.json` changes). Memory files
 > need no sync and are live immediately. If a fix is ambiguous or would touch something risky, **don't
 > apply it — list it under "needs Jack" in the panel** instead.
@@ -985,52 +942,6 @@ do not prompt. After a successful load, `touch "$STAMP"`.
 **Result:** a one-line `### 🌱 Local reseed` for the briefing — `reseeded N tables from dev` /
 `skipped (ran <date>)` / `skipped (skip-reseed)` / `failed: <reason>`.
 
-### Step 8 — Ship the run's writes as ONE PR, and leave the hub clean · orchestrator (ALWAYS LAST)
-
-**This step is mandatory and runs every time — it is what guarantees `/start-day` never leaves
-uncommitted changes behind.** By now every tracked-file write from Steps 3, 3b and 5 is sitting in
-the run worktree `$WT`. Turn it into one PR, then verify the hub is clean.
-
-**1. If `$WT` was never created, there is nothing to ship.** Skip to the check in step 4 and report
-`no config/KB changes this run`.
-
-**2. Commit everything in the worktree and open the PR.** Stage explicitly — never `git add -A`:
-
-```bash
-git -C "$WT" add DICTIONARY.md knowledge/COLUMN_MANIFEST.md global-config/   # only what changed
-git -C "$WT" commit -m "chore(start-day): KB + config updates for $DATE"
-git -C "$WT" push -u origin "start-day/$DATE"
-gh pr create --base main --head "start-day/$DATE" \
-  --title "chore(start-day): KB + config updates for $DATE" \
-  --body "Automated /start-day run. Contains: <DICTIONARY edits> · <column manifest refresh> · <Step 5 friction fixes>"
-```
-
-**Do NOT auto-merge.** These are changes to the always-on setup and the KB — exactly what Jack wants
-eyes on. Report the PR link in the briefing. Leave `$WT` in place until the PR merges (a later run or
-Jack removes it); the hub is already clean without removing it.
-
-**3. Post-merge sync is NOT this run's job.** `global-config/` changes reach `~/.claude` only after
-the PR merges and the hub fast-forwards (`git -C <root> pull --ff-only origin main` then
-`sync-global-config.sh push`). Note in the briefing if a Claude Code restart will be needed on merge
-(`.ts` MCP or `mcp.json` changes).
-
-**4. Verify the hub is clean — this is the actual guarantee.** Always run this, even when nothing
-shipped:
-
-```bash
-git -C ~/Desktop/Projects/sw-cortex status --porcelain
-```
-
-**Expected: empty output.** If ANY line comes back, `/start-day` wrote to the hub when it should
-have written to `$WT` — that is a bug in this run. Do **not** discard the changes and do **not**
-`git stash` (forbidden). Instead: report the dirty paths **loudly at the top of the briefing** under
-`⚠️ /start-day left the hub dirty`, name which step produced each file, and ask Jack whether to move
-them into the PR branch or drop them. Getting this wrong silently is what caused a full day of KB +
-config edits to be thrown away.
-
-**Result:** one line for the briefing — `PR #<num> opened (KB + config)` / `no config/KB changes this
-run`, plus the hub-clean confirmation or the dirty-path warning.
-
 ---
 
 ## Morning Briefing (final output)
@@ -1077,10 +988,6 @@ not just what was recommended — and list anything deferred under "needs Jack":
 ### 📚 Knowledge base (living doc)
 - <N facts updated / M added in DICTIONARY.md, or "nothing new to fold in">
 - Column manifest: <N tables across M DBs refreshed; "unchanged" or "schema changed: <table(s)>"; note any unreadable>
-
-### 📦 This run's PR (KB + config)
-- <PR #<num> — <what's in it>, awaiting your review; or "no config/KB changes this run">
-- Hub clean: <yes; or "⚠️ left dirty: <paths>" — name the step that wrote each, and ask before dropping>
 
 ### 📝 Meeting notes
 - <synced N new/updated Docs → C chunks, or "already current — nothing new" / "skipped (skip-sync)" / "Drive unavailable — skipped">
@@ -1131,7 +1038,7 @@ before ending the turn.
   to `/pending-deploy SERP`, which owns the real lint+test readiness gate. Don't run tests here.
 - **`DICTIONARY.md` is a living document.** Step 3 keeps it current with small daily edits —
   fold in / correct yesterday's learnings, never duplicate. The Step 3 agent **proposes**; the
-  orchestrator applies them **in the run worktree**, and they ship in Step 8's PR. The heavy reconcile stays with the weekly `/refresh-knowledge`; the daily
+  orchestrator applies. The heavy reconcile stays with the weekly `/refresh-knowledge`; the daily
   pass deliberately does **not** touch its watermark, so the two never collide.
 - **Step 5 (Claude-setup diagnostic + AUTO-FIX) is about the tooling, not the work.** It mines
   transcripts TWO ways: (a) tool-error friction via `claude-setup-friction.py` (read-only,
@@ -1151,16 +1058,9 @@ before ending the turn.
   via `/shutdown` (orchestrator-run, never a workflow agent). It only ever touches writable repos'
   worktrees, keeps anything in use, and hard-skips the protected/locked set. Skip it with
   `skip-shutdown`. This is separate from Step 0's worktree check, which stays flag-only.
-- **Every tracked-file write ships as ONE PR, and the hub ends CLEAN.** `DICTIONARY.md`, the column
-  manifest, and all Step 5 config/rule fixes are written to the run worktree `$WT`, never the hub
-  working copy, and Step 8 commits them as a single PR to `main`. `/start-day` must never leave
-  uncommitted changes in `~/Desktop/Projects/sw-cortex` — Step 8 verifies this with
-  `git status --porcelain` and reports loudly if anything leaked. (A run once left 10 modified files
-  uncommitted until they had to be discarded; that is the failure this prevents.) The only writes
-  outside the PR are memory files (outside the repo) and the Step 6 worktree removals.
-- **Otherwise read-only and advisory.** Beyond those writes and the Step 6 worktree shutdown, this
-  command never posts to Slack, never writes to a production DB, never archives a ticket, and never
-  merges its own PR. It surfaces and recommends; Jack acts.
+- **Otherwise read-only and advisory.** Beyond the `DICTIONARY.md` touch-up and the Step 6 worktree
+  shutdown, this command never posts to Slack, never writes to a production DB, never archives a
+  ticket, and never applies a setup/config change. It surfaces and recommends; Jack acts.
 - This command lives in `global-config/commands/` and its helper in `global-config/scripts/`
   (`claude-setup-friction.py`). After editing either, sync with
   `bash scripts/sync-global-config.sh push` so `~/.claude/commands/start-day.md` **and**
