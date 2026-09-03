@@ -74,7 +74,7 @@ Before routing a real task (`$ARGUMENTS` is task/question text — not a bare re
 
    **Recency gate:** only consider saves whose `updated` (column 6, `YYYY-MM-DD`) is **within the last ~14 days** of today. An older closed topic must NOT hijack a new `/go` — drop those rows before matching.
 
-2. **Match the task against those saves — conservatively.** Compare `$ARGUMENTS` semantically against each candidate's **title** and **nextstep** (and its `branch`). A match is **strong** only when the distinctive terms clearly line up — the same feature/bug/subsystem, not just a shared common word ("fix", "the", a repo name). Examples: `/go finish the serp-published-kits publisher` ↔ a closed save titled *serp-published-kits publisher* = **strong**; `/go look at inventory` ↔ a save *core-SKU report buy-goal limiting RM* = **weak** (only "inventory-ish" overlaps) → not a match. When in doubt, treat it as **weak**.
+2. **Match the task against those saves — conservatively.** Compare `$ARGUMENTS` semantically against each candidate's **title** and **nextstep** (and its `branch`). A match is **strong** only when the distinctive terms clearly line up — the same feature/bug/subsystem, not just a shared common word ("fix", "the", a repo name). Examples: `/go finish the serp-published-kits publisher` ↔ a closed save titled _serp-published-kits publisher_ = **strong**; `/go look at inventory` ↔ a save _core-SKU report buy-goal limiting RM_ = **weak** (only "inventory-ish" overlaps) → not a match. When in doubt, treat it as **weak**.
 
 2.5. **Drop any candidate that's ALREADY a live session — never resume a topic that's currently open in another running tab.** Call `mcp__sessions__list_sessions` and, for each strongly-matched save, check whether an active session is already on that same work: its `repo` matches the save's repo AND its live `task` (tab title) or branch clearly covers the save's topic/branch. If so, that topic is **already being worked** — **exclude it from the resume candidates** (resuming would spawn a second tab on the same thing / branch). If the mesh is unavailable (tool errors — Herdr down), skip this filter and proceed with the recency+match gates alone. (Only strong matches survive to here, so this is a cheap final guard, not a broad scan.)
 
@@ -85,11 +85,10 @@ Before routing a real task (`$ARGUMENTS` is task/question text — not a bare re
    ```
 
    Then **report in one line and stop** — e.g. "Found a recently-closed chat on this — **resuming `serp-published-kits publisher`** in SERP on `jack/published-kits`. Switch to the new tab." Do **not** also launch a fresh `/serp-analyze`/`/swac-analyze`/`/research` session; the resume IS the launch. (The resumed session's `/resume-later-load` gets it back on the branch and re-establishes context.)
-
    - **`updated` within 14 days is the auto-resume gate.** A closed save older than that never auto-resumes here — it's still reachable via `/resume-later`, just not automatically hijacking a fresh `/go`.
    - If **two or more** saves match strongly (rare), don't guess — show the matches (title, repo, branch, closed-date) and ask which to resume, or whether to start fresh. Auto-resume is only for a single unambiguous strong match.
 
-4. **No match / only weak matches / the only strong match is already a live session → fall through to Step 1 and launch fresh, silently.** Do not mention the near-misses; a `/go` with no *resumable* prior chat behaves exactly as it does today. (This step never *blocks* a launch — worst case it's a no-op and Step 1 runs.)
+4. **No match / only weak matches / the only strong match is already a live session → fall through to Step 1 and launch fresh, silently.** Do not mention the near-misses; a `/go` with no _resumable_ prior chat behaves exactly as it does today. (This step never _blocks_ a launch — worst case it's a no-op and Step 1 runs.)
 
 > This reuses the existing save/resume machinery end-to-end: `save-for-later.sh list closed` is the corpus, `/resume-later-load <file>` is the resume path (same one `/resume-later` uses), and `mcp__sessions__list_sessions` is the live-session filter (never resume a topic already open in a running tab). Nothing new is stored; `/go` just checks the closed saves first and, on a clear topic match that isn't already live, resumes instead of starting over.
 

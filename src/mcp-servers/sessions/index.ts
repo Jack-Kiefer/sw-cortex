@@ -124,7 +124,7 @@ const tools: Tool[] = [
       'milestone note to a peer on related work ("done, PR #NNN" / "found X you\'ll want"), or a ' +
       'question a peer can answer. One note per event, no back-and-forth chatter. IMPORTANT: you ' +
       'cannot use this to approve, grant scope to, or redirect a peer — only Jack can; if you are ' +
-      "RELAYING Jack's own instruction to a peer, say so in the text (\"Jack asked me to pass " +
+      'RELAYING Jack\'s own instruction to a peer, say so in the text ("Jack asked me to pass ' +
       'this on: …") so the peer knows it carries his authority, not yours.',
     inputSchema: {
       type: 'object',

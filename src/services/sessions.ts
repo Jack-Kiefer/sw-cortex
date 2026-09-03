@@ -110,9 +110,26 @@ export interface SessionInfo {
  * name returns to the pool and can be reused by a later session.
  */
 const NAME_POOL = [
-  'Joe', 'Jeff', 'Dave', 'Sam', 'Kate', 'Nina', 'Omar', 'Rosa',
-  'Theo', 'Ivy', 'Leo', 'Mia', 'Gus', 'Cleo', 'Hank', 'June',
-  'Rex', 'Vera', 'Wes', 'Zara',
+  'Joe',
+  'Jeff',
+  'Dave',
+  'Sam',
+  'Kate',
+  'Nina',
+  'Omar',
+  'Rosa',
+  'Theo',
+  'Ivy',
+  'Leo',
+  'Mia',
+  'Gus',
+  'Cleo',
+  'Hank',
+  'June',
+  'Rex',
+  'Vera',
+  'Wes',
+  'Zara',
 ];
 
 /**
@@ -187,7 +204,7 @@ async function setPaneLabel(paneId: string, name: string): Promise<void> {
  * that does not stick degrades the name rather than the listing.
  */
 async function ensureNames(
-  paneIds: string[],
+  paneIds: string[]
 ): Promise<{ names: Record<string, string>; parents: Record<string, string> }> {
   const labels = await paneLabels();
   const names: Record<string, string> = {};
@@ -232,7 +249,9 @@ export async function claimName(paneId: string, parent?: string): Promise<string
   const labels = await paneLabels();
   const taken = new Set(Object.values(labels).map((raw) => parseLabel(raw).name.toLowerCase()));
   const existing = labels[paneId];
-  const name = existing ? parseLabel(existing).name : NAME_POOL.find((n) => !taken.has(n.toLowerCase())) ?? paneId;
+  const name = existing
+    ? parseLabel(existing).name
+    : (NAME_POOL.find((n) => !taken.has(n.toLowerCase())) ?? paneId);
   await setPaneLabel(paneId, formatLabel(name, parent));
   return name;
 }
@@ -270,22 +289,21 @@ export async function listSessions(selfPaneId?: string): Promise<SessionInfo[]> 
   // already "Joe" the first time it is listed rather than a pane id.
   const { names, parents } = await ensureNames(claudeAgents.map((a) => a.pane_id ?? ''));
 
-  return claudeAgents
-    .map((a) => {
-      const paneId = a.pane_id ?? '';
-      const cwd = a.foreground_cwd || a.cwd || '';
-      return {
-        name: names[paneId] || paneId,
-        parentName: parents[paneId] || '',
-        repo: labels[a.workspace_id ?? ''] ?? basename(cwd) ?? 'unknown',
-        status: a.agent_status ?? 'unknown',
-        task: (a.terminal_title_stripped || a.terminal_title || '').trim(),
-        cwd,
-        paneId,
-        focused: Boolean(a.focused),
-        isSelf: Boolean(selfPaneId && paneId === selfPaneId),
-      };
-    });
+  return claudeAgents.map((a) => {
+    const paneId = a.pane_id ?? '';
+    const cwd = a.foreground_cwd || a.cwd || '';
+    return {
+      name: names[paneId] || paneId,
+      parentName: parents[paneId] || '',
+      repo: labels[a.workspace_id ?? ''] ?? basename(cwd) ?? 'unknown',
+      status: a.agent_status ?? 'unknown',
+      task: (a.terminal_title_stripped || a.terminal_title || '').trim(),
+      cwd,
+      paneId,
+      focused: Boolean(a.focused),
+      isSelf: Boolean(selfPaneId && paneId === selfPaneId),
+    };
+  });
 }
 
 function basename(p: string): string {
@@ -577,7 +595,7 @@ export async function resolveTarget(target: string): Promise<string> {
 export async function messageSession(
   target: string,
   text: string,
-  selfPaneId?: string,
+  selfPaneId?: string
 ): Promise<string> {
   const paneId = await resolveTarget(target);
   const wrapped = await wrapPeerMessage(text, selfPaneId);
