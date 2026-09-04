@@ -33,11 +33,16 @@
 #     * kern.memorystatus_vm_pressure_level: 1=normal, 2=warn, 4=critical. We block
 #       at >= 2 (warn or critical) — i.e. only once macOS itself says it is stressed,
 #       having already reclaimed what it cheaply could.
-#     * PLUS the hard swap-headroom floor (swap is the real wall that ran out on
-#       Sept 2) and the concurrent-heavy-proc cap — either still blocks on its own.
-#   Net effect: a heavy run is ALLOWED to push into reclaimable memory (healthy
-#   pressure that makes macOS drop caches / compress), and is refused only when the
-#   kernel flags warn/critical OR swap is nearly exhausted OR 2+ heavy runs are live.
+#     * PLUS the hard swap floor and the concurrent-heavy-proc cap.
+#   Revised again 2026-09-04 (headroom-first): the pressure_level/swap-free signals
+#   proved too twitchy to use alone — pressure_level flaps to 2 (warn) transiently
+#   and swap runs near-full as a steady state, so the guard blocked while the machine
+#   still had ~half its RAM free. The PRIMARY gate is now the kernel's free-percentage
+#   (kern.memorystatus_level): >= 25% free ALWAYS allows, and only genuine starvation
+#   (free-% low AND kernel CRITICAL, or free-% low AND swap <400MB) blocks.
+#   Net effect: a heavy run is ALLOWED to pressure reclaimable memory whenever there
+#   is real headroom, and refused only when the machine is actually low on free memory
+#   AND hitting a hard wall — or when 2+ heavy runs are already live.
 #
 # Exit 0 = allow. A deny is emitted as PreToolUse JSON on stdout.
 
@@ -83,28 +88,61 @@ node_heavy=$(pgrep -fl 'node' 2>/dev/null \
 heavy=$(( heavy + ${node_heavy:-0} ))
 
 # --- thresholds ------------------------------------------------------------
-# Block ONLY on REAL pressure — let a heavy run push into reclaimable memory
-# (that pressure is healthy: macOS drops caches / compresses in response), and
-# refuse only when:
-#   * the KERNEL says warn/critical (memorystatus_vm_pressure_level >= 2), OR
-#   * swap is nearly exhausted (<800MB left) — the hard wall from Sept 2, OR
-#   * two+ memory-heavy processes are already running.
-# Any one is enough to make a third concurrent 7GB-ceiling process the thing that
-# tips the machine over. (The old pure-free-RAM<1.5GB rule was removed — macOS keeps
-# free near zero by design, so it fired constantly and blocked healthy runs.)
+# HEADROOM IS THE PRIMARY GATE. kern.memorystatus_level is the kernel's own
+# free-percentage — the honest "how much can I still hand out" number (it counts
+# reclaimable cache + inactive pages, which macOS gives up on demand). When that is
+# healthy, the machine is NOT starved no matter what the other signals say, so we
+# ALLOW unconditionally and let the heavy run pressure reclaimable memory (healthy —
+# macOS drops caches / compresses in response).
+#
+# Why this gate exists: the pressure_level and swap-free signals are too twitchy on
+# a busy 16GB box to use alone. pressure_level flaps to 2 (warn) transiently even at
+# ~44% free, and swap runs near-full as a STEADY STATE (macOS parks cold anonymous
+# pages there and leaves them) — so "level>=2" and "swap-free<800MB" both fired while
+# the machine had ~half its RAM free. Gating on free-% first fixes that: a transient
+# warn or a steady-full swap no longer blocks when there is real headroom.
+#
+# ALLOW immediately when free-% >= 25 (plenty of headroom). Only past that do the
+# hard signals get a vote, and only GENUINE starvation blocks:
+#   * kernel CRITICAL (pressure_level == 4) — not mere warn, and
+#   * swap almost gone (<400MB) — a much lower floor than before.
+# The concurrent-heavy-proc cap (>=2) is independent of pressure — it stops piling a
+# 3rd 7GB-ceiling run on top of two already live, which is the Sept-2 pile-up.
+HEADROOM_PCT=25      # >= this free-% ALWAYS allows
+SWAP_FLOOR_MB=400    # only a vote when headroom is already low
+
 block=""
-[ "${pressure:-1}" -ge 2 ] 2>/dev/null && block="the kernel reports memory pressure ($([ "$pressure" = 4 ] && echo CRITICAL || echo warn))"
-[ "$swap_free" -lt 800 ] 2>/dev/null && block="swap nearly exhausted (${swap_free}MB free of ${swap_total}MB)"
+# free-% low AND a hard starvation signal → block
+if [ "${mem_pct:-100}" != "?" ] && [ "${mem_pct:-100}" -lt "$HEADROOM_PCT" ] 2>/dev/null; then
+  [ "${pressure:-1}" = 4 ] 2>/dev/null && block="the kernel reports CRITICAL memory pressure at ${mem_pct}% free"
+  [ "$swap_free" -lt "$SWAP_FLOOR_MB" ] 2>/dev/null && block="only ${mem_pct}% RAM free and swap nearly exhausted (${swap_free}MB of ${swap_total}MB)"
+fi
+# concurrent-heavy cap is independent of current headroom
 [ "${heavy:-0}" -ge 2 ] 2>/dev/null && block="${heavy} memory-heavy processes are ALREADY running"
 
 [ -n "$block" ] || exit 0
 
 lvl=$([ "$pressure" = 4 ] && echo critical || { [ "$pressure" = 2 ] && echo warn || echo normal; })
-jq -n --arg reason "$block" --arg lvl "$lvl" --arg mempct "$mem_pct" --arg swapfree "$swap_free" --arg heavy "$heavy" '{
+
+# Build the full reason as a shell string (real newlines via printf), then hand it
+# to jq as a SINGLE --arg so jq escapes it into valid JSON. (Concatenating "\n"
+# inside a jq expression emitted raw control chars that strict parsers reject.)
+reason=$(printf '%s' "BLOCKED — machine is genuinely low on memory: ${block}. (free ${mem_pct}%, kernel pressure: ${lvl}, swap free ${swap_free}MB, heavy procs running: ${heavy})
+
+This machine HARD-CRASHED on 2026-09-02 from exactly this: concurrent typecheck/jest runs with a 7-8GB per-process heap ceiling (SWAC package.json NODE_OPTIONS) on a 16GB box. jetsam killed ~360 processes, WindowServer was watchdog-killed, and 13 Claude sessions were lost.
+
+This guard gates on real free-percentage headroom — it allows whenever >=25% RAM is free, so a block means free memory is genuinely low AND the machine is hitting a hard wall (kernel critical or swap almost gone), or 2+ heavy runs are already live. DO NOT retry this command as-is, and do NOT route around the guard. Instead:
+  1. Run \`herdr agent list\` and see which peer is mid heavy run.
+  2. Wait for it to finish, or message that peer to coordinate a slot (only ONE heavy run at a time across all sessions).
+  3. Re-run once memory recovers — check \`sysctl -n kern.memorystatus_level\` (want >=25) and \`sysctl -n vm.swapusage\`. Freeing a heavy non-Claude app (Chrome/Docker/Spotify) or a detached session unblocks it fastest.
+
+If you genuinely must run it now, cap the heap yourself: NODE_OPTIONS=\"--max-old-space-size=3072\" prefixed on the command, and workers limited (e.g. --maxWorkers=2). Tell Jack why it could not wait.")
+
+jq -n --arg reason "$reason" '{
   hookSpecificOutput: {
     hookEventName: "PreToolUse",
     permissionDecision: "deny",
-    permissionDecisionReason: ("BLOCKED — machine is under memory pressure: " + $reason + ". (kernel pressure: " + $lvl + ", free " + $mempct + "%, swap free " + $swapfree + "MB, heavy procs running: " + $heavy + ")\n\nThis machine HARD-CRASHED on 2026-09-02 from exactly this: concurrent typecheck/jest runs with a 7-8GB per-process heap ceiling (SWAC package.json NODE_OPTIONS) on a 16GB box. jetsam killed ~360 processes, WindowServer was watchdog-killed, and 13 Claude sessions were lost.\n\nThis guard now trips only on REAL pressure (kernel warn/critical or swap near-empty), not on low free RAM — so a block means the machine is genuinely at the wall. DO NOT retry this command as-is, and do NOT route around the guard. Instead:\n  1. Run `herdr agent list` and see which peer is mid-typecheck/test.\n  2. Wait for it to finish, or message that peer to coordinate a slot (only ONE heavy run at a time across all sessions).\n  3. Re-run once memory recovers — check with `sysctl -n kern.memorystatus_vm_pressure_level` (want 1) and `sysctl -n vm.swapusage`.\n\nIf you genuinely must run it now, cap the heap yourself: NODE_OPTIONS=\"--max-old-space-size=3072\" prefixed on the command, and jest with --maxWorkers=2. Tell Jack why it could not wait.")
+    permissionDecisionReason: $reason
   }
 }'
 exit 0
