@@ -104,7 +104,7 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_mrp_bom_line',
     'serp_worker_run_history',
     'serp_account_move_line',
-    'odoo_sync_queue',
+    'serpy_sync_queue', // was odoo_sync_queue (Serpy renamed to serpy_* ~2026-08-31)
     '_migrations',
     // added from measured describe_table misses (14d window)
     'serp_stock_location',
@@ -113,14 +113,16 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_ir_exports',
   ],
   serp_app: [
-    'serp_draft_operations_live',
+    // Serpy surface renamed to the flat serpy_* namespace ~2026-08-31 (old *_live
+    // names now return frozen backup rows or are gone — use the current names):
+    'serpy_drafts', // was serp_draft_operations_live
+    'serpy_sync_queue', // was odoo_sync_queue_live
+    'serpy_messages', // was serp_ai_messages_live
+    'serpy_turns', // was serp_ai_turns_live
     'serpy_op_rules',
     'serp_worker_run_history',
     '_migrations',
     // added from measured describe_table misses (14d window)
-    'odoo_sync_queue_live',
-    'serp_ai_messages_live',
-    'serp_ai_turns_live',
     'serp_cron',
     'prelist_qty_log',
     'serp_stock_location',

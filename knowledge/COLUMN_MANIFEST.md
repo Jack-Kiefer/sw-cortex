@@ -4,7 +4,7 @@ Exact column names for the tables that agents query most. Regenerate with
 `npm run kb:columns`. Hand edits are overwritten and, worse, silently rot —
 a stale column list is more dangerous than a missing one.
 
-This file answers ONE question: _what are this table's real column names?_
+This file answers ONE question: *what are this table's real column names?*
 For what the columns MEAN, which database is authoritative, and the join
 invariants, read `DICTIONARY.md` — that is still the source of truth for
 semantics. Nothing here overrides it.
@@ -236,7 +236,7 @@ id int unsigned · name varchar(255) · first_name varchar(255) · last_name var
 
 ## serp_test
 
-#### serp_test.\_migrations
+#### serp_test._migrations
 
 **Columns (3):** version, filename, applied_at
 
@@ -446,9 +446,19 @@ id bigint · worker varchar(128) · env varchar(64) · kind enum('poller','cron'
 
 </details>
 
+#### serp_test.serpy_sync_queue
+
+**Columns (20):** id, entity_type, entity_id, operation, payload, status, attempts, max_attempts, last_attempt_at, next_attempt_at, error_message, error_details, odoo_id, odoo_response, created_at, updated_at, synced_at, priority, idempotency_key, sync_target
+
+<details><summary>with types</summary>
+
+id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20) · payload json · status varchar(20) · attempts int · max_attempts int · last_attempt_at datetime · next_attempt_at datetime · error_message text · error_details json · odoo_id bigint · odoo_response json · created_at datetime · updated_at datetime · synced_at datetime · priority int · idempotency_key varchar(255) · sync_target varchar(20)
+
+</details>
+
 ## serp_app
 
-#### serp_app.\_migrations
+#### serp_app._migrations
 
 **Columns (3):** version, filename, applied_at
 
@@ -498,6 +508,26 @@ id bigint · worker varchar(128) · env varchar(64) · kind enum('poller','cron'
 
 </details>
 
+#### serp_app.serpy_drafts
+
+**Columns (20):** id, user_id, operation_type, title, data, notes, status, submitted_at, approved_by, approved_at, rejection_reason, created_at, updated_at, slack_channel_id, slack_message_ts, sync_target, sync_targets, last_assistant_seq, classified_types, image_descriptions
+
+<details><summary>with types</summary>
+
+id bigint · user_id bigint · operation_type varchar(50) · title varchar(512) · data json · notes text · status varchar(20) · submitted_at datetime · approved_by bigint · approved_at datetime · rejection_reason text · created_at datetime · updated_at datetime · slack_channel_id varchar(50) · slack_message_ts varchar(50) · sync_target varchar(20) · sync_targets text · last_assistant_seq int · classified_types json · image_descriptions json
+
+</details>
+
+#### serp_app.serpy_messages
+
+**Columns (16):** id, draft_id, seq, turn_id, role, kind, content, tool_name, tool_call_id, duration_ms, tokens_in, tokens_out, model, error_type, user_id, created_at
+
+<details><summary>with types</summary>
+
+id bigint · draft_id bigint · seq int · turn_id bigint · role text · kind text · content json · tool_name text · tool_call_id text · duration_ms int · tokens_in int · tokens_out int · model text · error_type text · user_id bigint · created_at datetime
+
+</details>
+
 #### serp_app.serpy_op_rules
 
 **Columns (14):** chunk_id, tier, body, op_types, embed_text, priority, requires_chunks, tool_refs, active, created_by, updated_by, created_at, updated_at, content_hash
@@ -505,6 +535,26 @@ id bigint · worker varchar(128) · env varchar(64) · kind enum('poller','cron'
 <details><summary>with types</summary>
 
 chunk_id varchar(128) · tier enum('op_core','op_detail') · body text · op_types json · embed_text text · priority int · requires_chunks json · tool_refs json · active tinyint(1) · created_by varchar(255) · updated_by varchar(255) · created_at datetime · updated_at datetime · content_hash varchar(16)
+
+</details>
+
+#### serp_app.serpy_sync_queue
+
+**Columns (20):** id, entity_type, entity_id, operation, payload, status, attempts, max_attempts, last_attempt_at, next_attempt_at, error_message, error_details, odoo_id, odoo_response, created_at, updated_at, synced_at, priority, idempotency_key, sync_target
+
+<details><summary>with types</summary>
+
+id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20) · payload json · status varchar(20) · attempts int · max_attempts int · last_attempt_at datetime · next_attempt_at datetime · error_message text · error_details json · odoo_id bigint · odoo_response json · created_at datetime · updated_at datetime · synced_at datetime · priority int · idempotency_key varchar(255) · sync_target varchar(20)
+
+</details>
+
+#### serp_app.serpy_turns
+
+**Columns (30):** turn_id, draft_id, user_id, user_email, system_prompt, prompt_version, classified_types, classify_confidences, classify_reasoning, classify_hint, model, input_tokens, output_tokens, total_tokens, tool_calls_count, agent_rounds, tool_timings, schema_validation_errors, duration_ms, status, error_type, error_message, created_at, cache_creation_input_tokens, cache_read_input_tokens, classifier_input_tokens, classifier_output_tokens, vision_input_tokens, vision_output_tokens, chunk_selection
+
+<details><summary>with types</summary>
+
+turn_id bigint · draft_id bigint · user_id bigint · user_email text · system_prompt mediumtext · prompt_version text · classified_types json · classify_confidences json · classify_reasoning text · classify_hint text · model text · input_tokens int · output_tokens int · total_tokens int · tool_calls_count int · agent_rounds int · tool_timings json · schema_validation_errors json · duration_ms int · status text · error_type text · error_message text · created_at datetime · cache_creation_input_tokens int · cache_read_input_tokens int · classifier_input_tokens int · classifier_output_tokens int · vision_input_tokens int · vision_output_tokens int · chunk_selection json
 
 </details>
 
@@ -731,15 +781,3 @@ id int · ticket_number varchar(20) · category varchar(100) · request_type var
 id bigint · title varchar(255) · category_name varchar(255) · due_date datetime · completed_date datetime · completed tinyint(1) · details text · status varchar(50) · priority int · percent_complete int · start_date datetime · publicly_visible tinyint(1) · responsible_user_id int · owner_user_id bigint · assigned_by_user_id bigint · created_user_id bigint · assigned_team_id bigint · assigned_date datetime · email_id bigint · opportunity_id bigint · stage_name varchar(255) · parent_task_id bigint · reminder_date datetime · expiration_date datetime · reminder_sent tinyint(1) · owner_visible tinyint(1) · recurrence varchar(255) · recurrence_type enum('none','daily','weekly','monthly','yearly','workday') · recurrence_interval int · recurrence_days_of_week varchar(20) · recurrence_end_date date · recurrence_parent_id bigint · created_at datetime · updated_at datetime · record_id bigint unsigned · sales_rep varchar(255) · user_responsible bigint unsigned · responsible_user_name varchar(255) · owner_user_name varchar(255) · created_user_name varchar(255) · assigned_by_user_name varchar(255) · pipeline_name varchar(255) · completed_due_date_diff varchar(255) · assigned_team_name varchar(255) · linked_contact_name varchar(255) · linked_lead_name varchar(255) · opportunity_name varchar(255) · linked_organization_name varchar(255) · category_id bigint · stage_id bigint · metadata json · created_by_type enum('user','api','repeat','workflow','import') · insightly_task_id_gen varchar(64) · source_event_id varchar(128)
 
 </details>
-
-## Tables that could not be read
-
-These were requested but failed (missing table, permissions, or an
-unreachable host at generation time). Their absence here is NOT evidence
-that the table does not exist — verify against live before concluding that.
-
-- serp_test.odoo_sync_queue — Table 'serp_test.odoo_sync_queue' doesn't exist
-- serp_app.odoo_sync_queue_live — Table 'serp_app.odoo_sync_queue_live' doesn't exist
-- serp_app.serp_ai_messages_live — Table 'serp_app.serp_ai_messages_live' doesn't exist
-- serp_app.serp_ai_turns_live — Table 'serp_app.serp_ai_turns_live' doesn't exist
-- serp_app.serp_draft_operations_live — Table 'serp_app.serp_draft_operations_live' doesn't exist
