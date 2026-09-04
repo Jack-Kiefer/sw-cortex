@@ -159,6 +159,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
+  // Monotonic start captured before the switch so every tool — including a
+  // timed-out or failed query, where the duration matters most — reports how
+  // long it took. process.hrtime.bigint() is unaffected by wall-clock changes.
+  const started = process.hrtime.bigint();
+  const elapsedMs = () => Number(process.hrtime.bigint() - started) / 1e6;
+
   try {
     let result: unknown;
 
@@ -195,13 +201,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error(`Unknown tool: ${name}`);
     }
 
+    const ms = elapsedMs();
+    console.error(`[db] ${name} ${ms.toFixed(1)}ms`);
+
+    // Attach elapsed_ms without restructuring the existing payload: object
+    // results (query_database -> { columns, rows, rowCount }, describe_table ->
+    // { columns }) get the field merged in alongside their existing keys, which
+    // the describe-first guard and other callers still parse unchanged. Array
+    // and primitive results (list_tables, list_databases) keep their shape as
+    // is; their timing is still reported on stderr above.
+    const payload =
+      result !== null && typeof result === 'object' && !Array.isArray(result)
+        ? { ...(result as Record<string, unknown>), elapsed_ms: ms }
+        : result;
+
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
     };
   } catch (error) {
+    const ms = elapsedMs();
+    console.error(`[db] ${name} FAILED ${ms.toFixed(1)}ms`);
     return {
       content: [
-        { type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` },
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              error: error instanceof Error ? error.message : String(error),
+              elapsed_ms: ms,
+            },
+            null,
+            2
+          ),
+        },
       ],
       isError: true,
     };
