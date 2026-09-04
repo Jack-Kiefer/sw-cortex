@@ -8,7 +8,7 @@ description: Re-explain the last thing (or $ARGUMENTS) as a short, fact-checked,
 
 **"Nerf" it — take something complicated and hand it back simple.**
 
-Jack ran this because the last explanation (or a chunk of text he pasted) was too long, too hedged, too jargon-y, or too structured to be useful. His ask is: **say the same true thing, shorter and plainer** — and make sure it's actually *true* before you shorten it.
+Jack ran this because the last explanation (or a chunk of text he pasted) was too long, too hedged, too jargon-y, or too structured to be useful. His ask is: **say the same true thing, shorter and plainer** — and make sure it's actually _true_ before you shorten it.
 
 ## What to nerf
 
@@ -47,7 +47,7 @@ Target: **a short paragraph — 3-6 sentences** — that a smart person with no 
 
 **Don't:**
 
-- No headers, no tables, no nested bullets, no bold-label lists, no code blocks unless the answer *is* a command or a snippet.
+- No headers, no tables, no nested bullets, no bold-label lists, no code blocks unless the answer _is_ a command or a snippet.
 - No preamble ("Here's a simpler version…"), no closing recap, no "let me know if you want more detail" boilerplate.
 - No hedging stack ("it may possibly be that…"). One uncertainty marker, if it's real: "I haven't verified X."
 - **Don't drop the caveat that changes what Jack does.** Brevity never eats a real constraint — if the thing only works on staging, or breaks above 10k rows, that stays.

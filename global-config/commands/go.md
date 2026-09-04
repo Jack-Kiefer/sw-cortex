@@ -151,7 +151,6 @@ So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `l
 ~/.claude/scripts/set-tab-title.sh "\U0001f50d <what you're looking into>"   # then \U0001f528 building, \U0001f9ea verifying, \U0001f4e6 PR open, \u2705 done
 ```
 
-
 A new terminal is only worth it when the task needs a **different** repo's toolset/cwd (SERP or SWAC). For sw-cortex there's nothing to gain — the hub already has everything.
 
 **But ship the change as a PR to `main`, built in a throwaway worktree — never commit to the hub's `main` and never `git checkout` a branch in the hub working copy.** "Inline" means the _session_ runs in the hub; it does **not** mean committing straight to `main`. A sw-cortex change makes a **PR to `main` exactly like SERP does**, and like SERP's `/deploy` the branch is made in a **separate git worktree under `/tmp`** so the hub's own checkout never leaves `main`:

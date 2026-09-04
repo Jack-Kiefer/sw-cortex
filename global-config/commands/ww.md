@@ -1431,12 +1431,139 @@ At the START of every ticket-creation flow, re-fetch these four config files fre
 Ask what they want to create if not clear from their message:
 
 - **Type:** Story (new feature/enhancement), Bug (something broken), or Task (technical/infrastructure work)
-- **Track:** Laravel, Wishdesk, Retool, WishBot, React Receiver, Shipping Labels, or Swirl Bot
+- **Track:** Laravel, Wishdesk, Retool, WishBot, React Receiver, Shipping Labels, Swirl Bot, or SERP
 
 **Track-type compatibility:** Not every track supports every type. Validate the type+track combination against `ticket_types_by_track` in `wishworks/_config/enums.json`. In particular:
 
-- **Retool** and **Shipping Labels** do NOT support Stories (only Bug and Task)
-- If the developer asks for a Story on Retool or Shipping Labels, reject: "{Track} doesn't support Stories — only Bugs and Tasks. Did you mean to create a Task?" — wait for them to pick Bug, Task, or cancel before proceeding.
+- **Retool** does NOT support Stories (only Bug and Task). **Shipping Labels DOES support Stories** — `enums.json` gives it `bug`, `story`, `task`. (Corrected 2026-08-28: this line previously named Shipping Labels as story-less, which contradicted the live config and would have wrongly rejected a legitimate Shipping Labels story. Always trust `ticket_types_by_track`, not this sentence.)
+- **Devops** supports ONLY `task` — and is additionally gated, see Step 1a.
+- If the developer asks for a type the track doesn't support, reject: "{Track} doesn't support {Type}s — only {supported types}. Did you mean to create a {suggestion}?" — wait for them to pick a supported type or cancel before proceeding.
+
+**⛔ NEVER ASSIGN THE `devops` TRACK WITHOUT AN EXPLICIT YES FROM THE DEVELOPER (T-359, 2026-08-28).**
+
+`devops` is a real track in `enums.json` and its components read as a strong match for
+infrastructure work — so inference will reach for it confidently and be wrong. On 2026-08-28 two
+**Retool** tickets (WW-2879, WW-2880) were filed onto `devops` this way, because the work involved a
+database migration and connection credentials. **You may use inference to DETECT a possible devops
+request. You may never use inference to DECIDE one.** The developer must say so explicitly.
+
+**Step 1a — the devops confirmation gate.** Enter this gate when EITHER is true:
+
+- the developer names devops themselves, OR
+- the work looks devops-shaped: servers, deploys, restarts, environments, environment variables,
+  DNS, SSL certificates, CI, backups, monitoring, infrastructure access or credentials (AWS/IAM,
+  SSH/Tailscale, database creds, admin accounts for Odoo/Retool/Grafana/n8n), a devops-side
+  investigation of a slow/erroring service, or pulling server logs.
+
+Before entering the gate, **fetch `wishworks/_config/component-matrix.json` and read the `devops`
+component descriptions.** Each one carries an explicit `NOT ...` clause naming what belongs on a
+normal track instead (e.g. _"NOT customer or employee Sugarwish account logins... those are normal
+tickets on their own track"_). **If a `NOT` clause plainly covers the request, do not open the gate
+at all** — proceed on the ordinary track. That clause is what would have caught WW-2879.
+
+**Ask ONE short question with numbered options — and name the real owner.** Read the owner from
+that same file (`devops` → `primaryDev`; today Munyr Ahmed, but **always read it live, never
+hardcode a name**). **Keep it to these three lines. Do not add a paragraph explaining what DevOps
+covers, do not restate the request, do not justify why you are asking:**
+
+> **Is this a DevOps request for {primaryDev}?**
+> **1.** Yes — file it on devops
+> **2.** No — it's not devops
+
+**Brevity is the rule, not a preference (Anna, 2026-08-28).** The first version of this gate asked
+the same question in eight lines with a definition paragraph; she flagged it as far too much text
+for a yes/no. If someone asks what counts as devops, answer then — in one sentence
+(_"infrastructure itself: servers, deploys and environments, access and credentials"_) — not
+pre-emptively.
+
+**Then STOP and wait.** Rules for handling the answer:
+
+- **`1`, "yes", or "yes, devops" — an explicit affirmative — is the ONLY thing that opens the devops
+  path.** Silence, ambiguity, or a hedge ("probably", "I think so", "maybe?") is **not** a yes —
+  re-ask the same three lines once, plainly.
+- **`2` / "no"** → it is not devops. Continue into the NORMAL track question (Step 1) and never
+  re-raise devops. If they already named a track in their answer, take it and don't ask again.
+- **Never suggest a specific alternative track yourself** when asking the gate question. Offering
+  one is how a genuinely-devops request gets talked onto the wrong track to avoid the question.
+  Listing ALL valid tracks at the normal Step 1 question afterwards is fine — that is neutral.
+- **Never skip the gate because the answer seems obvious.** Inference being confident is exactly the
+  failure mode this exists to stop.
+
+**Step 1b — the devops path (only after an explicit yes).** Devops is **task-only**
+(`ticket_types_by_track.devops == ["task"]`), so `type: task`. Then:
+
+1. **Component — match it yourself; only ask when genuinely torn (Anna, 2026-08-28).** Read the six
+   `devops` component descriptions in `component-matrix.json` and compare them against the request:
+   - **One clear match → just pick it. Do not ask.** It is shown on the "Ready to create?" summary,
+     where they can change it before anything is written — that is the revision point.
+   - **Genuinely straddles two or three → offer ONLY those, numbered**, each with the phrase from
+     its description that made it a candidate. Never pad the list back out to all six.
+   - **Nothing matches → then, and only then, show all six.**
+
+   **Component inference is FINE — track inference is not.** Do not confuse the two rules. A wrong
+   component is visible on the summary and costs a one-word correction; a wrong _track_ silently
+   routes the ticket to another person's queue, which is why the gate above exists. Being cagey
+   about the component just makes the flow tedious — Anna flagged exactly this on 2026-08-28, when
+   SSL cert rotation straddled `Deploy & Environments` and `Security` and all six were shown.
+
+2. **Assignee** — set it to that component's `primaryDev` read live from the matrix. Do **not** ask.
+3. **What is this blocking?** Ask, and accept exactly one of these four answers:
+   - **Not blocking anything**
+   - **Blocking a tracked ticket** → get the `WW-####`
+   - **Will block a tracked ticket soon** → get the `WW-####`
+   - **Blocking work that isn't tracked**
+4. **Priority — DERIVE IT, NEVER ASK FOR IT.** Fetch `wishworks/_config/devops-priority-rubric.md`
+   and apply its table. In short: for either of the two ticket-backed answers, read that ticket's
+   own `priority` and copy it **straight across, uncapped — a blocked Critical yields Critical**;
+   _"will block soon"_ inherits **identically** to a live block, with no discount. All three of the
+   other cases — not blocking, untracked work, or the named ticket has no priority (or does not
+   exist) — leave `priority` **blank** for Anna and Seth to set. A bad ticket number must not stop
+   the flow: leave priority blank and carry on. **The rubric file is the source of truth — read it,
+   do not rely on this summary.**
+5. **Hard deadline?** Ask only whether there is a genuine must-hit date, and if so, the date they
+   need the _devops work_ done by (earlier than the blocked ticket's own date). Write it to
+   **`release_by`**. It does **not** change the priority.
+6. Everything else follows the normal flow (title, description, requestor, duplicate check).
+7. **`estimate` is NOT collected for devops.** Step 2's estimate rule is scoped to the Laravel,
+   React Receiver and Shipping Labels tracks only. Leave `estimate: ""` and do not ask — sizing the
+   work is the assigned developer's call.
+8. **Do NOT write `linked_tickets`.** `ticket-schema.md` states that field is system-managed by the
+   Wishdesk linking UI and must never be populated at intake. The blocked ticket you collected in
+   item 3 is used for **two** things only: deriving the priority, and being named in the body
+   (`## Description` / `justification`, e.g. _"Blocking WW-2685"_). Leave `linked_tickets: []`.
+
+**⚠️ Blocked-ticket lookup (item 4).** Read the blocked `WW-####` from `main`, like every other
+read this command makes. It is a read-only lookup of one field (`priority`) and changes nothing.
+If the number does not resolve, leave `priority` blank and carry on — a fat-fingered ticket number
+must never stop the flow.
+
+**✅ WHAT HAPPENS AFTER YOU CREATE IT — state this correctly, do not improvise (Anna, 2026-08-28).**
+
+**The card DOES post to `#devops-request`, automatically, about 2-3 minutes later.**
+`/ww` writes straight to GitHub and has no Slack capability of its own — WishBot's reconciliation
+announcer (`src/reconciliation/ticket-announcer.ts`) picks the new ticket up and posts the card.
+Its own doc comment is explicit: _"this path is the ONLY way a devops ticket created by `/ww`
+reaches #devops-requests... which is precisely the gap this module exists for."_ Verified live:
+Jaypee's WW-2879 was created at 07:54 and carried a `wishbot_post_ts` by 07:57.
+
+**⛔ NEVER tell the developer "WishBot only announces its own intake" or "a `/ww` ticket doesn't
+post" — that is FALSE**, and it leads them to go DM the owner about a request whose card is already
+in the channel. Do not tell anyone to "flag it to Munyr directly".
+
+**Template:** use the **`# DevOps Track` → `## DevOps Task`** section of `TICKET_FORMAT_GUIDE.md`
+(added 2026-08-28). Body sections are `## Description`, `## History`, `## Time Log` — devops has
+**no** Release Actions section. Name the blocked ticket in the Description (e.g. "Blocking WW-2685").
+
+**This gate applies to TRACK CHANGES too.** Moving a ticket **onto** devops requires the same
+explicit yes — see Track Change Rules. Moving a ticket **off** devops is a normal track change and
+needs no gate; that is how a misfiled ticket gets corrected, and it must stay easy.
+
+**Why the gate exists.** A devops ticket filed from here routes and announces correctly — its card
+posts to `#devops-request` like any other. The failure was never the routing, it was the
+**classification**: infrastructure-sounding words made inference confident, and confident inference
+put Retool work on Munyr's queue. The gate costs one question and removes that failure entirely,
+because the developer states the track either way. Step 1b then makes a confirmed devops ticket as
+complete as one filed through the `/devops` form.
 
 **Step 2: Collect required fields**
 
@@ -1519,7 +1646,7 @@ Follow the exact template for this track+type from the ticket format guide (`wis
 - `react-receiver` (NOT `react_receiver`, `reactreceiver`, or `react receiver`)
 - `shipping-labels` (NOT `shipping_labels`, `shippinglabels`, or `shipping labels`)
 
-If the user provides a track name that doesn't match anything in `enums.json` `tracks` (e.g., a brand-new track not yet added), write it lowercased with hyphens for any spaces (matches the existing convention) — don't reject. The reconciliation cron flags unknown tracks downstream for cleanup.
+If the user provides a track name that doesn't match anything in `enums.json` `tracks` (e.g., a brand-new track not yet added), write it lowercased with hyphens for any spaces (matches the existing convention) — don't reject. The reconciliation cron flags unknown tracks downstream for cleanup. **The one exception is `devops` — it IS a known track in `enums.json`, but it may only ever be written after the developer's explicit yes at the confirmation gate. See Step 1a.**
 
 Body sections:
 
@@ -1943,6 +2070,20 @@ Tracks NOT subject to the estimate gate: Wishdesk, Retool, WishBot, Swirl Bot.
 ## Track Change Rules
 
 When a developer changes a ticket's track (e.g., from Wishdesk to Laravel):
+
+**⛔ Changing a ticket ONTO the `devops` track requires the same explicit yes as creating one.**
+Run the Step 1a confirmation gate first, naming the current devops `primaryDev`, and only proceed on
+an explicit affirmative. If they confirm, also collect the devops path's fields (Step 1b: component,
+blocking answer, derived priority, `release_by`) — a retracked devops ticket must not be thinner
+than a freshly-filed one. **Moving a ticket OFF devops needs no gate** — that is how a misfiled
+ticket gets corrected and it must stay frictionless.
+
+⚠️ **Tell them the card will NOT move.** A retrack does not repost or relocate the Slack card:
+WishBot only announces a ticket whose `created_at` is inside a 24-hour freshness window, so a
+retrack of anything older announces nothing at all, and a ticket that was already announced keeps
+its original card in the original channel. So a ticket moved onto devops this way will **not** show
+up in the devops channel — say so plainly, so the requester knows to flag it to {primaryDev}
+directly. (T-359 chunk 6b / chunk 7 territory — a WishBot-side gap, not something this command can fix.)
 
 **Always do these on any track change:**
 
