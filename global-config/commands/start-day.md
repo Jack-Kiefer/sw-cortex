@@ -444,7 +444,7 @@ one SQL statement.
      CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.product_id')) AS UNSIGNED) AS product_id,
      JSON_UNQUOTE(JSON_EXTRACT(payload,'$.draft_id'))    AS draft_id,
      JSON_UNQUOTE(JSON_EXTRACT(payload,'$.description'))  AS descr
-   FROM odoo_sync_queue_live
+   FROM serpy_sync_queue
    WHERE entity_type='mrp_production' AND operation='create'
      AND status IN ('synced','partial')
      AND JSON_EXTRACT(payload,'$.bom_id') IS NOT NULL
@@ -479,7 +479,7 @@ bom <bom_id> builds <bom_sku> but product_id <product_id> is <product_sku>`. If 
 
 5. **Also surface silently-STUCK ops** (the same draft that carried the mismatch, #1444, ALSO had an
    op that hard-**failed** and was never retried — `failed` rows are never auto-repicked, so a needed
-   MO just never happened). In the same `serp_app` pull, add a second bucket: any `odoo_sync_queue_live`
+   MO just never happened). In the same `serp_app` pull, add a second bucket: any `serpy_sync_queue`
    row (ANY `entity_type`, not just MO) with `status IN ('failed','dlq')` and
    `created_at >= NOW() - INTERVAL 2 DAY`. Report each as `stuck: <entity_type> "<descr>" (draft
 #<id>) — <first line of error_message>`. This is a distinct signal from the mismatch (a mismatch
@@ -535,7 +535,7 @@ Odoo record it produced.** Payloads live in `serp_app` (MySQL); the resulting re
      JSON_UNQUOTE(JSON_EXTRACT(payload,'$.author_email')) AS author,
      CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.product_qty')) AS DECIMAL(16,4)) AS product_qty,
      JSON_EXTRACT(payload,'$.components') AS components
-   FROM odoo_sync_queue_live
+   FROM serpy_sync_queue
    WHERE entity_type='mrp_production' AND operation='create'
      AND status IN ('synced','partial') AND sync_target='odoo' AND odoo_id IS NOT NULL
      AND created_at >= (NOW() - INTERVAL 2 DAY)
