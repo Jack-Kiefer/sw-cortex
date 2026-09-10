@@ -96,6 +96,27 @@ sw-cortex is the **single Claude Code hub** Jack launches — normally as a **He
 - **Deploy:** SERP deploys via its repo-local `/deploy` (run from a SERP session) — ships `origin/dev`→`main` to Hetzner K3s (from a `/tmp` worktree). Not a hub command.
 - **`/go <task>` (or asking in plain English) opens a REAL session in the right repo.** `/go` — and conversational equivalents like "fix X in a new go" / "spin up a session for X" — auto-detect the writable repo (SERP/SWAC/sw-cortex; read-only-repo tasks route to the writable repo that owns the change) and run `~/.claude/scripts/launch-repo-session.sh <root> "<task>"` (just the repo root + the task prompt — no `--label`, no inline `set-tab-title.sh`/`claude`; the launcher derives the descriptive tab name from the task), which opens a new terminal tab — a **Herdr tab** (workspace per repo, tab per task) when the `herdr` server is running, else a VS Code terminal via the Go Launcher extension — — titled with a short **description of the task** (not the repo), e.g. `🔨 make SERPY require an MO date`, which the running session updates as it works (`🔍 researching` → `🙋 approve?` → `✅ done`; the tab stays open at `✅ done` — Jack closes it himself) — running a real `claude` session there with that repo's native commands + project MCP tools. **When launching, pass a clear, specific task string** so the derived tab name is descriptive. No confirmation — detect and launch. Use this whenever a task needs a repo's full toolset; the hub itself can only read/diagnose + run hub-compatible commands. **Fire-and-forget:** "launch that idea in a go and keep going" = launch the session for that idea AND immediately resume the current task — don't block on or babysit the new session; it works in parallel while the hub stays on its thread.
 
+## MySQL "Host is blocked because of many connection errors" — flush once, never retry
+
+`mysql2` failing with **`Host '<ip>' is blocked because of many connection errors`
+(`ER_HOST_IS_BLOCKED`, errno 1129)** means that MySQL host exceeded `max_connect_errors`. It is a
+**server-side block on the CLIENT IP**, not a bad query, a bad credential, or a transient blip —
+so **every retry fails identically, and each attempt re-arms the block.** It was the single
+largest friction cluster in the 2 days to 2026-09-10 (41 hits: 28 SWAC, 12 SERP, 1 cortex), all
+of it retry cascade.
+
+**Do NOT loop retries, and do NOT go hunting for a query/credential bug.** Clear it once:
+
+```bash
+mysqladmin --defaults-extra-file=<cnf> -h <host> flush-hosts   # or: FLUSH HOSTS; as an admin user
+```
+
+then retry the original command **once**. If you lack an account with `RELOAD` on that host
+(the usual case for the SWAC dev box), **stop and tell Jack** — the block needs someone with
+admin credentials; it will also clear on its own when the host restarts. If it recurs often, the
+real fix is raising `max_connect_errors` or finding whatever is spamming failed connections (a
+stale dev-server watcher retry loop is the usual culprit), not flushing repeatedly.
+
 ## Logging into WishDesk locally (SWAC dev)
 
 Running the SWAC app on your machine and signing in (`SWAC` = `WishDesk`; root `…/SWAC`). Local WishDesk uses **cookie-based sessions, NOT JWT** (Bearer is only for curl/API).
@@ -277,7 +298,7 @@ Read-only access to production databases. **Never run write queries.**
 
 **Always include LIMIT.** Use specific columns when possible.
 
-- **HARD GATE before the FIRST query against any serp\_\*/darklaunch/Laravel/Odoo table:** your immediately-prior call must be `mcp__db__describe_table` or `mcp__knowledge__search_knowledge` for that exact table. Never type a column you have not literally seen in that output this session — `standard_price`, `cost_method`, `quantity_done`, `increment_id`, `is_prepick`, `sugarwish_id` have all been guessed-wrong; the Odoo sync flag is the misspelled `oddo_synchronized`; join Odoo on `odoo_id`, never `id=id`. (This recurring schema-guess loop is the single largest fixable friction cluster, ~74/3-day.) **When you do skip the gate and guess wrong, the `db` MCP server now appends the table's REAL column list to the "Unknown column"/"does not exist" error** — read those columns and re-query with a real one; do NOT guess a second column. And a **trivial query (`SELECT 1`, `SELECT MAX(...)`, a single-table `COUNT(*)`) that comes back `Could not connect to '<db>' …` is a CONNECTION problem** (cold Hetzner/Odoo/RDS host or dropped tunnel), **not** a slow query — the timeout-preflight query-shape advice does not apply; just retry (the server already rebuilds the pool once) or check the host is up.
+- **HARD GATE before the FIRST query against any serp\_\*/darklaunch/Laravel/Odoo table:** your immediately-prior call must be `mcp__db__describe_table` or `mcp__knowledge__search_knowledge` for **that exact table**. **The gate is PER-TABLE and PER-SESSION — a describe of a _similarly-named_ table, or of the same table in an _earlier session_, does NOT satisfy it.** That is precisely where it keeps failing: ~20 guard fires in the 2 days to 2026-09-10 across `product_template`, `cron`, `live_chat_sessions`, `published_stock`, `ec_order`, `wine_category_goals`, `product_type` — each a table nobody had described _this_ session. Never type a column you have not literally seen in that output this session — `standard_price`, `cost_method`, `quantity_done`, `increment_id`, `is_prepick`, `sugarwish_id` have all been guessed-wrong; the Odoo sync flag is the misspelled `oddo_synchronized`; join Odoo on `odoo_id`, never `id=id`. (This recurring schema-guess loop is the single largest fixable friction cluster, ~74/3-day.) **When you do skip the gate and guess wrong, the `db` MCP server now appends the table's REAL column list to the "Unknown column"/"does not exist" error** — read those columns and re-query with a real one; do NOT guess a second column. And a **trivial query (`SELECT 1`, `SELECT MAX(...)`, a single-table `COUNT(*)`) that comes back `Could not connect to '<db>' …` is a CONNECTION problem** (cold Hetzner/Odoo/RDS host or dropped tunnel), **not** a slow query — the timeout-preflight query-shape advice does not apply; just retry (the server already rebuilds the pool once) or check the host is up.
 
 `query_database_from_file` reads the SQL off disk before executing — use it
 when the query is too long or awkward to inline (e.g. SERP's 20-CTE
