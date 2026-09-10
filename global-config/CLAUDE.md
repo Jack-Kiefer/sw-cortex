@@ -128,11 +128,14 @@ Keep the description to a handful of words — long enough to read as a phrase, 
 | 📝    | committing                                            |
 | ⬆️    | pushing                                               |
 | ❓    | blocked — error or missing info Jack must resolve     |
+| ⛔    | parked — waiting on someone/something else (`/blocked`) |
 | 📦    | PR opened, awaiting merge decision                    |
 | 🚀    | merged                                                |
 | ✅    | task finished                                         |
 
 These are the steps a full `/implement` session moves through, in order (each is just an emoji choice — the words are your own description of that step): `🔍 researching → 📋 planning → 🙋 approve? → 🔨 applying the fix → 🧪 verifying → 📝 committing → ⬆️ pushing → 📦 PR open → 🚀 merged → ✅ done`. Not every task hits every step (a pure research `/go` stops at `🙋`/`✅`); emit the ones that apply, in this order. Set 🙋/❓/📦/✅ — the **idle** states — **before ending the turn**, since that's what Jack sees while the tab sits.
+
+**⛔ parked (`/blocked <what>`) is the one STICKY status.** It sits outside the step sequence: it means the tab is waiting on something *outside* the session — a person, a merge, a nightly run — and should sit there quietly saying `⛔ Blocked waiting on <thing>` for as long as Jack wants to keep the tab. Unlike 🙋/❓/✅, it is **exempt from the UserPromptSubmit auto-demote** (Jack typing into the tab is not the blocker clearing) **and from the `--activity` force-🔨 override** (an incidental tool call must not silently un-park it). Clear it deliberately by setting the next real status when work resumes, or `/blocked --clear`. Use ❓ for "I'm stuck right now and need Jack to unstick me"; use ⛔ for "parked, nothing needed this second."
 
 **Log what you've DONE with `--did`, not just what you're doing.** The description says where you are _now_; add a short past-tense `--did "<phrase>"` each time you FINISH a meaningful step, so the tab also carries a breadcrumb of accomplishments and a full on-disk summary Jack can read. Pass it alongside the status (or on its own to log a step without changing the title):
 
@@ -233,6 +236,7 @@ WW-### tickets are dev-request **`.md` files in the `jasonbkiefer/SWIRL` repo** 
 | `/ww [description]`            | WishDesk work helper                                      |
 | `/nerf [text\|topic]`          | Fact-check + re-explain the last answer, short and plain  |
 | `/tab-title [name]`            | Set/clear this terminal tab title                         |
+| `/blocked [what]`              | Park this tab as ⛔ blocked waiting on something          |
 | `/compact-global`              | Compact + resume global context                           |
 | `/save-for-later [note]`       | Save a rich summary of this chat, then close the tab      |
 | `/resume-later [pick]`         | List saved chats and relaunch one in its repo             |

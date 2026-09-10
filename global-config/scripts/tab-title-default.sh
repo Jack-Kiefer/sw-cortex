@@ -64,6 +64,12 @@ if [ -f "$F" ]; then
   # the working state. ✅ is included because a re-prompted "done" tab must drop its checkmark
   # the instant Jack asks it something (Jack: "if I ask a question after it does checkmark it
   # should remove it"). SessionStart (no "--prompt") never demotes — it only re-asserts verbatim.
+  #
+  # ⛔ (/blocked) is deliberately NOT in that resting set: it means "parked, waiting on something
+  # outside this session" (a person, a merge, a nightly run), and Jack typing into the tab is not
+  # the blocker clearing — so a message must NOT un-park it. It stays ⛔ until the session sets a
+  # real status itself (or /blocked --clear). That stickiness is the whole point: the tab can sit
+  # there saying what it waits on without nagging, and Jack can keep it around indefinitely.
   if [ "$1" = "--prompt" ]; then
     # The bare hub floor is not a real status — it is "we had nothing better to call this tab".
     # Jack's prompt IS the better thing, so upgrade in place the first time one arrives. Only the

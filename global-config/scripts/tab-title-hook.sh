@@ -146,10 +146,12 @@ fi
 # keeps the session's own ✅/🔍, and a waiting/blocked pane is carried by Herdr's own live dot in
 # the sidebar (no emoji forced — Jack: "for waiting don't have anything because herdr has a dot").
 # This override is TRANSIENT — it rewrites $out only, never $F. Skipped when $out already leads ❓
-# (a live question popup override must win).
+# (a live question popup override must win) or ⛔ (a deliberately PARKED tab — see /blocked: it is
+# waiting on something outside the session, so an incidental tool call must not silently un-park it).
 if [ "$1" = "--activity" ]; then
   case "$out" in
     "❓ "*) : ;;  # question popup override active — don't touch it
+    "⛔ "*) : ;;  # /blocked parked state — sticky until the session sets a real status itself
     *)
       # Pick the forced emoji: the live tool wins (test/verify/lint/review → 🧪); else keep the
       # model's own 🔨/🧪 if it chose one; else default to 🔨 (building).
@@ -164,7 +166,7 @@ if [ "$1" = "--activity" ]; then
       # Strip whatever status emoji currently leads $out (any of the known set), then prepend
       # the forced one — keeping the description, "· activity" suffix, and "— trail" intact.
       rest="$out"
-      for e in "🔨" "🧪" "🔍" "📋" "🙋" "❓" "📦" "✅" "📝" "⬆️" "🚀" "🎯" "❌"; do
+      for e in "🔨" "🧪" "🔍" "📋" "🙋" "❓" "⛔" "📦" "✅" "📝" "⬆️" "🚀" "🎯" "❌"; do
         case "$rest" in "$e "*) rest="${rest#"$e" }"; break ;; esac
       done
       out="$femoji $rest"
