@@ -66,3 +66,6 @@ id_rsa*
 
 # Secret drop box — write-only paste target for live credentials (never commit, never Read)
 secret.txt
+
+# Local scratch work (CSV dumps, one-off scripts) — never committed
+scratch/
