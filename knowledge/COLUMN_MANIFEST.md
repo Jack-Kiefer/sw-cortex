@@ -402,7 +402,7 @@ id bigint unsigned · name varchar(255) · reference varchar(255) · origin varc
 
 <details><summary>with types</summary>
 
-id bigint unsigned · move_id bigint · picking_id bigint · product_id bigint unsigned · product_uom_qty decimal(16,4) · product_qty decimal(16,4) · qty_done decimal(16,4) · location_id bigint · location_dest_id bigint · state enum('draft','waiting','confirmed','assigned','done','cancel') · date datetime · reference varchar(255) · product_categ_id int · production_id bigint · product_uom_id bigint · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
+id bigint unsigned · move_id bigint · picking_id bigint · product_id bigint unsigned · product_uom_qty decimal(16,4) · product_qty decimal(16,4) · qty_done decimal(16,4) · location_id bigint · location_dest_id bigint · state enum('draft','waiting','confirmed','partially_available','assigned','done','cancel') · date datetime · reference varchar(255) · product_categ_id int · production_id bigint · product_uom_id bigint · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
 
 </details>
 
