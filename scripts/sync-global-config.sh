@@ -99,6 +99,12 @@ push_config() {
 
     mkdir -p ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.codex/skills
 
+    echo "Codex config:"
+    node "$SCRIPT_DIR/sync-codex-config.mjs" \
+        "$GLOBAL_CONFIG/codex/config.toml" "$HOME/.codex/config.toml"
+    cp "$GLOBAL_CONFIG/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+    echo "  Updated $HOME/.codex/AGENTS.md"
+
     # Copy commands (add new, don't remove existing).
     # ~/.claude/commands may be a symlink into global-config — nothing to copy then.
     echo "Commands:"
@@ -250,6 +256,7 @@ push_config() {
 
     echo ""
     echo "Done! Restart Claude Code to pick up changes."
+    echo "Restart Codex to pick up Codex config and skill changes."
 }
 
 pull_config() {
