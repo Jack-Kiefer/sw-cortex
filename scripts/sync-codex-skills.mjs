@@ -18,9 +18,10 @@ const writeSkill = (name, description, body) => {
   managedNames.add(name);
 };
 
+const genericAdaptation = '## Codex adaptation (generated)\n\nThis workflow comes from Claude Code. Preserve its intent, translate Claude-only tool and agent names to available Codex capabilities, never claim an unavailable tool ran, and give explicit user instructions precedence.\n\n';
 const codexAdaptation = (name, body) => name === 'go'
-  ? `## Codex adaptation (generated)\n\nThis is a Codex session. Every invocation of \`launch-repo-session.sh\` in this workflow MUST pass \`--agent codex\` immediately after the repository path. Ignore references that say the new process is Claude; launch Codex while preserving the routing, prompt, tab, and close behavior. Use Codex's available tools in place of Claude-only tool names.\n\n${body}`
-  : body;
+  ? `${genericAdaptation}This is a Codex session. Every invocation of \`launch-repo-session.sh\` in this workflow MUST pass \`--agent codex\` immediately after the repository path. Ignore references that say the new process is Claude; launch Codex while preserving the routing, prompt, tab, and close behavior.\n\n${body}`
+  : `${genericAdaptation}${body}`;
 
 mkdirSync(targetRoot, { recursive: true });
 const manifestPath = join(targetRoot, '.sugarwish-global-skills.json');
@@ -44,6 +45,11 @@ for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
   const target = join(targetRoot, entry.name);
   rmSync(target, { recursive: true, force: true });
   cpSync(source, target, { recursive: true });
+  const skillPath = join(target, 'SKILL.md');
+  const skill = readFileSync(skillPath, 'utf8')
+    .replace(/^disable-model-invocation:.*\n/m, '')
+    .replace(/^(---\n[\s\S]*?\n---\n)/, `$1\n${genericAdaptation}`);
+  writeFileSync(skillPath, skill);
   managedNames.add(entry.name);
 }
 

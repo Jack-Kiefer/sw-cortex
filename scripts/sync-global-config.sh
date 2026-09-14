@@ -107,6 +107,9 @@ push_config() {
         "$HOME/.codex/AGENTS.md"
     node "$SCRIPT_DIR/sync-codex-skills.mjs" \
         "$GLOBAL_CONFIG" "$HOME/.codex/skills"
+    node "$SCRIPT_DIR/sync-codex-hooks.mjs" \
+        "$GLOBAL_CONFIG/settings.json" "$HOME/.codex/hooks.json" \
+        "$SCRIPT_DIR/run-claude-hook-for-codex.mjs"
 
     # Copy commands (add new, don't remove existing).
     # ~/.claude/commands may be a symlink into global-config — nothing to copy then.
