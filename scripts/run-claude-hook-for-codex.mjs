@@ -15,7 +15,11 @@ if (!hook || hook.type !== 'command') process.exit(0);
 
 const raw = readFileSync(0, 'utf8');
 let input;
-try { input = JSON.parse(raw); } catch { input = {}; }
+try {
+  input = JSON.parse(raw);
+} catch {
+  input = {};
+}
 if (input.tool_name === 'apply_patch') {
   input.tool_name = 'Edit';
   input.tool_input ??= {};

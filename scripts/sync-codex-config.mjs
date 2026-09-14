@@ -42,10 +42,6 @@ if (tuiIndex === -1) {
   filtered.splice(tuiIndex, 0, '[tui]');
 }
 
-filtered.splice(
-  tuiIndex + 1,
-  0,
-  ...keys.map((key) => `${key} = ${valueFor(key)}`)
-);
+filtered.splice(tuiIndex + 1, 0, ...keys.map((key) => `${key} = ${valueFor(key)}`));
 writeFileSync(targetPath, `${filtered.join('\n').replace(/\n+$/, '')}\n`);
 console.log(`  Updated ${targetPath} status line`);
