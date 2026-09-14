@@ -59,6 +59,19 @@ const translateMatcher = (matcher = '') =>
     .join('|');
 
 let generated = 0;
+if ((source.permissions?.deny ?? []).length > 0) {
+  target.hooks.PreToolUse ??= [];
+  target.hooks.PreToolUse.push({
+    matcher: '',
+    hooks: [{
+      type: 'command',
+      command: `node ${JSON.stringify(new URL('./enforce-claude-denies-for-codex.mjs', import.meta.url).pathname)} ${JSON.stringify(settingsPath)}`,
+      timeout: 10,
+      statusMessage: '[codex-sync] Claude permission denies',
+    }],
+  });
+}
+
 for (const [event, groups] of Object.entries(source.hooks ?? {})) {
   if (!supportedEvents.has(event)) {
     console.log(`  Codex hooks: skipped unsupported Claude event ${event}`);
