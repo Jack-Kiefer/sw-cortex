@@ -44,9 +44,28 @@ atype=$(printf '%s' "$input" | jq -r '.tool_input.subagent_type // "general-purp
 
 # Writes must NOT go to Codex: repo-write-guard.sh has no Codex-side equivalent
 # yet, so a Codex agent editing SERP/SWAC would be outside the write guard.
-# Heuristic on the prompt — imperfect, but it errs toward keeping work on Claude,
-# which is the safe direction.
-if printf '%s %s' "$desc" "$prompt" | grep -qiE '\b(edit|write|commit|push|patch|refactor|implement|fix|migrat|deploy|delete|rename)\b'; then
+#
+# Scan the PROMPT ONLY, never the description. The description is incidental prose
+# ("Post-push hook liveness probe", "Research the deploy pipeline"), and including
+# it made the guard fail open on read-only work: a probe whose description merely
+# contained the word "push" sailed through while Claude sat at 98%.
+#
+# Match an IMPERATIVE opening a sentence or list item ("Edit the module.",
+# "- Commit the change") rather than the bare verb anywhere in free text, so
+# "research how the deploy works" or "explain why the fix broke" stay routable.
+# "push" and "fix" are dropped entirely — they read as narration far more often
+# than as instructions, and the explicit-intent pass below catches the real cases.
+write_verbs='edit|modify|rewrite|refactor|implement|patch|commit|migrate|deploy|delete|rename'
+if printf '%s' "$prompt" | grep -qiE "(^|[.!?]['\"]?[[:space:]]+|(^|[[:space:]])[-*][[:space:]]+|[[:space:]][0-9]+[.)][[:space:]]+)($write_verbs)\b"; then
+  exit 0
+fi
+
+# Belt and braces: unambiguous write intent phrased as an instruction about files
+# or repos, wherever it appears in the prompt.
+# `git push` must be phrased as something to RUN ("then git commit", "run git push"),
+# not merely named — "find where the git push step is implemented" is read-only and
+# belongs on Codex like any other search.
+if printf '%s' "$prompt" | grep -qiE '\b(open|land|ship|submit)\b[^.]{0,40}\b(pr|pull request)\b|(^|[[:space:]])(run|then|and|execute)[[:space:]]+git[[:space:]]+(commit|push|merge)\b|\bwrite[[:space:]]+(it|the|a|an|new)?[[:space:]]*(file|test|tests|code|patch|script)\b|\b(apply|make)[[:space:]]+the[[:space:]]+(fix|change|edit|patch)\b'; then
   exit 0
 fi
 
