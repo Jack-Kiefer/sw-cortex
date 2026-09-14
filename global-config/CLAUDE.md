@@ -118,24 +118,24 @@ Keep this session's terminal tab title showing what you're doing. Set it as soon
 
 Keep the description to a handful of words — long enough to read as a phrase, short enough to fit the sidebar. Prefer a real subject (`the scrap digest`, `kit-edit approval`, `the copier cap`) over a bare slug. No `·` or `—` separators in the base title (those read as clutter); the only `·` that appears is the automatic `· <activity>` suffix the hook adds, and the only `—` is the `--did` trail below.
 
-| Emoji | When                                                  |
-| ----- | ----------------------------------------------------- |
-| 🔍    | researching / investigating / debugging               |
-| 📋    | planning — designing the fix, before approval         |
-| 🙋    | about to stop and ask Jack for approval or a decision |
-| 🔨    | applying the fix / implementing / editing files       |
-| 🧪    | running tests / verifying                             |
-| 📝    | committing                                            |
-| ⬆️    | pushing                                               |
-| ❓    | blocked — error or missing info Jack must resolve     |
+| Emoji | When                                                    |
+| ----- | ------------------------------------------------------- |
+| 🔍    | researching / investigating / debugging                 |
+| 📋    | planning — designing the fix, before approval           |
+| 🙋    | about to stop and ask Jack for approval or a decision   |
+| 🔨    | applying the fix / implementing / editing files         |
+| 🧪    | running tests / verifying                               |
+| 📝    | committing                                              |
+| ⬆️    | pushing                                                 |
+| ❓    | blocked — error or missing info Jack must resolve       |
 | ⛔    | parked — waiting on someone/something else (`/blocked`) |
-| 📦    | PR opened, awaiting merge decision                    |
-| 🚀    | merged                                                |
-| ✅    | task finished                                         |
+| 📦    | PR opened, awaiting merge decision                      |
+| 🚀    | merged                                                  |
+| ✅    | task finished                                           |
 
 These are the steps a full `/implement` session moves through, in order (each is just an emoji choice — the words are your own description of that step): `🔍 researching → 📋 planning → 🙋 approve? → 🔨 applying the fix → 🧪 verifying → 📝 committing → ⬆️ pushing → 📦 PR open → 🚀 merged → ✅ done`. Not every task hits every step (a pure research `/go` stops at `🙋`/`✅`); emit the ones that apply, in this order. Set 🙋/❓/📦/✅ — the **idle** states — **before ending the turn**, since that's what Jack sees while the tab sits.
 
-**⛔ parked (`/blocked <what>`) is the one STICKY status.** It sits outside the step sequence: it means the tab is waiting on something *outside* the session — a person, a merge, a nightly run — and should sit there quietly saying `⛔ Blocked waiting on <thing>` for as long as Jack wants to keep the tab. Unlike 🙋/❓/✅, it is **exempt from the UserPromptSubmit auto-demote** (Jack typing into the tab is not the blocker clearing) **and from the `--activity` force-🔨 override** (an incidental tool call must not silently un-park it). Clear it deliberately by setting the next real status when work resumes, or `/blocked --clear`. Use ❓ for "I'm stuck right now and need Jack to unstick me"; use ⛔ for "parked, nothing needed this second."
+**⛔ parked (`/blocked <what>`) is the one STICKY status.** It sits outside the step sequence: it means the tab is waiting on something _outside_ the session — a person, a merge, a nightly run — and should sit there quietly saying `⛔ Blocked waiting on <thing>` for as long as Jack wants to keep the tab. Unlike 🙋/❓/✅, it is **exempt from the UserPromptSubmit auto-demote** (Jack typing into the tab is not the blocker clearing) **and from the `--activity` force-🔨 override** (an incidental tool call must not silently un-park it). Clear it deliberately by setting the next real status when work resumes, or `/blocked --clear`. Use ❓ for "I'm stuck right now and need Jack to unstick me"; use ⛔ for "parked, nothing needed this second."
 
 **Log what you've DONE with `--did`, not just what you're doing.** The description says where you are _now_; add a short past-tense `--did "<phrase>"` each time you FINISH a meaningful step, so the tab also carries a breadcrumb of accomplishments and a full on-disk summary Jack can read. Pass it alongside the status (or on its own to log a step without changing the title):
 
@@ -164,14 +164,14 @@ routed by whichever subscription actually has room, rather than always defaultin
 ~/.claude/scripts/agent-budget.sh --verdict  # just: claude | split | codex
 ```
 
-| Verdict  | What to do                                                                              |
-| -------- | --------------------------------------------------------------------------------------- |
-| `claude` | Business as usual — spawn subagents on Claude with the `Agent` tool.                     |
+| Verdict  | What to do                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------ |
+| `claude` | Business as usual — spawn subagents on Claude with the `Agent` tool.                             |
 | `split`  | Send cheap/bulk fan-out (research, search, read-only sweeps) to Codex; keep synthesis on Claude. |
-| `codex`  | Delegate everything delegable to Codex; reserve Claude for the MAIN session and writes.  |
+| `codex`  | Delegate everything delegable to Codex; reserve Claude for the MAIN session and writes.          |
 
 This governs **delegated** work only. The lead session stays on Claude — it holds the context,
-the guards, and the conversation with Jack. The router moves the *fleet*, never the cockpit.
+the guards, and the conversation with Jack. The router moves the _fleet_, never the cockpit.
 
 **How to delegate to Codex** — shell out with `codex exec`, which is the simple, dependable path:
 

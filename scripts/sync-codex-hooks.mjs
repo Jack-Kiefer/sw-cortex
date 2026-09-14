@@ -4,14 +4,25 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const [settingsPath, targetPath, adapterPath] = process.argv.slice(2);
 if (!settingsPath || !targetPath || !adapterPath) {
-  console.error('usage: sync-codex-hooks.mjs <claude-settings.json> <codex-hooks.json> <adapter.mjs>');
+  console.error(
+    'usage: sync-codex-hooks.mjs <claude-settings.json> <codex-hooks.json> <adapter.mjs>'
+  );
   process.exit(2);
 }
 
 const supportedEvents = new Set([
-  'PreToolUse', 'PermissionRequest', 'PostToolUse', 'PreCompact', 'PostCompact',
-  'UserPromptSubmit', 'SubagentStop', 'Stop', 'Interrupt', 'SessionStart',
-  'SubagentStart', 'SessionEnd',
+  'PreToolUse',
+  'PermissionRequest',
+  'PostToolUse',
+  'PreCompact',
+  'PostCompact',
+  'UserPromptSubmit',
+  'SubagentStop',
+  'Stop',
+  'Interrupt',
+  'SessionStart',
+  'SubagentStart',
+  'SessionEnd',
 ]);
 const source = JSON.parse(readFileSync(settingsPath, 'utf8'));
 let target = { hooks: {} };
@@ -25,20 +36,27 @@ for (const [event, groups] of Object.entries(target.hooks)) {
   target.hooks[event] = groups
     .map((group) => ({
       ...group,
-      hooks: (group.hooks ?? []).filter((hook) => {
-        const status = String(hook.statusMessage ?? '');
-        return !status.startsWith('[claude-sync]') && !status.startsWith('[codex-sync]');
-      }),
+      hooks: (group.hooks ?? []).filter(
+        (hook) => {
+          const status = String(hook.statusMessage ?? '');
+          return !status.startsWith('[claude-sync]') && !status.startsWith('[codex-sync]');
+        }
+      ),
     }))
     .filter((group) => group.hooks.length > 0);
   if (target.hooks[event].length === 0) delete target.hooks[event];
 }
 
-const translateMatcher = (matcher = '') => matcher
-  .split('|')
-  .flatMap((part) => ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(part) ? ['apply_patch'] : [part === 'Agent' ? 'spawn_agent' : part])
-  .filter((part, index, all) => part && all.indexOf(part) === index)
-  .join('|');
+const translateMatcher = (matcher = '') =>
+  matcher
+    .split('|')
+    .flatMap((part) =>
+      ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(part)
+        ? ['apply_patch']
+        : [part === 'Agent' ? 'spawn_agent' : part]
+    )
+    .filter((part, index, all) => part && all.indexOf(part) === index)
+    .join('|');
 
 let generated = 0;
 for (const [event, groups] of Object.entries(source.hooks ?? {})) {
@@ -80,4 +98,6 @@ target.hooks.Stop.push({
 });
 
 writeFileSync(targetPath, `${JSON.stringify(target, null, 2)}\n`);
-console.log(`  Generated ${generated} Codex hooks from Claude settings (existing native hooks preserved)`);
+console.log(
+  `  Generated ${generated} Codex hooks from Claude settings (existing native hooks preserved)`
+);

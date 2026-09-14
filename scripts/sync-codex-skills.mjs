@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, join } from 'node:path';
 
 const [globalConfig, targetRoot] = process.argv.slice(2);
@@ -14,14 +22,19 @@ const writeSkill = (name, description, body) => {
   const dir = join(targetRoot, name);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'SKILL.md'), `---\nname: ${name}\ndescription: ${JSON.stringify(description)}\n---\n\n${body.trim()}\n`);
+  writeFileSync(
+    join(dir, 'SKILL.md'),
+    `---\nname: ${name}\ndescription: ${JSON.stringify(description)}\n---\n\n${body.trim()}\n`
+  );
   managedNames.add(name);
 };
 
-const genericAdaptation = '## Codex adaptation (generated)\n\nThis workflow comes from Claude Code. Preserve its intent, translate Claude-only tool and agent names to available Codex capabilities, never claim an unavailable tool ran, and give explicit user instructions precedence.\n\n';
-const codexAdaptation = (name, body) => name === 'go'
-  ? `${genericAdaptation}This is a Codex session. Every invocation of \`launch-repo-session.sh\` in this workflow MUST pass \`--agent codex\` immediately after the repository path. Ignore references that say the new process is Claude; launch Codex while preserving the routing, prompt, tab, and close behavior.\n\n${body}`
-  : `${genericAdaptation}${body}`;
+const genericAdaptation =
+  '## Codex adaptation (generated)\n\nThis workflow comes from Claude Code. Preserve its intent, translate Claude-only tool and agent names to available Codex capabilities, never claim an unavailable tool ran, and give explicit user instructions precedence.\n\n';
+const codexAdaptation = (name, body) =>
+  name === 'go'
+    ? `${genericAdaptation}This is a Codex session. Every invocation of \`launch-repo-session.sh\` in this workflow MUST pass \`--agent codex\` immediately after the repository path. Ignore references that say the new process is Claude; launch Codex while preserving the routing, prompt, tab, and close behavior.\n\n${body}`
+    : `${genericAdaptation}${body}`;
 
 mkdirSync(targetRoot, { recursive: true });
 const manifestPath = join(targetRoot, '.sugarwish-global-skills.json');
