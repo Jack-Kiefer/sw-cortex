@@ -105,6 +105,8 @@ push_config() {
     node "$SCRIPT_DIR/sync-codex-agents.mjs" \
         "$GLOBAL_CONFIG/codex/AGENTS.md" "$GLOBAL_CONFIG/CLAUDE.md" \
         "$HOME/.codex/AGENTS.md"
+    node "$SCRIPT_DIR/sync-codex-skills.mjs" \
+        "$GLOBAL_CONFIG" "$HOME/.codex/skills"
 
     # Copy commands (add new, don't remove existing).
     # ~/.claude/commands may be a symlink into global-config — nothing to copy then.
@@ -120,28 +122,6 @@ push_config() {
             fi
         done
     fi
-
-    # Codex-native skills have their own source directory because Claude commands and
-    # tool names are not automatically portable. Shared helper scripts remain canonical.
-    echo ""
-    echo "Codex skills:"
-    for skill in "$GLOBAL_CONFIG/codex/skills/"*/; do
-        if [ -d "$skill" ]; then
-            name=$(basename "$skill")
-            target="$HOME/.codex/skills/$name"
-            if [ -e "$target" ] || [ -L "$target" ]; then
-                if [ "$target" -ef "$skill" ]; then
-                    echo "  = $name (symlinked)"
-                else
-                    cp -R "$skill/." "$target/"
-                    echo "  + $name"
-                fi
-            else
-                ln -s "$skill" "$target"
-                echo "  + $name (symlinked)"
-            fi
-        fi
-    done 2>/dev/null || echo "  (none found)"
 
     # Copy helper scripts (add new, don't remove existing)
     if [ -d "$GLOBAL_CONFIG/scripts" ]; then
