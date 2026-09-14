@@ -1,11 +1,10 @@
 # Jack's Global Codex Guidance
 
-Before substantial work, read `~/CLAUDE.md` as the live shared source for Jack's working
-preferences, repository map, operational knowledge, and workflow intent. Re-read relevant
-sections when that file changes. Apply its behavioral and domain guidance, but translate
-Claude-specific tool names, hooks, permission modes, slash commands, and agent APIs to the
-Codex capability that is actually available. This file and the active repository's
-`AGENTS.md` win when a Claude-only instruction cannot operate in Codex.
+The sync process appends the complete canonical global `CLAUDE.md` below this adapter so
+Codex loads the same shared setup automatically. Apply its behavioral and domain guidance,
+but translate Claude-specific tool names, hooks, permission modes, slash commands, and agent
+APIs to the Codex capability that is actually available. This adapter and the active
+repository's `AGENTS.md` win when a Claude-only instruction cannot operate in Codex.
 
 ## Working style
 
@@ -62,9 +61,6 @@ Codex capability that is actually available. This file and the active repository
 ## Verification
 
 - Follow the closest repository `AGENTS.md`; nested instructions override this file.
-- Read the repository's `CLAUDE.md` for its live architecture, commands, integrations, and
-  domain rules. Treat `AGENTS.md` as authoritative when the two files disagree about Codex
-  execution or safety.
 - sw-cortex: `npm run typecheck && npm run lint`, plus relevant tests.
 - SERP: use the commands and test-first requirements in its repository guidance.
 - Do not start or stop development servers unless the task requires it or Jack asks.

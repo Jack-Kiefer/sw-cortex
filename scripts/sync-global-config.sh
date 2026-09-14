@@ -102,8 +102,9 @@ push_config() {
     echo "Codex config:"
     node "$SCRIPT_DIR/sync-codex-config.mjs" \
         "$GLOBAL_CONFIG/codex/config.toml" "$HOME/.codex/config.toml"
-    cp "$GLOBAL_CONFIG/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
-    echo "  Updated $HOME/.codex/AGENTS.md"
+    node "$SCRIPT_DIR/sync-codex-agents.mjs" \
+        "$GLOBAL_CONFIG/codex/AGENTS.md" "$GLOBAL_CONFIG/CLAUDE.md" \
+        "$HOME/.codex/AGENTS.md"
 
     # Copy commands (add new, don't remove existing).
     # ~/.claude/commands may be a symlink into global-config — nothing to copy then.
