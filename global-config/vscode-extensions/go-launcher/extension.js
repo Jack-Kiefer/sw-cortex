@@ -1,4 +1,4 @@
-// go-launcher — opens a Claude Code terminal for each /go request, automatically.
+// go-launcher — opens a Claude Code or Codex terminal for each /go request, automatically.
 //
 // The /go command (launch-repo-session.sh) drops one file per request into
 // ~/.claude/go-queue/. This extension watches that dir and, for each file, opens a new
@@ -90,14 +90,15 @@ function processFile(filePath) {
     fs.unlinkSync(filePath);
   } catch {}
 
-  // Request file: line 1 = repo root; line 2 = "CLOSE_TTY=<tty>" control line;
-  // line 3+ = the (possibly multi-line) prompt.
-  const nl1 = raw.indexOf('\n');
-  const repo = (nl1 === -1 ? raw : raw.slice(0, nl1)).trim();
-  const rest = nl1 === -1 ? '' : raw.slice(nl1 + 1);
-  const nl2 = rest.indexOf('\n');
-  const line2 = (nl2 === -1 ? rest : rest.slice(0, nl2)).trim();
-  const prompt = nl2 === -1 ? '' : rest.slice(nl2 + 1);
+  // Request file: repo, CLOSE_TTY, AGENT, then the possibly multi-line prompt.
+  const lines = raw.split('\n');
+  const repo = (lines.shift() || '').trim();
+  const line2 = (lines.shift() || '').trim();
+  const agentLine = lines.length > 0 ? lines[0].trim() : '';
+  const hasAgentLine = agentLine === 'AGENT=codex' || agentLine === 'AGENT=claude';
+  const agent = agentLine === 'AGENT=codex' ? 'codex' : 'claude';
+  if (hasAgentLine) lines.shift();
+  const prompt = lines.join('\n');
   // The tty of the tab /go was run from — close it once the new tab is open.
   const closeTty = line2.startsWith('CLOSE_TTY=') ? line2.slice('CLOSE_TTY='.length).trim() : '';
 
@@ -150,9 +151,9 @@ function processFile(filePath) {
   // "/serp-analyze <task>") stays at offset 0 and actually dispatches.
   let cmd;
   if (prompt && prompt.trim()) {
-    cmd = `claude ${shq(prompt)}`;
+    cmd = `${agent} ${shq(prompt)}`;
   } else {
-    cmd = 'claude';
+    cmd = agent;
   }
 
   // preserveFocus=true: reveal the new tab WITHOUT stealing focus from wherever Jack is.

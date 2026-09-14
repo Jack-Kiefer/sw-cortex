@@ -97,7 +97,19 @@ push_config() {
     echo "Pushing global config from sw-cortex to ~/.claude (merge mode)..."
     echo ""
 
-    mkdir -p ~/.claude/commands ~/.claude/skills ~/.claude/scripts
+    mkdir -p ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.codex/skills
+
+    echo "Codex config:"
+    node "$SCRIPT_DIR/sync-codex-config.mjs" \
+        "$GLOBAL_CONFIG/codex/config.toml" "$HOME/.codex/config.toml"
+    node "$SCRIPT_DIR/sync-codex-agents.mjs" \
+        "$GLOBAL_CONFIG/codex/AGENTS.md" "$GLOBAL_CONFIG/CLAUDE.md" \
+        "$HOME/.codex/AGENTS.md"
+    node "$SCRIPT_DIR/sync-codex-skills.mjs" \
+        "$GLOBAL_CONFIG" "$HOME/.codex/skills"
+    node "$SCRIPT_DIR/sync-codex-hooks.mjs" \
+        "$GLOBAL_CONFIG/settings.json" "$HOME/.codex/hooks.json" \
+        "$SCRIPT_DIR/run-claude-hook-for-codex.mjs"
 
     # Copy commands (add new, don't remove existing).
     # ~/.claude/commands may be a symlink into global-config — nothing to copy then.
@@ -176,10 +188,12 @@ push_config() {
 
         # Merge with existing config
         merge_mcp_json "$TEMP_MCP" ~/.mcp.json
+        node "$SCRIPT_DIR/sync-codex-mcp.mjs" "$TEMP_MCP"
         rm "$TEMP_MCP"
     elif [ -f "$GLOBAL_CONFIG/mcp.json" ]; then
         # Fallback to static file if template doesn't exist
         merge_mcp_json "$GLOBAL_CONFIG/mcp.json" ~/.mcp.json
+        node "$SCRIPT_DIR/sync-codex-mcp.mjs" "$GLOBAL_CONFIG/mcp.json"
     fi
 
     # Copy global CLAUDE.md (this one we do overwrite - it's the canonical source)
@@ -226,6 +240,7 @@ push_config() {
 
     echo ""
     echo "Done! Restart Claude Code to pick up changes."
+    echo "Restart Codex to pick up Codex config and skill changes."
 }
 
 pull_config() {

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# launch-repo-session.sh — request a real Claude Code session in a target repo.
-# Used by the /go and /launch slash commands.
+# launch-repo-session.sh — request a real Claude Code or Codex session in a target repo.
+# Used by the /go and /launch workflows.
 #
-# Usage: launch-repo-session.sh <repo-root> [--label <tab-label>] [--keep-original] [initial prompt...]
+# Usage: launch-repo-session.sh <repo-root> [--agent claude|codex] [--label <tab-label>] [--keep-original] [initial prompt...]
 #
 #   --keep-original   Do NOT close the tab this was launched from (used by /launch).
 #                     Default (used by /go) closes the originating tab once the new one opens.
@@ -35,9 +35,16 @@ shift || true
 
 LABEL="$(basename "$REPO")"
 KEEP_ORIGINAL=
+AGENT=claude
 # Flags (any order) precede the prompt.
 while true; do
   case "${1:-}" in
+    --agent)
+      shift
+      AGENT="${1:-}"
+      case "$AGENT" in claude|codex) ;; *) echo "launch-repo-session: --agent must be claude or codex" >&2; exit 2 ;; esac
+      shift || true
+      ;;
     --label)         shift; LABEL="${1:-$LABEL}"; shift || true ;;
     --keep-original) KEEP_ORIGINAL=1; shift || true ;;
     *)               break ;;
@@ -118,7 +125,7 @@ launch_via_herdr() {
   # Name the tab after the task (the running session re-labels it via set-tab-title.sh).
   [ -n "$tab_id" ] && "$HERDR_BIN" tab rename "$tab_id" "$desc" >/dev/null 2>&1 || true
 
-  # Run claude via a self-deleting temp script so the pane doesn't echo the whole prompt.
+  # Run the selected agent via a self-deleting temp script so the pane doesn't echo the prompt.
   # The OSC 0 seed paints the pane's terminal_title before claude boots (same as the
   # VS Code extension's launch body); claude's hooks own the title from SessionStart on.
   local ls
@@ -128,17 +135,17 @@ launch_via_herdr() {
     printf "printf '\\\\033]0;%%s\\\\007' %q\n" "$desc"
     printf 'clear\n'
     if [ -n "$PROMPT" ]; then
-      printf 'claude %q\n' "$PROMPT"
+      printf '%q %q\n' "$AGENT" "$PROMPT"
     else
-      printf 'claude\n'
+      printf '%q\n' "$AGENT"
     fi
   } > "$ls"
   "$HERDR_BIN" pane run "$pane_id" "source $ls ; rm -f $ls" >/dev/null 2>&1 || {
     rm -f "$ls"; return 1
   }
 
-  echo "launch: opened a [$LABEL] Herdr tab ($tab_id) — check the Herdr window."
-  [ -n "$PROMPT" ] && echo "    It runs claude with your task as the first prompt."
+  echo "launch: opened a [$LABEL] $AGENT Herdr tab ($tab_id) — check the Herdr window."
+  [ -n "$PROMPT" ] && echo "    It runs $AGENT with your task as the first prompt."
 
   # Close the tab this /go was fired from (default /go behavior; --keep-original skips).
   # Herdr-origin: close our own Herdr tab. VS Code-origin (mixed mode — hub still in
@@ -194,13 +201,13 @@ if [ -z "$KEEP_ORIGINAL" ]; then
 fi
 
 # Unique per-request file (so concurrent /go's don't overwrite). Line 1 = repo root;
-# line 2 = "CLOSE_TTY=<tty>" control line (empty value if unresolved); line 3+ = prompt.
+# line 2 = "CLOSE_TTY=<tty>"; line 3 = "AGENT=claude|codex"; line 4+ = prompt.
 REQ="$(mktemp "$QUEUE_DIR/req.XXXXXX")"
-{ printf '%s\n' "$REPO"; printf 'CLOSE_TTY=%s\n' "$CLOSE_TTY"; printf '%s' "$PROMPT"; } > "$REQ"
+{ printf '%s\n' "$REPO"; printf 'CLOSE_TTY=%s\n' "$CLOSE_TTY"; printf 'AGENT=%s\n' "$AGENT"; printf '%s' "$PROMPT"; } > "$REQ"
 
-echo "launch: opening a [$LABEL] session — a new terminal tab will appear automatically."
+echo "launch: opening a [$LABEL] $AGENT session — a new terminal tab will appear automatically."
 if [ -n "$PROMPT" ]; then
-  echo "    It runs claude with your task as the first prompt."
+  echo "    It runs $AGENT with your task as the first prompt."
 fi
 if [ -n "$KEEP_ORIGINAL" ]; then
   echo "    (--keep-original: this tab stays open.)"
