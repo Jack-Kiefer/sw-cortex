@@ -13,6 +13,12 @@ the house rules; your brief (`.codex-brief.md` if present) is your complete scop
 
 ## Working Style
 
+- **Load the live shared setup.** Before substantial work, read `~/CLAUDE.md` and the
+  current repository's `CLAUDE.md` for Jack's latest preferences, architecture, workflows,
+  and domain facts. Apply shared intent, but translate Claude-only tools, hooks, permission
+  modes, slash commands, and agent APIs to available Codex capabilities. This `AGENTS.md`
+  wins for Codex execution and safety when the two differ.
+
 - **`/go` launches Codex too.** When Jack types `/go`, asks to "open a new go", or asks
   for a fresh repo session, use the installed `go` skill. It routes to SERP, SWAC, or
   sw-cortex and calls `~/.claude/scripts/launch-repo-session.sh` with `--agent codex`.
