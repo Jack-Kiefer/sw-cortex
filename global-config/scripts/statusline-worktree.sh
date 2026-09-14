@@ -117,11 +117,18 @@ fi
 _cxc="$HOME/.claude/codex-usage-cache.json"
 if [[ -f "$_cxc" ]]; then
   cx=$(jq -r 'if (.ok // false) then (.used_percent | floor) else empty end' "$_cxc" 2>/dev/null)
+  cxreset=$(jq -r 'if (.ok // false) then (.resets_at // empty) else empty end' "$_cxc" 2>/dev/null)
   if [[ -n "$cx" ]]; then
     if   [[ "$cx" -ge 90 ]]; then xc=$RED
     elif [[ "$cx" -ge 75 ]]; then xc=$YELLOW
     else xc=$DIM; fi
-    session+="${SEP}${xc}gpt ${cx}%${R}"
+    # Codex's weekly window ROLLS — resets_at drifts forward with use rather than
+    # landing on a fixed weekly boundary like Claude's. Shown in the same day+hour
+    # form as `wk`, but read it as approximate, not a deadline.
+    xreset=""
+    [[ -n "$cxreset" && "$cxreset" != "null" ]] \
+      && xreset=" ↻ $(date -r "$cxreset" +%-a\ %-l%p 2>/dev/null | tr 'APM' 'apm')"
+    session+="${SEP}${xc}gpt ${cx}%${xreset}${R}"
   fi
 fi
 summary_line=""
