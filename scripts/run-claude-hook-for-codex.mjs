@@ -19,7 +19,8 @@ try { input = JSON.parse(raw); } catch { input = {}; }
 if (input.tool_name === 'apply_patch') {
   input.tool_name = 'Edit';
   input.tool_input ??= {};
-  input.tool_input.file_path ??= input.tool_input.patch ?? input.tool_input.input ?? '';
+  input.tool_input.file_path ??=
+    input.tool_input.patch ?? input.tool_input.input ?? input.tool_input.command ?? '';
 } else if (input.tool_name === 'spawn_agent') {
   input.tool_name = 'Agent';
 }
