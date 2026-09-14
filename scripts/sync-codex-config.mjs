@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const [sourcePath, targetPath] = process.argv.slice(2);
 if (!sourcePath || !targetPath) {
@@ -9,8 +9,9 @@ if (!sourcePath || !targetPath) {
 }
 
 const source = readFileSync(sourcePath, 'utf8');
-const target = readFileSync(targetPath, 'utf8');
+const target = existsSync(targetPath) ? readFileSync(targetPath, 'utf8') : '';
 const keys = ['status_line', 'status_line_use_colors'];
+const rootKeys = ['project_doc_max_bytes'];
 
 const valueFor = (key) => {
   const match = source.match(new RegExp(`^${key}\\s*=\\s*(.+)$`, 'm'));
@@ -26,8 +27,13 @@ const filtered = lines.filter((line) => {
   if (table === 'tui' && keys.some((key) => new RegExp(`^\\s*${key}\\s*=`).test(line))) {
     return false;
   }
+  if (!table && rootKeys.some((key) => new RegExp(`^\\s*${key}\\s*=`).test(line))) {
+    return false;
+  }
   return !keys.some((key) => new RegExp(`^\\s*tui\\.${key}\\s*=`).test(line));
 });
+
+filtered.unshift(...rootKeys.map((key) => `${key} = ${valueFor(key)}`), '');
 
 let tuiIndex = filtered.findIndex((line) => /^\s*\[tui\]\s*$/.test(line));
 if (tuiIndex === -1) {

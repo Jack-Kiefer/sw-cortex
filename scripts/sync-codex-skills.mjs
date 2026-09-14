@@ -18,6 +18,10 @@ const writeSkill = (name, description, body) => {
   managedNames.add(name);
 };
 
+const codexAdaptation = (name, body) => name === 'go'
+  ? `## Codex adaptation (generated)\n\nThis is a Codex session. Every invocation of \`launch-repo-session.sh\` in this workflow MUST pass \`--agent codex\` immediately after the repository path. Ignore references that say the new process is Claude; launch Codex while preserving the routing, prompt, tab, and close behavior. Use Codex's available tools in place of Claude-only tool names.\n\n${body}`
+  : body;
+
 mkdirSync(targetRoot, { recursive: true });
 const manifestPath = join(targetRoot, '.sugarwish-global-skills.json');
 if (existsSync(manifestPath)) {
@@ -29,7 +33,8 @@ const commandsDir = join(globalConfig, 'commands');
 for (const entry of readdirSync(commandsDir, { withFileTypes: true })) {
   if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
   const name = basename(entry.name, '.md');
-  writeSkill(name, `Use when Jack invokes /${name}.`, readFileSync(join(commandsDir, entry.name), 'utf8'));
+  const body = readFileSync(join(commandsDir, entry.name), 'utf8');
+  writeSkill(name, `Use when Jack invokes /${name}.`, codexAdaptation(name, body));
 }
 
 const skillsDir = join(globalConfig, 'skills');

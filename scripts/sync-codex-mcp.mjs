@@ -17,12 +17,6 @@ for (const [name, server] of Object.entries(servers)) {
   if (!server || typeof server !== 'object' || typeof server.command !== 'string') continue;
 
   const env = server.env ?? {};
-  const unsupportedEnv = Object.keys(env).filter((key) => key !== 'DOTENV_CONFIG_PATH');
-  if (unsupportedEnv.length > 0) {
-    console.log(`    ! ${name} skipped (secret/runtime env stays Claude-only)`);
-    continue;
-  }
-
   spawnSync('codex', ['mcp', 'remove', name], { stdio: 'ignore' });
   const args = ['mcp', 'add', name];
   for (const [key, value] of Object.entries(env)) args.push('--env', `${key}=${value}`);
