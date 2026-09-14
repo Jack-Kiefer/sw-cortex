@@ -14,6 +14,26 @@ on grunt work. These rules make cheap-fan-out / expensive-synthesis the default.
 Follow this whenever you write a Workflow script — the analyze research phase
 (`/serp-analyze`, `/swac-analyze`) or any ad-hoc workflow.
 
+## 0. HARD GATE — every `agent()` call carries `model` AND `effort`
+
+**Before you send a Workflow script, re-read your own `agent()` calls. Every single one
+except the final synthesis MUST pass both `model` and `effort`. A call missing either is a
+BUG, not a style preference — fix it before sending.**
+
+This gate exists because the guidance below was previously phrased as advice and was
+followed roughly 3% of the time: a measured 396 of 547 subagent spawns passed no `model` and
+silently inherited Opus. Omission is invisible at the call site — nothing errors, the script
+just quietly runs the most expensive model available for grep-and-report work.
+
+Checklist to run against your script before sending:
+
+- [ ] Every researcher/verifier `agent()` has `model:` (`haiku` or `sonnet`) — no exceptions
+- [ ] Every researcher/verifier `agent()` has `effort: 'low'`
+- [ ] Exactly ONE synthesis agent uses `model: 'opus'`, with explicit `effort`
+- [ ] Every researcher prompt tells the agent to run `mcp__knowledge__search_knowledge`
+      (2-5 queries) BEFORE concluding — cheap models need the KB more, not less
+- [ ] Fan-out uses `pipeline()`, not `parallel()`, unless synthesis truly needs all results
+
 ## 1. Cheap by default — Opus ONLY for synthesis
 
 `agent()` with no `model`/`effort` inherits the session model (Opus). That is the trap.

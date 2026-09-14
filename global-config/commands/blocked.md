@@ -18,11 +18,11 @@ Otherwise run exactly:
 ~/.claude/scripts/set-tab-title.sh "⛔ Blocked waiting on $ARGUMENTS"
 ```
 
-If `$ARGUMENTS` is empty, ask Jack what it's waiting on in one line rather than setting a bare `⛔ Blocked` — the whole point of this state is that the tab says *what* it's waiting on.
+If `$ARGUMENTS` is empty, ask Jack what it's waiting on in one line rather than setting a bare `⛔ Blocked` — the whole point of this state is that the tab says _what_ it's waiting on.
 
 ## Before you park: clean up what THIS session made
 
-A parked tab may sit for days, so drop the scratch **this session** created and no longer needs — but **never** anything it (or Jack) might still want when the blocker clears. Scope is strictly *this session's own leavings*; other sessions' work is off-limits.
+A parked tab may sit for days, so drop the scratch **this session** created and no longer needs — but **never** anything it (or Jack) might still want when the blocker clears. Scope is strictly _this session's own leavings_; other sessions' work is off-limits.
 
 **Safe to remove — only if THIS session created it and it is finished:**
 
@@ -49,7 +49,7 @@ After setting the title, **end the turn.** Say one short line — e.g. "⛔ Park
 
 - **It survives a reply.** The `UserPromptSubmit` hook auto-demotes a resting 🙋/❓/✅ tab to 🔨 the moment Jack types into it, but ⛔ is **exempt** — a blocked tab stays blocked even if Jack pokes it, because a message isn't the same as the blocker clearing. Clear it deliberately: set the next real status (🔨/🧪/…) when work actually resumes, or `/blocked --clear`.
 - **Live tool activity won't overwrite it.** The `--activity` PostToolUse hook forces a working tab's emoji to 🔨/🧪 so a busy tab can never show a checkmark; ⛔ is **exempt** there too, so an incidental tool call doesn't silently un-park the tab. (The transient `· <activity>` suffix and the `— <did trail>` still ride along as usual.)
-- **It is not ❓.** ❓ is owned by the `Notification` hook — a live Claude Code popup needing an answer *right now*. ⛔ means "parked, waiting on someone else, no popup, nothing needed from you this second."
+- **It is not ❓.** ❓ is owned by the `Notification` hook — a live Claude Code popup needing an answer _right now_. ⛔ means "parked, waiting on someone else, no popup, nothing needed from you this second."
 
 So the tab reads plainly as `⛔ Blocked waiting on <thing>` and just sits there.
 
