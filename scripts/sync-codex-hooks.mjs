@@ -25,7 +25,10 @@ for (const [event, groups] of Object.entries(target.hooks)) {
   target.hooks[event] = groups
     .map((group) => ({
       ...group,
-      hooks: (group.hooks ?? []).filter((hook) => !String(hook.statusMessage ?? '').startsWith('[claude-sync]')),
+      hooks: (group.hooks ?? []).filter((hook) => {
+        const status = String(hook.statusMessage ?? '');
+        return !status.startsWith('[claude-sync]') && !status.startsWith('[codex-sync]');
+      }),
     }))
     .filter((group) => group.hooks.length > 0);
   if (target.hooks[event].length === 0) delete target.hooks[event];
@@ -64,6 +67,17 @@ for (const [event, groups] of Object.entries(source.hooks ?? {})) {
     }
   }
 }
+
+target.hooks.Stop ??= [];
+target.hooks.Stop.push({
+  matcher: '',
+  hooks: [{
+    type: 'command',
+    command: `node ${JSON.stringify(new URL('./run-project-telemetry-for-codex.mjs', import.meta.url).pathname)}`,
+    timeout: 10,
+    statusMessage: '[codex-sync] project telemetry',
+  }],
+});
 
 writeFileSync(targetPath, `${JSON.stringify(target, null, 2)}\n`);
 console.log(`  Generated ${generated} Codex hooks from Claude settings (existing native hooks preserved)`);
