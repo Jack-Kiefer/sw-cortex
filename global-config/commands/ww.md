@@ -71,7 +71,7 @@ PYEOF
 
 **If the output is "CURRENT" or "SKIP":** Continue normally.
 
-> **NOTE:** The `/ww-dev` command (the sandbox version) has a similar auto-update block. If you are editing the auto-update section in `/ww` (this file), the `/ww-dev` version should be kept in sync separately — `/ww-dev` uses "UPDATED_WW" and "UPDATE_WRITE_FAILED_WW" (the `_WW` suffix) as its output strings to distinguish from this file's output.
+> **NOTE:** `/ww-dev` (Anna's local test copy of this command) has a similar auto-update block. This file is generated from it by `anna-repository/scripts/ww-translate.py` — edit `/ww-dev` first, never this file directly. `/ww-dev` uses "UPDATED_WW" and "UPDATE_WRITE_FAILED_WW" (the `_WW` suffix) as its output strings to distinguish from this file's output.
 
 ---
 
@@ -460,53 +460,72 @@ def validate_yaml_frontmatter(content):
         except yaml.YAMLError:
             return content  # Can't auto-fix — return as-is
 
-def fetch_active_tickets_parallel(branch, token, max_workers=20):
-    """Fetch all active ticket .md files from wishworks/dev-requests/active/
-    in parallel. Returns dict of {filename: content_str}. Raises on any
-    fetch failure — do NOT silently drop, would corrupt filter results.
+def _fetch_tree_md_files(branch, token, prefix, max_workers=20):
+    """Bulk-read every .md under `prefix` on `branch`. Returns {filename: content_str}.
 
-    Uses api.github.com with Accept: application/vnd.github.raw (NOT the
-    download_url field). download_url is a signed raw.githubusercontent.com
-    URL with a short-lived token (~5 min) that expires mid-fetch against
-    large active/ directories — verified in T-163 Chunk 1, 36/207 files
-    404'd against the tail of a sequential fetch using download_url."""
+    ONE api.github.com call (Git Trees, recursive) for the listing, then content
+    from raw.githubusercontent.com with an Authorization header — the raw host
+    is NOT on the shared 5,000/hr API budget (CLAUDE.md rule 1.6b). This
+    replaced a per-file Contents loop that burned ~700 API calls per scan
+    (T-163, 2026-09-08).
+
+    NOT `download_url` — that is a *signed* raw URL whose embedded ?token=
+    expires in ~5 min (T-163 Chunk 1: 36/207 files 404'd). Direct raw + an
+    Authorization header has nothing to expire.
+
+    raw.githubusercontent.com is a CDN with a 5-minute cache, so a file changed
+    in the last 5 min can come back as its PRE-change bytes. Every file is
+    therefore hashed locally and compared to the blob SHA the tree reported;
+    on a mismatch that one file is re-fetched from the content-addressed Blobs
+    API, which cannot be stale (same remedy WishBot's shared store uses,
+    T-236). Normal case: zero extra API calls.
+
+    Raises on ANY single failure — never silently drops a file (would corrupt
+    filter/duplicate results)."""
+    import hashlib, base64
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    listing_url = (
-        f"https://api.github.com/repos/jasonbkiefer/SWIRL/contents/"
-        f"wishworks/dev-requests/active?ref={branch}"
-    )
-    req = urllib.request.Request(
-        listing_url, headers={"Authorization": f"token {token}"}
-    )
-    with urllib.request.urlopen(req) as r:
-        listing = json.load(r)
-    md_files = [
-        f for f in listing
-        if f.get("type") == "file" and f["name"].endswith(".md")
+    H = {"Authorization": f"token {token}"}
+    tree_url = f"https://api.github.com/repos/jasonbkiefer/SWIRL/git/trees/{branch}?recursive=1"
+    with urllib.request.urlopen(urllib.request.Request(tree_url, headers=H)) as r:
+        tree = json.load(r)
+    if tree.get("truncated"):
+        raise RuntimeError(
+            "Git tree response was truncated — the repo outgrew one recursive "
+            "Trees call. Do NOT continue with a short list; fall back to a "
+            "per-directory tree call for " + prefix
+        )
+    blobs = [
+        (b["path"], b["sha"]) for b in tree["tree"]
+        if b["type"] == "blob" and b["path"].startswith(prefix) and b["path"].endswith(".md")
     ]
 
-    def _fetch_one(meta):
-        url = (
-            f"https://api.github.com/repos/jasonbkiefer/SWIRL/contents/"
-            f"{meta['path']}?ref={branch}"
-        )
-        req = urllib.request.Request(
-            url,
-            headers={
-                "Authorization": f"token {token}",
-                "Accept": "application/vnd.github.raw",
-            },
-        )
-        with urllib.request.urlopen(req) as r:
-            return meta["name"], r.read().decode()
+    def _fetch_one(path, sha):
+        raw_url = f"https://raw.githubusercontent.com/jasonbkiefer/SWIRL/{branch}/{path}"
+        with urllib.request.urlopen(urllib.request.Request(raw_url, headers=H)) as r:
+            data = r.read()
+        if hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest() != sha:
+            # CDN served pre-commit bytes — refetch by SHA (content-addressed, never stale)
+            blob_url = f"https://api.github.com/repos/jasonbkiefer/SWIRL/git/blobs/{sha}"
+            with urllib.request.urlopen(urllib.request.Request(blob_url, headers=H)) as r:
+                data = base64.b64decode(json.load(r)["content"])
+        return path.rsplit("/", 1)[-1], data.decode()
 
-    tickets = {}
+    out = {}
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = [pool.submit(_fetch_one, f) for f in md_files]
-        for future in as_completed(futures):
-            name, content = future.result()  # raises on per-fetch error
-            tickets[name] = content
-    return tickets
+        for fut in as_completed([pool.submit(_fetch_one, p, s) for p, s in blobs]):
+            name, content = fut.result()  # raises on per-fetch error
+            out[name] = content
+    return out
+
+
+def fetch_active_tickets_parallel(branch, token, max_workers=20):
+    """All active tickets (wishworks/dev-requests/active/). See _fetch_tree_md_files."""
+    return _fetch_tree_md_files(branch, token, "wishworks/dev-requests/active/", max_workers)
+
+
+def fetch_archived_tickets_parallel(branch, token, max_workers=20):
+    """Every archived ticket under wishworks/dev-requests/archive/<quarter>/. See _fetch_tree_md_files."""
+    return _fetch_tree_md_files(branch, token, "wishworks/dev-requests/archive/", max_workers)
 
 # === Archive helper + its internal fetch/put (from T-163 Chunk 8) ===
 # archive_ticket() is used by the T-087 Chunk 7 archive flow; _fetch_ticket_file /
@@ -695,7 +714,7 @@ tickets = fetch_active_tickets_parallel("main", token, max_workers=20)
 # tickets is {filename: content_str}; parse YAML frontmatter for each
 ```
 
-~5–10s instead of ~3 min on a 200-ticket active/ directory. Raises on ANY single-fetch failure (never silently drops a ticket — that would corrupt filter results). If it raises, surface a "couldn't fetch all tickets — retry?" prompt rather than continuing with a partial set. Uses `api.github.com/.../contents/{path}?ref={branch}` with `Accept: application/vnd.github.raw` so there's no signed-URL expiration window (the `download_url` field of the contents endpoint expires after ~5 min and 404s mid-fetch on large directories — don't use it).
+~5–10s instead of ~3 min on a 200-ticket active/ directory. Raises on ANY single-fetch failure (never silently drops a ticket — that would corrupt filter results). If it raises, surface a "couldn't fetch all tickets — retry?" prompt rather than continuing with a partial set. Makes ONE `api.github.com` call (Git Trees) and reads every file from `raw.githubusercontent.com` with an `Authorization` header — the raw host is not on the shared 5,000/hr API budget (CLAUDE.md rule 1.6b). Each file is hash-checked against the tree's blob SHA and re-fetched from the Blobs API only if the raw CDN served a stale (pre-commit) copy. Do NOT rewrite this as a per-file `contents/` loop — that pattern burned ~700 API calls per scan and is what rule 1.6b forbids. Do NOT use the listing's `download_url` either — that is a _signed_ URL that expires after ~5 min and 404s mid-fetch on large directories.
 
 **NEVER do any of the following** — these patterns caused the corruption bug:
 
@@ -1143,65 +1162,72 @@ if MY_TICKETS_ONLY:
     if not ASSIGNEE_FILTER:
         ASSIGNEE_FILTER = git_name
 
-def fetch_active_tickets_parallel(branch, token, max_workers=20):
-    listing_url = f"https://api.github.com/repos/{REPO}/contents/wishworks/dev-requests/active?ref={branch}"
-    req = urllib.request.Request(listing_url, headers={"Authorization": f"token {token}"})
-    with urllib.request.urlopen(req) as r:
-        listing = json.load(r)
-    md_files = [f for f in listing if f.get("type") == "file" and f["name"].endswith(".md")]
-    def _fetch_one(meta):
-        url = f"https://api.github.com/repos/{REPO}/contents/{meta['path']}?ref={branch}"
-        req = urllib.request.Request(url, headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.raw"})
-        with urllib.request.urlopen(req) as r:
-            return meta["name"], r.read().decode()
+def _fetch_tree_md_files(branch, token, prefix, max_workers=20):
+    """Bulk-read every .md under `prefix` on `branch`. Returns {filename: content_str}.
+
+    ONE api.github.com call (Git Trees, recursive) for the listing, then content
+    from raw.githubusercontent.com with an Authorization header — the raw host
+    is NOT on the shared 5,000/hr API budget (CLAUDE.md rule 1.6b). This
+    replaced a per-file Contents loop that burned ~700 API calls per scan
+    (T-163, 2026-09-08).
+
+    NOT `download_url` — that is a *signed* raw URL whose embedded ?token=
+    expires in ~5 min (T-163 Chunk 1: 36/207 files 404'd). Direct raw + an
+    Authorization header has nothing to expire.
+
+    raw.githubusercontent.com is a CDN with a 5-minute cache, so a file changed
+    in the last 5 min can come back as its PRE-change bytes. Every file is
+    therefore hashed locally and compared to the blob SHA the tree reported;
+    on a mismatch that one file is re-fetched from the content-addressed Blobs
+    API, which cannot be stale (same remedy WishBot's shared store uses,
+    T-236). Normal case: zero extra API calls.
+
+    Raises on ANY single failure — never silently drops a file (would corrupt
+    filter/duplicate results)."""
+    import hashlib, base64
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    H = {"Authorization": f"token {token}"}
+    tree_url = f"https://api.github.com/repos/jasonbkiefer/SWIRL/git/trees/{branch}?recursive=1"
+    with urllib.request.urlopen(urllib.request.Request(tree_url, headers=H)) as r:
+        tree = json.load(r)
+    if tree.get("truncated"):
+        raise RuntimeError(
+            "Git tree response was truncated — the repo outgrew one recursive "
+            "Trees call. Do NOT continue with a short list; fall back to a "
+            "per-directory tree call for " + prefix
+        )
+    blobs = [
+        (b["path"], b["sha"]) for b in tree["tree"]
+        if b["type"] == "blob" and b["path"].startswith(prefix) and b["path"].endswith(".md")
+    ]
+
+    def _fetch_one(path, sha):
+        raw_url = f"https://raw.githubusercontent.com/jasonbkiefer/SWIRL/{branch}/{path}"
+        with urllib.request.urlopen(urllib.request.Request(raw_url, headers=H)) as r:
+            data = r.read()
+        if hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest() != sha:
+            # CDN served pre-commit bytes — refetch by SHA (content-addressed, never stale)
+            blob_url = f"https://api.github.com/repos/jasonbkiefer/SWIRL/git/blobs/{sha}"
+            with urllib.request.urlopen(urllib.request.Request(blob_url, headers=H)) as r:
+                data = base64.b64decode(json.load(r)["content"])
+        return path.rsplit("/", 1)[-1], data.decode()
+
     out = {}
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        for fut in as_completed([pool.submit(_fetch_one, f) for f in md_files]):
-            name, content = fut.result()
+        for fut in as_completed([pool.submit(_fetch_one, p, s) for p, s in blobs]):
+            name, content = fut.result()  # raises on per-fetch error
             out[name] = content
     return out
+
+
+def fetch_active_tickets_parallel(branch, token, max_workers=20):
+    """All active tickets (wishworks/dev-requests/active/). See _fetch_tree_md_files."""
+    return _fetch_tree_md_files(branch, token, "wishworks/dev-requests/active/", max_workers)
 
 
 def fetch_archived_tickets_parallel(branch, token, max_workers=20):
-    """Fetch every .md ticket under wishworks/dev-requests/archive/<subdir>/.
-    Archive is partitioned by quarter (e.g. 2026-q1, 2026-q2). Walks the
-    parent dir, lists each quarter subdir in parallel, then parallel-fetches
-    every .md file. Returns {filename: content_str}."""
-    parent_url = f"https://api.github.com/repos/{REPO}/contents/wishworks/dev-requests/archive?ref={branch}"
-    req = urllib.request.Request(parent_url, headers={"Authorization": f"token {token}"})
-    try:
-        with urllib.request.urlopen(req) as r:
-            parent_listing = json.load(r)
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {}  # no archive folder yet
-        raise
-    subdirs = [s for s in parent_listing if s.get("type") == "dir"]
-
-    def _list_subdir(subdir):
-        sub_url = f"https://api.github.com/repos/{REPO}/contents/{subdir['path']}?ref={branch}"
-        req = urllib.request.Request(sub_url, headers={"Authorization": f"token {token}"})
-        with urllib.request.urlopen(req) as r:
-            return json.load(r)
-
-    all_files = []
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        for fut in as_completed([pool.submit(_list_subdir, s) for s in subdirs]):
-            listing = fut.result()
-            all_files.extend([f for f in listing if f.get("type") == "file" and f["name"].endswith(".md")])
-
-    def _fetch_one(meta):
-        url = f"https://api.github.com/repos/{REPO}/contents/{meta['path']}?ref={branch}"
-        req = urllib.request.Request(url, headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.raw"})
-        with urllib.request.urlopen(req) as r:
-            return meta["name"], r.read().decode()
-
-    out = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        for fut in as_completed([pool.submit(_fetch_one, f) for f in all_files]):
-            name, content = fut.result()
-            out[name] = content
-    return out
+    """Every archived ticket under wishworks/dev-requests/archive/<quarter>/. See _fetch_tree_md_files."""
+    return _fetch_tree_md_files(branch, token, "wishworks/dev-requests/archive/", max_workers)
 
 try:
     tickets = fetch_active_tickets_parallel(BRANCH, TOKEN)
@@ -1346,7 +1372,7 @@ archived_rows = [r for r in rows if not r["needs_release_actions"] and r["status
 seen_in_groups = {id(r) for r in nra_rows + backlog_rows + in_progress_rows + deploy_ready_rows + released_rows + archived_rows}
 other_rows = [r for r in rows if id(r) not in seen_in_groups]
 
-lines = [f"Your WishWorks Tickets — SANDBOX ({len(rows)} total)", ""]
+lines = [f"Your WishWorks Tickets ({len(rows)} total)", ""]
 
 def add_section(label, section_rows, fifth_field):
     if not section_rows:
@@ -1805,7 +1831,7 @@ Ask a single catch-all: _"Anything else? (optional) — priority (Critical/High/
 - `parent_work_item` — an existing `DW-###`. If given, **validate** before creating: parent must exist (find via `work-items/active/` → `work-items/archive/{quarter}/`), must NOT be archived, and must NOT itself have a `parent_work_item` (flat hierarchy — one level only). If the parent has a `project` or `promoted_from`, **inherit** those onto the new child. Reject with a clear message if any rule fails.
 
 **Step 4: Duplicate scan** (always — Anna, 2026-06-22)
-Fetch all active work items from `wishworks/work-items/active/` in parallel — same approach as `fetch_active_tickets_parallel` but pointed at the `work-items/active` directory (one listing call + parallel raw GETs; **never** a per-file loop). Take the 30 most recent by `created_at`, compare the new title + description for semantic similarity (you're the AI — no extra API call), and if any look like dupes, show them grouped HIGH/MEDIUM confidence and ask "Is this the same as any of these? (yes/no)". Yes → cancel, point to the existing `DW-###`. No / none found → proceed (silently if none found).
+Fetch all active work items with `_fetch_tree_md_files(BRANCH, token, "wishworks/work-items/active/")` from the Helpers block — the same bulk reader `fetch_active_tickets_parallel` uses, pointed at the work-items directory (one Git Trees call + raw-host reads; **never** a per-file `contents/` loop). Take the 30 most recent by `created_at`, compare the new title + description for semantic similarity (you're the AI — no extra API call), and if any look like dupes, show them grouped HIGH/MEDIUM confidence and ask "Is this the same as any of these? (yes/no)". Yes → cancel, point to the existing `DW-###`. No / none found → proceed (silently if none found).
 
 **Step 5: Confirm** — show a summary, do NOT fetch the counter yet (use `DW-???` as placeholder):
 
@@ -1975,9 +2001,7 @@ If a tag was removed in Step 2, also say what changed (e.g. "Removed the @ from 
 
 ## Ticket ID Format
 
-**Sandbox tickets use the `WW-###` prefix** (e.g., `WW-001`, `WW-012`). This keeps them completely separate from live ticket numbers (`WW-###`). The sandbox has its own counter file (`counter.txt`) that is independent of the live counter.
-
-Real tickets from main (`WW-###`) will also appear on the sandbox branch — these can be viewed and modified for testing, but new tickets always use the `WW-###` prefix.
+**Ticket IDs use the `WW-###` prefix** (e.g., `WW-001`, `WW-012`). New tickets take the next number from `wishworks/_config/counter.txt`.
 
 ## Ticket Locations
 
