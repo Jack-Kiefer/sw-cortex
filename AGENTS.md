@@ -13,6 +13,12 @@ the house rules; your brief (`.codex-brief.md` if present) is your complete scop
 
 ## Working Style
 
+- **`/go` launches Codex too.** When Jack types `/go`, asks to "open a new go", or asks
+  for a fresh repo session, use the installed `go` skill. It routes to SERP, SWAC, or
+  sw-cortex and calls `~/.claude/scripts/launch-repo-session.sh` with `--agent codex`.
+  A bare repo name opens an unprompted session; task text becomes the new session's first
+  prompt. Use `--keep-original` only when Jack explicitly wants this session to continue.
+
 - **Minimal, additive change.** Extend existing structures; do not delete, replace, or
   rebuild adjacent behavior, and do not touch out-of-scope code or data.
 - **Do exactly what's asked — nothing more.** No bonus improvements, adjacent refactors,

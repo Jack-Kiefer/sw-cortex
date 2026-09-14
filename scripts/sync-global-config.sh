@@ -97,7 +97,7 @@ push_config() {
     echo "Pushing global config from sw-cortex to ~/.claude (merge mode)..."
     echo ""
 
-    mkdir -p ~/.claude/commands ~/.claude/skills ~/.claude/scripts
+    mkdir -p ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.codex/skills
 
     # Copy commands (add new, don't remove existing).
     # ~/.claude/commands may be a symlink into global-config — nothing to copy then.
@@ -113,6 +113,28 @@ push_config() {
             fi
         done
     fi
+
+    # Codex-native skills have their own source directory because Claude commands and
+    # tool names are not automatically portable. Shared helper scripts remain canonical.
+    echo ""
+    echo "Codex skills:"
+    for skill in "$GLOBAL_CONFIG/codex/skills/"*/; do
+        if [ -d "$skill" ]; then
+            name=$(basename "$skill")
+            target="$HOME/.codex/skills/$name"
+            if [ -e "$target" ] || [ -L "$target" ]; then
+                if [ "$target" -ef "$skill" ]; then
+                    echo "  = $name (symlinked)"
+                else
+                    cp -R "$skill/." "$target/"
+                    echo "  + $name"
+                fi
+            else
+                ln -s "$skill" "$target"
+                echo "  + $name (symlinked)"
+            fi
+        fi
+    done 2>/dev/null || echo "  (none found)"
 
     # Copy helper scripts (add new, don't remove existing)
     if [ -d "$GLOBAL_CONFIG/scripts" ]; then
@@ -176,10 +198,12 @@ push_config() {
 
         # Merge with existing config
         merge_mcp_json "$TEMP_MCP" ~/.mcp.json
+        node "$SCRIPT_DIR/sync-codex-mcp.mjs" "$TEMP_MCP"
         rm "$TEMP_MCP"
     elif [ -f "$GLOBAL_CONFIG/mcp.json" ]; then
         # Fallback to static file if template doesn't exist
         merge_mcp_json "$GLOBAL_CONFIG/mcp.json" ~/.mcp.json
+        node "$SCRIPT_DIR/sync-codex-mcp.mjs" "$GLOBAL_CONFIG/mcp.json"
     fi
 
     # Copy global CLAUDE.md (this one we do overwrite - it's the canonical source)

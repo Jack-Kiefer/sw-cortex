@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go"
+  short_description: "Launch a fresh Codex repository session"
+  default_prompt: "Use $go to open a fresh Codex session for this task."
