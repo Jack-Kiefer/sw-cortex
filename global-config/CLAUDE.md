@@ -149,6 +149,67 @@ The tab shows the current step plus the **last two** `--did` phrases (`<title> �
 
 The description is a short phrase (a handful of words — a real subject, not a bare slug). The global hooks (Stop/Notification/SubagentStop → `tab-title-hook.sh`) re-stamp the latest value automatically; update the description freely as you go, just don't re-set the exact same string back-to-back (no value churn — a changed step is always worth setting). **Question popup → `❓ question`:** whenever Claude Code shows a popup that needs Jack (a permission/tool-approval prompt, an MCP elicitation dialog, or a background-session input request), the `Notification` hook automatically flips the tab to `❓ question · <label>` — you don't set this yourself; it layers on top of your status transiently and clears when Jack answers. **Auto-flip on reply:** when Jack replies to a tab sitting in a waiting state (🙋 or ❓), the `UserPromptSubmit` hook automatically demotes the leading emoji to 🔨 (keeping the label) — so a tab only says "approve?"/"blocked"/"question" while it's _actually_ waiting on him. You don't need to clear 🙋/❓ yourself on the next turn; just set the next real status (🔨/🧪/📝/…) when you reach it. If Jack set a name via `/tab-title`, keep his label text and only update the emoji/status portion. `/tab-title --clear` returns the tab to automatic titles. Mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.
 
+## Delegated agents route by SUBSCRIPTION HEADROOM (`agent-budget.sh`)
+
+Jack pays for **both** Claude (Pro/Max) and ChatGPT/Codex (Pro). The point of running both
+is that a heavy week on one does not have to stall the work — and specifically that **Claude
+headroom is preserved for the SERP cutover**, when he needs it most. So delegated work is
+routed by whichever subscription actually has room, rather than always defaulting to Claude.
+
+**Before spawning DELEGATED agents** — an `Agent`/`Task` fan-out, a research swarm, a
+`Workflow` researcher fleet — check the budget:
+
+```bash
+~/.claude/scripts/agent-budget.sh            # human-readable: both limits + verdict
+~/.claude/scripts/agent-budget.sh --verdict  # just: claude | split | codex
+```
+
+| Verdict  | What to do                                                                              |
+| -------- | --------------------------------------------------------------------------------------- |
+| `claude` | Business as usual — spawn subagents on Claude with the `Agent` tool.                     |
+| `split`  | Send cheap/bulk fan-out (research, search, read-only sweeps) to Codex; keep synthesis on Claude. |
+| `codex`  | Delegate everything delegable to Codex; reserve Claude for the MAIN session and writes.  |
+
+This governs **delegated** work only. The lead session stays on Claude — it holds the context,
+the guards, and the conversation with Jack. The router moves the *fleet*, never the cockpit.
+
+**How to delegate to Codex** — shell out with `codex exec`, which is the simple, dependable path:
+
+```bash
+printf '%s' "<the researcher prompt>" | codex exec --skip-git-repo-check -C "<repo root>" --sandbox read-only
+```
+
+`--sandbox read-only` for research/review; `--sandbox workspace-write` only when the task must
+edit files. `--skip-git-repo-check` is required outside a trusted dir. The prompt is read from
+**stdin** (argv alone can be ignored). `--json` gives structured events; `-o <file>` captures the
+final response.
+
+**A Codex researcher does NOT inherit this file, the MCP servers, or the KB gate.** That is the
+trap: a cheap worker with no ambient context is exactly the one that most needs
+`search_knowledge`, and nothing enforces it on the Codex side. So every Codex delegation prompt
+must **carry its own instructions inline** — the KB-search requirement, the repo conventions,
+and the specific tables/files in scope — or wire the `knowledge` MCP server into the Codex
+agent definition (`~/.codex/agents/*.toml` accepts a per-agent `[mcp_servers.*]` block).
+
+**Never delegate WRITES to Codex** until `repo-write-guard.sh` is ported to a Codex `PreToolUse`
+hook. Codex has a hook system that can enforce it, but until that exists a Codex agent editing
+SERP/SWAC is outside the write-guard. Research, search, and review are safe to route now.
+
+**Where the numbers come from.** Claude's weekly percentage exists **only** on the statusline
+hook's stdin payload (`rate_limits.seven_day.used_percentage`) — no CLI flag or API exposes it —
+so `statusline-worktree.sh` caches it to `~/.claude/usage-cache.json` on every repaint, and the
+router reads that. A cache older than 15 minutes is treated as **unknown**, and unknown routes
+conservatively (`split`), never optimistically to Claude. Codex's number comes from
+`codex app-server`'s `account/rateLimits/read` JSON-RPC (there is no `codex usage` command),
+cached for 5 minutes, falling back to the last `rate_limits` block in `~/.codex/sessions/`.
+**Never estimate Codex quota from token counts** — its limits are request-based, not
+token-based; a verified session burned 642k tokens while its percentage held flat.
+
+Both percentages show on the statusline: `wk 97% ↻ Tue 1pm · gpt 23%`.
+
+`agent-budget.sh --reserve` forces the `codex` verdict regardless of current usage — cutover
+mode, for deliberately protecting Claude headroom ahead of a week that will need it.
+
 ## Session Mesh — every session can see, and coordinate with, the others (`mcp__sessions__*`)
 
 Jack runs **many** Claude Code sessions at once (each a Herdr tab — SERP work, SWAC work, hub tasks). The **`sessions` MCP server** is the shared nervous system that ties them together: from ANY session you can see the whole board, tell when two sessions are working the same thing, read a peer's output, and message a peer. It fuses Herdr's live pane data (repo, status, and the tab title each session keeps current) into one view — so the tab titles you maintain per the section above are also what every OTHER session reads to know what you're doing. Keep them accurate; they ARE the coordination signal.
