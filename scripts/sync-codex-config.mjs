@@ -11,7 +11,7 @@ if (!sourcePath || !targetPath) {
 const source = readFileSync(sourcePath, 'utf8');
 const target = existsSync(targetPath) ? readFileSync(targetPath, 'utf8') : '';
 const keys = ['status_line', 'status_line_use_colors'];
-const rootKeys = ['project_doc_max_bytes'];
+const rootKeys = ['project_doc_max_bytes', 'approval_policy', 'sandbox_mode'];
 
 const valueFor = (key) => {
   const match = source.match(new RegExp(`^${key}\\s*=\\s*(.+)$`, 'm'));
