@@ -1,4 +1,6 @@
 project_doc_max_bytes = 262144
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
 
 [tui]
 status_line = ["current-dir", "git-branch", "branch-changes", "model-with-reasoning", "context-used", "five-hour-limit", "weekly-limit", "permissions", "approval-mode", "fast-mode", "task-progress"]
