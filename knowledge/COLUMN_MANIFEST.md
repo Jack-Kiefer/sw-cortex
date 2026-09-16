@@ -4,7 +4,7 @@ Exact column names for the tables that agents query most. Regenerate with
 `npm run kb:columns`. Hand edits are overwritten and, worse, silently rot —
 a stale column list is more dangerous than a missing one.
 
-This file answers ONE question: _what are this table's real column names?_
+This file answers ONE question: *what are this table's real column names?*
 For what the columns MEAN, which database is authoritative, and the join
 invariants, read `DICTIONARY.md` — that is still the source of truth for
 semantics. Nothing here overrides it.
@@ -226,17 +226,17 @@ product_id bigint unsigned · receiver_product_id int · component_id bigint uns
 
 #### laravel_live.users
 
-**Columns (62):** id, name, first_name, last_name, email, remember_token, created_at, updated_at, deleted_at, status, is_developer, for_company, cc_on_file, love_letters, phone, popup_shown_company, company_orders, referal_code, referal_code_usage, sms, sales_rep, client_level, client_status, contact_type, email_domain, training_date, training_status, industry, num_of_employees, mobile_phone, api_access_token, gclid, reset_password_time, otp_expire, reset_password_otp_attempt, otp_code, mail_token, test_account, ip_address, oddo_api_access_token, api_access, insightly_contact_id, user_responsible, validated, signup_source, account_type, last_credit_purchase, logout, klaviyo_id, user_created_from, increased_security, reset_ip, force_reset, phone_status, first_call, email_status, textable, calledwithin24hours, google_id, send_confirm, contact_reminders, holiday_reminders
+**Columns (63):** id, name, first_name, last_name, email, remember_token, created_at, updated_at, deleted_at, status, is_developer, for_company, cc_on_file, love_letters, phone, popup_shown_company, company_orders, referal_code, referal_code_usage, sms, sales_rep, client_level, client_status, contact_type, email_domain, training_date, training_status, industry, num_of_employees, mobile_phone, api_access_token, gclid, reset_password_time, otp_expire, reset_password_otp_attempt, otp_code, mail_token, test_account, card_add_limit_exempt, ip_address, oddo_api_access_token, api_access, insightly_contact_id, user_responsible, validated, signup_source, account_type, last_credit_purchase, logout, klaviyo_id, user_created_from, increased_security, reset_ip, force_reset, phone_status, first_call, email_status, textable, calledwithin24hours, google_id, send_confirm, contact_reminders, holiday_reminders
 
 <details><summary>with types</summary>
 
-id int unsigned · name varchar(255) · first_name varchar(255) · last_name varchar(255) · email varchar(255) · remember_token varchar(100) · created_at timestamp · updated_at timestamp · deleted_at timestamp · status tinyint · is_developer enum('Y','N') · for_company enum('yes','no') · cc_on_file tinyint · love_letters tinyint · phone varchar(50) · popup_shown_company tinyint · company_orders int · referal_code varchar(100) · referal_code_usage bigint · sms tinyint(1) · sales_rep varchar(255) · client_level varchar(255) · client_status varchar(255) · contact_type varchar(255) · email_domain varchar(255) · training_date varchar(255) · training_status varchar(255) · industry varchar(255) · num_of_employees varchar(255) · mobile_phone varchar(255) · api_access_token varchar(255) · gclid varchar(255) · reset_password_time datetime · otp_expire datetime · reset_password_otp_attempt int · otp_code varchar(255) · mail_token varchar(255) · test_account tinyint · ip_address varchar(255) · oddo_api_access_token varchar(255) · api_access tinyint · insightly_contact_id bigint unsigned · user_responsible varchar(255) · validated tinyint(1) · signup_source varchar(255) · account_type enum('','Guest','Onboarding','Personal','Company','Both') · last_credit_purchase datetime · logout tinyint(1) · klaviyo_id varchar(255) · user_created_from varchar(255) · increased_security tinyint(1) · reset_ip varchar(255) · force_reset tinyint(1) · phone_status varchar(255) · first_call datetime · email_status varchar(255) · textable tinyint(1) · calledwithin24hours tinyint(1) · google_id varchar(255) · send_confirm tinyint · contact_reminders tinyint · holiday_reminders tinyint
+id int unsigned · name varchar(255) · first_name varchar(255) · last_name varchar(255) · email varchar(255) · remember_token varchar(100) · created_at timestamp · updated_at timestamp · deleted_at timestamp · status tinyint · is_developer enum('Y','N') · for_company enum('yes','no') · cc_on_file tinyint · love_letters tinyint · phone varchar(50) · popup_shown_company tinyint · company_orders int · referal_code varchar(100) · referal_code_usage bigint · sms tinyint(1) · sales_rep varchar(255) · client_level varchar(255) · client_status varchar(255) · contact_type varchar(255) · email_domain varchar(255) · training_date varchar(255) · training_status varchar(255) · industry varchar(255) · num_of_employees varchar(255) · mobile_phone varchar(255) · api_access_token varchar(255) · gclid varchar(255) · reset_password_time datetime · otp_expire datetime · reset_password_otp_attempt int · otp_code varchar(255) · mail_token varchar(255) · test_account tinyint · card_add_limit_exempt tinyint · ip_address varchar(255) · oddo_api_access_token varchar(255) · api_access tinyint · insightly_contact_id bigint unsigned · user_responsible varchar(255) · validated tinyint(1) · signup_source varchar(255) · account_type enum('','Guest','Onboarding','Personal','Company','Both') · last_credit_purchase datetime · logout tinyint(1) · klaviyo_id varchar(255) · user_created_from varchar(255) · increased_security tinyint(1) · reset_ip varchar(255) · force_reset tinyint(1) · phone_status varchar(255) · first_call datetime · email_status varchar(255) · textable tinyint(1) · calledwithin24hours tinyint(1) · google_id varchar(255) · send_confirm tinyint · contact_reminders tinyint · holiday_reminders tinyint
 
 </details>
 
 ## serp_test
 
-#### serp_test.\_migrations
+#### serp_test._migrations
 
 **Columns (3):** version, filename, applied_at
 
@@ -398,11 +398,11 @@ id bigint unsigned · name varchar(255) · reference varchar(255) · origin varc
 
 #### serp_test.serp_stock_move_line
 
-**Columns (21):** id, move_id, picking_id, product_id, product_uom_qty, product_qty, qty_done, location_id, location_dest_id, state, date, reference, product_categ_id, production_id, product_uom_id, company_id, create_uid, write_uid, create_date, write_date, odoo_id
+**Columns (25):** id, move_id, picking_id, product_id, product_uom_qty, product_qty, qty_done, location_id, location_dest_id, state, date, reference, product_categ_id, production_id, product_uom_id, company_id, create_uid, write_uid, create_date, write_date, odoo_id, unit_cost, total_value, updated_values, reupdated_zerocost
 
 <details><summary>with types</summary>
 
-id bigint unsigned · move_id bigint · picking_id bigint · product_id bigint unsigned · product_uom_qty decimal(16,4) · product_qty decimal(16,4) · qty_done decimal(16,4) · location_id bigint · location_dest_id bigint · state enum('draft','waiting','confirmed','partially_available','assigned','done','cancel') · date datetime · reference varchar(255) · product_categ_id int · production_id bigint · product_uom_id bigint · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
+id bigint unsigned · move_id bigint · picking_id bigint · product_id bigint unsigned · product_uom_qty decimal(16,4) · product_qty decimal(16,4) · qty_done decimal(16,4) · location_id bigint · location_dest_id bigint · state enum('draft','waiting','confirmed','partially_available','assigned','done','cancel') · date datetime · reference varchar(255) · product_categ_id int · production_id bigint · product_uom_id bigint · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint · unit_cost double · total_value double · updated_values tinyint(1) · reupdated_zerocost tinyint(1)
 
 </details>
 
@@ -458,7 +458,7 @@ id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20
 
 ## serp_app
 
-#### serp_app.\_migrations
+#### serp_app._migrations
 
 **Columns (3):** version, filename, applied_at
 
