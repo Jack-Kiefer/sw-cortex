@@ -15,13 +15,17 @@
 #     "hooks": [{ "type": "command",
 #                 "command": "/Users/jackkief/.claude/scripts/agent-route-guard.sh" }] }]
 #
-# Fires on BOTH the `codex` verdict (Claude near its ceiling) AND the `split`
-# verdict (Claude warming up, 65%+), because `split` ALREADY means "send cheap
-# fan-out to Codex" — so a read-only spawn on `split` should honour that, not
-# sail through. It stays silent only on the `claude` verdict (real headroom) or
-# any failure. Earlier this guard was codex-only, which meant it never bit in
-# the band Jack actually spends most weeks in — the fan-out kept landing on
-# Claude at 70-80% while Codex sat idle. Widening to `split` is the whole point.
+# Two verdicts, two behaviours — and the budget only ever returns them when
+# Codex genuinely HAS headroom (agent-budget.sh falls back to `claude` if both
+# lanes are full, so this guard never redirects to a maxed-out Codex):
+#   • `codex`  (Claude near its ceiling)      → hard DENY + redirect to Codex.
+#     This is the band where preserving Claude actually matters.
+#   • `split`  (Claude warming up, 65-85%)    → ALLOW + SUGGEST Codex. Codex is
+#     an OPTION for cheap fan-out here, not a wall. Blocking on `split` walled
+#     Jack off from delegating at 65-85% every week; the router should offer the
+#     cheaper lane, not force it. Denying on split was the whole complaint.
+# It stays fully silent only on the `claude` verdict (real headroom, or both
+# lanes full) or any failure.
 #
 # Still fails OPEN, still lets write-shaped prompts and `fork` spawns through
 # (a fork inherits this session's full context and always runs on the parent
@@ -81,13 +85,43 @@ if printf '%s' "$prompt" | grep -qiE '\b(open|land|ship|submit)\b[^.]{0,40}\b(pr
   exit 0
 fi
 
-if [[ "$verdict" == "codex" ]]; then
-  headline="Claude's weekly limit is under pressure — route this agent to Codex instead."
-else
-  headline="Claude is warming up (split verdict) — send this cheap fan-out to Codex, keep synthesis on Claude."
+# The Codex fan-out recipe, shared by the block reason and the suggestion.
+codex_recipe="  printf '%s' \"<the agent prompt>\" | codex exec --skip-git-repo-check \\
+      -C \"\$PWD\" --sandbox read-only
+
+Notes:
+  • The prompt goes in on STDIN; --skip-git-repo-check is needed outside a trusted dir.
+  • --sandbox read-only for research/review; write-shaped tasks stay on Claude,
+    since Codex has no write-guard port yet.
+  • A Codex agent inherits NO ~/CLAUDE.md, MCP servers, or KB gate — carry the
+    KB-search requirement and any repo conventions INLINE in the prompt."
+
+# `split` = Claude warming up but Codex genuinely HAS headroom (the budget only
+# ever returns split/codex when Codex has room — see agent-budget.sh). This is a
+# SUGGESTION, not a wall: allow the spawn, and surface the Codex option so the
+# cheap fan-out CAN move if it makes sense. Blocking here just walled Jack off
+# from delegating at 65-85% every week; the point is to offer Codex, not force it.
+if [[ "$verdict" == "split" ]]; then
+  reason="Claude is warming up, but Codex has headroom — this spawn is allowed on
+Claude. If it is cheap read-only fan-out, consider running it on Codex instead to
+preserve Claude headroom (synthesis stays on Claude):
+
+  $status
+
+$codex_recipe"
+  jq -n --arg r "$reason" '{
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "allow",
+      permissionDecisionReason: $r
+    }
+  }'
+  exit 0
 fi
 
-reason="$headline
+# `codex` = Claude is genuinely near its ceiling AND Codex has room. Hard-deny
+# and redirect — this is the band where preserving Claude actually matters.
+reason="Claude's weekly limit is under pressure — route this agent to Codex instead.
 
   $status
 
@@ -95,15 +129,7 @@ This spawn was blocked by agent-route-guard.sh so delegated work lands on the
 subscription with headroom, preserving Claude for this session (and for cutover
 week). Re-run the SAME task as a Codex fan-out:
 
-  printf '%s' \"<the agent prompt>\" | codex exec --skip-git-repo-check \\
-      -C \"\$PWD\" --sandbox read-only
-
-Notes:
-  • The prompt goes in on STDIN; --skip-git-repo-check is needed outside a trusted dir.
-  • --sandbox read-only for research/review; the guard already lets write-shaped
-    tasks through to Claude, since Codex has no write-guard port yet.
-  • A Codex agent inherits NO ~/CLAUDE.md, MCP servers, or KB gate — carry the
-    KB-search requirement and any repo conventions INLINE in the prompt.
+$codex_recipe
   • Needs Claude for a real reason? Set CLAUDE_AGENT_ROUTE_OVERRIDE=1 and respawn.
   • Blocked agent type was: $atype"
 
