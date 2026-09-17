@@ -5,9 +5,13 @@
 # by /go and by research fan-outs, so subagents land on whichever subscription
 # has headroom, preserving Claude for the main session (and for cutover week).
 #
-#   claude   — Claude has room; spawn subagents on Claude as usual
-#   codex    — Claude is tight; delegate to `codex exec`
-#   split    — middle ground; prefer Codex for cheap fan-out, Claude for synthesis
+#   claude   — Claude has room (or Codex is just as full); spawn on Claude
+#   codex    — Claude is tight AND Codex has headroom; delegate to `codex exec`
+#   split    — middle ground; Codex has room, so prefer it for cheap fan-out
+#
+# codex/split are only ever chosen when Codex genuinely has headroom — if both
+# lanes are near their ceiling the verdict falls back to `claude`, since routing
+# to an equally-full Codex helps nobody.
 #
 # Usage:
 #   agent-budget.sh            # human-readable one-liner + verdict
@@ -99,6 +103,19 @@ pressure() {
 claude_pressure=$(pressure "$claude_pct" "$claude_reset")
 codex_pressure=$(pressure "$codex_pct" "$codex_reset")
 
+# Codex is only a valid target when it genuinely has room. At/above this
+# pressure it is no safer than Claude, so routing to it just shoves work onto an
+# equally full lane — the whole point of the router is to use the subscription
+# WITH headroom. Checked in BOTH the codex-ceiling and the split band below;
+# previously only the former looked at Codex, so a `split` verdict routed to
+# Codex without ever checking how full it was (it happily suggested Codex at
+# 93%). CODEX_FULL sits a touch below the reset-discounted number a maxed lane
+# shows — e.g. 93% used discounts to ~88 pressure — so a near-ceiling Codex is
+# correctly seen as "no room". Unknown Codex (empty pressure) is NOT room:
+# without a number we cannot claim headroom, so we keep the work on Claude.
+CODEX_FULL=85
+codex_has_room() { [[ -n "$codex_pressure" ]] && (( codex_pressure < CODEX_FULL )); }
+
 # ── Verdict ──
 reason=""
 if (( RESERVE )); then
@@ -112,13 +129,17 @@ elif [[ -z "$claude_pressure" ]]; then
   # missing number can never silently spend the lane we are trying to protect.
   verdict=split; reason="no Claude usage data yet; routing conservatively"
 elif (( claude_pressure >= 85 )); then
-  if [[ -n "$codex_pressure" ]] && (( codex_pressure >= 90 )); then
-    verdict=claude; reason="both lanes near their ceiling; Codex is no safer"
-  else
+  if codex_has_room; then
     verdict=codex; reason="Claude weekly is under pressure; delegate to Codex"
+  else
+    verdict=claude; reason="both lanes near their ceiling; Codex is no safer"
   fi
 elif (( claude_pressure >= 65 )); then
-  verdict=split; reason="Claude is warming up; send cheap fan-out to Codex"
+  if codex_has_room; then
+    verdict=split; reason="Claude is warming up; send cheap fan-out to Codex"
+  else
+    verdict=claude; reason="Claude is warming up but Codex has no headroom either; staying on Claude"
+  fi
 else
   verdict=claude; reason="Claude has headroom"
 fi
