@@ -245,18 +245,25 @@ Otherwise → **warm-swap**.
 
 ### 3a — Warm-swap (default): `/cd` + analyze in THIS pane, no new process
 
-Enqueue TWO prompts into this pane, in order — `/cd` first so the repo's config + MCP servers load, then the analyze prompt Step 2 built. `$HERDR_PANE_ID` is this pane; `<ANALYZE_PROMPT>` is the full `/serp-analyze …` / `/swac-analyze …` / `/research …` string with its riders:
+The two prompts (`/cd <repo>` then the analyze prompt Step 2 built) must fire as **separate, sequential turns** — `/cd` fully settling BEFORE the analyze prompt is sent. **Do NOT send two bare back-to-back `herdr agent prompt` calls** — without waiting between them, both texts land in the input buffer before the agent processes the first, and they **CONCATENATE** onto one line (`/cd` then receives `/Users/…/SERP<the entire analyze prompt>` as its path → `Couldn't find a directory`). This was verified to fail. The fix is a **detached helper** (same shape as `herdr-switch-repo.sh`) that waits for THIS turn to go idle, then sends each prompt with **`--wait --until idle`** so the next one only fires after the previous turn settles:
 
 ```bash
-herdr agent prompt "$HERDR_PANE_ID" "/cd <REPO_ROOT>"
-herdr agent prompt "$HERDR_PANE_ID" "<ANALYZE_PROMPT>"
+PANE="$HERDR_PANE_ID"; HB="$(command -v herdr)"
+nohup bash -c '
+  H="$1"; P="$2"; R="$3"; A="$4"
+  "$H" agent wait   "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true   # wait for THIS turn to end
+  "$H" agent prompt "$P" "/cd $R"  --wait --until idle --timeout 120000 >/dev/null 2>&1  # /cd settles first
+  "$H" agent prompt "$P" "$A"      --wait --until idle --timeout 60000  >/dev/null 2>&1  # then the analyze prompt
+' _ "$HB" "$PANE" "<REPO_ROOT>" "<ANALYZE_PROMPT>" >/dev/null 2>&1 &
+disown
 ```
 
-Then **report one line (Step 4) and END THE TURN with no further tool calls** — the two prompts fire as this session's next turns: `/cd` swaps the working directory and loads the repo's `CLAUDE.md` + `.mcp.json` servers (dropping sw-cortex's), keeping the warm prompt cache, and the analyze command then runs in the now-SERP/SWAC session. This tab **is** that session from here on.
+Then **report one line (Step 4) and END THE TURN with no further tool calls** — the detached helper drives the pane: it waits for this turn to finish, sends `/cd` (which swaps the working directory and loads the repo's `CLAUDE.md` + `.mcp.json` servers, dropping sw-cortex's, keeping the warm prompt cache), waits for that to settle, then sends the analyze prompt so it runs in the now-SERP/SWAC session. This tab **is** that session from here on.
 
-- **Order matters** — `/cd` must be enqueued before the analyze prompt so the repo's MCP tools (`mcp__serp-prod`, `mcp__serp-orm`, playwright) are live before `/serp-analyze` needs them. Two separate `herdr agent prompt` calls (two turns), not one combined string.
-- **First-visit trust prompt** — if you've never worked in `<REPO_ROOT>` in this session, `/cd` shows a workspace-trust dialog; the analyze prompt waits behind it until Jack approves. Normal, not a failure — just mention it in the Step 4 line if it's a repo you haven't touched.
-- **Don't call `set-tab-title.sh` or `/cd` yourself in THIS turn** — enqueue them; the swapped-into session (this same pane, next turn) owns its title via the analyze command's rider.
+- **Why the detached helper** — the FIRST prompt can't be sent inline: `herdr agent wait --until idle` needs THIS turn to end first (the agent is "working" = you), and you can't `--wait` on your own turn from inside it. `nohup … & disown` detaches so the helper runs after the turn ends. Same reason `herdr-switch-repo.sh` uses a detached helper.
+- **`--wait --until idle` is load-bearing** — it's what makes `/cd` and the analyze prompt separate turns instead of one concatenated line. Never drop it, and never collapse to two bare `agent prompt` calls.
+- **First-visit trust prompt** — if you've never worked in `<REPO_ROOT>` in this session, `/cd` shows a workspace-trust dialog; the `--wait --until idle` on the `/cd` call blocks the helper until it settles (idle after approval), so the analyze prompt still fires cleanly afterward. Mention it in the Step 4 line if it's a repo you haven't touched.
+- **Don't call `set-tab-title.sh` or `/cd` yourself in THIS turn** — the helper enqueues them; the swapped-into session (this same pane, next turn) owns its title via the analyze command's rider.
 
 ### 3b — New tab (exceptions only): `launch-repo-session.sh`
 
