@@ -241,7 +241,7 @@ No launcher/extension changes are involved — the prompt passes through unmodif
 - **`/launch`** — its contract is keep-this-tab-open + a separate tab per fix. (That's the `/launch` command, not `/go`.)
 - **No Herdr pane** — `echo $HERDR_PANE_ID` is empty (VS Code / bare terminal). `herdr agent prompt` can't self-enqueue, so fall back to a new tab.
 
-Otherwise → **warm-swap**.
+Otherwise → **warm-swap** (3a). The warm-swap has two variants by pane agent — **Claude** (default) or **Codex** — detected via `herdr agent get`; see the Codex sub-note in 3a.
 
 ### 3a — Warm-swap (default): `/cd` + analyze in THIS pane, no new process
 
@@ -264,6 +264,34 @@ Then **report one line (Step 4) and END THE TURN with no further tool calls** �
 - **`--wait --until idle` is load-bearing** — it's what makes `/cd` and the analyze prompt separate turns instead of one concatenated line. Never drop it, and never collapse to two bare `agent prompt` calls.
 - **First-visit trust prompt** — if you've never worked in `<REPO_ROOT>` in this session, `/cd` shows a workspace-trust dialog; the `--wait --until idle` on the `/cd` call blocks the helper until it settles (idle after approval), so the analyze prompt still fires cleanly afterward. Mention it in the Step 4 line if it's a repo you haven't touched.
 - **Don't call `set-tab-title.sh` or `/cd` yourself in THIS turn** — the helper enqueues them; the swapped-into session (this same pane, next turn) owns its title via the analyze command's rider.
+
+#### If this pane is running CODEX, not Claude — enqueue Codex `/cd`, no analyze command
+
+The pane might be a **Codex** session, not Claude (Herdr runs both). Codex CLI has its OWN `/cd` (shipped v0.149.0; warm-swaps the working dir + reloads the destination's `AGENTS.md` project context, history preserved) and Herdr drives a Codex pane through the exact same `herdr agent prompt` socket — so the warm-swap mechanism is identical. Two differences only: detect the agent, and **Codex has no analyze command** (`/serp-analyze` / `/swac-analyze` / `/research` are Claude Code commands — Codex can't run them), so you enqueue ONLY `/cd` (bare repo swap), plus the raw task as a plain prompt if there is one.
+
+Detect the pane's agent first:
+
+```bash
+AGENT="$(herdr agent get "$HERDR_PANE_ID" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("result",{}).get("agent",{}).get("agent",""))')"
+# "claude" → the Claude helper above.  "codex" → the Codex helper below.
+```
+
+For a Codex pane, the helper sends Codex `/cd` (and the task as a second plain prompt only if `/go` carried a task — no rider, no slash-analyze):
+
+```bash
+PANE="$HERDR_PANE_ID"; HB="$(command -v herdr)"
+nohup bash -c '
+  H="$1"; P="$2"; R="$3"; T="$4"
+  "$H" agent wait   "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true
+  "$H" agent prompt "$P" "/cd $R" --wait --until idle --timeout 120000 >/dev/null 2>&1   # Codex /cd
+  [ -n "$T" ] && "$H" agent prompt "$P" "$T" --wait --until idle --timeout 60000 >/dev/null 2>&1   # raw task, only if one was given
+' _ "$HB" "$PANE" "<REPO_ROOT>" "<RAW_TASK_OR_EMPTY>" >/dev/null 2>&1 &
+disown
+```
+
+- **Codex `/cd` reloads AGENTS.md, but its MCP-tool reload is UNVERIFIED** — Codex wires MCP via `~/.codex/config.toml` / `codex mcp`, not a per-repo `.mcp.json` that `/cd` re-scans, and the docs only promise the AGENTS.md/project-context reload (they explicitly note `/cd` does NOT re-materialize the environment). So a Codex warm-swap gets the repo + its instructions, but may NOT pick up the repo's live tools. Say so in the Step 4 line ("Codex `/cd` — repo + AGENTS.md loaded; live tools may need a manual reconnect").
+- **No `/serp-analyze` / `/research` for Codex** — never enqueue a slash-analyze command into a Codex pane; it isn't a Codex command. A bare `/go <repo>` is just `/cd`; a task-carrying `/go` sends `/cd` then the task text as an ordinary prompt for Codex to work on directly.
+- Everything else (detached helper, `--wait --until idle` to keep the two prompts as separate turns, end-the-turn-then-it-fires) is identical to the Claude path.
 
 ### 3b — New tab (exceptions only): `launch-repo-session.sh`
 
