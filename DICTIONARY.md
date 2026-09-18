@@ -2873,6 +2873,8 @@ A push/merge to `main` is **not live** until `deploy-k8s.sh main` runs on the no
 
 ⚠️ The db MCP server enforces a **30s query timeout** (MySQL `SET SESSION max_execution_time=30000`; PostgreSQL `SET statement_timeout=30000` — **NOT** a startup parameter, that errors with "unsupported startup parameter"). MySQL `ON DUPLICATE KEY UPDATE` only updates the **first** unique index (don't use on multi-index tables); `INSERT IGNORE` swallows **all** errors, unlike PG `ON CONFLICT`.
 
+⚠️ **MySQL 8.0 `AUTO_INCREMENT` reads STALE from `information_schema.TABLES` / `SHOW TABLE STATUS` after an `ALTER TABLE … AUTO_INCREMENT = N`** (verified on serp_test/serp_app 8.0.46 + local 8.0.45). Those views CACHE the counter and only refresh after **`ANALYZE TABLE <t>`** or an actual insert — a bare read right after an ALTER/seed shows the OLD value. Real case (2026-09-18): the SERP seeder's floor-bump (`WORKER_ID_GAP`, dropped 10M→1 in #1247 so SERP-native rows get small ids) set `serp_sale_order` to `odoo_max+1`, but `information_schema` still read **12,416,237** (= `odoo_max + 10,000,000` from a pre-#1247 run) while the real counter was **2,416,238** — confirmed by `ANALYZE TABLE` (metadata → 2,416,238) and the actual next-insert id. **Never diagnose a "stuck high auto-increment" from those views** — `ANALYZE TABLE` first (non-destructive, stats-only) or read a real insert's id. A `WHERE id >= <n>` row check tells you about DATA, not the counter. Also note: **`ALTER … AUTO_INCREMENT` CAN lower a counter in 8.0** (the "ALTER only raises" belief is false here — proven: raise→truncate→reload→`ALTER=max+1` yields the small next id).
+
 ---
 
 ### ID Strategy & Join Footguns
