@@ -35,13 +35,21 @@ Examples:
 
 If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex, case-insensitive) with no task (`wishdesk` → SWAC), open that repo's session **bare — no analyze, no prompt** — two cases:
 
-- **This session runs in a Herdr pane (`HERDR_PANE_ID` set — check with `echo $HERDR_PANE_ID`):** swap THIS tab in place — same tab and position, its base directory switches to the repo:
+- **This session runs in a Herdr pane (`HERDR_PANE_ID` set — check with `echo $HERDR_PANE_ID`):** **warm-swap THIS pane in place with `/cd`** — same tab and position, same process, warm cache, keeping full context. This is the SAME mechanism as Step 3a, just with **no analyze command** (bare repo = `/cd` only). Enqueue the swap via a detached helper:
 
   ```bash
-  ~/.claude/scripts/herdr-switch-repo.sh <REPO_ROOT>
+  PANE="$HERDR_PANE_ID"; HB="$(command -v herdr)"
+  nohup bash -c '
+    H="$1"; P="$2"; R="$3"
+    "$H" agent wait   "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true   # wait for THIS turn to end
+    "$H" agent prompt "$P" "/cd $R" --wait --until idle --timeout 120000 >/dev/null 2>&1
+  ' _ "$HB" "$PANE" "<REPO_ROOT>" >/dev/null 2>&1 &
+  disown
   ```
 
-  Then say in ONE line that the tab is swapping to that repo, and **END THE TURN IMMEDIATELY with no further tool calls** — the swap waits for this turn to end, exits this claude, and boots a fresh one cwd'd at the repo (this session is what gets replaced).
+  **Both Claude and Codex have `/cd`**, so this one enqueue warm-swaps either agent identically — no agent detection needed for a bare `/cd`. (Bare `/go` sends only `/cd` — no follow-on prompt — so the command-registration race in Step 3a doesn't apply here.) Then say in ONE line that the tab is warm-swapping to that repo, and **END THE TURN IMMEDIATELY with no further tool calls** — the detached helper waits for this turn to end, then sends `/cd`, which swaps the working dir + loads the repo's `CLAUDE.md`/`AGENTS.md` (+ MCP servers on Claude) in the same warm process.
+
+  **Do NOT use `herdr-switch-repo.sh`** — it SIGINTs the process and hard-runs `herdr agent start claude`, which (a) cold-reboots, losing all context, and (b) in a **Codex** pane kills Codex and leaves a dead bare shell, since it can only restart a `claude` agent. The warm `/cd` avoids both.
 
 - **Otherwise (VS Code / no Herdr pane):** launch a bare session the normal way:
 
@@ -253,12 +261,15 @@ nohup bash -c '
   H="$1"; P="$2"; R="$3"; A="$4"
   "$H" agent wait   "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true   # wait for THIS turn to end
   "$H" agent prompt "$P" "/cd $R"  --wait --until idle --timeout 120000 >/dev/null 2>&1  # /cd settles first
+  sleep 4                                                                                  # let the dest repos project commands register (see note)
   "$H" agent prompt "$P" "$A"      --wait --until idle --timeout 60000  >/dev/null 2>&1  # then the analyze prompt
 ' _ "$HB" "$PANE" "<REPO_ROOT>" "<ANALYZE_PROMPT>" >/dev/null 2>&1 &
 disown
 ```
 
-Then **report one line (Step 4) and END THE TURN with no further tool calls** — the detached helper drives the pane: it waits for this turn to finish, sends `/cd` (which swaps the working directory and loads the repo's `CLAUDE.md` + `.mcp.json` servers, dropping sw-cortex's, keeping the warm prompt cache), waits for that to settle, then sends the analyze prompt so it runs in the now-SERP/SWAC session. This tab **is** that session from here on.
+Then **report one line (Step 4) and END THE TURN with no further tool calls** — the detached helper drives the pane: it waits for this turn to finish, sends `/cd` (which swaps the working directory and loads the repo's `CLAUDE.md` + `.mcp.json` servers, dropping sw-cortex's, keeping the warm prompt cache), **waits ~4s for the destination repo's project commands to register**, then sends the analyze prompt so it runs in the now-SERP/SWAC session. This tab **is** that session from here on.
+
+- **The `sleep 4` is load-bearing — do NOT drop it.** `/cd`'s `--until idle` returns the moment `/cd` prints "Moved to …", but the destination repo's `.claude/commands/` (`/serp-analyze`, `/swac-analyze`, …) register *asynchronously* a beat later. Send the analyze prompt too soon and it fails with **`Unknown command: /serp-analyze`** and the task text lands as **"Args from unknown skill"** (verified live — this is exactly the bug the delay fixes). ~4s is comfortably past the registration window; the `/cd` swap itself is unaffected (it already completed).
 
 - **Why the detached helper** — the FIRST prompt can't be sent inline: `herdr agent wait --until idle` needs THIS turn to end first (the agent is "working" = you), and you can't `--wait` on your own turn from inside it. `nohup … & disown` detaches so the helper runs after the turn ends. Same reason `herdr-switch-repo.sh` uses a detached helper.
 - **`--wait --until idle` is load-bearing** — it's what makes `/cd` and the analyze prompt separate turns instead of one concatenated line. Never drop it, and never collapse to two bare `agent prompt` calls.
@@ -284,6 +295,7 @@ nohup bash -c '
   H="$1"; P="$2"; R="$3"; T="$4"
   "$H" agent wait   "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true
   "$H" agent prompt "$P" "/cd $R" --wait --until idle --timeout 120000 >/dev/null 2>&1   # Codex /cd
+  sleep 4                                                                                 # let dest AGENTS.md/context settle
   [ -n "$T" ] && "$H" agent prompt "$P" "$T" --wait --until idle --timeout 60000 >/dev/null 2>&1   # raw task, only if one was given
 ' _ "$HB" "$PANE" "<REPO_ROOT>" "<RAW_TASK_OR_EMPTY>" >/dev/null 2>&1 &
 disown
