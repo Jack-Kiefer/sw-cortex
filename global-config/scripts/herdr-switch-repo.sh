@@ -1,18 +1,34 @@
 #!/usr/bin/env bash
-# herdr-switch-repo.sh <repo-root> — switch THIS Herdr pane's claude session to another repo.
+# herdr-switch-repo.sh <repo-root> [follow-on-prompt] [tab-title] — switch THIS Herdr
+# pane's claude session to another repo, COLD (fresh process), optionally running a
+# slash command in the new session.
 #
-# Used by /go's bare-repo path (e.g. "/go serp") when the session runs inside a Herdr pane:
-# instead of opening a new tab and closing this one, the SAME pane swaps in place — the
-# current claude exits, the pane shell cd's to the repo, and a fresh claude boots there
-# (same tab, same position; tab relabeled to the repo floor).
+# Used by /go (both bare "/go serp" and task "/go fix X") when the session runs inside a
+# Herdr pane: instead of opening a new tab and closing this one, the SAME pane swaps in
+# place — the current claude exits, the pane shell cd's to the repo, and a fresh claude
+# boots there (same tab, same position).
+#
+# WHY COLD, NOT `/cd` (measured 2026-09-19): an in-process `/cd` warm-swap reloads cwd +
+# the destination CLAUDE.md + its .mcp.json MCP servers, but does NOT re-scan the
+# destination repo's project SLASH COMMANDS (`<repo>/.claude/commands/`) OR its project
+# HOOKS — both stay registered from the ORIGIN repo. Symptoms after `/cd` hub→SERP:
+# SERP's 61 project commands never populate the slash menu, and a sw-cortex Stop hook
+# still fires inside the SERP session (stale-registration crash). There is no documented
+# in-process re-scan trigger for commands/hooks — only a FRESH claude startup scans them.
+# So a repo-changing /go must cold-boot. (Warm `/cd` remains fine for a same-repo
+# working-dir nudge, but /go always crosses repos.) The lost hub context is acceptable:
+# /go's whole job is to hand this pane off to the destination repo.
 #
 # Built on Herdr's native agent primitives, driven by a DETACHED helper (the invoking
 # claude turn must end before the swap can run — the helper waits for that):
 #   1. herdr agent wait <pane> --until idle          (invoking turn finished)
 #   2. SIGINT the outgoing claude PROCESS (pid from pane process-info)  (hard-quit)
 #   3. poll pane process-info until claude leaves the foreground        (shell back)
-#   4. herdr pane run <pane> "cd <repo>"             (pane shell moves to the repo)
+#   4. herdr pane run <pane> "cd <repo>" (+ export CLAUDE_GO_TITLE if a title was given)
 #   5. herdr agent start claude --kind claude --pane <pane>   (fresh claude, waits ready)
+#   6. if a follow-on prompt was given: herdr agent prompt <pane> "<prompt>" --wait
+#      (the fresh session already scanned the repo's commands at boot, so a project
+#      command like /serp-analyze resolves immediately — no registration race, no sleep)
 #
 # WHY the process-signal + process-info approach (measured, 2026-08-19):
 #   - "/exit" submitted as a prompt (herdr agent prompt) does NOT reliably quit claude,
@@ -32,6 +48,8 @@
 set -euo pipefail
 
 REPO="${1:-}"
+PROMPT="${2:-}"   # optional: a slash command / prompt to run in the fresh session
+TITLE="${3:-}"    # optional: CLAUDE_GO_TITLE for the fresh session's tab floor
 if [ -z "$REPO" ] || [ ! -d "$REPO" ]; then
   echo "herdr-switch-repo: repo root '$REPO' does not exist" >&2
   exit 2
@@ -70,7 +88,7 @@ else:
 PY
 
 nohup bash -c '
-  H="$1"; P="$2"; T="$3"; R="$4"; L="$5"; HELPER="$6"
+  H="$1"; P="$2"; T="$3"; R="$4"; L="$5"; HELPER="$6"; PROMPT="$7"; TITLE="$8"
   fgpid() { "$H" pane process-info --pane "$P" 2>/dev/null | python3 "$HELPER" 2>/dev/null; }
 
   # 1. Wait for the invoking claude turn to finish (idle = at its prompt). Bounded.
@@ -101,22 +119,45 @@ nohup bash -c '
     fi
   fi
 
-  # 4. Move the pane shell to the repo and relabel the tab.
-  "$H" pane run "$P" "cd $(printf %q "$R") && clear" >/dev/null 2>&1
-  [ -n "$T" ] && "$H" tab rename "$T" "🔍 $L · session" >/dev/null 2>&1
+  # 4. Move the pane shell to the repo. If a TITLE was given, export CLAUDE_GO_TITLE into
+  #    the shell so the fresh claude adopts that descriptive floor at SessionStart (same
+  #    mechanism launch-repo-session.sh uses) and lets its analyze-command rider own the
+  #    title from there — so we do NOT hard-rename in that case. With no title (bare /go),
+  #    keep the plain repo-floor rename.
+  if [ -n "$TITLE" ]; then
+    "$H" pane run "$P" "export CLAUDE_GO_TITLE=$(printf %q "$TITLE") ; cd $(printf %q "$R") && clear" >/dev/null 2>&1
+  else
+    "$H" pane run "$P" "cd $(printf %q "$R") && clear" >/dev/null 2>&1
+    [ -n "$T" ] && "$H" tab rename "$T" "🔍 $L · session" >/dev/null 2>&1
+  fi
 
   # 5. Boot a fresh claude — but `agent start` requires the pane to be AT its interactive
   #    shell prompt, and the cd/clear from step 4 may still be running. Retry a few times
   #    (agent start is a no-op-safe call that just fails if the shell is busy) until it
   #    reports the agent started. Without this the very first call raced the cd and the
   #    swap silently left a bare shell (measured 2026-08-19).
+  started=""
   for i in $(seq 15); do
     out="$("$H" agent start claude --kind claude --pane "$P" --timeout 30000 2>&1)"
-    case "$out" in *agent_started*) break;; esac
+    case "$out" in *agent_started*) started=1; break;; esac
     sleep 0.4
   done
+
+  # 6. If a follow-on prompt was given (a task /go: /serp-analyze … / /research … ), send
+  #    it into the now-fresh session. The cold boot already scanned the repo project
+  #    commands, so a project slash command resolves on the first try — no sleep/race
+  #    (that race only afflicts the in-process /cd warm-swap this cold path replaces).
+  #    --wait --until idle keeps it a discrete turn; the analyze command then owns the tab
+  #    via its own set-tab-title rider.
+  if [ -n "$started" ] && [ -n "$PROMPT" ]; then
+    "$H" agent prompt "$P" "$PROMPT" --wait --until idle --timeout 60000 >/dev/null 2>&1 || true
+  fi
   rm -f "$HELPER" 2>/dev/null || true
-' _ "$HERDR_BIN" "$PANE" "$TAB" "$REPO" "$LABEL" "$HELPER" >/dev/null 2>&1 &
+' _ "$HERDR_BIN" "$PANE" "$TAB" "$REPO" "$LABEL" "$HELPER" "$PROMPT" "$TITLE" >/dev/null 2>&1 &
 disown
 
-echo "switch: this tab swaps to [$LABEL] as soon as this turn ends — end the turn now."
+if [ -n "$PROMPT" ]; then
+  echo "switch: this tab cold-boots into [$LABEL] and runs the command as soon as this turn ends — end the turn now."
+else
+  echo "switch: this tab swaps to [$LABEL] as soon as this turn ends — end the turn now."
+fi
