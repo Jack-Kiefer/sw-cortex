@@ -25,10 +25,22 @@
 #   2. SIGINT the outgoing claude PROCESS (pid from pane process-info)  (hard-quit)
 #   3. poll pane process-info until claude leaves the foreground        (shell back)
 #   4. herdr pane run <pane> "cd <repo>" (+ export CLAUDE_GO_TITLE if a title was given)
+#   4b. poll `herdr pane get <pane>` until foreground_cwd == <repo>     (cd actually took)
 #   5. herdr agent start claude --kind claude --pane <pane>   (fresh claude, waits ready)
 #   6. if a follow-on prompt was given: herdr agent prompt <pane> "<prompt>" --wait
 #      (the fresh session already scanned the repo's commands at boot, so a project
 #      command like /serp-analyze resolves immediately — no registration race, no sleep)
+#
+# WHY step 4b — the CWD GATE (measured 2026-09-20): without it, `agent start` (step 5)
+# could fire while the `cd <repo>` from step 4 was still in flight, booting the fresh
+# claude in the ORIGIN cwd (sw-cortex) instead of the repo. Symptom: the swap "worked"
+# (old claude killed, new claude booted, pgid changed) but the new session came up in the
+# hub, so the follow-on `/serp-analyze` — a SERP-only project command — errored with
+# `Unknown command: /serp-analyze` and the prompt-send itself failed. The step-5 retry
+# loop only guards against a BUSY shell, never against a wrong CWD, so it never caught
+# this. Gating `agent start` on `pane get`'s foreground_cwd == <repo> closes the race
+# deterministically. (Server log 12:05: line 695 pgid 65334 → line 716 pgid 68599, new
+# claude at cwd sw-cortex, then agent.prompt outcome=error.)
 #
 # WHY the process-signal + process-info approach (measured, 2026-08-19):
 #   - "/exit" submitted as a prompt (herdr agent prompt) does NOT reliably quit claude,
@@ -87,9 +99,23 @@ else:
     print('none')
 PY
 
+# Second helper: read `herdr pane get` JSON on stdin, print the pane's foreground_cwd
+# (the shell/claude working dir), or empty. Same file-not-inline pattern as HELPER so no
+# quoting collides with the single-quoted detached `bash -c` block below.
+CWDHELPER="$(mktemp -t herdr-switch-panecwd.XXXXXX.py)"
+cat >"$CWDHELPER" <<'PY'
+import json, sys
+try:
+    print(json.load(sys.stdin)['result']['pane']['foreground_cwd'] or '')
+except Exception:
+    print('')
+PY
+
 nohup bash -c '
-  H="$1"; P="$2"; T="$3"; R="$4"; L="$5"; HELPER="$6"; PROMPT="$7"; TITLE="$8"
+  H="$1"; P="$2"; T="$3"; R="$4"; L="$5"; HELPER="$6"; PROMPT="$7"; TITLE="$8"; CWDHELPER="$9"
   fgpid() { "$H" pane process-info --pane "$P" 2>/dev/null | python3 "$HELPER" 2>/dev/null; }
+  # foreground_cwd of the pane (the shell/claude cwd, per `herdr pane get`), or empty.
+  panecwd() { "$H" pane get "$P" 2>/dev/null | python3 "$CWDHELPER" 2>/dev/null; }
 
   # 1. Wait for the invoking claude turn to finish (idle = at its prompt). Bounded.
   "$H" agent wait "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true
@@ -131,6 +157,18 @@ nohup bash -c '
     [ -n "$T" ] && "$H" tab rename "$T" "🔍 $L · session" >/dev/null 2>&1
   fi
 
+  # 4b. CWD GATE — wait until the pane shell is ACTUALLY in the repo before booting claude.
+  #     `pane run "cd <repo>"` (step 4) is async: it may still be in flight when we reach
+  #     step 5, and `agent start` would then boot the fresh claude in the ORIGIN cwd (the
+  #     hub) — the swap looks fine (claude killed + rebooted) but lands in the wrong repo,
+  #     so a follow-on project command like /serp-analyze errors. Poll foreground_cwd until
+  #     it equals the repo (bounded). See the WHY step 4b note in the header.
+  in_repo=""
+  for i in $(seq 25); do
+    if [ "$(panecwd)" = "$R" ]; then in_repo=1; break; fi
+    sleep 0.2
+  done
+
   # 5. Boot a fresh claude — but `agent start` requires the pane to be AT its interactive
   #    shell prompt, and the cd/clear from step 4 may still be running. Retry a few times
   #    (agent start is a no-op-safe call that just fails if the shell is busy) until it
@@ -143,6 +181,19 @@ nohup bash -c '
     sleep 0.4
   done
 
+  # 5b. FINAL CWD CHECK — after the fresh claude booted, confirm it really came up in the
+  #     repo (foreground_cwd now tracks the new session cwd). If the gate above timed out
+  #     OR the boot still landed outside the repo, do NOT inject the follow-on prompt into
+  #     a wrong-cwd session — that is exactly the /serp-analyze-in-the-hub failure. Instead
+  #     leave a visible line in the pane so the swap fails LOUDLY, not silently.
+  boot_cwd="$(panecwd)"
+  if [ "$boot_cwd" != "$R" ]; then
+    gated="gate=$([ -n "$in_repo" ] && echo hit || echo timed-out)"
+    "$H" pane run "$P" "printf %s\\\\n \"⚠️ /go swap: fresh session did not land in $R (cwd=$boot_cwd, $gated) — cd there and rerun the command manually.\"" >/dev/null 2>&1 || true
+    rm -f "$HELPER" "$CWDHELPER" 2>/dev/null || true
+    exit 0
+  fi
+
   # 6. If a follow-on prompt was given (a task /go: /serp-analyze … / /research … ), send
   #    it into the now-fresh session. The cold boot already scanned the repo project
   #    commands, so a project slash command resolves on the first try — no sleep/race
@@ -152,8 +203,8 @@ nohup bash -c '
   if [ -n "$started" ] && [ -n "$PROMPT" ]; then
     "$H" agent prompt "$P" "$PROMPT" --wait --until idle --timeout 60000 >/dev/null 2>&1 || true
   fi
-  rm -f "$HELPER" 2>/dev/null || true
-' _ "$HERDR_BIN" "$PANE" "$TAB" "$REPO" "$LABEL" "$HELPER" "$PROMPT" "$TITLE" >/dev/null 2>&1 &
+  rm -f "$HELPER" "$CWDHELPER" 2>/dev/null || true
+' _ "$HERDR_BIN" "$PANE" "$TAB" "$REPO" "$LABEL" "$HELPER" "$PROMPT" "$TITLE" "$CWDHELPER" >/dev/null 2>&1 &
 disown
 
 if [ -n "$PROMPT" ]; then
