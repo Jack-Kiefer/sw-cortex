@@ -145,28 +145,27 @@ nohup bash -c '
     fi
   fi
 
-  # 4. Move the pane shell to the repo. If a TITLE was given, export CLAUDE_GO_TITLE into
-  #    the shell so the fresh claude adopts that descriptive floor at SessionStart (same
-  #    mechanism launch-repo-session.sh uses) and lets its analyze-command rider own the
-  #    title from there — so we do NOT hard-rename in that case. With no title (bare /go),
-  #    keep the plain repo-floor rename.
-  if [ -n "$TITLE" ]; then
-    "$H" pane run "$P" "export CLAUDE_GO_TITLE=$(printf %q "$TITLE") ; cd $(printf %q "$R") && clear" >/dev/null 2>&1
-  else
-    "$H" pane run "$P" "cd $(printf %q "$R") && clear" >/dev/null 2>&1
-    [ -n "$T" ] && "$H" tab rename "$T" "🔍 $L · session" >/dev/null 2>&1
-  fi
-
-  # 4b. CWD GATE — wait until the pane shell is ACTUALLY in the repo before booting claude.
-  #     `pane run "cd <repo>"` (step 4) is async: it may still be in flight when we reach
-  #     step 5, and `agent start` would then boot the fresh claude in the ORIGIN cwd (the
-  #     hub) — the swap looks fine (claude killed + rebooted) but lands in the wrong repo,
-  #     so a follow-on project command like /serp-analyze errors. Poll foreground_cwd until
-  #     it equals the repo (bounded). See the WHY step 4b note in the header.
+  # 4 + 4b. Move the pane shell to the repo, RE-ISSUING the cd until foreground_cwd confirms
+  #    it took. `herdr pane run` just TYPES "<cmd>\n" into the pane terminal — it only runs
+  #    the command if the foreground is a ready interactive shell. Right after the outgoing
+  #    claude is SIGINT-killed (step 2) the shell has NOT reclaimed the terminal yet, so a
+  #    fire-once cd (the old step 4) is typed into a settling terminal and LOST — the fresh
+  #    claude then boots in the ORIGIN cwd. Measured 2026-09-20: pane.run never reached the
+  #    server (0 pane.run log lines across a whole day of swaps), foreground_cwd stayed at
+  #    sw-cortex, the cwd gate timed out, and the ⚠️ warning fired even though nothing was
+  #    wrong but the timing. `agent start` has NO --cwd, so the shell must cd there first —
+  #    the only fix is to keep retyping the cd each tick until the gate sees the repo cwd.
+  #    (TITLE given: export CLAUDE_GO_TITLE so the fresh claude adopts that floor at
+  #    SessionStart and its analyze rider owns the title — so no hard-rename. Bare /go: keep
+  #    the plain repo-floor rename, done once up front.)
+  cd_cmd="cd $(printf %q "$R") && clear"
+  [ -n "$TITLE" ] && cd_cmd="export CLAUDE_GO_TITLE=$(printf %q "$TITLE") ; $cd_cmd"
+  [ -z "$TITLE" ] && [ -n "$T" ] && "$H" tab rename "$T" "🔍 $L · session" >/dev/null 2>&1
   in_repo=""
-  for i in $(seq 25); do
+  for i in $(seq 40); do
     if [ "$(panecwd)" = "$R" ]; then in_repo=1; break; fi
-    sleep 0.2
+    "$H" pane run "$P" "$cd_cmd" >/dev/null 2>&1
+    sleep 0.3
   done
 
   # 5. Boot a fresh claude — but `agent start` requires the pane to be AT its interactive
