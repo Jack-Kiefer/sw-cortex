@@ -2,9 +2,9 @@
 
 The **task entry point.** `/go` gets you into the right project with **a slash command chosen by intent**: an **actionable** task (fix/add/change) fires **`/serp-analyze`** (SERP) — full research → build → PR — and a **pure question** fires **`/research`** — investigate → answer → stop. `/go` = pick the repo, pick the command, run it.
 
-**By default `/go` SWAPS this tab into the target repo IN PLACE — same tab, same position — it does NOT spawn a new one.** When this session runs in a Herdr pane (the normal case), `/go` **cold-boots a fresh `claude` in this same pane** pointed at the target repo (via `herdr-switch-repo.sh`): the current claude exits, the pane `cd`s to the repo, and a new claude starts there — loading the target repo's `CLAUDE.md`, `.mcp.json` MCP servers, project **slash commands** (`<repo>/.claude/commands/`), and project **hooks** at startup. This tab **becomes** the SERP/SWAC session, with that repo's full command menu populated. For a task `/go`, the swap script then sends the analyze command into the fresh session.
+**By default `/go` SWAPS this tab into the target repo IN PLACE — same tab, same session — it does NOT spawn a new one.** When this session runs in a Herdr pane (the normal case), `/go` **warm-swaps THIS session into the target repo with the agent-native `/cd`** (via `herdr-switch-repo.sh`): the SAME session stays alive and `/cd`s into the repo, reloading the target repo's `CLAUDE.md`, `.mcp.json` MCP servers, project **slash commands** (`<repo>/.claude/commands/`), and project **hooks** in place. This tab **becomes** the SERP/SWAC session, with that repo's full command menu populated and its live MCP tools connected. For a task `/go`, the swap script then sends the analyze command into the same session.
 
-> **Why cold-boot, not an in-process `/cd` (changed 2026-09-19).** `/cd` is cheaper — it warm-swaps cwd + `CLAUDE.md` + MCP servers in the same process, keeping the prompt cache. **But `/cd` does NOT re-scan the destination repo's project slash commands OR its project hooks** — both stay registered from the origin (sw-cortex). Measured symptoms after `/cd` hub→SERP: SERP's 61 project commands never populate the slash menu (`/serp-analyze`, `/deploy`, … are missing when you type `/`), and a stale sw-cortex Stop hook still fires inside the SERP session. There is **no documented in-process re-scan trigger** for commands/hooks — only a fresh `claude` startup scans them. Since `/go` always crosses repos (hub→SERP/SWAC) and its whole purpose is to hand this pane off to the destination, the lost hub context is acceptable, and a populated command menu + correct hooks matter more than the warm cache. (A same-repo working-dir nudge could still use `/cd`, but `/go` isn't that.)
+> **Why hot-boot (`/cd`), not a cold re-boot (verified 2026-09-21 on Claude Code v2.1.278).** This used to cold-boot (kill the outgoing claude, `cd` the bare shell, launch a fresh claude) on the belief that an in-process `/cd` did NOT re-scan project slash commands or hooks. **On v2.1.278 that belief is false and was measured wrong:** after `/cd <repo>`, the destination repo's project commands DO populate the menu (`/serp-analyze`, `/creating-pr`, `/env-config`, … all show as `(project)`), the `.mcp.json` MCP servers DO reload (`mcp__serp-prod`, `mcp__serp-orm` become live), cwd + `CLAUDE.md` + the statusline re-resolve (`SERP · dev`), and project hooks re-register — all in the same warm session. The cold-boot's whole justification is gone, and it carried a parade of terminal-race bugs (stray-keystroke corruption, `agent_name_taken` collisions when another claude was live, cd-into-a-settling-shell timeouts). Hot-boot has none of them: it is one `herdr agent prompt "/cd <repo>"` into the SAME session. **One known caveat (a harness limitation, not ours):** `/cd` does not re-set `$CLAUDE_PROJECT_DIR`, so a destination project hook that interpolates `"$CLAUDE_PROJECT_DIR/.claude/hooks/…"` may print a non-fatal "No such file" error on the first Stop after the swap — cosmetic (the hooks in question are telemetry that exit 0 when unconfigured), filed as Claude Code feedback 2026-09-21.
 
 `/go` still **spawns a separate tab** in the cases that genuinely need a second session: **fire-and-forget / parallel** ("launch that and keep going" — this tab must keep working), **`/launch`** (its contract is keep-this-tab-open + a new tab per fix), and **VS Code / no Herdr pane** (self-prompt unavailable → fall back to `launch-repo-session.sh`). (`/launch` is the keep-this-tab-open variant for already-scoped fixes — see the `/launch` command.)
 
@@ -13,8 +13,8 @@ The **task entry point.** `/go` gets you into the right project with **a slash c
 ## Usage
 
 ```
-/go <actionable task>    # detect repo → swap THIS tab into it (cold-boot) → /serp-analyze (research → build → PR)
-/go <pure question>      # detect repo → swap THIS tab into it (cold-boot) → /research (investigate → answer → stop)
+/go <actionable task>    # detect repo → warm-swap THIS session into it (/cd) → /serp-analyze (research → build → PR)
+/go <pure question>      # detect repo → warm-swap THIS session into it (/cd) → /research (investigate → answer → stop)
 /go serp                 # bare repo name → JUST swap this tab to SERP, no command, no task
 /go swac                 # JUST swap this tab to SWAC
 /go cortex               # JUST work in sw-cortex (already here — inline)
@@ -22,9 +22,9 @@ The **task entry point.** `/go` gets you into the right project with **a slash c
 
 Examples:
 
-- `/go fix the forecast zeros on live-products` → swaps this tab into SERP (cold-boot) and runs **`/serp-analyze`** → it researches, builds the fix, and opens a PR (actionable task)
-- `/go the proposal sleeve isn't resolving for medium boxes` → swaps this tab into SWAC (cold-boot) and runs **`/swac-analyze`** → researches then builds (SWAC's research→build pipeline)
-- `/go how does the redemption curve feed size_projections?` → swaps into SERP (cold-boot) and runs **`/research`** → researches and reports the answer, then stops (pure question — nothing to build)
+- `/go fix the forecast zeros on live-products` → warm-swaps this session into SERP (/cd) and runs **`/serp-analyze`** → it researches, builds the fix, and opens a PR (actionable task)
+- `/go the proposal sleeve isn't resolving for medium boxes` → warm-swaps this session into SWAC (/cd) and runs **`/swac-analyze`** → researches then builds (SWAC's research→build pipeline)
+- `/go how does the redemption curve feed size_projections?` → warm-swaps into SERP (/cd) and runs **`/research`** → researches and reports the answer, then stops (pure question — nothing to build)
 - `/go serp` → swaps this tab to a bare SERP session, nothing else (the repo is already an explicit pick)
 
 **Launch-and-go:** `/go` runs immediately — it does **not** pop a pre-launch question asking which area or angle to investigate first. Routing is automatic (Step 1) and the launched command (`/serp-analyze` or `/research`) does its own deep research pass over everything the task touches.
@@ -37,25 +37,13 @@ Examples:
 
 If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex, case-insensitive) with no task (`wishdesk` → SWAC), open that repo's session **bare — no analyze, no prompt** — two cases:
 
-- **This session runs in a Herdr pane (`HERDR_PANE_ID` set — check with `echo $HERDR_PANE_ID`):** **cold-boot THIS pane in place into the repo** — same tab and position, a fresh `claude` so the repo's project slash-command menu + hooks populate (an in-process `/cd` would leave them stale — see the Why box up top). This is the SAME mechanism as Step 3a, just with **no analyze command** (bare repo = swap only). Run:
+- **This session runs in a Herdr pane (`HERDR_PANE_ID` set — check with `echo $HERDR_PANE_ID`):** **warm-swap THIS session in place into the repo** — same tab, same session, the agent's own `/cd` so the repo's project slash-command menu + MCP servers + hooks reload in place (see the Why box up top). This is the SAME mechanism as Step 3a, just with **no analyze command** (bare repo = swap only). Run:
 
   ```bash
   ~/.claude/scripts/herdr-switch-repo.sh <REPO_ROOT>
   ```
 
-  It waits for THIS turn to end, hard-quits the outgoing claude, `cd`s the pane into the repo, and boots a fresh claude there (menu + hooks scanned at startup). Then say in ONE line that the tab is cold-booting into that repo, and **END THE TURN IMMEDIATELY with no further tool calls** — the swap is what kills this session; the fresh one comes up at the repo's prompt.
-
-  **Codex-pane exception — a Codex pane must WARM-SWAP with `/cd`, not cold-boot.** `herdr-switch-repo.sh` boots `--kind claude`, so cold-booting a **Codex** pane would kill Codex and leave a dead bare shell. Detect the agent first (`herdr agent get "$HERDR_PANE_ID"` → `.result.agent.agent`); if it's **codex**, enqueue Codex's own `/cd` via the detached helper below instead (Codex `/cd` reloads AGENTS.md — the best available swap for a Codex pane; Codex has no project-command menu of ours to worry about):
-
-  ```bash
-  PANE="$HERDR_PANE_ID"; HB="$(command -v herdr)"
-  nohup bash -c '
-    H="$1"; P="$2"; R="$3"
-    "$H" agent wait   "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true   # wait for THIS turn to end
-    "$H" agent prompt "$P" "/cd $R" --wait --until idle --timeout 120000 >/dev/null 2>&1
-  ' _ "$HB" "$PANE" "<REPO_ROOT>" >/dev/null 2>&1 &
-  disown
-  ```
+  It waits for THIS turn to end, then enqueues `/cd <repo>` into this same session. **Works for both Claude and Codex panes** — `/cd` is agent-native to both (Codex `/cd` reloads AGENTS.md), so no per-agent detection or special-casing is needed. Say in ONE line that the tab is warm-swapping into that repo, and **END THE TURN IMMEDIATELY with no further tool calls** — the `/cd` fires as this session's next turn.
 
 - **Otherwise (VS Code / no Herdr pane):** launch a bare session the normal way:
 
@@ -224,7 +212,7 @@ So a SERP `/go fix the forecast zeros on live-products` builds the analyze promp
 And a SERP `/go how does the redemption curve feed size_projections?` builds:
 `/research how does the redemption curve feed size_projections? — set the tab title with set-tab-title.sh as you go (🔍 while researching, 🙋 when presenting the answer, ✅ when answered).`
 
-This analyze prompt is what Step 3 hands to `herdr-switch-repo.sh` (Claude cold-boot) / enqueues after Codex `/cd` (Codex warm-swap), OR passes to `launch-repo-session.sh` (new-tab exceptions).
+This analyze prompt is what Step 3 hands to `herdr-switch-repo.sh` (the `/cd` warm-swap, Claude or Codex) OR passes to `launch-repo-session.sh` (new-tab exceptions).
 
 ### Step 2.5 — Images attached? Carry them into the analyze prompt as file paths.
 
@@ -255,53 +243,25 @@ No launcher/extension changes are involved — the prompt passes through unmodif
 - **`/launch`** — its contract is keep-this-tab-open + a separate tab per fix. (That's the `/launch` command, not `/go`.)
 - **No Herdr pane** — `echo $HERDR_PANE_ID` is empty (VS Code / bare terminal). `herdr agent prompt` can't self-enqueue, so fall back to a new tab.
 
-Otherwise → **swap in place** (3a). The swap has two variants by pane agent — **Claude** (default, cold-boot) or **Codex** (warm `/cd`) — detected via `herdr agent get`; see the Codex sub-note in 3a.
+Otherwise → **swap in place** (3a) — a `/cd` warm-swap of this session into the repo. It works the same for a Claude or a Codex pane (`/cd` is native to both); the only difference is that a Codex pane gets the raw task text instead of a slash-analyze command.
 
-### 3a — Swap in place (default): cold-boot THIS pane into the repo + run the analyze command
+### 3a — Swap in place (default): warm-swap (`/cd`) THIS session into the repo + run the analyze command
 
-A Claude pane **cold-boots** into the repo via `herdr-switch-repo.sh` — a fresh `claude` so the destination repo's project slash-command menu and hooks are scanned at startup (an in-process `/cd` leaves both stale — see the Why box at the top of this file). The script takes the repo root, the analyze prompt Step 2 built, and a short title, and does everything in ONE detached call: it waits for THIS turn to end, hard-quits the outgoing claude, `cd`s the pane into the repo, boots a fresh claude with `CLAUDE_GO_TITLE` set, and then sends the analyze prompt into it:
+The session **warm-swaps** into the repo via `herdr-switch-repo.sh` — the SAME session `/cd`s into the destination, reloading its project slash-command menu, `.mcp.json` MCP servers, `CLAUDE.md`, and hooks in place (verified 2026-09-21, v2.1.278 — see the Why box at the top of this file). The script takes the repo root, the analyze prompt Step 2 built, and a short title, and does everything in ONE detached call: it waits for THIS turn to end, then enqueues `/cd <repo>` and, once that lands, the analyze prompt:
 
 ```bash
 ~/.claude/scripts/herdr-switch-repo.sh "<REPO_ROOT>" "<ANALYZE_PROMPT>" "<TAB_TITLE>"
 ```
 
-- `<ANALYZE_PROMPT>` is the full Step-2 command string (`/serp-analyze <task> — …rider…` or `/research …`).
-- `<TAB_TITLE>` is a short floor for the fresh session, e.g. `🔍 <short task>` — the analyze command's own set-tab-title rider takes over the title from there.
+- `<ANALYZE_PROMPT>` is the full Step-2 command string (`/serp-analyze <task> — …rider…` or `/research …`). For a **Codex** pane, pass the **raw task text** instead (no slash-analyze — those are Claude Code commands Codex can't run); the script sends it as a plain prompt after `/cd`.
+- `<TAB_TITLE>` is a short floor, e.g. `🔍 <short task>` — used only for a bare (no-prompt) swap; the analyze command's own set-tab-title rider owns the title otherwise.
 
-Then **report one line (Step 4) and END THE TURN with no further tool calls** — the swap is what ends this session. Because the destination session is fresh, its `.claude/commands/` are already scanned before the analyze prompt arrives, so a project command like `/serp-analyze` resolves on the first try — **no registration race, no `sleep`** (that race only afflicted the old in-process `/cd` warm-swap this cold path replaces). This tab **is** the SERP/SWAC session from the next turn on, with the full command menu populated.
+Then **report one line (Step 4) and END THE TURN with no further tool calls** — the `/cd` and the analyze prompt fire as this SAME session's subsequent turns. Because `/cd` re-scans `.claude/commands/` before the analyze prompt arrives (the script `--wait`s for `/cd` to land first), a project command like `/serp-analyze` resolves on the first try — **no registration race, no `sleep`**. This tab **is** the SERP/SWAC session from the next turn on, with the full command menu populated and MCP tools live.
 
-- **One call does it all** — the script's own detached helper waits for this turn to go idle, kills the old claude, moves the pane, boots the new claude (retrying `agent start` until the shell is ready), then sends the prompt with `--wait --until idle` as a discrete turn. You don't enqueue `/cd`, you don't `sleep`, and you don't call `set-tab-title.sh` yourself — the fresh session owns its title via `CLAUDE_GO_TITLE` + the analyze rider.
-- **First-visit trust prompt** — a fresh `claude` in a repo Jack hasn't opened this machine-session may show a workspace-trust dialog at boot; the analyze prompt is sent only after `agent start` reports ready, so it still lands cleanly. Mention it in the Step 4 line if it's a repo you haven't touched.
-- **Context is NOT preserved** — cold-boot discards this hub session (that's the trade for a populated command menu + correct hooks; see the Why box). If Jack needs the hub AND the task at once, that's the fire-and-forget / new-tab path (3b), not this.
-
-#### If this pane is running CODEX, not Claude — warm-swap with `/cd`, no analyze command
-
-The pane might be a **Codex** session, not Claude (Herdr runs both). Codex **must warm-swap with its own `/cd`, not cold-boot** — `herdr-switch-repo.sh` boots `--kind claude`, so cold-booting a Codex pane would kill Codex and leave a dead bare shell. Codex CLI has its OWN `/cd` (shipped v0.149.0; warm-swaps the working dir + reloads the destination's `AGENTS.md` project context, history preserved) and Herdr drives a Codex pane through the same `herdr agent prompt` socket. Two differences from the Claude path: detect the agent, and **Codex has no analyze command** (`/serp-analyze` / `/swac-analyze` / `/research` are Claude Code commands — Codex can't run them), so you enqueue ONLY `/cd` (repo swap), plus the raw task as a plain prompt if there is one. (Codex has no project-command menu of ours, so the stale-menu problem that forces cold-boot on the Claude side doesn't apply — warm `/cd` is the right and only safe swap for a Codex pane.)
-
-Detect the pane's agent first:
-
-```bash
-AGENT="$(herdr agent get "$HERDR_PANE_ID" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("result",{}).get("agent",{}).get("agent",""))')"
-# "claude" → the Claude helper above.  "codex" → the Codex helper below.
-```
-
-For a Codex pane, the helper sends Codex `/cd` (and the task as a second plain prompt only if `/go` carried a task — no rider, no slash-analyze):
-
-```bash
-PANE="$HERDR_PANE_ID"; HB="$(command -v herdr)"
-nohup bash -c '
-  H="$1"; P="$2"; R="$3"; T="$4"
-  "$H" agent wait   "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true
-  "$H" agent prompt "$P" "/cd $R" --wait --until idle --timeout 120000 >/dev/null 2>&1   # Codex /cd
-  sleep 4                                                                                 # let dest AGENTS.md/context settle
-  [ -n "$T" ] && "$H" agent prompt "$P" "$T" --wait --until idle --timeout 60000 >/dev/null 2>&1   # raw task, only if one was given
-' _ "$HB" "$PANE" "<REPO_ROOT>" "<RAW_TASK_OR_EMPTY>" >/dev/null 2>&1 &
-disown
-```
-
-- **Codex `/cd` reloads AGENTS.md, but its MCP-tool reload is UNVERIFIED** — Codex wires MCP via `~/.codex/config.toml` / `codex mcp`, not a per-repo `.mcp.json` that `/cd` re-scans, and the docs only promise the AGENTS.md/project-context reload (they explicitly note `/cd` does NOT re-materialize the environment). So a Codex warm-swap gets the repo + its instructions, but may NOT pick up the repo's live tools. Say so in the Step 4 line ("Codex `/cd` — repo + AGENTS.md loaded; live tools may need a manual reconnect").
-- **No `/serp-analyze` / `/research` for Codex** — never enqueue a slash-analyze command into a Codex pane; it isn't a Codex command. A bare `/go <repo>` is just `/cd`; a task-carrying `/go` sends `/cd` then the task text as an ordinary prompt for Codex to work on directly.
-- **Codex stays a WARM `/cd` swap** (unlike the Claude path, which cold-boots) — same detached-helper shape, `--wait --until idle` to keep `/cd` and the task as separate turns, `sleep 4` so the destination's AGENTS.md/context settles before the task lands, and end-the-turn-then-it-fires. The cold-boot script is Claude-only.
+- **One call does it all, both agents** — `/cd` is agent-native to Claude AND Codex, so the same script handles both with no per-agent detection. Its detached helper waits for this turn to go idle, sends `/cd`, then (if a prompt was given) sends the analyze/task prompt with `--wait --until idle` as a discrete turn. You don't hand-enqueue `/cd`, you don't `sleep`, and you don't call `set-tab-title.sh` yourself.
+- **Context IS preserved** — unlike the old cold-boot, the warm-swap keeps this session alive: same thread, same history, same prompt cache. (Note: `/go`'s intent is still to hand this tab off to the task; if Jack needs the ORIGINAL hub context AND the task at once, that's the fire-and-forget / new-tab path (3b).)
+- **Known caveat (harness limitation)** — `/cd` does not re-set `$CLAUDE_PROJECT_DIR`, so a destination project hook interpolating `"$CLAUDE_PROJECT_DIR/.claude/hooks/…"` may print a non-fatal "No such file" error on the first Stop after the swap. Cosmetic; filed as Claude Code feedback.
+- **Codex MCP reload is UNVERIFIED** — Codex `/cd` reloads AGENTS.md, but Codex wires MCP via `~/.codex/config.toml`, not a per-repo `.mcp.json`, so a Codex warm-swap may not pick up the repo's live tools. Say so in the Step 4 line for a Codex pane ("Codex `/cd` — repo + AGENTS.md loaded; live tools may need a manual reconnect").
 
 ### 3b — New tab (exceptions only): `launch-repo-session.sh`
 
@@ -314,17 +274,17 @@ Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-t
 ## Step 4 — Report
 
 - **One line**, matching the path you took:
-  - **Swap in place (default, Claude cold-boot):** "Routed to **SERP** — swapping this tab into SERP (fresh session so its command menu loads) and running `/serp-analyze` for the forecast zeros (research → build → PR)." (Add "(first visit — approve the trust prompt at boot)" if it's a repo you haven't opened this machine-session.) Then end the turn. (Codex pane: say "warm-swapping via `/cd`" instead.)
+  - **Swap in place (default, `/cd` warm-swap):** "Routed to **SERP** — warm-swapping this session into SERP (`/cd`, so its command menu + MCP tools reload) and running `/serp-analyze` for the forecast zeros (research → build → PR)." Then end the turn. (Codex pane: same line, and note live tools may need a manual reconnect.)
   - **New tab:** "Routed to **SERP** — opening a separate `/serp-analyze` tab for the forecast zeros; this tab keeps going." Tell Jack to switch to the new tab.
 - **Warm-swap consumes THIS tab** — after the queued prompts fire, this pane is the SERP/SWAC session (sw-cortex tooling is gone until you `/cd` back). That's intended. If you need the hub AND the task at once, that's the fire-and-forget / new-tab path instead.
 - **For an actionable analyze run, the build happens in this same session** — research flows straight to a PR. For a `/research` run (pure question), it answers and stops; a fixable issue it surfaces can be spun into its own tab later with `/launch` (→ `/implement`).
 - If the swap doesn't fire (`herdr-switch-repo.sh` / `herdr agent` errored): check `herdr status` (server running?). If Herdr is down, fall back to Step 3b (new tab).
 
-`/go` classifies, routes, picks the command, and either swaps this tab into the repo in place (default — Claude cold-boot / Codex warm `/cd`) or spawns a separate tab (fire-and-forget / `/launch` / no-Herdr).
+`/go` classifies, routes, picks the command, and either warm-swaps this session into the repo in place (default — `/cd`, Claude or Codex) or spawns a separate tab (fire-and-forget / `/launch` / no-Herdr).
 
 ## Plain-English equivalent (no slash needed)
 
-When Jack asks conversationally — "look into Y in a go", "spin up a session for X", "open a session to dig into X", "fix X in a new go", "just open serp" — treat it EXACTLY like `/go`: same routing, same bare-vs-task logic, same **recently-closed-chat check (Step 0.2 — resume a matching recently-closed save instead of starting fresh)**, same **intent-picks-the-command** run (`/serp-analyze` for an actionable fix/change, `/research` for a pure question), and the same **swap-this-tab-in-place default** (Step 3a — Claude cold-boot / Codex warm `/cd`) vs new-tab exceptions (Step 3b) — go immediately, no confirmation. "fix X in a new go" is **actionable** → it fires `/serp-analyze` (research → build → PR); by default that swaps this tab into SERP. A pure "how/why does X work" → `/research`. **Note the wording:** a phrase like "spin up a session" / "open a session" / "in a new go" reads as fire-and-forget only when Jack also signals he wants THIS tab to keep going ("and keep going", "and continue", or he's clearly mid-task here); a plain "fix X in a go" with nothing to keep doing here is the ordinary swap-in-place. When in doubt between swap-in-place and a new tab, swap in place (it hands this tab off to the task, which is what `/go` is for). (To skip research and go straight to building an already-scoped fix while keeping this tab open, that's `/launch` → `/implement`, not `/go`.)
+When Jack asks conversationally — "look into Y in a go", "spin up a session for X", "open a session to dig into X", "fix X in a new go", "just open serp" — treat it EXACTLY like `/go`: same routing, same bare-vs-task logic, same **recently-closed-chat check (Step 0.2 — resume a matching recently-closed save instead of starting fresh)**, same **intent-picks-the-command** run (`/serp-analyze` for an actionable fix/change, `/research` for a pure question), and the same **swap-this-session-in-place default** (Step 3a — `/cd` warm-swap) vs new-tab exceptions (Step 3b) — go immediately, no confirmation. "fix X in a new go" is **actionable** → it fires `/serp-analyze` (research → build → PR); by default that swaps this tab into SERP. A pure "how/why does X work" → `/research`. **Note the wording:** a phrase like "spin up a session" / "open a session" / "in a new go" reads as fire-and-forget only when Jack also signals he wants THIS tab to keep going ("and keep going", "and continue", or he's clearly mid-task here); a plain "fix X in a go" with nothing to keep doing here is the ordinary swap-in-place. When in doubt between swap-in-place and a new tab, swap in place (it hands this tab off to the task, which is what `/go` is for). (To skip research and go straight to building an already-scoped fix while keeping this tab open, that's `/launch` → `/implement`, not `/go`.)
 
 **Launch fixes into their own tabs:** when Jack says **"launch fixes for those"** / "launch a fix for each" / names specific ones — that's the `/launch` command: route+classify each fix and fire **one `/implement` session per fix** (SERP), keeping the original tab open. One terminal per fix, never one session bundling several (subject to `/launch`'s same-file coalescing gate).
 
