@@ -23,9 +23,11 @@
 # claude turn must end before the swap can run — the helper waits for that):
 #   1. herdr agent wait <pane> --until idle          (invoking turn finished)
 #   2. SIGINT the outgoing claude PROCESS (pid from pane process-info)  (hard-quit)
-#   3. poll pane process-info until claude leaves the foreground        (shell back)
-#   4. herdr pane run <pane> "cd <repo>" (+ export CLAUDE_GO_TITLE if a title was given)
-#   4b. poll `herdr pane get <pane>` until foreground_cwd == <repo>     (cd actually took)
+#   3. poll pane process-info until claude leaves the foreground        (pid gone)
+#   3b. poll process-info until NO claude is foreground (fgpid==none)    (shell ready)
+#   4+4b. herdr pane run <pane> "cd <repo>", RE-ISSUED each tick but ONLY when the
+#        foreground is a shell, until `herdr pane get`'s foreground_cwd == <repo>
+#        (+ export CLAUDE_GO_TITLE if a title was given)
 #   5. herdr agent start claude --kind claude --pane <pane>   (fresh claude, waits ready)
 #   6. if a follow-on prompt was given: herdr agent prompt <pane> "<prompt>" --wait
 #      (the fresh session already scanned the repo's commands at boot, so a project
@@ -41,6 +43,17 @@
 # this. Gating `agent start` on `pane get`'s foreground_cwd == <repo> closes the race
 # deterministically. (Server log 12:05: line 695 pgid 65334 → line 716 pgid 68599, new
 # claude at cwd sw-cortex, then agent.prompt outcome=error.)
+#
+# WHY step 3b — the SHELL-READY GATE (measured 2026-09-21): the cwd gate (4b) can only pass
+# once the `cd` actually RAN, and `pane run` only runs a typed command when a ready shell owns
+# the terminal. The first re-issue-the-cd fix still fired cd on every tick regardless of what
+# owned the foreground, so on a slow MCP-heavy teardown every cd was typed into a still-present
+# (or still-dying) claude and LOST — foreground_cwd stayed at the hub for the whole window, the
+# cwd gate exhausted (gate=timed-out), and the fresh claude booted in sw-cortex. Real-world hit:
+# a /go SERPY swap on 2026-09-21 timed out this way and left the follow-on /serp-analyze unrun.
+# Fix: wait for fgpid==none (no foreground claude ⇒ the shell has the terminal) BEFORE typing,
+# and inside the retry loop skip typing on any tick where claude is still foreground — so the cd
+# only ever lands in a real shell.
 #
 # WHY the process-signal + process-info approach (measured, 2026-08-19):
 #   - "/exit" submitted as a prompt (herdr agent prompt) does NOT reliably quit claude,
@@ -145,28 +158,41 @@ nohup bash -c '
     fi
   fi
 
-  # 4. Move the pane shell to the repo. If a TITLE was given, export CLAUDE_GO_TITLE into
-  #    the shell so the fresh claude adopts that descriptive floor at SessionStart (same
-  #    mechanism launch-repo-session.sh uses) and lets its analyze-command rider own the
-  #    title from there — so we do NOT hard-rename in that case. With no title (bare /go),
-  #    keep the plain repo-floor rename.
-  if [ -n "$TITLE" ]; then
-    "$H" pane run "$P" "export CLAUDE_GO_TITLE=$(printf %q "$TITLE") ; cd $(printf %q "$R") && clear" >/dev/null 2>&1
-  else
-    "$H" pane run "$P" "cd $(printf %q "$R") && clear" >/dev/null 2>&1
-    [ -n "$T" ] && "$H" tab rename "$T" "🔍 $L · session" >/dev/null 2>&1
-  fi
-
-  # 4b. CWD GATE — wait until the pane shell is ACTUALLY in the repo before booting claude.
-  #     `pane run "cd <repo>"` (step 4) is async: it may still be in flight when we reach
-  #     step 5, and `agent start` would then boot the fresh claude in the ORIGIN cwd (the
-  #     hub) — the swap looks fine (claude killed + rebooted) but lands in the wrong repo,
-  #     so a follow-on project command like /serp-analyze errors. Poll foreground_cwd until
-  #     it equals the repo (bounded). See the WHY step 4b note in the header.
-  in_repo=""
-  for i in $(seq 25); do
-    if [ "$(panecwd)" = "$R" ]; then in_repo=1; break; fi
+  # 3b. SHELL-READY GATE — wait until the pane foreground is a SHELL, not claude, before
+  #     typing anything into it. THIS is the fix for the recurring gate=timed-out (measured
+  #     2026-09-21): `herdr pane run` just TYPES "<cmd>\n" into the pane, and it only EXECUTES
+  #     when a ready interactive shell owns the terminal. Steps 2-3 only guarantee the OLD
+  #     claude PID is gone from the foreground — on a slow, MCP-heavy teardown the terminal
+  #     can still be settling (a claude child/wrapper briefly foreground, or the shell not yet
+  #     redrawn) when step 4 starts firing `cd`. Every cd typed into that not-yet-a-shell
+  #     terminal is LOST, foreground_cwd never becomes the repo, the cwd gate exhausts, and
+  #     the ⚠️ warning fires with the fresh claude booted in the ORIGIN cwd. So: poll fgpid
+  #     until it reports `none` (no foreground claude = shell has the terminal) BEFORE any cd.
+  #     Bounded generously — a heavy teardown legitimately takes several seconds.
+  for i in $(seq 50); do
+    [ "$(fgpid)" = none ] && break
     sleep 0.2
+  done
+
+  # 4 + 4b. Move the pane shell to the repo, RE-ISSUING the cd until foreground_cwd confirms
+  #    it took — but ONLY type when the foreground is a shell (fgpid==none), never into a
+  #    still-present claude (see 3b). `agent start` has NO --cwd, so the shell must cd there
+  #    first; if we boot claude before the cd lands it comes up in the ORIGIN cwd and a
+  #    follow-on project command like /serp-analyze errors. (TITLE given: export
+  #    CLAUDE_GO_TITLE so the fresh claude adopts that floor at SessionStart and its analyze
+  #    rider owns the title — no hard-rename. Bare /go: plain repo-floor rename, once.)
+  cd_cmd="cd $(printf %q "$R") && clear"
+  [ -n "$TITLE" ] && cd_cmd="export CLAUDE_GO_TITLE=$(printf %q "$TITLE") ; $cd_cmd"
+  [ -z "$TITLE" ] && [ -n "$T" ] && "$H" tab rename "$T" "🔍 $L · session" >/dev/null 2>&1
+  in_repo=""
+  for i in $(seq 60); do
+    if [ "$(panecwd)" = "$R" ]; then in_repo=1; break; fi
+    # Only type the cd when a shell actually owns the terminal — typing into a lingering
+    # claude prompt box is exactly how the cd got lost and the gate timed out.
+    if [ "$(fgpid)" = none ]; then
+      "$H" pane run "$P" "$cd_cmd" >/dev/null 2>&1
+    fi
+    sleep 0.3
   done
 
   # 5. Boot a fresh claude — but `agent start` requires the pane to be AT its interactive
