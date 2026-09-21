@@ -25,9 +25,9 @@
 #   2. SIGINT the outgoing claude PROCESS (pid from pane process-info)  (hard-quit)
 #   3. poll pane process-info until claude leaves the foreground        (pid gone)
 #   3b. poll process-info until NO claude is foreground (fgpid==none)    (shell ready)
-#   4+4b. herdr pane run <pane> "cd <repo>", RE-ISSUED each tick but ONLY when the
-#        foreground is a shell, until `herdr pane get`'s foreground_cwd == <repo>
-#        (+ export CLAUDE_GO_TITLE if a title was given)
+#   4+4b. send-keys ctrl+u (flush stray input) then herdr pane run <pane> "cd <repo>",
+#        RE-ISSUED each tick but ONLY when the foreground is a shell, until
+#        `herdr pane get`'s foreground_cwd == <repo> (+ export CLAUDE_GO_TITLE if given)
 #   5. herdr agent start claude --kind claude --pane <pane>   (fresh claude, waits ready)
 #   6. if a follow-on prompt was given: herdr agent prompt <pane> "<prompt>" --wait
 #      (the fresh session already scanned the repo's commands at boot, so a project
@@ -54,6 +54,15 @@
 # Fix: wait for fgpid==none (no foreground claude ⇒ the shell has the terminal) BEFORE typing,
 # and inside the retry loop skip typing on any tick where claude is still foreground — so the cd
 # only ever lands in a real shell.
+#
+# WHY the ctrl+u input-buffer clear (measured 2026-09-21, the SECOND miss): even with a ready
+# shell (3b), the SIGINT that killed the outgoing claude can leave a PARTIAL KEYSTROKE in the
+# PTY line buffer. `herdr pane run` types "<cmd>\n" AFTER that junk, so the shell actually runs
+# a corrupted command — observed as "pprintf …" / "pcd /repo && clear" (a stray leading `p`):
+# command-not-found, the cd never runs, foreground_cwd stays at the hub, and the gate times out
+# with a READY shell (so 3b passed but the swap still failed). Fix: send-keys ctrl+u (the shell
+# kill-line; herdr itself uses ctrl+u to clear its input) right before every typed command, so
+# each one lands on a CLEAN prompt line. Best-effort (|| true) — a failed clear never blocks.
 #
 # WHY the process-signal + process-info approach (measured, 2026-08-19):
 #   - "/exit" submitted as a prompt (herdr agent prompt) does NOT reliably quit claude,
@@ -129,6 +138,13 @@ nohup bash -c '
   fgpid() { "$H" pane process-info --pane "$P" 2>/dev/null | python3 "$HELPER" 2>/dev/null; }
   # foreground_cwd of the pane (the shell/claude cwd, per `herdr pane get`), or empty.
   panecwd() { "$H" pane get "$P" 2>/dev/null | python3 "$CWDHELPER" 2>/dev/null; }
+  # Discard any stray bytes sitting on the shell input line before we TYPE a command.
+  # When the outgoing claude is SIGINT-killed it can leave a partial keystroke in the PTY
+  # line buffer; `herdr pane run` then types "<cmd>\n" AFTER that junk, so the shell runs
+  # e.g. "pcd /repo && clear" (command not found) and the cd never takes — the observed
+  # "pprintf"/"pcd" corruption (2026-09-21). ctrl+u is the shell kill-line (herdr uses it
+  # for exactly this); send it so every command lands on a CLEAN prompt.
+  clearline() { "$H" pane send-keys "$P" ctrl+u >/dev/null 2>&1 || true; }
 
   # 1. Wait for the invoking claude turn to finish (idle = at its prompt). Bounded.
   "$H" agent wait "$P" --until idle --timeout 60000 >/dev/null 2>&1 || true
@@ -190,6 +206,7 @@ nohup bash -c '
     # Only type the cd when a shell actually owns the terminal — typing into a lingering
     # claude prompt box is exactly how the cd got lost and the gate timed out.
     if [ "$(fgpid)" = none ]; then
+      clearline                                   # flush any stray buffered input first
       "$H" pane run "$P" "$cd_cmd" >/dev/null 2>&1
     fi
     sleep 0.3
@@ -215,6 +232,7 @@ nohup bash -c '
   boot_cwd="$(panecwd)"
   if [ "$boot_cwd" != "$R" ]; then
     gated="gate=$([ -n "$in_repo" ] && echo hit || echo timed-out)"
+    clearline
     "$H" pane run "$P" "printf %s\\\\n \"⚠️ /go swap: fresh session did not land in $R (cwd=$boot_cwd, $gated) — cd there and rerun the command manually.\"" >/dev/null 2>&1 || true
     rm -f "$HELPER" "$CWDHELPER" 2>/dev/null || true
     exit 0
