@@ -4,7 +4,7 @@ Exact column names for the tables that agents query most. Regenerate with
 `npm run kb:columns`. Hand edits are overwritten and, worse, silently rot —
 a stale column list is more dangerous than a missing one.
 
-This file answers ONE question: _what are this table's real column names?_
+This file answers ONE question: *what are this table's real column names?*
 For what the columns MEAN, which database is authoritative, and the join
 invariants, read `DICTIONARY.md` — that is still the source of truth for
 semantics. Nothing here overrides it.
@@ -236,7 +236,7 @@ id int unsigned · name varchar(255) · first_name varchar(255) · last_name var
 
 ## serp_test
 
-#### serp_test.\_migrations
+#### serp_test._migrations
 
 **Columns (3):** version, filename, applied_at
 
@@ -328,21 +328,21 @@ id bigint unsigned · uom_id bigint · active tinyint(1) · name varchar(255) ·
 
 #### serp_test.serp_purchase_order
 
-**Columns (35):** id, name, odoo_id, date_order, date_approve, effective_date, state, invoice_status, receipt_status, amount_tax, amount_total, amount_untaxed, partner_ref, show_partner_products, date_planned, currency_id, currency_rate, picking_type_id, priority, user_id, date_calendar_start, invoice_count, partner_id, origin, company_id, notes, group_id, message_main_attachment_id, create_uid, write_uid, create_date, write_date, dest_address_id, incoterm_id, payment_term_id
+**Columns (37):** id, name, odoo_id, date_order, date_approve, effective_date, state, invoice_status, receipt_status, amount_tax, amount_total, amount_untaxed, partner_ref, show_partner_products, mail_reception_confirmed, mail_reception_confirmed_date, date_planned, currency_id, currency_rate, picking_type_id, priority, user_id, date_calendar_start, invoice_count, partner_id, origin, company_id, notes, group_id, message_main_attachment_id, create_uid, write_uid, create_date, write_date, dest_address_id, incoterm_id, payment_term_id
 
 <details><summary>with types</summary>
 
-id bigint unsigned · name varchar(50) · odoo_id bigint · date_order datetime · date_approve datetime · effective_date datetime · state enum('draft','sent','to approve','purchase','done','cancel') · invoice_status enum('no','to invoice','invoiced') · receipt_status varchar(16) · amount_tax decimal(12,2) · amount_total decimal(12,2) · amount_untaxed decimal(12,2) · partner_ref varchar(255) · show_partner_products tinyint(1) · date_planned datetime · currency_id int · currency_rate decimal(12,6) · picking_type_id bigint · priority varchar(1) · user_id bigint · date_calendar_start datetime · invoice_count int · partner_id bigint unsigned · origin varchar(100) · company_id int · notes text · group_id bigint · message_main_attachment_id bigint · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · dest_address_id bigint · incoterm_id bigint · payment_term_id bigint
+id bigint unsigned · name varchar(50) · odoo_id bigint · date_order datetime · date_approve datetime · effective_date datetime · state enum('draft','sent','to approve','purchase','done','cancel') · invoice_status enum('no','to invoice','invoiced') · receipt_status varchar(16) · amount_tax decimal(12,2) · amount_total decimal(12,2) · amount_untaxed decimal(12,2) · partner_ref varchar(255) · show_partner_products tinyint(1) · mail_reception_confirmed tinyint(1) · mail_reception_confirmed_date datetime · date_planned datetime · currency_id int · currency_rate decimal(12,6) · picking_type_id bigint · priority varchar(1) · user_id bigint · date_calendar_start datetime · invoice_count int · partner_id bigint unsigned · origin varchar(100) · company_id int · notes text · group_id bigint · message_main_attachment_id bigint · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · dest_address_id bigint · incoterm_id bigint · payment_term_id bigint
 
 </details>
 
 #### serp_test.serp_res_partner
 
-**Columns (28):** id, name, email, weeks_on_hand, phone, mobile, contact_name, vat, website, street, street2, city, state_id, country_id, zip, company_id, active, supplier_rank, customer_rank, is_company, parent_id, created_at, updated_at, odoo_id, ref, type, commercial_partner_id, commercial_company_name
+**Columns (32):** id, name, email, weeks_on_hand, phone, mobile, contact_name, vat, website, street, street2, city, state_id, country_id, zip, company_id, active, supplier_rank, customer_rank, is_company, parent_id, created_at, updated_at, odoo_id, create_uid, write_uid, create_date, write_date, ref, type, commercial_partner_id, commercial_company_name
 
 <details><summary>with types</summary>
 
-id bigint unsigned · name varchar(255) · email varchar(255) · weeks_on_hand bigint unsigned · phone varchar(50) · mobile varchar(50) · contact_name varchar(255) · vat varchar(50) · website varchar(255) · street varchar(255) · street2 varchar(255) · city varchar(100) · state_id int · country_id int · zip varchar(20) · company_id int · active tinyint(1) · supplier_rank int · customer_rank int · is_company tinyint(1) · parent_id bigint unsigned · created_at timestamp · updated_at timestamp · odoo_id bigint · ref varchar(64) · type varchar(16) · commercial_partner_id bigint · commercial_company_name varchar(128)
+id bigint unsigned · name varchar(255) · email varchar(255) · weeks_on_hand bigint unsigned · phone varchar(50) · mobile varchar(50) · contact_name varchar(255) · vat varchar(50) · website varchar(255) · street varchar(255) · street2 varchar(255) · city varchar(100) · state_id int · country_id int · zip varchar(20) · company_id int · active tinyint(1) · supplier_rank int · customer_rank int · is_company tinyint(1) · parent_id bigint unsigned · created_at timestamp · updated_at timestamp · odoo_id bigint · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · ref varchar(64) · type varchar(16) · commercial_partner_id bigint · commercial_company_name varchar(128)
 
 </details>
 
@@ -458,7 +458,7 @@ id bigint · entity_type varchar(50) · entity_id bigint · operation varchar(20
 
 ## serp_app
 
-#### serp_app.\_migrations
+#### serp_app._migrations
 
 **Columns (3):** version, filename, applied_at
 
