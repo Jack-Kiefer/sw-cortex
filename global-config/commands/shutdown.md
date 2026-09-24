@@ -72,6 +72,20 @@ A candidate is **IN USE** (keep it, do nothing to it) if ANY hold:
 
 Otherwise it is **NOT IN USE** → proceed to tear it down (steps 4–6). When in doubt, keep — and say why in the report.
 
+### 3b. Stale dev server — stop it, keep the worktree
+
+A running pm2 server alone must not keep a worktree "in use" forever: that is circular, and
+week-old SERP servers (~1–3 GB each) are what push this 16 GB Mac into swap exhaustion. For a
+worktree that is kept, check whether its only live-use signal is an **idle pm2 server**:
+
+- no live `claude` process has its cwd inside `<path>`, **and**
+- no unpushed commits (`git log @{u}..HEAD` empty), **and**
+- the pm2 app for `<path>` (matched by `pm_cwd`) has been up **≥ 5 days**.
+
+If all three are true, run `pm2 stop <app>` (**stop, never `delete`**, so `pm2 start <app>` brings it back), and leave the
+worktree and branch alone. Report it as `stopped stale server: <app> (up Nd)`. When
+unsure whether a peer session is using the server, keep it running.
+
 ## 4. Kill the dev server — match by cwd, verify ports freed
 
 Only for not-in-use worktrees (by definition no live session here, but a stale/orphaned server may still hold ports):

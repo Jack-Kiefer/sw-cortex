@@ -78,8 +78,15 @@ swap_free=$(awk -v t="${swap_total:-0}" -v u="${swap_used:-0}" 'BEGIN{printf "%.
 # block every heavy command forever. Verified: comm= yields 0 on an idle machine.
 heavy=$(ps ax -o comm= 2>/dev/null \
   | sed 's|.*/||' \
-  | grep -cE '^(tsc|jest|vitest|Google Chrome for Testing)$' 2>/dev/null || true)
+  | grep -cE '^(tsc|jest|vitest)$' 2>/dev/null || true)
 heavy=${heavy:-0}
+# A Playwright browser left open by another session's MCP server sits at 0% CPU and
+# ~30-80MB, but it used to count as a heavy run and block tests on its own (2026-09-24).
+# Count a Chrome for Testing browser only while it is busy (>=5% CPU) or large (>=400MB RSS).
+browser_heavy=$(ps ax -o pcpu=,rss=,comm= 2>/dev/null \
+  | awk '{c=$1; r=$2; $1=$2=""; sub(/^ +/,""); n=$0; sub(/.*\//,"",n)}
+         n=="Google Chrome for Testing" && (c>=5 || r>=409600) {k++} END{print k+0}')
+heavy=$(( heavy + ${browser_heavy:-0} ))
 # node-hosted runners show up as plain `node`; count those by their args instead,
 # excluding any process whose args mention this guard.
 node_heavy=$(pgrep -fl 'node' 2>/dev/null \
