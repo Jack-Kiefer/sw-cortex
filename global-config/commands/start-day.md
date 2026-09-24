@@ -175,7 +175,7 @@ check stays report-only. Speed: batch the file/env/git checks into **one** Bash 
 MCP probes as parallel tool calls (a slow/erroring probe is a ⚠️, not something to wait on — keep
 timeouts tight, ~5s).
 
-Run these eight checks:
+Run these ten checks:
 
 1. **MCP servers reachable (6).** These can only be probed from inside the session via the tools
    themselves (a shell can't see MCP state). Call one cheap read-only tool per server and mark ✅ if
@@ -269,8 +269,28 @@ started …` if it booted them; `♻️ repaired …` if it restarted an unhealt
    reminders re-fire for days). It is idempotent (bootout→bootstrap) and self-diagnosing: if the agent
    exits `2` / prints a **Full Disk Access** block (launchd can't read the `~/Desktop` repo without FDA
    on `/bin/bash`), surface that one-time remedy — grant FDA to `/bin/bash` in System Settings →
-   Privacy & Security → Full Disk Access, then re-run the installer. These two + the Docker check (#8)
-   are the only Step 0 items permitted to start/restart anything; everything else stays report-only.
+   Privacy & Security → Full Disk Access, then re-run the installer. These two, the Docker check (#8),
+   and the memory audit (#10) are the only Step 0 items allowed to start, restart or stop anything;
+   everything else stays report-only.
+
+10. **Memory audit + reclaim swap (stops stale servers).** This 16 GB Mac hard-crashed on 2026-09-02
+    from swap exhaustion, and week-old SERP pm2 dev servers (~1–3 GB each) are the usual hogs. On
+    2026-09-24 ten were running at once, and stopping six of them cut swap use from 22.7 GB to 11.6 GB.
+    macOS has no command that clears swap directly. Swap is freed only when the processes holding it
+    exit, so reclaiming swap means stopping the idle processes that hold it:
+    - **Snapshot before:** `sysctl -n vm.swapusage`, `sysctl -n kern.memorystatus_level` (free %), and
+      the top ~8 processes by RSS (`ps -axo rss=,pid=,etime=,comm= | sort -rn | head -8`).
+    - **List every pm2 app** (`pm2 jlist`) with its `pm_cwd`, uptime, and real footprint: sum the RSS
+      of the app's process tree, because pm2's own `monit.memory` shows only the ~10 MB wrapper.
+    - **Stop stale servers** using the same rule as `/shutdown` step 3b. Stop an app (`pm2 stop <app>`,
+      never `delete`) only if it has been up **≥ 5 days**, **no** live `claude` process has its cwd
+      inside `pm_cwd`, and the worktree has **no unpushed commits**. Leave the worktree and branch alone.
+      Keep the app running if a peer session's tab title (`herdr agent list`) names that worktree.
+    - **Report only, never kill:** Chrome for Testing / Playwright browsers. They belong to other
+      sessions' MCP servers, so list them with their age and leave them running.
+    - **Snapshot after** and report the difference, e.g. `🔧 memory: stopped 6 stale pm2 servers
+      (fmea-native 22d, …) · swap 22.7→11.6 GB · free 30→35%`. Give ⚠️ when swap free is still
+      < 2 GB after the stops, and name the top remaining hogs with a one-line remedy.
 
 **Return:** the rendered `### 🩺 Setup health` panel (the agent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).
@@ -1101,7 +1121,8 @@ before ending the turn.
   plumbing (MCP down, missing go-launcher extension, bastion unreachable, etc.) but never restarts,
   reinstalls, prunes a worktree, or stops the routine — **except check 8 (Docker + local dev DB),
   which Jack opted to let auto-start if down** (bounded poll, no `timeout` binary on this Mac, ⚠️ and
-  move on if it can't come up). The worktree check in particular stays list-and-flag only, and
+  move on if it can't come up), check 9 (reminder services), and **check 10 (memory audit), which
+  `pm2 stop`s dev servers idle ≥ 5 days to reclaim swap**. The worktree check in particular stays list-and-flag only, and
   never touches the protected/locked worktrees. It owns the **only live MCP probes** — Step 5
   stays transcript-only so the two don't double-probe.
 - **Step 1b (meeting-notes sync) is an orchestrator step, like Step 1.** It fetches the Gemini

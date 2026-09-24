@@ -379,7 +379,9 @@ mcp__knowledge__search_knowledge { query: "Claude Code MCP Tool Reference <serve
 ```
 
 covering `mcp__github__*` (read-only repo access — **always pass `ref`**; default branches
-are usually wrong: SERP `dev`, SWAC `development`, laravel `blue`), `mcp__slack-search__*`
+are usually wrong: SERP `dev`, SWAC `development`, laravel `blue`; and the owner differs per
+repo — SERP is **`Jack-Kiefer/SERP`**, never `jasonbkiefer/SERP`, while SWAC/SWIRL are
+`jasonbkiefer/*` — read `git -C <root> remote get-url origin` instead of guessing), `mcp__slack-search__*`
 (semantic history search), `mcp__jack-slack__*` (posting — **as jackbot**), `mcp__logs__*`,
 `mcp__n8n__*` (live workflows), `mcp__sessions__*` (the session mesh), and
 `mcp__knowledge__*` itself. The behavioral RULES that govern them stay inline in this file
