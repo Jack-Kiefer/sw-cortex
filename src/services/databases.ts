@@ -64,26 +64,57 @@ const activeTunnels: Map<string, TunnelInfo> = new Map();
 
 // Get database configs from environment
 export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
-  // The ONE SSH bastion this service uses. Only the two databases that live on
-  // the private AWS RDS (wishdesk, laravel_live) route through it; every other
-  // remote DB (Odoo/Retool cloud, Hetzner hosts) is publicly reachable and
-  // connects directly. LIVE_SSH_TUNNEL=false disables the tunnel entirely.
-  const liveSshConfig: SshTunnelConfig | undefined =
+  // Whether the shared bastion is in play at all. When the LIVE_SSH_HOST bastion
+  // is configured and not explicitly disabled, EVERY remote DB behind it — the
+  // private AWS RDS (wishdesk, laravel_live) AND the Hetzner hosts (serp_app,
+  // serp_test, manage, wishdesk_dev) — connects through it. Only the public
+  // cloud hosts (Odoo/Retool over SSL) still connect directly.
+  // LIVE_SSH_TUNNEL=false disables the tunnel entirely (all-direct).
+  const bastionEnabled = Boolean(
     process.env.LIVE_SSH_HOST && process.env.LIVE_SSH_TUNNEL !== 'false'
+  );
+
+  // Build an SSH tunnel config for the shared bastion. Each DISTINCT remote host
+  // needs its OWN tunnelKey: the local listener forwards to a single fixed
+  // host:port (see createTunnel), so DBs on different remote hosts cannot share
+  // one key — they'd all be forwarded to whichever opened the tunnel first. DBs
+  // that DO share a remote host (serp_app + serp_test; wishdesk + laravel_live)
+  // share a tunnelKey and thus one SSH connection. All keys reuse the same
+  // bastion SSH credentials (host/user/private key). Only `live-bastion` binds
+  // the fixed LIVE_SSH_TUNNEL_PORT that /start-day probes; the rest use an
+  // ephemeral local port.
+  const bastionTunnel = (
+    tunnelKey: string,
+    preferredLocalPort?: number
+  ): SshTunnelConfig | undefined =>
+    bastionEnabled
       ? {
-          host: process.env.LIVE_SSH_HOST,
+          host: process.env.LIVE_SSH_HOST as string,
           // Accept LIVE_SSH_PORT; the bastion SSH port is 22 by default.
           port: parseInt(process.env.LIVE_SSH_PORT || '22', 10),
           user: process.env.LIVE_SSH_USER || '',
           privateKeyPath: process.env.LIVE_SSH_KEY_PATH || '~/.ssh/id_rsa',
-          tunnelKey: 'live-bastion',
-          // Bind the fixed port /start-day probes (LIVE_SSH_TUNNEL_PORT, e.g.
-          // 13306) when set, so the health check and the app agree on the port.
-          preferredLocalPort: process.env.LIVE_SSH_TUNNEL_PORT
-            ? parseInt(process.env.LIVE_SSH_TUNNEL_PORT, 10)
-            : undefined,
+          tunnelKey,
+          preferredLocalPort,
         }
       : undefined;
+
+  // RDS bastion tunnel (wishdesk, laravel_live) — binds the fixed
+  // LIVE_SSH_TUNNEL_PORT so /start-day's health check and the app agree.
+  const liveSshConfig = bastionTunnel(
+    'live-bastion',
+    process.env.LIVE_SSH_TUNNEL_PORT
+      ? parseInt(process.env.LIVE_SSH_TUNNEL_PORT, 10)
+      : undefined
+  );
+
+  // Hetzner bastion tunnels — one key per distinct Hetzner host, all through the
+  // same bastion. Needed because the Hetzner firewall now trusts ONLY the
+  // bastion, so these DBs can no longer connect directly. serp_app + serp_test
+  // share a host (LIVE_DARKLAUNCH_DB_HOST) → one key.
+  const hetznerSerpSsh = bastionTunnel('hetzner-serp');
+  const hetznerManageSsh = bastionTunnel('hetzner-manage');
+  const hetznerWishdeskDevSsh = bastionTunnel('hetzner-wishdesk-dev');
 
   return {
     wishdesk: {
@@ -107,7 +138,8 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.WISHDESK_DEV_DB_USER || '',
       password: process.env.WISHDESK_DEV_DB_PASSWORD || '',
       database: process.env.WISHDESK_DEV_DB_NAME || '',
-      // Direct connection to dev host
+      // Hetzner host — routes through the bastion (firewall trusts only jump).
+      ssh: hetznerWishdeskDevSsh,
     },
     laravel_live: {
       name: 'laravel_live',
@@ -188,8 +220,9 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       password: process.env.LARAVEL_LOCAL_DB_PASSWORD || 'devpassword',
       database: process.env.LARAVEL_LOCAL_DB_NAME || 'laravel_local',
     },
-    // SERP app DB — same Hetzner host as serp_test; only the database
-    // name differs (serp_app). Connects directly — no SSH tunnel.
+    // SERP app DB — same Hetzner host as serp_test; only the database name
+    // differs (serp_app). Routes through the bastion (Hetzner firewall trusts
+    // only jump); shares the 'hetzner-serp' tunnel with serp_test (same host).
     serp_app: {
       name: 'serp_app',
       type: 'mysql',
@@ -198,11 +231,12 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.LIVE_DARKLAUNCH_DB_USER || '',
       password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
       database: process.env.SERP_APP_DB_NAME || 'serp_app',
+      ssh: hetznerSerpSsh,
     },
     // serp_test — the live production darklaunch mirror on Hetzner (MySQL
     // serp_test; the "test" name is a misnomer — it's the most-current copy).
     // Same Hetzner host/creds as serp_app (LIVE_DARKLAUNCH_DB_*); only the
-    // database name differs. Connects directly — no SSH tunnel.
+    // database name differs. Shares the 'hetzner-serp' tunnel with serp_app.
     serp_test: {
       name: 'serp_test',
       type: 'mysql',
@@ -211,6 +245,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.LIVE_DARKLAUNCH_DB_USER || '',
       password: process.env.LIVE_DARKLAUNCH_DB_PASSWORD || '',
       database: process.env.LIVE_DARKLAUNCH_DB_NAME || 'serp_test',
+      ssh: hetznerSerpSsh,
     },
     manage: {
       name: 'manage',
@@ -220,7 +255,8 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       user: process.env.MANAGE_DB_USER || '',
       password: process.env.MANAGE_DB_PASSWORD || '',
       database: process.env.MANAGE_DB_NAME || '',
-      // No SSH - direct connection to RDS
+      // Hetzner host — routes through the bastion (firewall trusts only jump).
+      ssh: hetznerManageSsh,
     },
   };
 }

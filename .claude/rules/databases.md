@@ -60,11 +60,19 @@ SELECT * FROM users;                -- Avoid when possible
 
 ## SSH Tunnel
 
-Only the two DBs on the private AWS RDS — `wishdesk` and `laravel_live` — route
-through the live bastion (a single shared tunnel; the MCP server sets it up
-automatically). Every other remote DB (Odoo/Retool cloud over SSL, the Hetzner
-`serp_app`/`serp_test` hosts) connects **directly**; the local Docker DBs
-(`serp_local_prod`, `serp_local_staging`, `laravel_local`) hit `127.0.0.1:3307`.
+Every remote DB behind the `jump.sugarwish.com` bastion routes through it — the
+MCP server sets the tunnel(s) up automatically. That's the private AWS RDS
+(`wishdesk`, `laravel_live`) **and** the Hetzner hosts (`serp_app`, `serp_test`,
+`manage`, `wishdesk_dev`), because the Hetzner firewall now trusts only the
+bastion. One tunnel (`tunnelKey`) is opened per distinct remote host — DBs that
+share a host share a tunnel (RDS `wishdesk`+`laravel_live`; Hetzner
+`serp_app`+`serp_test`) — all using the same bastion SSH creds
+(`LIVE_SSH_USER`/`LIVE_SSH_KEY_PATH`, the per-user `jump` login, not the old
+shared `forge`/replit key). Only the public cloud hosts (Odoo/Retool over SSL)
+still connect **directly**; the local Docker DBs (`serp_local_prod`,
+`serp_local_staging`, `laravel_local`) hit `127.0.0.1:3307`. `LIVE_SSH_TUNNEL=false`
+disables all tunnels (forces every DB direct — only works while a firewall still
+permits it).
 
 ## Connection Pooling
 
