@@ -54,6 +54,11 @@ were live at once. **SWAC is read-only from the hub, so the cap cannot be fixed 
   build, or any browser/Playwright automation, check **`herdr agent list`** (or
   `mcp__sessions__list_sessions`) for a peer already doing one. If a peer is mid-run, wait or
   message it to coordinate a slot — do not start a second in parallel.
+  **Exception — SERP `serp-browser` (`/browser-test`): up to 3 concurrent sessions.** It is a
+  headless-shell Chromium measured at ~0.5–0.6 GB per actively-browsing session (~75 MB idle, and it
+  closes its browser after 5 idle minutes), so 3 ≈ 1.7 GB. A 4th waits, and none start while a
+  typecheck/jest/build is running or `vm_stat` free pages are near zero. Full Chrome/Playwright
+  (`playwright-1`, claude-in-chrome) stays one-at-a-time.
 - **A `memory-pressure-guard.sh` PreToolUse hook enforces this mechanically.** It denies a
   heavy Bash command when free RAM is under 1.5 GB, swap has under 800 MB left, or two heavy
   processes are already running. Under normal conditions it passes everything through. **A
