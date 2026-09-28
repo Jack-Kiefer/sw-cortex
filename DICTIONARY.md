@@ -2023,9 +2023,15 @@ This is the single most important sync fact and the source of the most subtle bu
 
 ---
 
-### odoo_sync_queue (Serpy → Odoo)
+### serpy_sync_queue (SERPY → SERP; formerly Odoo)
 
-**Table:** `odoo_sync_queue` / `odoo_sync_queue_dev` / `odoo_sync_queue_live` — lives in **Retool PostgreSQL** (not SERP MySQL; easier to manage). Suffix convention: plain/`_dev` locally, `_live` in prod.
+**Current table:** `serpy_sync_queue` in **MySQL `serp_app`** for production. The Retool PostgreSQL `odoo_sync_queue*` tables are historical. Verified 2026-09-28 against the live schema and recent operations: manufacturing rows target `serp`, and the legacy queue field `odoo_id` holds the resulting **SERP** MO id (`serp_mrp_production.id`). It is not evidence that an Odoo record was written. With `_skip_id_resolution=true`, payload product/BOM/component ids are already SERP ids; do not translate them through `odoo_id` again.
+
+Post-cutover checks compare the queued payload to the records in `serp_app`, not frozen Odoo. Resolve the BOM and finished product to their product templates for identity checks; compare payload quantities and component membership to the MO header and raw moves for fidelity. A matching payload proves transport fidelity only: it does not establish that SERPY correctly interpreted the operator's packing slip. A wrong carton chosen before enqueueing can pass both checks.
+
+The current implementation is `backend/workers/serpy_sync_worker.py` with `backend/services/serpy_sync_queue/service.py`. `get_pending_items` selects `pending` rows; `mark_failed` leaves errors requiring manual retry. Safe transient database races have a separate path back to `pending` with backoff. The status enum has no `dlq` member. Re-describe the live table before queries; `payload` is MySQL JSON and its `origin` is a JSON property, not a queue column.
+
+**Historical pre-cutover behavior (the Odoo details below are not the current routing or retry policy):**
 
 - **Triggered** when a Serpy draft is approved. Executes warehouse ops (pickings, MOs, BOMs, POs, bills) against **live Odoo via XML-RPC** and **mirrors to darklaunch**. **PO receipts flow through HERE** (not the darklaunch order worker).
 - **Worker** (`odoo_sync_worker.py`, ~1,685 lines): polls every **15s** (⚠️ corrected — not ~30s); `BATCH_SIZE = 1` in prod (isolates failures); orders by `priority ASC, created_at ASC`.
@@ -2349,10 +2355,9 @@ SERP records an op but Odoo rejects finalizing, leaving a picking stuck `'confir
 
 ### sync_target (Serpy per-system routing)
 
-- `sync_target` (VARCHAR) is a **draft-level** column on `serp_draft_operations` + `odoo_sync_queue`; values `'odoo'` / `'serp'` / `'both'`. Production drafts are 100% `'odoo'`; dev has `'serp'` variants (14 drafts, 7 queue items).
-- A single Serpy operation can write **THREE systems** (Odoo + SERP + Laravel), keeping IDs wired: new receiver products inherit from base Laravel rows; **RM SKUs sync ONLY to Odoo+SERP, NOT Laravel.** Routing is **hardcoded per op type** — the AI just chooses the op type.
-- Retool front-end splits drafts by DB: "Odoo Updates", "SERP Updates", "Laravel Updates", "Multi-DB Updates."
-- **Current limitation:** all ops in a draft batch share one `sync_target` (operations[] array has no per-op `sync_target` yet); backend supports per-op routing, frontend dropdown is the only missing piece.
+- After the 2026-09-26 cutover, Odoo is retired and receives no new operational writes. On 2026-09-28, recent live `serp_app.serpy_sync_queue` manufacturing rows have `sync_target='serp'`; product-update rows can retain `'multi'`. The old claim that production is 100% `'odoo'` no longer applies.
+- `resolve_write_target` in `backend/services/serpy_sync_queue/service.py` routes legacy `'odoo'` and current `'multi'` queue items to their registered `serp:<entity_type>` handler, setting `_skip_id_resolution=true`. A missing handler raises instead of falling through to an Odoo writer. The persisted target label alone does not identify every database touched by a handler.
+- For a fidelity audit, verify the handler's id mapping and actual destination first. New SERP MO results are stored in the queue's legacy `odoo_id` field; compare them to `serp_app.serp_mrp_production.id`. Querying frozen Odoo with those ids can silently miss operations or compare unrelated records.
 
 ---
 
