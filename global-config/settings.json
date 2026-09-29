@@ -135,8 +135,19 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE": "cumulative",
-    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp-gateway-prod-us-east-0.grafana.net/otlp",
+    "OTEL_LOG_USER_PROMPTS": "1",
+    "OTEL_LOG_TOOL_DETAILS": "1",
+    "OTEL_METRIC_EXPORT_INTERVAL": "60000",
+    "OTEL_LOGS_EXPORT_INTERVAL": "5000",
+    "OTEL_RESOURCE_ATTRIBUTES": "developer.name=jack,developer.email=jack@sugarwish.com,team.name=engineering"
   },
+  "otelHeadersHelper": "/Users/jackkief/.claude/scripts/otel-headers.sh",
   "enabledPlugins": {
     "ralph-wiggum@claude-plugins-official": true
   },
