@@ -318,11 +318,11 @@ id bigint unsigned · product_tmpl_id bigint unsigned · active tinyint(1) · co
 
 #### serp_test.serp_product_template
 
-**Columns (21):** id, uom_id, active, name, purchase_ok, categ_id, uom_po_id, description, type, sequence, company_id, create_uid, write_uid, create_date, write_date, odoo_id, detailed_type, sale_ok, list_price, purchase_method, produce_delay
+**Columns (22):** id, uom_id, active, name, purchase_ok, categ_id, uom_po_id, description, type, sequence, company_id, create_uid, write_uid, create_date, write_date, odoo_id, detailed_type, sale_ok, list_price, purchase_method, produce_delay, invoice_policy
 
 <details><summary>with types</summary>
 
-id bigint unsigned · uom_id bigint · active tinyint(1) · name varchar(255) · purchase_ok tinyint(1) · categ_id int · uom_po_id bigint · description text · type varchar(20) · sequence int · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint · detailed_type varchar(16) · sale_ok tinyint · list_price decimal(12,4) · purchase_method varchar(16) · produce_delay double
+id bigint unsigned · uom_id bigint · active tinyint(1) · name varchar(255) · purchase_ok tinyint(1) · categ_id int · uom_po_id bigint · description text · type varchar(20) · sequence int · company_id int · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint · detailed_type varchar(16) · sale_ok tinyint · list_price decimal(12,4) · purchase_method varchar(16) · produce_delay double · invoice_policy varchar(16)
 
 </details>
 
@@ -744,11 +744,11 @@ id integer · company_id integer · product_id integer · quantity numeric · un
 
 #### wishdesk.orders_tickets
 
-**Columns (20):** id, ticket_id, created_at, updated_at, requester_name, requester_email, subject, status, assignee_name, assignee_email, priority, type, due_date, company_id, company_name, gift_concierge, cc, proposal_id, is_read, merged_into_ticket_id
+**Columns (24):** id, ticket_id, created_at, updated_at, requester_name, requester_email, subject, status, assignee_name, assignee_email, priority, type, due_date, company_id, company_name, gift_concierge, cc, proposal_id, is_read, merged_into_ticket_id, slack_thread_ts, slack_post_top, anyone_can_help, anyone_can_help_before_open
 
 <details><summary>with types</summary>
 
-id int · ticket_id varchar(20) · created_at datetime · updated_at datetime · requester_name varchar(255) · requester_email varchar(255) · subject varchar(500) · status varchar(20) · assignee_name varchar(255) · assignee_email varchar(255) · priority varchar(20) · type varchar(50) · due_date date · company_id int · company_name varchar(255) · gift_concierge varchar(50) · cc json · proposal_id int · is_read tinyint · merged_into_ticket_id varchar(20)
+id int · ticket_id varchar(20) · created_at datetime · updated_at datetime · requester_name varchar(255) · requester_email varchar(255) · subject varchar(500) · status varchar(20) · assignee_name varchar(255) · assignee_email varchar(255) · priority varchar(20) · type varchar(50) · due_date date · company_id int · company_name varchar(255) · gift_concierge varchar(50) · cc json · proposal_id int · is_read tinyint · merged_into_ticket_id varchar(20) · slack_thread_ts varchar(50) · slack_post_top json · anyone_can_help tinyint · anyone_can_help_before_open tinyint
 
 </details>
 
