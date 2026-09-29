@@ -145,7 +145,7 @@
     "OTEL_LOG_TOOL_DETAILS": "1",
     "OTEL_METRIC_EXPORT_INTERVAL": "60000",
     "OTEL_LOGS_EXPORT_INTERVAL": "5000",
-    "OTEL_RESOURCE_ATTRIBUTES": "developer.name=jack,team.name=engineering"
+    "OTEL_RESOURCE_ATTRIBUTES": "developer.name=jack,developer.email=jack@sugarwish.com,team.name=engineering"
   },
   "otelHeadersHelper": "/Users/jackkief/.claude/scripts/otel-headers.sh",
   "enabledPlugins": {
