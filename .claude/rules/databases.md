@@ -18,6 +18,8 @@ take effect.
 | ------------------ | ---------- | -------------------- | --------------------------------------------------------------------------------- |
 | WishDesk           | MySQL      | `wishdesk`           | WishDesk ticketing (via SSH tunnel)                                               |
 | WishDesk Dev       | MySQL      | `wishdesk_dev`       | WishDesk dev/staging (direct)                                                     |
+| WishDesk CRM       | MySQL      | `wishdesk_crm`       | **Live** WishDesk CRM (RDS sw-helpdesk-db, via bastion, read-only WW-2911 creds)  |
+| WishDesk CRM Dev   | MySQL      | `wishdesk_crm_dev`   | Dev WishDesk CRM (Hetzner sw-wishdesk-db, via bastion, read-only WW-2911 creds)   |
 | Laravel Live       | MySQL      | `laravel_live`       | **Production** SugarWish e-commerce/orders (AWS RDS, via SSH tunnel)              |
 | Manage             | MySQL      | `manage`             | Laravel **staging** (direct)                                                      |
 | Odoo               | PostgreSQL | `odoo`               | ERP data (prod, direct/SSL)                                                       |
@@ -63,7 +65,7 @@ SELECT * FROM users;                -- Avoid when possible
 Every remote DB behind the `jump.sugarwish.com` bastion routes through it — the
 MCP server sets the tunnel(s) up automatically. That's the private AWS RDS
 (`wishdesk`, `laravel_live`) **and** the Hetzner hosts (`serp_app`, `serp_test`,
-`manage`, `wishdesk_dev`), because the Hetzner firewall now trusts only the
+`manage`, `wishdesk_dev`, `wishdesk_crm_dev`) and the CRM RDS (`wishdesk_crm`), because the Hetzner firewall now trusts only the
 bastion. One tunnel (`tunnelKey`) is opened per distinct remote host — DBs that
 share a host share a tunnel (RDS `wishdesk`+`laravel_live`; Hetzner
 `serp_app`+`serp_test`) — all using the same bastion SSH creds

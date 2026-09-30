@@ -56,14 +56,14 @@ const tools: Tool[] = [
   {
     name: 'query_database',
     description:
-      'Execute a read-only SQL query against a database (wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test)',
+      'Execute a read-only SQL query against a database (wishdesk, wishdesk_dev, wishdesk_crm, wishdesk_crm_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test)',
     inputSchema: {
       type: 'object',
       properties: {
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test',
+            'Database name: wishdesk, wishdesk_dev, wishdesk_crm, wishdesk_crm_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test',
         },
         query: { type: 'string', description: 'SQL query (SELECT only)' },
         limit: { type: 'number', description: 'Max rows to return' },
@@ -83,7 +83,7 @@ const tools: Tool[] = [
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test',
+            'Database name: wishdesk, wishdesk_dev, wishdesk_crm, wishdesk_crm_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test',
         },
         path: {
           type: 'string',
@@ -104,7 +104,7 @@ const tools: Tool[] = [
         database: {
           type: 'string',
           description:
-            'Database name: wishdesk, wishdesk_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test',
+            'Database name: wishdesk, wishdesk_dev, wishdesk_crm, wishdesk_crm_dev, laravel_live, odoo, odoo_staging, retool, manage, serp_local_prod, serp_local_staging, laravel_local, serp_app, serp_test',
         },
       },
       required: ['database'],

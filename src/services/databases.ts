@@ -103,9 +103,7 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
   // LIVE_SSH_TUNNEL_PORT so /start-day's health check and the app agree.
   const liveSshConfig = bastionTunnel(
     'live-bastion',
-    process.env.LIVE_SSH_TUNNEL_PORT
-      ? parseInt(process.env.LIVE_SSH_TUNNEL_PORT, 10)
-      : undefined
+    process.env.LIVE_SSH_TUNNEL_PORT ? parseInt(process.env.LIVE_SSH_TUNNEL_PORT, 10) : undefined
   );
 
   // Hetzner bastion tunnels — one key per distinct Hetzner host, all through the
@@ -115,6 +113,10 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
   const hetznerSerpSsh = bastionTunnel('hetzner-serp');
   const hetznerManageSsh = bastionTunnel('hetzner-manage');
   const hetznerWishdeskDevSsh = bastionTunnel('hetzner-wishdesk-dev');
+  // WishDesk CRM DBs — live on its own RDS (sw-helpdesk-db), dev on Hetzner
+  // sw-wishdesk-db. Own keys since their hosts come from separate env vars.
+  const crmLiveSsh = bastionTunnel('crm-rds');
+  const crmDevSsh = bastionTunnel('hetzner-crm-dev');
 
   return {
     wishdesk: {
@@ -140,6 +142,29 @@ export function getDatabaseConfigs(): Record<string, DatabaseConfig> {
       database: process.env.WISHDESK_DEV_DB_NAME || '',
       // Hetzner host — routes through the bastion (firewall trusts only jump).
       ssh: hetznerWishdeskDevSsh,
+    },
+    // Read-only MCP creds from WW-2911 — never SWAC's sw-wishdesk-2 account.
+    wishdesk_crm: {
+      name: 'wishdesk_crm',
+      type: 'mysql',
+      host:
+        process.env.WISHDESK_CRM_DB_HOST ||
+        'sw-helpdesk-db.cqqg1tfyyubp.us-east-1.rds.amazonaws.com',
+      port: parseInt(process.env.WISHDESK_CRM_DB_PORT || '3306', 10),
+      user: process.env.WISHDESK_CRM_DB_USER || '',
+      password: process.env.WISHDESK_CRM_DB_PASSWORD || '',
+      database: process.env.WISHDESK_CRM_DB_NAME || 'wishdesk_crm',
+      ssh: crmLiveSsh,
+    },
+    wishdesk_crm_dev: {
+      name: 'wishdesk_crm_dev',
+      type: 'mysql',
+      host: process.env.WISHDESK_CRM_DEV_DB_HOST || '5.78.187.176',
+      port: parseInt(process.env.WISHDESK_CRM_DEV_DB_PORT || '3306', 10),
+      user: process.env.WISHDESK_CRM_DEV_DB_USER || '',
+      password: process.env.WISHDESK_CRM_DEV_DB_PASSWORD || '',
+      database: process.env.WISHDESK_CRM_DEV_DB_NAME || 'wishdesk_crm_dev',
+      ssh: crmDevSsh,
     },
     laravel_live: {
       name: 'laravel_live',
