@@ -31,7 +31,7 @@ The drop box is the already-protected `sw-cortex/secret.txt` — it is gitignore
 
    Then tell Jack in one line, naming the exact var(s) and destination(s): **"The file that opened has a labeled line for each of `<VARS>` — paste each value after its `=`, save, close, and say `done`. I can't read the file — I'll wire each into `<destination>` and wipe it."** **Then STOP and wait** — do not proceed until he confirms.
 
-2. **On `done`, wire each var in — no value ever surfaces.** Never `Read`/`cat`/`head`/`xxd`/`open` the drop box to "check" it. In a **single** Bash call, loop the target vars, pull each value out of its labeled line value-blind, and upsert it into that var's destination. Print only non-secret facts (var name, length, class):
+2. **On `done`, wire each var in — no value ever surfaces.** Never `Read`/`cat`/`head`/`xxd`/`open` the drop box to "check" it. In a **single** Bash call, loop the target vars, pull each value out of its labeled line value-blind, and upsert it into that var's destination. Print only non-secret facts — **var name and length ONLY, never any slice of the value**:
 
    ```bash
    SECRET_DROP=/Users/jackkief/Desktop/Projects/sw-cortex/secret.txt
@@ -47,8 +47,12 @@ The drop box is the already-protected `sw-cortex/secret.txt` — it is gitignore
      # -m1 first match; cut -d= -f2- keeps any '=' inside the value; tr strips CR/LF only.
      VAL="$(grep -m1 "^${VAR}=" "$SECRET_DROP" | cut -d= -f2- | tr -d '\r\n')"
      if [ -z "$VAL" ]; then echo "· ${VAR}: blank/absent — skipped"; continue; fi
-     # report only the shape, never the value:
-     echo "· got ${VAR}: ${#VAL} chars, class ${VAL%%[!A-Za-z0-9]*}…"
+     # Report the LENGTH ONLY — never any slice of the value. A length is safe; any
+     # prefix/"class" is NOT: a hex/base64 key (e.g. a 32-char ShipStation key) has
+     # no non-alphanumeric separator, so a `${VAL%%[!A-Za-z0-9]*}`-style "class"
+     # strips nothing and echoes the WHOLE secret into the transcript. This bit us
+     # once (2026-09-19). Length only, full stop.
+     echo "· got ${VAR}: ${#VAL} chars"
      # upsert into D without printing the file's secret lines:
      if grep -q "^${VAR}=" "$D" 2>/dev/null; then
        perl -i -pe "s|^\Q${VAR}\E=.*|${VAR}=${VAL}|" "$D"
@@ -63,7 +67,7 @@ The drop box is the already-protected `sw-cortex/secret.txt` — it is gitignore
 
    - This step needs bash arrays (`declare -A`, `"${!DEST[@]}"`), which the Bash tool's zsh does NOT support — run it as `bash -c '…'` (or write the loop to a `.sh` in the scratchpad and `bash that.sh`), not as a bare zsh command.
    - Keep every `$VAL` interpolation **inside the quoted `perl` / `printf`** so the shell never expands a value into a place that could echo. Do not build a command that prints `$VAL`.
-   - The `class ${VAL%%[!A-Za-z0-9]*}…` prints only the leading alphanumeric run (e.g. a `sk`/`AKIA` prefix), never the body — safe to show.
+   - **Report LENGTH only — never a prefix, "class", first N chars, or any slice of the value.** There is no such thing as a "safe prefix": for a hex/base64 secret it is the whole thing. `${#VAL}` is the only value-derived thing that may ever be printed.
    - If a destination is something other than an `.env` var (a config JSON, a k8s secret, a keychain entry), adapt that var's write step to its target — the invariant is the same: **the value moves value-blind, never printed.**
 
 3. **Wipe the drop box and any secret-bearing backups:**
@@ -77,12 +81,12 @@ The drop box is the already-protected `sw-cortex/secret.txt` — it is gitignore
 
    Do **not** `rm` `secret.txt` itself — leaving the 0-byte file keeps its path valid so the deny rule always matches next time. The seed lines are labels only (no values), but wiping still clears the pasted values he entered between them.
 
-4. **Report** in one line per var: which var went where, its length/class (never the value), and that the drop box is wiped. If a running MCP server holds the old env (e.g. updating a token the `github`/`db`/`knowledge` MCP uses), note that **Claude Code must be restarted** for the server to pick up the new value — it won't re-read `.env` until then. For a SERP `.env` secret, note the SERP app/MCP servers likewise need a restart to see it.
+4. **Report** in one line per var: which var went where, its **length only** (never the value or any slice of it), and that the drop box is wiped. If a running MCP server holds the old env (e.g. updating a token the `github`/`db`/`knowledge` MCP uses), note that **Claude Code must be restarted** for the server to pick up the new value — it won't re-read `.env` until then. For a SERP `.env` secret, note the SERP app/MCP servers likewise need a restart to see it.
 
 ## Hard rules (never violate)
 
 - **NEVER** `Read`, `cat`, `head`, `tail`, `xxd`, `less`, or `open` `secret.txt` to inspect its contents. The `Read` deny is mechanical; the shell reads (`cat`/`head`) are on you to avoid. The only legitimate access is a value-blind extract piping into a variable (`grep -m1 "^VAR=" … | cut -d= -f2-`).
-- **NEVER** print, `echo`, log, or interpolate a secret value into any command whose output shows in the transcript. Report only var name + length + leading class.
+- **NEVER** print, `echo`, log, or interpolate a secret value — or ANY slice of it (prefix, "class", first N chars) — into any command whose output shows in the transcript. **`${#VAL}` (the length) is the ONLY value-derived thing you may print.** A "safe prefix" does not exist: for a hex/base64 key it is the entire secret. (This rule replaces an earlier one that allowed a "leading class" — that allowance caused a full-key leak on 2026-09-19.)
 - **The seed lines carry NO values** — only `VAR=` labels + a comment header. Writing a value into the seed step would put the secret in the transcript. Seed labels; let Jack fill the values in the editor.
 - **NEVER** commit the secret. `secret.txt` and `.env*` are gitignored; keep it that way. If you created a `.bak`, delete it (it holds the old secret).
 - **ALWAYS** wipe the drop box (`: > secret.txt`) after wiring, even if a write failed — a pasted secret should never sit in the drop box after the command ends.
