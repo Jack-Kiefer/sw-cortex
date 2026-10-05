@@ -40,6 +40,9 @@ your login survives — but over a **plaintext** connection so it works on Node 
   `swcrm_z_gmail_messages`, `swcrm_z_gmail_sync_failures`, `swcrm_hhs_proposals`
 - **merge** (kept local so login/proposals survive): `users`, `proposals`
 - **replace**: everything else
+- **always skip `deleted_*`**: dev renamed the retired CRM tables to `deleted_swcrm_*` but they
+  keep their original FK constraint names, which collide with the local `swcrm_*` tables and
+  abort the load (`ERROR 1826 Duplicate foreign key constraint name`) after ~23 tables.
 - **PLUS this command's default extra skips** (large CRM tables Jack doesn't use locally —
   the bulk of the dump; pass `with-crm` to include them):
   `swcrm_z_gmail_messages`, `swcrm_z_gmail_sync_failures`, `swcrm_sync_status`,
@@ -71,7 +74,7 @@ const mysql=require("mysql2/promise"); const fs=require("fs"); require("dotenv")
   const skip=new Set([...base, ...(process.env.WITH_CRM==="true"?[]:crm), ...extra]);
   const dev=await mysql.createConnection({host:process.env.DB_HOST_MANAGE,port:+(process.env.DB_PORT_MANAGE||3306),user:process.env.DB_USERNAME_MANAGE,password:process.env.DB_PASSWORD_MANAGE,database:process.env.DB_DATABASE_MANAGE,ssl:false});
   const [rows]=await dev.query("SELECT table_name AS t FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type=\"BASE TABLE\" ORDER BY table_name");
-  const all=rows.map(r=>r.t); const replace=all.filter(t=>!skip.has(t));
+  const all=rows.map(r=>r.t); const replace=all.filter(t=>!skip.has(t)&&!t.startsWith("deleted_"));
   fs.writeFileSync(process.env.SCRATCH+"/tables.txt", replace.join("\n"));
   fs.writeFileSync(process.env.SCRATCH+"/src.cnf","[client]\nhost="+process.env.DB_HOST_MANAGE+"\nport="+(process.env.DB_PORT_MANAGE||3306)+"\nuser="+process.env.DB_USERNAME_MANAGE+"\npassword=\""+process.env.DB_PASSWORD_MANAGE+"\"\nssl-mode=DISABLED\n",{mode:0o600});
   fs.writeFileSync(process.env.SCRATCH+"/local.cnf","[client]\nhost="+process.env.LOCAL_DB_HOST+"\nport="+(process.env.LOCAL_DB_PORT||3306)+"\nuser="+process.env.LOCAL_DB_USER+"\npassword=\""+(process.env.LOCAL_DB_PASSWORD||"")+"\"\n",{mode:0o600});
