@@ -222,7 +222,16 @@ function parseDayExpression(input: string, now: Date): Date | null {
  * Parse a date with optional time
  */
 function parseDateWithTime(input: string, now: Date): Date | null {
-  const lower = input.toLowerCase().trim();
+  let lower = input.toLowerCase().trim();
+
+  // Time-first / day-suffix phrasing: "at 4pm today", "9am tomorrow", "at 3pm tonight".
+  // Normalize to the canonical "<day> at <time>" so the branches below handle it.
+  // (Without this, "at 4pm today" matches neither branch — the atMatch split needs
+  // text before "at", and the bare-time branch is left with "4pm today" which parseTime rejects.)
+  const suffixMatch = lower.match(/^(?:at\s+)?(.+?)\s+(today|tonight|tomorrow)$/);
+  if (suffixMatch && parseTime(suffixMatch[1])) {
+    lower = `${suffixMatch[2]} at ${suffixMatch[1]}`;
+  }
 
   // "monday at 3pm", "tomorrow at 9:30am"
   const atMatch = lower.match(/^(.+?)\s+at\s+(.+)$/);
