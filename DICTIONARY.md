@@ -1949,7 +1949,7 @@ Distinct lifecycle objects, NOT one "order": `giftcards_card` (pre-redemption ec
 
 #### Only `usage='internal'` is real inventory; `inventory_date` filter is wrong
 
-⚠️ Only `stock_location.usage='internal'` holds real stock. Outbound moves go to virtual Customers (id 5), inbound from virtual Vendors (id 4). Several SQL files historically filtered `sq.inventory_date IS NOT NULL` to "find real stock" — that's **fragile and wrong** (it's the scheduled-count field). Use `usage='internal'`.
+⚠️ Only `stock_location.usage='internal'` holds real stock. Outbound moves go to virtual Customers (id 5), inbound from virtual Vendors (id 4). Several SQL files historically filtered `sq.inventory_date IS NOT NULL` to "find real stock" — that's **fragile and wrong** (it's the scheduled-count field). Use `usage='internal'`. **Post-cutover this is a live undercount, not just fragile:** SERP never stamps `inventory_date` on quants it creates (`stock_quant.py` ~L889), so every quant created since 2026-09-26 has it NULL (verified `serp_app`: 199 of 199 post-cutover quants, all SERP-native). Only Odoo-seeded quants carry the date, so stock landing in a product/location pair with no pre-cutover quant row is invisible to the filter (e.g. RM Inv showing 0 on Live Product Summary for a received RM). The filter sits in `backend/sql/live_products/serp/rm_data.sql` and the five supplier-forecast queries under `backend/sql/forecast/serp/` (rm_inventory, component_inventory, direct_component_inventory, ecard_rm_inventory, packaging_component_inventory); the fix is a `serp_stock_location` join on `usage='internal'` (idiom already at `serp_orm/models/stock_quant_queries.py` L132-142).
 
 #### Only `state='done'` moves change inventory; `quantity_done` is computed
 

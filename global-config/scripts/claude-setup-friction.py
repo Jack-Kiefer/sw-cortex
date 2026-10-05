@@ -39,6 +39,11 @@ BUCKETS = [
     ("missing_module", "missing Python module / env not set up", False,
      lambda s: "modulenotfounderror" in s or "no module named" in s
                or "externally-managed-environment" in s),
+    # hook denials that mention "mcp" — guardrails, must match before mcp_error
+    ("describe_first_guard", "describe-first guard denied a query (schema not looked up)", True,
+     lambda s: "describe-first guard" in s),
+    ("memory_guard", "memory-pressure guard blocked a heavy run", True,
+     lambda s: "machine is genuinely low on memory" in s),
     ("mcp_error", "MCP server error / unreachable", False,
      lambda s: "mcp" in s and ("error" in s or "timed out" in s or "not connected" in s
                                or "failed to connect" in s)),
@@ -63,13 +68,29 @@ BUCKETS = [
 def signature(text, bucket_key):
     """Collapse a message to a dedupe key: bucket + first error-ish line, with
     volatile bits (paths, ids, timestamps, hashes) normalized out."""
+    if bucket_key == "describe_first_guard":
+        return (bucket_key, "describe-first guard")
     first = ""
-    for ln in text.splitlines():
-        ln = ln.strip()
-        if ln:
+    stripped = text.strip()
+    if stripped.startswith("{"):
+        # pretty-printed JSON errors would otherwise all collapse to "{"
+        try:
+            obj = json.loads(stripped)
+            for k in ("error", "message"):
+                if isinstance(obj, dict) and isinstance(obj.get(k), str):
+                    first = obj[k].strip().splitlines()[0] if obj[k].strip() else ""
+                    break
+        except ValueError:
+            pass
+    if not first:
+        for ln in text.splitlines():
+            ln = ln.strip()
+            if not ln or ln in ("{", "[") or re.match(r"^exit code \d+$", ln, re.I):
+                continue
             first = ln
             break
     first = first.lower()[:160]
+    first = re.sub(r"'[^']*'", "'X'", first)                # quoted identifiers
     first = re.sub(r"req_[a-z0-9]+", "REQID", first)        # anthropic request ids
     first = re.sub(r'"request_id"\s*:\s*"[^"]*"', '"request_id":"REQID"', first)
     first = re.sub(r"[0-9a-f]{8}-[0-9a-f-]{20,}", "UUID", first)  # uuids
