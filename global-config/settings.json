@@ -128,7 +128,15 @@
       "mcp__slack-search",
       "mcp__logs"
     ],
-    "deny": ["Bash(git stash:*)", "Bash(git stash)"]
+    "deny": [
+      "Bash(git stash:*)",
+      "Bash(git stash)",
+      "Read(//Users/jackkief/.ssh/**)",
+      "Read(//Users/jackkief/.mcp.json)",
+      "Read(//Users/jackkief/Desktop/Projects/SERP/.env)",
+      "Read(//Users/jackkief/Desktop/Projects/SERP/.worktrees/*/.env)",
+      "Read(//Users/jackkief/Desktop/Projects/sw-cortex/.env)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
