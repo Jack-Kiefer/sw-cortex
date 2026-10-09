@@ -5,7 +5,7 @@
 
 import mysql from 'mysql2/promise';
 import pg from 'pg';
-import { Client as SSHClient, utils as sshUtils } from 'ssh2';
+import ssh2, { Client as SSHClient } from 'ssh2';
 import { readFileSync } from 'fs';
 import { execFileSync } from 'child_process';
 import { createServer, Server as NetServer, AddressInfo } from 'net';
@@ -348,7 +348,7 @@ async function createTunnel(config: DatabaseConfig): Promise<number> {
 
     // A passphrase-protected key can't be parsed here, so authenticate through
     // the ssh-agent instead (macOS loads the passphrase from the Keychain).
-    const useAgent = sshUtils.parseKey(privateKey) instanceof Error;
+    const useAgent = ssh2.utils.parseKey(privateKey) instanceof Error;
     if (useAgent) {
       try {
         execFileSync('ssh-add', ['--apple-load-keychain'], { stdio: 'ignore', timeout: 5000 });
