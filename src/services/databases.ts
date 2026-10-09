@@ -5,8 +5,9 @@
 
 import mysql from 'mysql2/promise';
 import pg from 'pg';
-import { Client as SSHClient } from 'ssh2';
+import { Client as SSHClient, utils as sshUtils } from 'ssh2';
 import { readFileSync } from 'fs';
+import { execFileSync } from 'child_process';
 import { createServer, Server as NetServer, AddressInfo } from 'net';
 
 // pg defaults parse oid 1114 (timestamp without time zone) into a JS Date by
@@ -345,6 +346,17 @@ async function createTunnel(config: DatabaseConfig): Promise<number> {
       return;
     }
 
+    // A passphrase-protected key can't be parsed here, so authenticate through
+    // the ssh-agent instead (macOS loads the passphrase from the Keychain).
+    const useAgent = sshUtils.parseKey(privateKey) instanceof Error;
+    if (useAgent) {
+      try {
+        execFileSync('ssh-add', ['--apple-load-keychain'], { stdio: 'ignore', timeout: 5000 });
+      } catch {
+        // Non-macOS ssh-add or nothing stored — the agent may already hold the key.
+      }
+    }
+
     // Local listener that forwards each accepted socket through the SSH
     // connection to the remote DB this config points at.
     const server = createServer((socket) => {
@@ -387,7 +399,7 @@ async function createTunnel(config: DatabaseConfig): Promise<number> {
         host: ssh.host,
         port: ssh.port,
         username: ssh.user,
-        privateKey,
+        ...(useAgent ? { agent: process.env.SSH_AUTH_SOCK } : { privateKey }),
       });
     };
 
