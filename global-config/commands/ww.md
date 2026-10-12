@@ -71,6 +71,16 @@ PYEOF
 
 **If the output is "CURRENT" or "SKIP":** Continue normally.
 
+**If the update command above was denied instead of running** — the Bash call came back "Denied by auto mode classifier" (for example `[Self-Modification]`) rather than printing one of the outputs above: do NOT retry it, reword it, or try another way to update the file. The safety check forbids that, and only the user can allow it. Continue with the user's request using the instructions already loaded, and end your response with this message, word for word:
+
+> "Note: Claude Code's auto-mode safety check blocked /ww's automatic update, so /ww may be out of date. One-time fix so this stops happening: type `/permissions`, open the **Auto mode** tab, and add this as an **allow** rule, word for word — then run /ww again:
+>
+> ```
+> WishWorks /ww auto-update: when I run the /ww slash command, it may download wishworks/_config/claude-commands/ww.md from the GitHub repo jasonbkiefer/SWIRL (the same repo as jasonbkiefer/swirl, since GitHub repo names are case-insensitive) and overwrite ~/.claude/commands/ww.md with it. I want this update to run automatically.
+> ```
+>
+> Using the Claude desktop app? `/permissions` isn't available there. Open Terminal, type `claude`, and add the rule there instead — it's saved to the same settings file the app uses."
+
 > **NOTE:** `/ww-dev` (Anna's local test copy of this command) has a similar auto-update block. This file is generated from it by `anna-repository/scripts/ww-translate.py` — edit `/ww-dev` first, never this file directly. `/ww-dev` uses "UPDATED_WW" and "UPDATE_WRITE_FAILED_WW" (the `_WW` suffix) as its output strings to distinguish from this file's output.
 
 ---
@@ -991,6 +1001,7 @@ Parse the JSON output. If `error`, tell the user: "The file was uploaded to S3 b
 When creating or modifying tickets, always follow the format guide. Key rules:
 
 - **All fields must be present** in every ticket, even if blank (use `""`)
+- **Ticket title length — 140 characters maximum, hard limit, on EVERY write that sets a ticket `title`** (new ticket, child ticket, the auto-created Retool task, and any "change the title" edit). Count the characters before writing. If the title is over 140, do NOT write it — tell the developer: "That title is {N} characters — the limit is 140. Can you shorten it?" (you may offer a shortened version, but they must accept it). **Why:** WishBot posts every announced ticket as a Slack card whose heading is `WW-####: {title}`, and Slack rejects a heading over 150 characters — the whole card fails (`invalid_blocks`) and the ticket silently never posts to its channel (WW-3328, 2026-09-23). 140 leaves room for the `WW-####: ` prefix.
 - Different tracks and types have different required fields and starting statuses
 - **Laravel, React Receiver, and Shipping Labels tickets** include a Release Actions checklist section (different items per track — see Release Actions Gate)
 - **Wishdesk tickets** should have `component` set from `wishworks/_config/component-matrix.json` → `wishdesk` section
@@ -1597,7 +1608,7 @@ Based on the type and track, collect these fields conversationally. Ask for the 
 
 **All types need:**
 
-- `title` — short descriptive title
+- `title` — short descriptive title, **≤140 chars** (hard limit — see the Ticket title length rule under Ticket Format Guide)
 - `description` — what and why (for bugs: what's broken, what should happen instead)
 - `requestor` — auto-detect by running `gh api user --jq .login` to get the developer's GitHub username, then look up the canonical `Name` in team.md (Dev Team table → match the `GitHub Username` column → use the `Name` column). If the GitHub username matches no row (e.g., new dev not in team.md, or empty `GitHub Username` column for that member), fall back to `git config user.name` and run that through the **Name resolution** algorithm (Assign Rules section below) against the Dev Team table.
   - **Override path (filing on behalf of someone else):** if the developer says "the requestor is X" (or otherwise overrides the auto-detected value), the override input MUST resolve to a real team member in team.md before the ticket is created. **Validation rule:** resolve the input through Name resolution against (a) the Dev Team table's `Name` column, then (b) the All Staff table's `Name` column. **Exactly one match** → store the canonical full `Name` from that table. **Multiple matches** → list candidates and ask the developer to pick. **Zero matches** → **HARD STOP. Do not create the ticket.** Respond: _"I couldn't find '{input}' in team.md (Dev Team or All Staff). The requestor field MUST be a real team member — no placeholders, no department names, no 'unknown'. Please find out who specifically requested this (check the Slack thread, ask in the relevant department channel, etc.) and re-run /ww with their actual name. Possible options based on department context: {list 3-5 nearest fuzzy matches in team.md All Staff filtered by relevant department, if any}."_
@@ -1666,6 +1677,8 @@ All tickets (every track) start at `backlog` in `active/`. Laravel, React Receiv
 **Step 5: Build the ticket file**
 
 Follow the exact template for this track+type from the ticket format guide (`wishworks/_config/TICKET_FORMAT_GUIDE.md`). Include ALL frontmatter fields — set required ones from the collected info, set everything else to the default value shown in the template (`""`, `false`, or `0`). For enum fields you weren't explicitly asked about, leave empty (`""`) — never auto-pick a "sensible" enum value.
+
+**`environment` is ALWAYS `""` on a NEW ticket — every track, every type, no exceptions, whatever the conversation says (Anna, 2026-09-11).** `environment` means **where this ticket's FIX is deployed**. A ticket that is only now being created has no fix deployed anywhere, so the only correct value is empty. It is **NOT** where the bug was seen: "this is broken on the live site", "happening in production", "reproduced on desk2", a URL on a live domain, or a title that mentions live all describe the **bug** — put that in the Description, never in `environment`. Even if the developer explicitly says "set environment to live" at creation, leave it `""` and tell them in one line that `environment` is set later, when a fix is actually deployed. Why this is spelled out: a new bug written with `environment: live` is read everywhere as "the fix is live but the ticket isn't marked released", and WishBot's reconciliation flags it every morning until someone clears it (real incident: WW-3153, created through /ww on 2026-09-10 with `environment: live`). **Before the write in Step 7, re-read the frontmatter you built and confirm the line reads exactly `environment: ""`.**
 
 **Use canonical enum values for `type` and `track`:** Read the canonical strings from `wishworks/_config/enums.json` and write the EXACT value to frontmatter. The user may say "Story" or "Shipping Labels" or "React Receiver" in chat — always look up and write the canonical form. The two multi-word tracks use **hyphens, not underscores or spaces**:
 
