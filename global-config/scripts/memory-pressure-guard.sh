@@ -51,7 +51,20 @@ cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // ""' 2>/dev/null)
 [ -n "$cmd" ] || exit 0
 
 # Is this a memory-heavy command? Cheap regex; skip everything else immediately.
-printf '%s' "$cmd" | grep -qiE '(tsc|typecheck|type-check)|(jest|vitest|mocha)|(playwright|puppeteer|chromium|chrome.*--headless)|(webpack|vite build|esbuild|next build|npm run build)' || exit 0
+# Scan only what can actually launch a process: drop heredoc BODIES (a changelog or
+# PR body that mentions "jest"/"typecheck" is text, not a run) and the .playwright-mcp /
+# .playwright-cli directory names (a tail/sed of a log under them is a read).
+scan=$(printf '%s\n' "$cmd" | awk '
+  delim == "" {
+    print
+    if (match($0, /(^|[^<])<<-?[ \t]*["\047\\]?[A-Za-z_][A-Za-z_0-9]*/)) {
+      d = substr($0, RSTART, RLENGTH); sub(/^.*<<-?[ \t]*["\047\\]?/, "", d); delim = d
+    }
+    next
+  }
+  { t = $0; sub(/^[ \t]+/, "", t); if (t == delim) delim = "" }
+' | sed -E 's#\.playwright-(mcp|cli)##g')
+printf '%s' "$scan" | grep -qiE '(tsc|typecheck|type-check)|(jest|vitest|mocha)|(playwright|puppeteer|chromium|chrome.*--headless)|(webpack|vite build|esbuild|next build|npm run build)' || exit 0
 
 # --- measure pressure ------------------------------------------------------
 # The KERNEL'S real pressure verdict, not pure-free RAM. 1=normal, 2=warn,

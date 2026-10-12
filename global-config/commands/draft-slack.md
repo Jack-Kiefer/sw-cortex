@@ -43,6 +43,8 @@ AI-written Slack messages read as robotic in specific, recognizable ways. Strip 
 - **False confidence on completion.** No "This has been fully resolved and is working as expected." Jack hedges done (see below).
 - **Rule-of-three parallelism.** No "I investigated, identified, and resolved the root cause." Say the cause, then the fix, plainly.
 - **Restating the question back.** No "Regarding your question about the inventory number...". Just answer it.
+- **Answering more than was asked.** When Jack pastes or quotes a specific message and says to respond to it, the draft answers THAT message's questions and nothing else. Don't fold in earlier context, corrections to what he said before, sequencing advice, or extra asks unless he says to add them. ("No, just respond to this. When would you like to start and what should I do on my end?")
+- **Crediting the wrong person.** Keep straight who found or said what. If the other person raised one thing and Jack noticed a second, write it that way: agree with theirs, then `I also noticed …` for his. Never "you're right on both" when they only raised one. ("but she didn't find two things. She just found that one thing.")
 - **Bullet-point walls** for something that's really one or two sentences. Write plain running sentences.
 - **Effusive thanks.** No "Thank you so much, I really appreciate it!" standalone. Jack tacks a short "thanks" onto the end.
 

@@ -69,3 +69,11 @@ secret.txt
 
 # Local scratch work (CSV dumps, one-off scripts) — never committed
 scratch/
+
+# Claude Code auto-downloaded built-in skills (~/.claude/skills symlinks here)
+global-config/skills/synced/
+global-config/skills/.bucket-*
+global-config/skills/*-*-*-*-*_*-*-*-*-*/
+
+# /ww self-updates from jasonbkiefer/SWIRL on every run; SWIRL is its source of truth
+global-config/commands/ww.md
