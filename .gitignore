@@ -74,3 +74,6 @@ scratch/
 global-config/skills/synced/
 global-config/skills/.bucket-*
 global-config/skills/*-*-*-*-*_*-*-*-*-*/
+
+# /ww self-updates from jasonbkiefer/SWIRL on every run; SWIRL is its source of truth
+global-config/commands/ww.md
