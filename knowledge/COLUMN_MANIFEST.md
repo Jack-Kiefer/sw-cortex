@@ -288,11 +288,11 @@ id bigint unsigned · name varchar(100) · complete_name varchar(255) · parent_
 
 #### serp_test.serp_product_product
 
-**Columns (13):** id, product_tmpl_id, active, component_id, receiver_product_id, buyer_product_id, recipe_key, default_code, create_uid, write_uid, create_date, write_date, odoo_id
+**Columns (14):** id, product_tmpl_id, active, component_id, receiver_product_id, buyer_product_id, recipe_key, default_code, create_uid, write_uid, create_date, write_date, odoo_id, shelf_spot
 
 <details><summary>with types</summary>
 
-id bigint unsigned · product_tmpl_id bigint unsigned · active tinyint(1) · component_id bigint unsigned · receiver_product_id int · buyer_product_id bigint unsigned · recipe_key varchar(100) · default_code varchar(64) · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint
+id bigint unsigned · product_tmpl_id bigint unsigned · active tinyint(1) · component_id bigint unsigned · receiver_product_id int · buyer_product_id bigint unsigned · recipe_key varchar(100) · default_code varchar(64) · create_uid bigint unsigned · write_uid bigint unsigned · create_date timestamp · write_date timestamp · odoo_id bigint · shelf_spot varchar(64)
 
 </details>
 
