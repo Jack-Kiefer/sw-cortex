@@ -120,6 +120,13 @@ or `branch`), bump `updated:` and refresh the body — don't create a duplicate.
 
 ### Step 4 — Confirm, then close this tab
 
+**In Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`) the session can't close itself.**
+Print the confirmation (step 1 below), rename the session with
+`mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "💾 saved <slug>" }`, and
+end with: "Saved. Archive this session from the sidebar (right-click → Archive)." Skip steps 2–3.
+
+In a terminal:
+
 1. Print a 2–3 line confirmation: the title saved, the file path, and the one-line `next`.
 2. Set the tab to done: `~/.claude/scripts/set-tab-title.sh "✅ saved · <slug>"`.
 3. **Close this tab** — the save is the hand-off:

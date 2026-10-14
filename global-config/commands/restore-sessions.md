@@ -1,5 +1,5 @@
 ---
-description: Rebuild the Herdr tabs lost in a crash, each resumed onto its original conversation
+description: (Legacy, Herdr only) Rebuild the Herdr tabs lost in a crash, each resumed onto its original conversation
 ---
 
 # Command: restore-sessions
@@ -9,6 +9,10 @@ server died). Each lost tab comes back as a Herdr tab in the right repo, running
 `claude --resume <id>` on its **original conversation** — full history, not a fresh start.
 
 Run this **from the hub** (sw-cortex), same place you run `/go`.
+
+> **Legacy — Herdr only.** Claude Desktop keeps its own sessions across a crash; reopen them
+> from Desktop's sidebar. The script skips any session whose transcript `entrypoint` is
+> `claude-desktop` and says how many it skipped.
 
 ## Usage
 

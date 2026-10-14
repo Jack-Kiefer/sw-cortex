@@ -1,6 +1,6 @@
 # Command: go
 
-The **task entry point.** `/go` opens a **real Claude Code session in the right project** (a new terminal tab — Herdr when its server is running, else VS Code — labeled for the project, with that repo's full native commands + MCP tools) and — unless you only named a repo — kicks off the work there with **a slash command chosen by intent**: an **actionable** task (fix/add/change) fires **`/serp-analyze`** (SERP) — full research → build → PR — and a **pure question** fires **`/research`** — investigate → answer → stop. `/go` = pick the repo, pick the command, launch it. (`/launch` is the keep-this-tab-open variant for already-scoped fixes — see the `/launch` command.)
+The **task entry point.** `/go` opens a **real Claude Code session in the right project** (a Claude Desktop session when this session runs in Desktop, else a new terminal tab — Herdr when its server is running, else VS Code — named for the task, with that repo's full native commands + MCP tools) and — unless you only named a repo — kicks off the work there with **a slash command chosen by intent**: an **actionable** task (fix/add/change) fires **`/serp-analyze`** (SERP) — full research → build → PR — and a **pure question** fires **`/research`** — investigate → answer → stop. `/go` = pick the repo, pick the command, launch it. (`/launch` is the keep-this-tab-open variant for already-scoped fixes — see the `/launch` command.)
 
 `/go` ALWAYS lands you in a writable repo — **SERP, SWAC, or sw-cortex**. Tasks that are really about a read-only repo (livery, sugarwish-laravel, sw-design, swirl, sugarwish-infrastructure) route to the writable repo where you'd actually make the change.
 
@@ -39,7 +39,7 @@ If `$ARGUMENTS` is ONLY a repo name (serp / swac / wishdesk / cortex / sw-cortex
 
   Then say in ONE line that the tab is swapping to that repo, and **END THE TURN IMMEDIATELY with no further tool calls** — the swap waits for this turn to end, exits this claude, and boots a fresh one cwd'd at the repo (this session is what gets replaced).
 
-- **Otherwise (VS Code / no Herdr pane):** launch a bare session the normal way:
+- **Otherwise (Claude Desktop / VS Code / no Herdr pane):** launch a bare session the normal way (in Desktop it opens a new Desktop session on the repo):
 
   ```bash
   ~/.claude/scripts/launch-repo-session.sh <REPO_ROOT>
@@ -76,7 +76,7 @@ Before routing a real task (`$ARGUMENTS` is task/question text — not a bare re
 
 2. **Match the task against those saves — conservatively.** Compare `$ARGUMENTS` semantically against each candidate's **title** and **nextstep** (and its `branch`). A match is **strong** only when the distinctive terms clearly line up — the same feature/bug/subsystem, not just a shared common word ("fix", "the", a repo name). Examples: `/go finish the serp-published-kits publisher` ↔ a closed save titled _serp-published-kits publisher_ = **strong**; `/go look at inventory` ↔ a save _core-SKU report buy-goal limiting RM_ = **weak** (only "inventory-ish" overlaps) → not a match. When in doubt, treat it as **weak**.
 
-2.5. **Drop any candidate that's ALREADY a live session — never resume a topic that's currently open in another running tab.** Call `mcp__sessions__list_sessions` and, for each strongly-matched save, check whether an active session is already on that same work: its `repo` matches the save's repo AND its live `task` (tab title) or branch clearly covers the save's topic/branch. If so, that topic is **already being worked** — **exclude it from the resume candidates** (resuming would spawn a second tab on the same thing / branch). If the mesh is unavailable (tool errors — Herdr down), skip this filter and proceed with the recency+match gates alone. (Only strong matches survive to here, so this is a cheap final guard, not a broad scan.)
+2.5. **Drop any candidate that's ALREADY a live session — never resume a topic that's currently open in another running tab.** List the live sessions — **in Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`) call `ListAgents`** (sessions are listed by title, `<emoji> <repo>-<slug> <words>`); otherwise call `mcp__sessions__list_sessions` — and, for each strongly-matched save, check whether an active session is already on that same work: its repo matches the save's repo AND its live title/`task` or branch clearly covers the save's topic/branch. If so, that topic is **already being worked** — **exclude it from the resume candidates** (resuming would spawn a second session on the same thing / branch). If neither list is available (tool errors), skip this filter and proceed with the recency+match gates alone. (Only strong matches survive to here, so this is a cheap final guard, not a broad scan.)
 
 3. **Strong match → auto-resume it (no confirmation).** Jack chose zero-friction resume, so on a single strong match, launch it immediately — do NOT ask first. Read the matched save file for its `repo_root`, then launch the resume loader exactly as `/resume-later` does:
 
@@ -90,7 +90,7 @@ Before routing a real task (`$ARGUMENTS` is task/question text — not a bare re
 
 4. **No match / only weak matches / the only strong match is already a live session → fall through to Step 1 and launch fresh, silently.** Do not mention the near-misses; a `/go` with no _resumable_ prior chat behaves exactly as it does today. (This step never _blocks_ a launch — worst case it's a no-op and Step 1 runs.)
 
-> This reuses the existing save/resume machinery end-to-end: `save-for-later.sh list closed` is the corpus, `/resume-later-load <file>` is the resume path (same one `/resume-later` uses), and `mcp__sessions__list_sessions` is the live-session filter (never resume a topic already open in a running tab). Nothing new is stored; `/go` just checks the closed saves first and, on a clear topic match that isn't already live, resumes instead of starting over.
+> This reuses the existing save/resume machinery end-to-end: `save-for-later.sh list closed` is the corpus, `/resume-later-load <file>` is the resume path (same one `/resume-later` uses), and `ListAgents` (Desktop) or `mcp__sessions__list_sessions` (Herdr) is the live-session filter (never resume a topic already open in a running session). Nothing new is stored; `/go` just checks the closed saves first and, on a clear topic match that isn't already live, resumes instead of starting over.
 
 ## Step 1 — Otherwise, pick the writable repo (decide and go; routing itself needs no question)
 
@@ -145,11 +145,14 @@ The hub session you're already in **IS** a sw-cortex session — same cwd, same 
 
 So: **if the routed repo is sw-cortex, skip Steps 2–4 entirely. Do NOT call `launch-repo-session.sh`.** There is **no `/serp-analyze` in sw-cortex** (it's a SERP-only command) — just do the work right here in the current session: research/diagnose the task inline and proceed. Say in one line that you're handling it in the hub (no new tab, to avoid double-loading context).
 
-**Title this tab as you work — the inline path needs it just as much as a launched one.** A launched session gets the tab-status rider in its prompt (Step 2); an inline hub task has no such prompt, so unless you call the setter yourself the tab keeps whatever floor the hook seeded and never reflects the work. So set it at the first real step and advance it as you go, exactly as the Terminal Tab Status section of `~/CLAUDE.md` describes:
+**Title this session as you work — the inline path needs it just as much as a launched one.** A launched session gets the status rider in its prompt (Step 2); an inline hub task has no such prompt, so unless you set the title yourself it never reflects the work. Set it at the first real step and advance it as you go, as the Terminal Tab Status section of `~/CLAUDE.md` describes:
 
-```bash
-~/.claude/scripts/set-tab-title.sh "\U0001f50d <what you're looking into>"   # then \U0001f528 building, \U0001f9ea verifying, \U0001f4e6 PR open, \u2705 done
-```
+- **In Claude Desktop:** `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "🔍 sw-cortex-<slug> <what you're looking into>" }` (then 🔨 building, 🧪 verifying, 📦 PR open, ✅ done — keep the `sw-cortex-<slug>` token).
+- **In a terminal:**
+
+  ```bash
+  ~/.claude/scripts/set-tab-title.sh "\U0001f50d <what you're looking into>"   # then \U0001f528 building, \U0001f9ea verifying, \U0001f4e6 PR open, \u2705 done
+  ```
 
 A new terminal is only worth it when the task needs a **different** repo's toolset/cwd (SERP or SWAC). For sw-cortex there's nothing to gain — the hub already has everything.
 
@@ -183,14 +186,24 @@ So the intent classification now decides the **command**, not just how the sessi
 
 ## Step 2 — Build the first prompt: pick the slash command, then pass the task
 
-The launched session runs a **slash command** chosen in Step 1.6 — `/serp-analyze` (SERP actionable), `/swac-analyze` (SWAC actionable), or `/research` (pure question, either repo). Pass the task as the command's argument plus the tab-title rider:
+The launched session runs a **slash command** chosen in Step 1.6 — `/serp-analyze` (SERP actionable), `/swac-analyze` (SWAC actionable), or `/research` (pure question, either repo). Pass the task as the command's argument plus the status rider:
 
 ```
 /serp-analyze <task>     # SERP, actionable — research then build then PR
 /research <task>    # pure question — research, answer, stop
 ```
 
-Append the tab-status rider to whichever command you fire so the session keeps its tab title current:
+Append the status rider and the overlap check to whichever command you fire. **The riders depend on where THIS session runs** (`echo $CLAUDE_CODE_ENTRYPOINT`), because the launcher opens the new session in the same environment:
+
+**Claude Desktop (`claude-desktop`)** — the new session is a Desktop session named `<emoji> <repo>-<slug> <words>`:
+
+```
+/serp-analyze <task> — keep your session title current with mcp__ccd_session_mgmt__set_session_title { session_id: "self" }, keeping its <repo>-<slug> token (🔍 researching → 🔨 building → 📦 PR → ✅ done; 🙋/❓ when it needs you). First call ListAgents; if another session is already on this work, send it ONE heads-up with SendMessage and tell Jack. When done, report back with SendMessage to the parent address in your first message.
+```
+
+For a **`/research`** launch the status part is `(🔍 while researching, 🙋 when presenting the answer, ✅ when answered)`; the overlap check and report-back are the same.
+
+**Terminal / Herdr (anything else)** — the tab-status rider plus the session-mesh check:
 
 ```
 /serp-analyze <task> — set the tab title with set-tab-title.sh as you go (🔍 researching → 🔨 building → 📦 PR → ✅ done; 🙋/❓ when it needs you).
@@ -198,9 +211,9 @@ Append the tab-status rider to whichever command you fire so the session keeps i
 
 For a **`/research`** launch (pure question), the rider is: `set the tab title with set-tab-title.sh as you go (🔍 while researching, 🙋 when presenting the answer, ✅ when answered).`
 
-**Also append the session-mesh check** to every launch rider so the new session notices if another session is already on the same work (see the Session Mesh section of `~/CLAUDE.md`): ` — first call mcp__sessions__check_overlap { task: "<the task>" }; if it overlaps a peer, send that peer ONE heads-up via mcp__sessions__message_session and tell Jack, otherwise just proceed.` So the full SERP rider becomes tab-status + this. (Skip only if the mesh isn't available — the tool will error and the session works solo.)
+**Also append the session-mesh check** to every terminal launch rider so the new session notices if another session is already on the same work (see the Session Mesh section of `~/CLAUDE.md`): ` — first call mcp__sessions__check_overlap { task: "<the task>" }; if it overlaps a peer, send that peer ONE heads-up via mcp__sessions__message_session and tell Jack, otherwise just proceed.` So the full SERP rider becomes tab-status + this. (Skip only if the mesh isn't available — the tool will error and the session works solo.)
 
-So a SERP `/go fix the forecast zeros on live-products` becomes the launcher prompt:
+So, from a terminal, a SERP `/go fix the forecast zeros on live-products` becomes the launcher prompt:
 `/serp-analyze fix the forecast zeros on live-products — set the tab title with set-tab-title.sh as you go (🔍 researching → 🔨 building → 📦 PR → ✅ done; 🙋/❓ when it needs you).`
 
 And a SERP `/go how does the redemption curve feed size_projections?` becomes:
@@ -222,7 +235,7 @@ The launch pipe is text-only, but the launched session's Read tool can view PNG/
 Then append an image rider to the Step 2 prompt so the launched session actually looks at them, e.g.:
 
 ```
-/serp-analyze <task> — first, Read these image(s), they are part of the task: /Users/jackkief/.claude/go-attachments/<...>.png — set the tab title with set-tab-title.sh as you go (…).
+/serp-analyze <task> — first, Read these image(s), they are part of the task: /Users/jackkief/.claude/go-attachments/<...>.png — <status rider for this environment, as above> (…).
 ```
 
 No launcher/extension changes are involved — the prompt passes through unmodified, and `taskSlug` only affects the tab name. (Skip this step when the message has no images.)
@@ -235,16 +248,20 @@ No launcher/extension changes are involved — the prompt passes through unmodif
 
 where `<slash-command-prompt>` is what Step 2 built — `/serp-analyze …` (SERP actionable), `/swac-analyze …` (SWAC actionable), or `/research …` (pure question).
 
-Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher queues the request and the Go Launcher extension opens the tab, deriving a descriptive name from the task prompt automatically (e.g. `🔍 forecast zeros on live-products`). The running session then updates the title as it works (`🔍 researching` → `🙋 presenting issues` → `✅ done`; the tab stays open — Jack closes it himself). Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the queue and produces a bare `SERP` title.
+Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher derives the session name from the task automatically — `<emoji> <repo>-<slug> <short task>`, e.g. `🔨 serp-forecast-zeros fix the forecast zeros on live-products` or `🔍 swac-WW3776 Branding Record sleeves…` (the slug is the `WW-####` id without its hyphen when there is one, else the first 2 meaningful words). The running session then updates the emoji and words as it works, keeping the `<repo>-<slug>` token. Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the launcher and produces a bare `SERP` title.
+
+- **In Claude Desktop**, the launcher seeds the session headlessly in the repo (one turn that only replies `Ready: <task>`), then opens it in Desktop. It prints the child's Desktop id (`local_<sid>`) and its name. The session starts the task on Jack's first message there, whatever it says.
+- **In a terminal**, it opens a Herdr tab (VS Code queue as the legacy fallback).
 
 ## Step 4 — Report
 
 - **One line**: which repo you routed to and which command it's running, e.g. "Routed to **SERP** — opening an `/serp-analyze` session for the forecast zeros (research → build → PR)." or for a question: "Routed to **SERP** — opening a `/research` session to answer how the redemption curve feeds size_projections."
-- A new terminal tab opens **automatically** — in **Herdr** when its server is running (the launcher drives the `herdr` CLI directly: workspace per repo, tab per task), else in VS Code (the Go Launcher extension watches `~/.claude/go-queue/` — no keypress, no Accessibility) — titled with the task. It stays open at `✅ done` — Jack closes it himself when he's done with it. Tell Jack to switch to it; it's working with that repo's full native tooling. This hub session stays put.
+- **Claude Desktop:** a new Desktop session opens **automatically**, named `<emoji> <repo>-<slug> <words>` and waiting at `Ready: <task>`; Jack's first message there starts it. Then rename THIS (origin) session with `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "✅ launched <repo>-<slug>" }`, and end the report with: "This session is done; archive it from the sidebar (right-click → Archive)."
+- **Terminal:** a new terminal tab opens **automatically** — in **Herdr** when its server is running (the launcher drives the `herdr` CLI directly: workspace per repo, tab per task), else in VS Code (legacy: the Go Launcher extension watches `~/.claude/go-queue/`) — titled with the task. It stays open at `✅ done` — Jack closes it himself when he's done with it. Tell Jack to switch to it; it's working with that repo's full native tooling. This hub session stays put.
 - **For an actionable `/serp-analyze` launch, the build happens IN that session** — research flows straight to a PR, no bounce back to the hub. For a `/research` launch (pure question), the session answers and stops; if it surfaces a fixable issue you can later spin the fix into its own tab with `/launch` (→ `/implement`).
-- If no tab appears: in Herdr, check `herdr status` (server running?); in VS Code, the extension may not be loaded yet (needs a window reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
+- If no session appears: in Desktop, check that `~/Library/Application Support/Claude/claude-code-sessions/**/local_<sid>.json` exists for the printed id (its `title`, `cwd`, `model`); in Herdr, check `herdr status` (server running?); in VS Code, the extension may not be loaded yet (needs a window reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
 
-`/go` does NOT do the work in THIS session — it classifies, routes, picks the command (`/serp-analyze` for actionable, `/research` for a question), and launches it in a new tab.
+`/go` does NOT do the work in THIS session — it classifies, routes, picks the command (`/serp-analyze` for actionable, `/research` for a question), and launches it in a new session.
 
 ## Plain-English equivalent (no slash needed)
 

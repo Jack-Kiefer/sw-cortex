@@ -12,4 +12,6 @@ Set a custom title on this session's terminal tab. Run exactly:
 
 If the argument is `--clear`, the tab returns to Claude's automatic titles.
 
+**In Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`)** there is no tab: call `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "$ARGUMENTS" }` instead (keep the session's `<repo>-<slug>` token if it has one). `--clear` has no Desktop equivalent; Jack can rename a session by clicking its title.
+
 Relay the script's one-line output. Notes for the user if asked: the name is stamped immediately and re-asserted after every tool call, turn end, and permission prompt by the global hooks (Stop/Notification/PostToolUse → `tab-title-hook.sh`); sessions opened before the hooks existed need `/hooks` typed once to load them. Full mechanism docs: `~/.claude/scripts/TAB_TITLES.md`.

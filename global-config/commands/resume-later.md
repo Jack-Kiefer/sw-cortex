@@ -5,8 +5,9 @@ description: List saved-for-later chats and relaunch one as a real session in it
 # Command: resume-later
 
 Pick up a previously `/save-for-later`'d chat. Lists your active saves; when you choose one
-it **launches a real Claude Code session in that save's repo** (a new terminal tab — Herdr when its server is running, else VS Code —
-that repo's full tooling), seeded to read the save file, get back on the right branch, and
+it **launches a real Claude Code session in that save's repo** (a new Claude Desktop session when
+this session runs in Desktop, else a new terminal tab — Herdr when its server is running, else VS Code —
+with that repo's full tooling), seeded to read the save file, get back on the right branch, and
 continue where you left off.
 
 Run this **from the hub** (sw-cortex) — same place you run `/go`.
@@ -54,8 +55,13 @@ seeded with the loader command so the new session reads the save and continues:
 ```
 
 - Pass ONLY the repo root + the prompt — no `--label`, no inline `set-tab-title.sh`/`claude`
-  (same contract as `/go`). The Go Launcher extension opens the tab and names it from the
-  prompt; the resumed session drives the title from there.
+  (same contract as `/go`). The launcher names the session from the prompt; the resumed
+  session drives the title from there — in Desktop with
+  `mcp__ccd_session_mgmt__set_session_title { session_id: "self" }` (keeping its
+  `<repo>-<slug>` token), in a terminal with `set-tab-title.sh`.
+- In Desktop the new session waits at `Ready: …` until Jack's first message, then runs the
+  loader. To check overlap first, it uses `ListAgents` (Desktop) or
+  `mcp__sessions__check_overlap` (terminal).
 - The prompt is `/resume-later-load <file>` — a tiny loader command (its own synced global
   command, `resume-later-load.md`, so it resolves in the launched SERP/SWAC/sw-cortex
   session) that the new session runs first thing: it reads the save, checks out the branch,
@@ -65,8 +71,9 @@ seeded with the loader command so the new session reads the save and continues:
 
 One line: which save you're resuming and where, e.g.
 "Resuming **forecast zeros on live-products** → opening a SERP session on branch
-`jack/forecast-zeros`." A new tab opens automatically; tell Jack to switch to it. This hub
-session stays put.
+`jack/forecast-zeros`." A new session opens automatically; tell Jack to switch to it. This hub
+session stays put. In Desktop, also rename this session to `✅ launched <repo>-<slug>` with
+`set_session_title` and tell Jack he can archive it from the sidebar (right-click → Archive).
 
 ---
 
