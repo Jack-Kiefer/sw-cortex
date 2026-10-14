@@ -198,7 +198,7 @@ Append the status rider and the overlap check to whichever command you fire. **T
 **Claude Desktop (`claude-desktop`)** — the new session is a Desktop session named `<emoji> <repo>-<slug> <words>`:
 
 ```
-/serp-analyze <task> — keep your session title current with mcp__ccd_session_mgmt__set_session_title { session_id: "self" }, keeping its <repo>-<slug> token (🔍 researching → 🔨 building → 📦 PR → ✅ done; 🙋/❓ when it needs you). First call ListAgents; if another session is already on this work, send it ONE heads-up with SendMessage and tell Jack. When done, report back with SendMessage to the parent address in your first message.
+/serp-analyze <task> — keep your session title current with mcp__ccd_session_mgmt__set_session_title { session_id: "self" }, keeping its <repo>-<slug> token (🔍 researching → 🔨 building → 📦 PR → ✅ done; 🙋/❓ when it needs you). First call ListAgents; if another session is already on this work, send it ONE heads-up with SendMessage and tell Jack.
 ```
 
 For a **`/research`** launch the status part is `(🔍 while researching, 🙋 when presenting the answer, ✅ when answered)`; the overlap check and report-back are the same.
@@ -250,16 +250,23 @@ where `<slash-command-prompt>` is what Step 2 built — `/serp-analyze …` (SER
 
 Pass ONLY the repo root and the prompt — **do NOT add `--label` or call `set-tab-title.sh` yourself**, and do NOT run `claude` inline. The launcher derives the session name from the task automatically — `<emoji> <repo>-<slug> <short task>`, e.g. `🔨 serp-forecast-zeros fix the forecast zeros on live-products` or `🔍 swac-WW3776 Branding Record sleeves…` (the slug is the `WW-####` id without its hyphen when there is one, else the first 2 meaningful words). The running session then updates the emoji and words as it works, keeping the `<repo>-<slug>` token. Reconstructing the old `set-tab-title.sh 'SERP' ; claude '<prompt>'` form is wrong — it bypasses the launcher and produces a bare `SERP` title.
 
-- **In Claude Desktop**, the launcher seeds the session headlessly in the repo (one turn that only replies `Ready: <task>`), then opens it in Desktop. It prints the child's Desktop id (`local_<sid>`) and its name. The session starts the task on Jack's first message there, whatever it says.
+- **In Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`), do NOT run the launcher** for a launch that has a prompt (this step, and the Step 0 auto-resume). Start the session with `mcp__ccd_session__start_session`, so it opens already running the slash command: no `Ready:` turn, no waiting for Jack's first message.
+  - `initiation: "user_asked"`, `context: "fresh"`, `use_worktree: false` (the command makes its own worktree).
+  - `preset`: the repo's saved preset, `"SERP"` or `"SWAC"` (names from `mcp__ccd_session__list_start_targets`).
+  - `title`: `<emoji> <repo>-<slug> <words>`, the same naming the launcher uses, under 60 chars.
+  - `prompt`: the Step 2 prompt exactly, starting with the slash command, so the new session's first message invokes it.
+  - `background` (at least 80 chars): the context from THIS conversation the task needs, such as what Jack asked, anything already found or decided, and ids, files, branches or PRs. The new session does not see this conversation.
+  - The app notifies this session each time the new one ends a turn, so the prompt needs no report-back rider.
+  - The headless-seed launcher path (`Ready: <task>`, waits for Jack) is only the fallback for a terminal caller when Herdr is down.
 - **In a terminal**, it opens a Herdr tab (VS Code queue as the legacy fallback).
 
 ## Step 4 — Report
 
 - **One line**: which repo you routed to and which command it's running, e.g. "Routed to **SERP** — opening an `/serp-analyze` session for the forecast zeros (research → build → PR)." or for a question: "Routed to **SERP** — opening a `/research` session to answer how the redemption curve feeds size_projections."
-- **Claude Desktop:** a new Desktop session opens **automatically**, named `<emoji> <repo>-<slug> <words>` and waiting at `Ready: <task>`; Jack's first message there starts it. Then rename THIS (origin) session with `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "✅ launched <repo>-<slug>" }`, and end the report with: "This session is done; archive it from the sidebar (right-click → Archive)."
+- **Claude Desktop:** the new Desktop session (from `start_session`) is named `<emoji> <repo>-<slug> <words>` and is already running the command. Link it in the report as `[its title](#local_<id>)`. Then rename THIS (origin) session with `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "✅ launched <repo>-<slug>" }`, and end the report with: "This session is done; archive it from the sidebar (right-click → Archive)."
 - **Terminal:** a new terminal tab opens **automatically** — in **Herdr** when its server is running (the launcher drives the `herdr` CLI directly: workspace per repo, tab per task), else in VS Code (legacy: the Go Launcher extension watches `~/.claude/go-queue/`) — titled with the task. It stays open at `✅ done` — Jack closes it himself when he's done with it. Tell Jack to switch to it; it's working with that repo's full native tooling. This hub session stays put.
 - **For an actionable `/serp-analyze` launch, the build happens IN that session** — research flows straight to a PR, no bounce back to the hub. For a `/research` launch (pure question), the session answers and stops; if it surfaces a fixable issue you can later spin the fix into its own tab with `/launch` (→ `/implement`).
-- If no session appears: in Desktop, check that `~/Library/Application Support/Claude/claude-code-sessions/**/local_<sid>.json` exists for the printed id (its `title`, `cwd`, `model`); in Herdr, check `herdr status` (server running?); in VS Code, the extension may not be loaded yet (needs a window reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
+- If no session appears: in Desktop, read the `start_session` result (a refusal there is final for this turn; tell Jack why); in Herdr, check `herdr status` (server running?); in VS Code, the extension may not be loaded yet (needs a window reload after first install) — check `~/.vscode/extensions/go-launcher/` exists and reload the window.
 
 `/go` does NOT do the work in THIS session — it classifies, routes, picks the command (`/serp-analyze` for actionable, `/research` for a question), and launches it in a new session.
 
