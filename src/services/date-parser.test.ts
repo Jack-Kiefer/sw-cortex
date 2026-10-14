@@ -117,6 +117,57 @@ describe('date-parser', () => {
       });
     });
 
+    describe('date with time', () => {
+      // Canonical "<day> at <time>" forms (regression guard)
+      it('should parse "today at 4pm"', () => {
+        const result = parseNaturalDate('today at 4pm');
+        expect(result).not.toBeNull();
+        expect(result?.getDate()).toBe(15);
+        expect(result?.getHours()).toBe(16);
+        expect(result?.getMinutes()).toBe(0);
+      });
+
+      it('should parse "tomorrow at 9:30am"', () => {
+        const result = parseNaturalDate('tomorrow at 9:30am');
+        expect(result).not.toBeNull();
+        expect(result?.getDate()).toBe(16);
+        expect(result?.getHours()).toBe(9);
+        expect(result?.getMinutes()).toBe(30);
+      });
+
+      // Time-first / day-suffix forms — the bug this fix addresses.
+      // "at 4pm today" previously matched neither branch and returned null.
+      it('should parse "at 4pm today"', () => {
+        const result = parseNaturalDate('at 4pm today');
+        expect(result).not.toBeNull();
+        expect(result?.getDate()).toBe(15);
+        expect(result?.getHours()).toBe(16);
+        expect(result?.getMinutes()).toBe(0);
+      });
+
+      it('should parse "at 9am tomorrow"', () => {
+        const result = parseNaturalDate('at 9am tomorrow');
+        expect(result).not.toBeNull();
+        expect(result?.getDate()).toBe(16);
+        expect(result?.getHours()).toBe(9);
+        expect(result?.getMinutes()).toBe(0);
+      });
+
+      it('should parse "4pm tomorrow" (no leading "at")', () => {
+        const result = parseNaturalDate('4pm tomorrow');
+        expect(result).not.toBeNull();
+        expect(result?.getDate()).toBe(16);
+        expect(result?.getHours()).toBe(16);
+      });
+
+      it('should parse "at 3pm tonight"', () => {
+        const result = parseNaturalDate('at 3pm tonight');
+        expect(result).not.toBeNull();
+        expect(result?.getDate()).toBe(15);
+        expect(result?.getHours()).toBe(15);
+      });
+    });
+
     describe('ISO date strings', () => {
       it('should parse ISO date string', () => {
         const result = parseNaturalDate('2024-04-01T00:00:00');
