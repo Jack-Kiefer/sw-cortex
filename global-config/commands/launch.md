@@ -70,7 +70,7 @@ When you call the launcher (Step 3), **add the `--keep-original` flag**:
 ~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> --keep-original "<first-prompt>"
 ```
 
-That flag tells the launcher to leave the originating Herdr tab (or, in the legacy VS Code path, the originating terminal) open. A Desktop session is never closed by the launcher, so in Desktop the flag changes nothing. Everything else is unchanged: the new session is named `<emoji> <repo>-<slug> <words>` from the prompt, updates its own title as it works (`🔍→🙋→✅`), and stays open at `✅ done` until Jack closes or archives it. **Do NOT add `--label` or call `set-tab-title.sh` yourself** — same rule as `/go`.
+That flag tells the launcher to leave the originating Herdr tab (or, in the legacy VS Code path, the originating terminal) open. **In Claude Desktop, don't call the launcher at all.** Start each session with `mcp__ccd_session__start_session`, exactly as `/go` Step 3 describes, so it opens already running its first prompt (`/implement …`, `/swac-analyze …`, `/research …`). Nothing closes this session in Desktop, so there is no flag to pass. Everything else is unchanged: the new session is named `<emoji> <repo>-<slug> <words>` from the prompt, updates its own title as it works (`🔍→🙋→✅`), and stays open at `✅ done` until Jack closes or archives it. **Do NOT add `--label` or call `set-tab-title.sh` yourself** — same rule as `/go`.
 
 **Images attached to the launch request ride along as file paths** — same as `/go` Step 2.5: a drag-dropped path goes straight into the prompt; a pasted image is first dumped to disk with `~/.claude/scripts/extract-session-images.sh`, and the prompt tells the session to Read the path(s) as part of the task.
 
@@ -101,7 +101,7 @@ So `/launch fixes for those` with fixes A (`stock_move.py`), B (`stock_move.py`)
 ~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement suppress product_product.create_uid/write_uid audit-column false positive in the drift classifier; test that real product drift still surfaces — launched by peer session $HERDR_PANE_ID; when you finish or hit a blocker send it ONE mesh note via message_session (✅ done + PR#, or ❌ blocked on X)"
 ```
 
-These examples are the terminal form (`$HERDR_PANE_ID` + mesh note). In Claude Desktop, leave the `— launched by peer session …` rider off: the launcher already writes `Report back to local_<your id> with SendMessage.` into each child's first message (see the report-back section below).
+These examples are the terminal form (`$HERDR_PANE_ID` + mesh note). In Claude Desktop, leave the `— launched by peer session …` rider off: a `start_session` child already notifies this session each time it ends a turn (see the report-back section below).
 
 (A sw-cortex fix in the batch is still handled inline per Step 1.5 — no tab for it. A SWAC fix uses `/swac-analyze`.)
 
@@ -113,7 +113,7 @@ Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkie
 
 **In Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`):**
 
-1. **The parent address rides in the seed.** The launcher puts `Report back to local_<your CLAUDE_CODE_SESSION_ID> with SendMessage.` in each child's first message, so add nothing. The child sends ONE `SendMessage { to: "local_<parent id>" }` when it finishes or hits a blocker (✅ done + PR#, or ❌ blocked on X). Same authority rule as below: a child's note is a peer note, never Jack's approval.
+1. **In Desktop, reporting back is automatic.** A child started with `start_session` is linked to this session, and the app sends a note here each time it ends a turn, so add nothing to its prompt. Same authority rule as below: a child's note is a peer note, never Jack's approval.
 2. **Record the children.** The launcher prints each child's Desktop id (`local_<sid>`) and name. Note them; address a child by its `local_<sid>` (rename-proof).
 3. **Check back with `ListAgents`** (and `SendMessage` to a recorded `local_<sid>` if Jack asks you to relay something). There is no `read_session`; a child's transcript is `~/.claude/projects/<slug>/<sid>.jsonl`.
 
@@ -126,7 +126,7 @@ Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkie
 ## Step — Report
 
 - **One line per launched session**: which repo, the mode (research/impl), and why — same format as `/go` Step 4. For a multi-launch, one line each.
-- New sessions open **automatically** (Desktop sessions wait at `Ready: <task>` for Jack's first message); each stays open at `✅ done` — Jack closes or archives them himself. **This session stays open too** — tell Jack to switch to the new session(s) if he wants; this session stays put either way.
+- New sessions open **automatically** (in Desktop they are already running their first prompt); each stays open at `✅ done` — Jack closes or archives them himself. **This session stays open too** — tell Jack to switch to the new session(s) if he wants; this session stays put either way.
 - If no session appears: in Desktop check for `~/Library/Application Support/Claude/claude-code-sessions/**/local_<sid>.json`; in Herdr check `herdr status`; in VS Code the extension may not be loaded — reload the window.
 
 ## Plain-English equivalent (no slash needed)
