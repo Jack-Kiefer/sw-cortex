@@ -61,6 +61,14 @@ if [[ -f "$CACHE" ]]; then
     claude_state=stale
   fi
 fi
+# Claude Desktop runs no statusline; fall back to its own usage samples (u.sd = weekly %).
+DESKTOP_USAGE="$HOME/Library/Application Support/Claude/plan-usage-history.json"
+if [[ "$claude_state" != fresh && -f "$DESKTOP_USAGE" ]]; then
+  read -r d_t d_pct < <(jq -r '.samples[-1] | "\((.t // 0) / 1000 | floor) \(.u.sd // "")"' "$DESKTOP_USAGE" 2>/dev/null)
+  if [[ -n "$d_pct" ]] && (( now - ${d_t:-0} <= CACHE_MAX_AGE )); then
+    claude_pct=$d_pct; claude_state=fresh
+  fi
+fi
 
 # ── Codex: live RPC, cached briefly; falls back to rollout files internally ──
 codex_pct=""; codex_reset=""; codex_state=unknown

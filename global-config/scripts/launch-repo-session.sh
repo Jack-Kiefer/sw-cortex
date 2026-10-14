@@ -173,7 +173,42 @@ launch_via_herdr() {
   return 0
 }
 
-if herdr_up && launch_via_herdr; then
+# ---------------------------------------------------------------------------
+# Claude Desktop backend: used when the launch comes FROM a Desktop session, or when
+# Herdr is down and Claude.app is installed. `claude --desktop` takes no prompt or name,
+# so seed a named session headlessly in the repo (one cheap turn that only acknowledges
+# the task), then hand it to Desktop with --resume. Jack says "go" there to start it.
+# ---------------------------------------------------------------------------
+
+desktop_wanted() {
+  [ "$AGENT" = claude ] && [ -d /Applications/Claude.app ] || return 1
+  [ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ] || ! herdr_up
+}
+
+launch_via_desktop() {
+  local desc sid seed
+  if [ -z "$PROMPT" ]; then
+    (cd "$REPO" && script -q /dev/null claude --desktop </dev/null >/dev/null 2>&1) || return 1
+    echo "launch: opened a new [$LABEL] session in Claude Desktop."
+    return 0
+  fi
+  desc="$(derive_title)"
+  sid="$(uuidgen | tr 'A-Z' 'a-z')"
+  seed="This session was opened by /go. Do NOT start the task yet and call no tools. Reply with exactly one line: \"Ready: <the task in under 10 words>. Say go to start.\" When Jack replies go, run this task exactly as written (invoke any leading /command via the Skill tool):
+
+$PROMPT"
+  (cd "$REPO" && CLAUDE_GO_TITLE="$desc" claude -p --session-id "$sid" -n "$desc" "$seed" </dev/null >/dev/null 2>&1) || return 1
+  (cd "$REPO" && script -q /dev/null claude --desktop --resume "$sid" </dev/null >/dev/null 2>&1) || return 1
+  echo "launch: opened \"$desc\" in Claude Desktop ([$LABEL], session $sid)."
+  echo "    It is waiting: say go in that session to start the task."
+  return 0
+}
+
+if [ "${CLAUDE_CODE_ENTRYPOINT:-}" != "claude-desktop" ] && herdr_up && launch_via_herdr; then
+  exit 0
+fi
+
+if desktop_wanted && launch_via_desktop; then
   exit 0
 fi
 
