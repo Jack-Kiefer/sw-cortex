@@ -277,20 +277,15 @@ started …` if it booted them; `♻️ repaired …` if it restarted an unhealt
     from swap exhaustion, and week-old SERP pm2 dev servers (~1–3 GB each) are the usual hogs. On
     2026-09-24 ten were running at once, and stopping six of them cut swap use from 22.7 GB to 11.6 GB.
     macOS has no command that clears swap directly. Swap is freed only when the processes holding it
-    exit, so reclaiming swap means stopping the idle processes that hold it:
-    - **Snapshot before:** `sysctl -n vm.swapusage`, `sysctl -n kern.memorystatus_level` (free %), and
-      the top ~8 processes by RSS (`ps -axo rss=,pid=,etime=,comm= | sort -rn | head -8`).
-    - **List every pm2 app** (`pm2 jlist`) with its `pm_cwd`, uptime, and real footprint: sum the RSS
-      of the app's process tree, because pm2's own `monit.memory` shows only the ~10 MB wrapper.
-    - **Stop stale servers** using the same rule as `/shutdown` step 3b. Stop an app (`pm2 stop <app>`,
-      never `delete`) only if it has been up **≥ 5 days**, **no** live `claude` process has its cwd
-      inside `pm_cwd`, and the worktree has **no unpushed commits**. Leave the worktree and branch alone.
-      Keep the app running if a peer session's tab title (`herdr agent list`) names that worktree.
-    - **Report only, never kill:** Chrome for Testing / Playwright browsers. They belong to other
-      sessions' MCP servers, so list them with their age and leave them running.
-    - **Snapshot after** and report the difference, e.g. `🔧 memory: stopped 6 stale pm2 servers
-      (fmea-native 22d, …) · swap 22.7→11.6 GB · free 30→35%`. Give ⚠️ when swap free is still
-      < 2 GB after the stops, and name the top remaining hogs with a one-line remedy.
+    exit, so reclaiming swap means stopping the idle processes that hold it: - **Snapshot before:** `sysctl -n vm.swapusage`, `sysctl -n kern.memorystatus_level` (free %), and
+    the top ~8 processes by RSS (`ps -axo rss=,pid=,etime=,comm= | sort -rn | head -8`). - **List every pm2 app** (`pm2 jlist`) with its `pm_cwd`, uptime, and real footprint: sum the RSS
+    of the app's process tree, because pm2's own `monit.memory` shows only the ~10 MB wrapper. - **Stop stale servers** using the same rule as `/shutdown` step 3b. Stop an app (`pm2 stop <app>`,
+    never `delete`) only if it has been up **≥ 5 days**, **no** live `claude` process has its cwd
+    inside `pm_cwd`, and the worktree has **no unpushed commits**. Leave the worktree and branch alone.
+    Keep the app running if a peer session's tab title (`herdr agent list`) names that worktree. - **Report only, never kill:** Chrome for Testing / Playwright browsers. They belong to other
+    sessions' MCP servers, so list them with their age and leave them running. - **Snapshot after** and report the difference, e.g. `🔧 memory: stopped 6 stale pm2 servers
+(fmea-native 22d, …) · swap 22.7→11.6 GB · free 30→35%`. Give ⚠️ when swap free is still
+    < 2 GB after the stops, and name the top remaining hogs with a one-line remedy.
 
 **Return:** the rendered `### 🩺 Setup health` panel (the agent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).

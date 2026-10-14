@@ -38,12 +38,14 @@ for (const rule of settings.permissions?.deny ?? []) {
   if (!match || match[1] !== toolName) continue;
   if (match[2] !== undefined && !globMatches(match[2], comparableInput(toolName))) continue;
 
-  process.stdout.write(`${JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'deny',
-      permissionDecisionReason: `Blocked by Claude permission rule: ${rule}`,
-    },
-  })}\n`);
+  process.stdout.write(
+    `${JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: `Blocked by Claude permission rule: ${rule}`,
+      },
+    })}\n`
+  );
   process.exit(0);
 }

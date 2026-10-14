@@ -6,7 +6,11 @@ import { join } from 'node:path';
 
 const raw = readFileSync(0, 'utf8');
 let input;
-try { input = JSON.parse(raw); } catch { process.exit(0); }
+try {
+  input = JSON.parse(raw);
+} catch {
+  process.exit(0);
+}
 
 const root = input.cwd || process.cwd();
 const settingsPath = join(root, '.claude', 'settings.json');
