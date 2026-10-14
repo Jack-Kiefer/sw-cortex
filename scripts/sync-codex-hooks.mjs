@@ -36,12 +36,10 @@ for (const [event, groups] of Object.entries(target.hooks)) {
   target.hooks[event] = groups
     .map((group) => ({
       ...group,
-      hooks: (group.hooks ?? []).filter(
-        (hook) => {
-          const status = String(hook.statusMessage ?? '');
-          return !status.startsWith('[claude-sync]') && !status.startsWith('[codex-sync]');
-        }
-      ),
+      hooks: (group.hooks ?? []).filter((hook) => {
+        const status = String(hook.statusMessage ?? '');
+        return !status.startsWith('[claude-sync]') && !status.startsWith('[codex-sync]');
+      }),
     }))
     .filter((group) => group.hooks.length > 0);
   if (target.hooks[event].length === 0) delete target.hooks[event];
@@ -63,12 +61,14 @@ if ((source.permissions?.deny ?? []).length > 0) {
   target.hooks.PreToolUse ??= [];
   target.hooks.PreToolUse.push({
     matcher: '',
-    hooks: [{
-      type: 'command',
-      command: `node ${JSON.stringify(new URL('./enforce-claude-denies-for-codex.mjs', import.meta.url).pathname)} ${JSON.stringify(settingsPath)}`,
-      timeout: 10,
-      statusMessage: '[codex-sync] Claude permission denies',
-    }],
+    hooks: [
+      {
+        type: 'command',
+        command: `node ${JSON.stringify(new URL('./enforce-claude-denies-for-codex.mjs', import.meta.url).pathname)} ${JSON.stringify(settingsPath)}`,
+        timeout: 10,
+        statusMessage: '[codex-sync] Claude permission denies',
+      },
+    ],
   });
 }
 
@@ -102,12 +102,14 @@ for (const [event, groups] of Object.entries(source.hooks ?? {})) {
 target.hooks.Stop ??= [];
 target.hooks.Stop.push({
   matcher: '',
-  hooks: [{
-    type: 'command',
-    command: `node ${JSON.stringify(new URL('./run-project-telemetry-for-codex.mjs', import.meta.url).pathname)}`,
-    timeout: 10,
-    statusMessage: '[codex-sync] project telemetry',
-  }],
+  hooks: [
+    {
+      type: 'command',
+      command: `node ${JSON.stringify(new URL('./run-project-telemetry-for-codex.mjs', import.meta.url).pathname)}`,
+      timeout: 10,
+      statusMessage: '[codex-sync] project telemetry',
+    },
+  ],
 });
 
 writeFileSync(targetPath, `${JSON.stringify(target, null, 2)}\n`);

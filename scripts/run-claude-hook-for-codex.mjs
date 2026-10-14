@@ -53,10 +53,19 @@ if (stdout.trim()) {
         stdio: 'ignore',
       });
       if (process.env.HERDR_PANE_ID) {
-        spawnSync(herdr, [
-          'pane', 'report-metadata', process.env.HERDR_PANE_ID,
-          '--source', 'codex-hook-title', '--title', title,
-        ], { stdio: 'ignore' });
+        spawnSync(
+          herdr,
+          [
+            'pane',
+            'report-metadata',
+            process.env.HERDR_PANE_ID,
+            '--source',
+            'codex-hook-title',
+            '--title',
+            title,
+          ],
+          { stdio: 'ignore' }
+        );
       }
     }
     if (sequence) {
