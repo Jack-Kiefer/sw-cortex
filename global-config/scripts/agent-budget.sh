@@ -32,6 +32,7 @@ set -uo pipefail
 
 CACHE="$HOME/.claude/usage-cache.json"
 CACHE_MAX_AGE=900            # 15 min; the statusline repaints far more often
+DESKTOP_MAX_AGE=10800        # 3 h; Desktop samples its usage only about hourly
 CODEX_QUOTA="$(dirname "$0")/codex-quota.py"
 CODEX_CACHE="$HOME/.claude/codex-usage-cache.json"
 CODEX_CACHE_TTL=300          # the RPC costs ~0.6-0.8s; don't pay it per call
@@ -65,7 +66,7 @@ fi
 DESKTOP_USAGE="$HOME/Library/Application Support/Claude/plan-usage-history.json"
 if [[ "$claude_state" != fresh && -f "$DESKTOP_USAGE" ]]; then
   read -r d_t d_pct < <(jq -r '.samples[-1] | "\((.t // 0) / 1000 | floor) \(.u.sd // "")"' "$DESKTOP_USAGE" 2>/dev/null)
-  if [[ -n "$d_pct" ]] && (( now - ${d_t:-0} <= CACHE_MAX_AGE )); then
+  if [[ -n "$d_pct" ]] && (( now - ${d_t:-0} <= DESKTOP_MAX_AGE )); then
     claude_pct=$d_pct; claude_state=fresh
   fi
 fi

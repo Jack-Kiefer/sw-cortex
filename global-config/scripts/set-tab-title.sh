@@ -125,6 +125,14 @@ compose() {
 }
 COMPOSED=$(compose "$TITLE")
 
+# Claude Desktop has no terminal tab: its session title is set only by the built-in MCP tool,
+# so skip the OSC/Herdr writes (the --did log and state files above are still written). The
+# base title, without the done-trail, keeps the session's messaging name stable.
+if [ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ]; then
+  echo "desktop: now call mcp__ccd_session_mgmt__set_session_title {\"session_id\":\"self\",\"title\":\"$TITLE\"}"
+  exit 0
+fi
+
 # Stamp the live tab now via OSC 0, written to this shell's controlling terminal.
 # The interactive shell HAS a tty (unlike hooks); fall back silently if it doesn't.
 { printf '\033]0;%s\007' "$COMPOSED" > /dev/tty; } 2>/dev/null
@@ -140,8 +148,4 @@ fi
 
 echo "tab titled: $COMPOSED"
 [ -n "$DID" ] && echo "logged: $clean  (full summary → $LOGF)"
-# Claude Desktop has no terminal tab: its session title is set only by the built-in MCP tool.
-if [ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ]; then
-  echo "desktop: now call mcp__ccd_session_mgmt__set_session_title {\"session_id\":\"self\",\"title\":\"$COMPOSED\"}"
-fi
 exit 0

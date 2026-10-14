@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Build the Go Launcher extension into a .vsix and install it into VS Code.
+# LEGACY: /go now launches into Claude Desktop or Herdr; this is only the last-resort fallback.
 # Run after editing extension.js / package.json. Bump the version in package.json first
 # so VS Code treats it as an update.
 set -euo pipefail

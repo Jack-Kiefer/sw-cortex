@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # close-own-tab.sh — close THIS session's terminal tab (Herdr tab, or VS Code via the
-# Go Launcher extension).
+# Go Launcher extension). In Claude Desktop it only prints how to archive the session.
 #
 # Used ONLY by explicit close commands (/save-for-later). NOT part of post-merge teardown —
 # sessions leave their tab open at ✅ done after a PR merges; Jack closes tabs himself
@@ -19,6 +19,13 @@
 # real tty — the SAME walk launch-repo-session.sh and set-tab-title.sh use.
 
 set -euo pipefail
+
+# Claude Desktop session: nothing can archive or close it from inside, so tell Jack how.
+if [ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ]; then
+  echo "close-own-tab: this is a Claude Desktop session, which can't close itself."
+  echo "    Archive it from the sidebar: right-click the session → Archive."
+  exit 0
+fi
 
 # Herdr session: panes export HERDR_TAB_ID (inherited by claude and its tool shells) —
 # close our own tab directly through the herdr CLI, no tty walk needed.

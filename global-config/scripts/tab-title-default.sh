@@ -12,6 +12,9 @@
 # derived from Jack's first real prompt (see slug_from_prompt below). Without this, an inline
 # hub task that never calls set-tab-title.sh sits at "hub" for its whole life.
 
+# Claude Desktop has no terminal tab to title.
+[ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ] && exit 0
+
 input=$(cat)
 
 # Derive a short tab-title slug from a prompt body. Reads the prompt on stdin, prints the slug
