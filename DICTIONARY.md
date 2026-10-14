@@ -1667,6 +1667,31 @@ Config is derived from `DETECTED_ENVIRONMENT` (local/dev/production); the flip-d
 
 ---
 
+## Claude Desktop (Code tab) — how Jack's setup runs there
+
+Jack is moving from Herdr terminal tabs to the Claude Desktop app's **Code** tab. Desktop sessions are real Claude Code sessions, so the same `~/.claude` settings, hooks, CLAUDE.md, skills, commands, memories and MCP servers load there. A session identifies itself with `CLAUDE_CODE_ENTRYPOINT=claude-desktop`. The differences below are what trips sessions up.
+
+**Version.** Desktop runs its **own bundled** Claude Code, not the terminal `claude`. An old bundled version can refuse a newer model ("This model needs 2.1.280 or newer"); the fix is Claude menu → **Check for Updates…**, not updating the terminal CLI. `/status` shows the version in use.
+
+**Launching sessions.** `claude --desktop` takes no prompt and no `--name`; it only opens Desktop on the current folder (`cd <repo> && claude --desktop`) or hands an existing session over (`claude --desktop --resume <id>`). It needs a tty, so scripts wrap it in `script -q /dev/null …`. `launch-repo-session.sh` (used by `/go` and `/launch`) therefore seeds a named session headlessly with one acknowledge-only turn (`claude -p --session-id <uuid> -n "<title>" …` in the repo), then opens it with `--resume`. The new session waits on "Ready: … Say go to start." until Jack says go. Don't pass `--model` to the seed: the model sticks to the session. `cmd+shift+enter` (skhd → `desktop-new-go-session.sh`) opens a fresh hub session for a `/go`. Desktop keeps its session records in `~/Library/Application Support/Claude/claude-code-sessions/**/local_<session-id>.json` (`title`, `cwd`, `model`, `permissionMode`), which is the way to verify a launch from a script.
+
+**Titles.** There is no terminal tab. A session renames itself with the built-in `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title }`; `set-tab-title.sh` prints that call when run in Desktop. Hook-driven overlays (`· activity`, `❓ question`) don't reach Desktop titles. Appending a `custom-title` line to the transcript does nothing.
+
+**Permissions.** Desktop ignores `permissions.defaultMode: bypassPermissions` from `~/.claude/settings.json` and a `--permission-mode` on the seed; every session starts in **Accept edits** (allow rules still apply). Bypass has to be turned on in Desktop **Settings → Claude Code**, then picked per session in the mode selector by the prompt box (Shift+Tab cycles).
+
+**Talking to other sessions.** The Herdr session mesh (`mcp__sessions__*`) doesn't see Desktop sessions. Use the built-in `ListAgents` (Desktop sessions are listed by title, e.g. `🔨 Building the Desktop UI preview gate [6f6583]`) and `SendMessage { to: "<name>" }`. A message to a session in a **different permission mode is held, and a Desktop session can't show the approval prompt, so it expires undelivered**. Until the modes match, hand Jack the text to paste. There's no equivalent of `read_session`; the session's transcript is `~/.claude/projects/<slug>/<session-id>.jsonl`.
+
+**Usage numbers.** Desktop runs no `statusLine`, so `usage-cache.json` goes stale. `agent-budget.sh` falls back to Desktop's own samples in `~/Library/Application Support/Claude/plan-usage-history.json` (`samples[-1].u.sd` = weekly %, `u.fh` = 5-hour %). Jack sees usage in Desktop's **Settings → Usage**; there's no Codex % in Desktop.
+
+**Preview / browser pane (dev servers).** Desktop reads **`.claude/launch.json` from the session's folder** (the folder the session was opened on), not from wherever the session later `cd`s. Schema: `{"version":"0.0.1","configurations":[{"name","runtimeExecutable","runtimeArgs":[],"port","url"?,"cwd"?,"env"?,"autoPort"?}],"autoVerify"?}`. Entries are started with `preview_start { name }` or from the pane's Dev servers menu.
+- An entry with **only `name` + `port` + `url`** attaches to a server that is already running; for localhost the `url` must be the origin only and match `port`. Use this for pm2-managed servers (SERP's `start-serp.sh`): a `runtimeExecutable` entry would start a second copy, and SERP's `dev-server.js` kills whatever holds its ports.
+- `autoPort: true` hands the command a free port in `PORT`. That only works if the command reads `PORT` (SERP's doesn't: its ports come from the worktree `.env`).
+- Worktrees made with `git worktree add` aren't in Desktop's worktree registry (anthropics/claude-code#63008), so a session opened on a main clone uses the main clone's `launch.json`. Desktop never removes entries it or sessions added (#101264), so stale ones pile up.
+- The pane has its own browser profile with **no password autofill**. Localhost cookies are shared across ports, but SERP validates its refresh cookie against each worktree's own DB, so a new worktree port usually lands on `/login`.
+- If the pane shows a blank "Run a server to preview your app" for a server you know is running, the entry's port is wrong; type the URL into the pane's address bar to check.
+
+**Screenshots.** Browser-pane screenshots come back downscaled, and text gets blurry, worse when the pane is widened to fit a wide table. Crop to the changed region instead of widening; for anything Jack will read closely or that goes in a PR, save a full-resolution 2× PNG with the headless browser. The live pane is where Jack checks at full fidelity.
+
 ---
 
 ## Gotchas, Footguns & AI Misconceptions
