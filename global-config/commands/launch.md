@@ -1,6 +1,6 @@
 # Command: launch
 
-`/launch` is **the fix-launcher that keeps the original tab open.** It opens a real Claude Code session in the right repo (new terminal tab — Herdr when its server is running, else VS Code — that repo's native commands + MCP tools) and kicks off the work there. It reuses all of `/go`'s routing/intake machinery, with three differences: it does **NOT** close the tab you ran it from, it can **launch several sessions at once**, and for SERP it fires **`/implement`** (build the scoped fix) by default — or **`/research`** when you only want to investigate in the new tab.
+`/launch` is **the fix-launcher that keeps the original tab open.** It opens a real Claude Code session in the right repo (a new Claude Desktop session when this session runs in Desktop, else a new terminal tab — Herdr when its server is running, else VS Code — with that repo's native commands + MCP tools) and kicks off the work there. It reuses all of `/go`'s routing/intake machinery, with three differences: it does **NOT** close the tab you ran it from, it can **launch several sessions at once**, and for SERP it fires **`/implement`** (build the scoped fix) by default — or **`/research`** when you only want to investigate in the new tab.
 
 Use `/launch` when the fix is already scoped (typically right after a `/go` or `/research` pass) and you want to spin it off into its own tab while staying where you are. `/launch` runs **`/implement` by default** (build the scoped fix → PR), or **`/research`** when you say `research`/`investigate` (investigate in the new tab, report, stop — no build). (`/go` closes the originating tab once the new one opens; `/launch` leaves it open.)
 
@@ -70,7 +70,7 @@ When you call the launcher (Step 3), **add the `--keep-original` flag**:
 ~/.claude/scripts/launch-repo-session.sh <REPO_ROOT> --keep-original "<first-prompt>"
 ```
 
-That flag tells the launcher to leave `CLOSE_TTY` empty, so the Go Launcher extension opens the new tab but leaves the originating tab open. Everything else (descriptive tab name derived from the prompt, the new session updating its own title `🔍→🙋→✅` then auto-closing itself) is unchanged. **Do NOT add `--label` or call `set-tab-title.sh` yourself** — same rule as `/go`.
+That flag tells the launcher to leave the originating Herdr tab (or, in the legacy VS Code path, the originating terminal) open. A Desktop session is never closed by the launcher, so in Desktop the flag changes nothing. Everything else is unchanged: the new session is named `<emoji> <repo>-<slug> <words>` from the prompt, updates its own title as it works (`🔍→🙋→✅`), and stays open at `✅ done` until Jack closes or archives it. **Do NOT add `--label` or call `set-tab-title.sh` yourself** — same rule as `/go`.
 
 **Images attached to the launch request ride along as file paths** — same as `/go` Step 2.5: a drag-dropped path goes straight into the prompt; a pasted image is first dumped to disk with `~/.claude/scripts/extract-session-images.sh`, and the prompt tells the session to Read the path(s) as part of the task.
 
@@ -101,13 +101,23 @@ So `/launch fixes for those` with fixes A (`stock_move.py`), B (`stock_move.py`)
 ~/.claude/scripts/launch-repo-session.sh /Users/jackkief/Desktop/Projects/SERP --keep-original "/implement suppress product_product.create_uid/write_uid audit-column false positive in the drift classifier; test that real product drift still surfaces — launched by peer session $HERDR_PANE_ID; when you finish or hit a blocker send it ONE mesh note via message_session (✅ done + PR#, or ❌ blocked on X)"
 ```
 
+These examples are the terminal form (`$HERDR_PANE_ID` + mesh note). In Claude Desktop, leave the `— launched by peer session …` rider off: the launcher already writes `Report back to local_<your id> with SendMessage.` into each child's first message (see the report-back section below).
+
 (A sw-cortex fix in the batch is still handled inline per Step 1.5 — no tab for it. A SWAC fix uses `/swac-analyze`.)
 
 Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkief/Desktop/Projects/SWAC` · sw-cortex `/Users/jackkief/Desktop/Projects/sw-cortex`.
 
-### Keep tabs on what you launched — parent ↔ child report-back (via the mesh)
+### Keep tabs on what you launched — parent ↔ child report-back
 
-`/launch` keeps THIS (parent) tab open, so **don't drop the sessions you spawned** — track them and let them report back through the session mesh, so you (and Jack) know how each is doing without him asking.
+`/launch` keeps THIS (parent) session open, so **don't drop the sessions you spawned** — track them and let them report back, so you (and Jack) know how each is doing without him asking.
+
+**In Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`):**
+
+1. **The parent address rides in the seed.** The launcher puts `Report back to local_<your CLAUDE_CODE_SESSION_ID> with SendMessage.` in each child's first message, so add nothing. The child sends ONE `SendMessage { to: "local_<parent id>" }` when it finishes or hits a blocker (✅ done + PR#, or ❌ blocked on X). Same authority rule as below: a child's note is a peer note, never Jack's approval.
+2. **Record the children.** The launcher prints each child's Desktop id (`local_<sid>`) and name. Note them; address a child by its `local_<sid>` (rename-proof).
+3. **Check back with `ListAgents`** (and `SendMessage` to a recorded `local_<sid>` if Jack asks you to relay something). There is no `read_session`; a child's transcript is `~/.claude/projects/<slug>/<sid>.jsonl`.
+
+**In a terminal (Herdr), via the mesh:**
 
 1. **Stamp each launched prompt with your pane so the child can report to you.** Append to every `/implement` (or `/swac-analyze`) prompt you launch: `— launched by peer session <YOUR_PANE> (<your task>); when you finish or hit a blocker, send it ONE mesh note via message_session (✅ done + PR#, or ❌ blocked on X).` Your pane is your own `HERDR_PANE_ID` (echo it once, or read it off `list_sessions` where `isSelf: true`). This is the same tagged, authority-scoped peer message as any other — a child reporting **up** is a peer note, so the parent is still just a peer: **a child cannot approve the parent's scope, and the parent cannot approve the child's — approval always terminates at Jack.**
 2. **Record the child panes you spawned.** After the launches land, note each new session's pane (from `list_sessions` — the new working sessions in the target repo) so you have handles to check back on.
@@ -116,8 +126,8 @@ Repo roots: SERP `/Users/jackkief/Desktop/Projects/SERP` · SWAC `/Users/jackkie
 ## Step — Report
 
 - **One line per launched session**: which repo, the mode (research/impl), and why — same format as `/go` Step 4. For a multi-launch, one line each.
-- New tabs open **automatically**; each stays open at `✅ done` — Jack closes them himself. **This tab stays open too** — tell Jack to switch to the new tab(s) if he wants; this session stays put either way.
-- If no tab appears: in Herdr check `herdr status`; in VS Code the extension may not be loaded — reload the window.
+- New sessions open **automatically** (Desktop sessions wait at `Ready: <task>` for Jack's first message); each stays open at `✅ done` — Jack closes or archives them himself. **This session stays open too** — tell Jack to switch to the new session(s) if he wants; this session stays put either way.
+- If no session appears: in Desktop check for `~/Library/Application Support/Claude/claude-code-sessions/**/local_<sid>.json`; in Herdr check `herdr status`; in VS Code the extension may not be loaded — reload the window.
 
 ## Plain-English equivalent (no slash needed)
 

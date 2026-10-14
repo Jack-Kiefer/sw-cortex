@@ -2,6 +2,9 @@
 # restore-crashed-sessions.sh — rebuild the Herdr tabs lost when the machine crashed
 # (or Herdr's server died), each resumed onto its ORIGINAL Claude conversation.
 #
+# LEGACY (Herdr only): Claude Desktop keeps its own sessions across crashes, so any
+# session whose transcript entrypoint is claude-desktop is skipped.
+#
 # Usage:
 #   restore-crashed-sessions.sh [--dry-run] [--max N] [--since HOURS]
 #
@@ -104,6 +107,7 @@ restore_one() { # $1=cwd $2=session-id $3=title
 
 CUTOFF=$(( $(date +%s) - SINCE_H * 3600 ))
 count=0
+desktop=0
 
 # Newest tab-title log first; each is one session that was live in a tab.
 while IFS= read -r log; do
@@ -114,6 +118,9 @@ while IFS= read -r log; do
   sid="$(basename "$log" .log)"
   jsonl="$(find "$PROJ" -name "$sid.jsonl" -maxdepth 2 2>/dev/null | head -1)"
   [ -n "$jsonl" ] || continue                       # no conversation on disk
+  if grep -m1 -o '"entrypoint":"[a-z-]*"' "$jsonl" 2>/dev/null | grep -q '"claude-desktop"'; then
+    desktop=$((desktop + 1)); continue              # Desktop keeps its own sessions
+  fi
 
   cwd="$(slug_to_path "$(basename "$(dirname "$jsonl")")")"
   [ -n "$cwd" ] || continue                         # project dir is gone
@@ -135,6 +142,7 @@ while IFS= read -r log; do
   fi
 done < <(ls -t "$TT"/*.log 2>/dev/null)
 
+[ "$desktop" -gt 0 ] && echo "Skipped $desktop Claude Desktop session(s): Desktop keeps its own sessions; reopen them from its sidebar."
 [ "$count" -eq 0 ] && { echo "Nothing to restore — no crashed sessions in the last ${SINCE_H}h."; exit 0; }
 echo
 if [ "$DRY" = 1 ]; then

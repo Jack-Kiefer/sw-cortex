@@ -7,22 +7,29 @@
 #   --keep-original   Do NOT close the tab this was launched from (used by /launch).
 #                     Default (used by /go) closes the originating tab once the new one opens.
 #
-# Mechanism — two backends, picked automatically:
+# Mechanism — three backends, picked automatically:
 #
-#   1. Herdr (primary): when the `herdr` server is running, open the session as a Herdr
-#      tab — one Herdr WORKSPACE per repo (found by label, created with the repo cwd if
-#      missing), one TAB per task. The tab is created with the task-derived label, claude
-#      runs in its root pane, and CLAUDE_GO_TITLE is injected so the session's
-#      SessionStart floor adopts the descriptive name. Sessions live in Herdr's
+#   1. Herdr: when the `herdr` server is running and the caller is NOT a Claude Desktop
+#      session, open the session as a Herdr tab — one Herdr WORKSPACE per repo (found by
+#      label, created with the repo cwd if missing), one TAB per task. The tab is created
+#      with the task-derived name, the agent runs in its root pane, and CLAUDE_GO_TITLE is
+#      injected so the session's SessionStart floor adopts it. Sessions live in Herdr's
 #      background server, so they persist across client detach/quit.
 #
-#   2. VS Code fallback (no Herdr server): drop a request file into ~/.claude/go-queue/.
-#      The "Go Launcher" VS Code extension (~/.vscode/extensions/go-launcher) watches that
-#      dir and opens a new integrated terminal cd'd into the repo, names the tab, and runs
-#      claude with the prompt.
+#   2. Claude Desktop: when the caller is a Desktop session (CLAUDE_CODE_ENTRYPOINT=
+#      claude-desktop) or Herdr is down, and Claude.app is installed. `claude --desktop`
+#      takes no prompt or name, so a named session is seeded headlessly in the repo (one
+#      turn that only replies "Ready: …"), then opened in Desktop with --resume. Jack's
+#      first message there starts the task. Codex has no Desktop session, so
+#      `--agent codex` opens a Ghostty window running codex in the repo instead (exit 1
+#      if Ghostty isn't installed).
 #
-# One launch per invocation either way, so firing several /go's in a row opens several
-# tabs (none clobber each other).
+#   3. VS Code fallback (legacy, claude only — no Herdr and no Claude.app): drop a
+#      request file into ~/.claude/go-queue/. The "Go Launcher" VS Code extension
+#      (~/.vscode/extensions/go-launcher) opens a terminal in the repo and runs claude.
+#
+# Session names are "<emoji> <repo>-<slug> <short task>" (see derive_title). One launch per
+# invocation, so firing several /go's in a row opens several sessions.
 
 set -euo pipefail
 
@@ -64,26 +71,55 @@ herdr_up() {
     && "$HERDR_BIN" status >/dev/null 2>&1
 }
 
-# Shell port of the go-launcher extension's taskSlug + normalizeTitle: turn the prompt
-# into a descriptive "<status-emoji> <label>" tab name (or the repo-anchored floor when
-# there's no task text).
+SLUG_STOPWORDS="a an the and or but of for to in on at by as with from into about is are was be been
+what whats does do did how why when where which who whom can could should would will this that these
+those it its our my me we you i please just also new fix add make update change check look find see
+get investigate figure out run start research analyze"
+
+# The stable "<slug>" token: the WW id without its hyphen (WW3776) when the task names one,
+# else the first 2 meaningful words joined by "-".
+derive_slug() { # $1 = cleaned task text
+  local ww w out="" n=0
+  ww="$(printf '%s' "$1" | grep -oiE 'WW-?[0-9]+' | head -1 | tr -d '-' | tr 'a-z' 'A-Z' || true)"
+  if [ -n "$ww" ]; then printf '%s' "$ww"; return; fi
+  for w in $(printf '%s' "$1" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9' ' '); do
+    case " $(printf '%s' "$SLUG_STOPWORDS" | tr '\n' ' ') " in *" $w "*) continue ;; esac
+    [ "${#w}" -gt 1 ] || continue
+    out="${out:+$out-}$w"; n=$((n + 1))
+    [ "$n" -ge 2 ] && break
+  done
+  printf '%s' "${out:-session}"
+}
+
+# Session name "<emoji> <repo>-<slug> <short task>", at most 60 chars. Only the emoji and
+# the words change later; "<repo>-<slug>" is the stable token other sessions address.
 derive_title() {
-  local t="$PROMPT"
-  t="$(printf '%s' "$t" | tr '\n' ' ')"
+  local t emoji="🔨" repo slug words head budget
+  repo="$(basename "$REPO" | tr 'A-Z' 'a-z')"
+  t="$(printf '%s' "$PROMPT" | tr '\n' ' ')"
+  case "$t" in /research*|/*analyze*) emoji="🔍" ;; esac
   t="$(printf '%s' "$t" | sed -E 's|^/[a-zA-Z-]+ +||')"          # drop leading "/serp-analyze " etc.
   t="$(printf '%s' "$t" | sed -E 's/\([^)]*\)/ /g; s/\[[^]]*\]/ /g')" # drop asides
   t="$(printf '%s' "$t" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+  case "$t" in
+    🔍\ *|🔨\ *|🧪\ *|🙋\ *|❓\ *|📦\ *|✅\ *|📋\ *|📝\ *|⬆️\ *|🚀\ *) emoji="${t%% *}"; t="${t#* }" ;;
+  esac
   if [ -z "$t" ]; then
-    printf '🔍 %s · session' "$(basename "$REPO")"
+    printf '🔍 %s-session' "$repo"
     return
   fi
-  if [ "${#t}" -gt 48 ]; then
-    t="$(printf '%.48s' "$t" | sed -E 's/[[:space:]]+[^[:space:]]*$//; s/[[:space:],.;:·–—-]+$//')…"
+  slug="$(derive_slug "$t")"
+  words="$(printf '%s' "$t" | sed -E 's/[Ww][Ww]-?[0-9]+[[:space:]:,.-]*//; s/^[[:space:]:,.-]+//')"
+  head="$emoji $repo-$slug"
+  budget=$((60 - ${#head} - 1))
+  if [ "${#words}" -gt "$budget" ]; then
+    if [ "$budget" -gt 1 ]; then
+      words="$(printf '%s' "${words:0:$((budget - 1))}" | sed -E 's/[[:space:]]+[^[:space:]]*$//; s/[[:space:],.;:·–—-]+$//')…"
+    else
+      words=""
+    fi
   fi
-  case "$t" in
-    🔍*|🔨*|🧪*|🙋*|❓*|📦*|✅*|📋*|📝*|⬆️*|🚀*) printf '%s' "$t" ;;
-    *) printf '🔨 %s' "$t" ;;
-  esac
+  printf '%s%s' "$head" "${words:+ $words}"
 }
 
 # Extract a JSON string field from herdr's single-line JSON output (jq if present).
@@ -176,8 +212,9 @@ launch_via_herdr() {
 # ---------------------------------------------------------------------------
 # Claude Desktop backend: used when the launch comes FROM a Desktop session, or when
 # Herdr is down and Claude.app is installed. `claude --desktop` takes no prompt or name,
-# so seed a named session headlessly in the repo (one cheap turn that only acknowledges
-# the task), then hand it to Desktop with --resume. Jack says "go" there to start it.
+# so seed a named session headlessly in the repo (one cheap turn that only replies
+# "Ready: …"), then hand it to Desktop with --resume. Jack's first message starts it.
+# Codex has no Desktop session, so it gets a Ghostty window instead.
 # ---------------------------------------------------------------------------
 
 desktop_wanted() {
@@ -185,8 +222,24 @@ desktop_wanted() {
   [ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ] || ! herdr_up
 }
 
+# Where the child reports back: a Desktop caller's rename-proof id, else a terminal
+# caller's session name (its latest custom title), else nothing.
+parent_address() {
+  [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] || return 0
+  if [ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ]; then
+    printf 'local_%s' "$CLAUDE_CODE_SESSION_ID"
+    return 0
+  fi
+  local f
+  for f in "$HOME"/.claude/projects/*/"$CLAUDE_CODE_SESSION_ID".jsonl; do
+    [ -f "$f" ] || continue
+    grep -o '"customTitle":"[^"]*"' "$f" | tail -1 | sed -E 's/^"customTitle":"(.*)"$/\1/'
+    return 0
+  done
+}
+
 launch_via_desktop() {
-  local desc sid seed
+  local desc sid seed parent report=""
   if [ -z "$PROMPT" ]; then
     (cd "$REPO" && script -q /dev/null claude --desktop </dev/null >/dev/null 2>&1) || return 1
     echo "launch: opened a new [$LABEL] session in Claude Desktop."
@@ -194,18 +247,55 @@ launch_via_desktop() {
   fi
   desc="$(derive_title)"
   sid="$(uuidgen | tr 'A-Z' 'a-z')"
-  seed="This session was opened by /go. Do NOT start the task yet and call no tools. Reply with exactly one line: \"Ready: <the task in under 10 words>. Say go to start.\" When Jack replies go, run this task exactly as written (invoke any leading /command via the Skill tool):
+  parent="$(parent_address)"
+  case "$parent" in
+    "") ;;
+    local_*) report=" Report back to $parent with SendMessage." ;;
+    *) report=" Report back with SendMessage to the session named \"$parent\" (re-run ListAgents for its [ref])." ;;
+  esac
+  seed="Opened by /go. Don't start (no tools) until Jack sends his first message; reply now with one line: Ready: <task in under 10 words>. Jack's first message, whatever it says, means start: then run the task below exactly (invoke a leading /command with the Skill tool).$report
 
 $PROMPT"
   (cd "$REPO" && CLAUDE_GO_TITLE="$desc" claude -p --session-id "$sid" -n "$desc" "$seed" </dev/null >/dev/null 2>&1) || return 1
   (cd "$REPO" && script -q /dev/null claude --desktop --resume "$sid" </dev/null >/dev/null 2>&1) || return 1
-  echo "launch: opened \"$desc\" in Claude Desktop ([$LABEL], session $sid)."
-  echo "    It is waiting: say go in that session to start the task."
+  echo "launch: opened \"$desc\" in Claude Desktop ([$LABEL])."
+  echo "    Desktop id: local_$sid"
+  echo "    Name: $desc"
+  [ -n "$parent" ] && echo "    Reports back to: $parent"
+  echo "    It waits for Jack's first message, then starts the task."
+  return 0
+}
+
+launch_codex_ghostty() {
+  if [ ! -d /Applications/Ghostty.app ]; then
+    echo "launch-repo-session: --agent codex needs Herdr or Ghostty here, and /Applications/Ghostty.app is not installed." >&2
+    return 1
+  fi
+  local codex_bin ls
+  codex_bin="$(command -v codex 2>/dev/null || true)"
+  [ -n "$codex_bin" ] || { echo "launch-repo-session: codex is not on PATH." >&2; return 1; }
+  ls="$(mktemp /tmp/go-codex-XXXXXX)"
+  {
+    printf 'rm -f %q\n' "$ls"
+    printf 'cd %q || exit 1\n' "$REPO"
+    if [ -n "$PROMPT" ]; then
+      printf 'exec %q %q\n' "$codex_bin" "$PROMPT"
+    else
+      printf 'exec %q\n' "$codex_bin"
+    fi
+  } > "$ls"
+  open -na Ghostty --args --working-directory="$REPO" -e /bin/bash -l "$ls" || { rm -f "$ls"; return 1; }
+  echo "launch: opened a [$LABEL] codex session in a new Ghostty window."
   return 0
 }
 
 if [ "${CLAUDE_CODE_ENTRYPOINT:-}" != "claude-desktop" ] && herdr_up && launch_via_herdr; then
   exit 0
+fi
+
+if [ "$AGENT" = codex ]; then
+  launch_codex_ghostty && exit 0
+  exit 1
 fi
 
 if desktop_wanted && launch_via_desktop; then

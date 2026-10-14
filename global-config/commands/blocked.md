@@ -18,6 +18,8 @@ Otherwise run exactly:
 ~/.claude/scripts/set-tab-title.sh "⛔ Blocked waiting on $ARGUMENTS"
 ```
 
+**In Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`)** set the session title instead: `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "⛔ <repo>-<slug> blocked on $ARGUMENTS" }`, keeping the session's `<repo>-<slug>` token. The hooks don't run in Desktop, so ⛔ there is just a title: nothing auto-demotes it.
+
 If `$ARGUMENTS` is empty, ask Jack what it's waiting on in one line rather than setting a bare `⛔ Blocked` — the whole point of this state is that the tab says _what_ it's waiting on.
 
 ## Before you park: clean up what THIS session made
@@ -33,7 +35,7 @@ A parked tab may sit for days, so drop the scratch **this session** created and 
 **NEVER remove — this is the part that matters:**
 
 - Anything with **uncommitted edits**. A dirty worktree is unfinished work, not garbage — check `git -C <path> status --porcelain` and keep it if it prints anything.
-- Anything **another session** created (other worktrees, other tabs' scratch, `/tmp/*` you did not write). Check the session mesh (`mcp__sessions__list_sessions`) if unsure whether a worktree is live.
+- Anything **another session** created (other worktrees, other tabs' scratch, `/tmp/*` you did not write). Check the session mesh (`mcp__sessions__list_sessions`; in Desktop: `ListAgents`, plus `ps` for live `claude` processes) if unsure whether a worktree is live.
 - The **branch/PR** you are blocked on, the notes/findings behind the blocker, or anything you'd need to resume — the whole point of parking is coming back to it.
 - Anything you are not certain this session created. **When in doubt, leave it** and just say what you left.
 

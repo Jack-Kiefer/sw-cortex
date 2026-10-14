@@ -307,6 +307,7 @@
   "effortLevel": "xhigh",
   "skipWorkflowUsageWarning": true,
   "voiceEnabled": true,
+  "crossSessionInbound": "accept",
   "model": "claude-opus-4-8[1m]",
   "statusLine": {
     "type": "command",

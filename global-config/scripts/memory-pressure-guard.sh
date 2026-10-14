@@ -152,7 +152,7 @@ reason=$(printf '%s' "BLOCKED — machine is genuinely low on memory: ${block}. 
 This machine HARD-CRASHED on 2026-09-02 from exactly this: concurrent typecheck/jest runs with a 7-8GB per-process heap ceiling (SWAC package.json NODE_OPTIONS) on a 16GB box. jetsam killed ~360 processes, WindowServer was watchdog-killed, and 13 Claude sessions were lost.
 
 This guard gates on real free-percentage headroom — it allows whenever >=25% RAM is free, so a block means free memory is genuinely low AND the machine is hitting a hard wall (kernel critical or swap almost gone), or 2+ heavy runs are already live. DO NOT retry this command as-is, and do NOT route around the guard. Instead:
-  1. Run \`herdr agent list\` and see which peer is mid heavy run.
+  1. Run \`herdr agent list\` (in Claude Desktop: ListAgents, plus \`ps -axo pid,etime,command | grep -E 'tsc|jest|vitest|playwright'\`) and see which peer is mid heavy run.
   2. Wait for it to finish, or message that peer to coordinate a slot (only ONE heavy run at a time across all sessions).
   3. Re-run once memory recovers — check \`sysctl -n kern.memorystatus_level\` (want >=25) and \`sysctl -n vm.swapusage\`. Freeing a heavy non-Claude app (Chrome/Docker/Spotify) or a detached session unblocks it fastest.
 

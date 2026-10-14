@@ -20,6 +20,9 @@
 # status (🔍/🔨/🧪…) is preserved; the next re-assert (or the model's own update) restores
 # the clean title, and a question popup / live activity is layered on top only while relevant.
 
+# Claude Desktop has no terminal tab to title.
+[ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ] && exit 0
+
 input=$(cat)
 
 # Prefer the session id from the hook payload; fall back to the inherited env var.

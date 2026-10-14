@@ -211,15 +211,19 @@ Run these ten checks:
    paths with remedy "stale worktree metadata — Jack can `git -C \$SERP worktree prune` if he wants
    (don't do it for him)."
 
-6. **go-launcher extension installed.** VS Code installs it as `~/.vscode/extensions/jackkief.go-launcher-<version>`,
-   NOT a bare `go-launcher` dir — test the glob: `compgen -G '/Users/jackkief/.vscode/extensions/jackkief.go-launcher-*' >/dev/null`
-   (or `ls -d ~/.vscode/extensions/jackkief.go-launcher-* 2>/dev/null | grep -q .`). This is what makes
-   `/go` actually open tabs. ✅ if any versioned dir is present; ⚠️ only if NONE match — remedy: "`/go`
-   will silently queue requests that never open a tab — rebuild + install with
-   `bash global-config/vscode-extensions/go-launcher/build-and-install.sh` and reload the VS Code window."
+6. **Claude.app present.** `[ -d /Applications/Claude.app ]`. `/go` and `/launch` open sessions in
+   Claude Desktop. ✅ if present; ⚠️ remedy: "Claude Desktop isn't installed — launches from a
+   terminal fall back to Herdr (or the legacy VS Code queue)."
 
-7. **go-queue dir exists.** `[ -d ~/.claude/go-queue ]` (the launcher `mkdir -p`s it, so this is
-   informational). ✅ if present; ⚠️ is benign — "will be created on first `/go`."
+7. **Desktop bundled CC version ≥ the terminal's required min.** Desktop runs its own bundled Claude
+   Code, so an old one can refuse the pinned model. Read its version from the newest Desktop
+   session record:
+   `f=$(ls -t ~/Library/Application\ Support/Claude/claude-code-sessions/*/*/local_*.json 2>/dev/null | head -1); [ -n "$f" ] && jq -r '.promptAppendSnapshot.cliVersion // empty' "$f"`.
+   Compare it with the terminal's `claude --version` (the minimum the shared settings and model
+   pin need) using `sort -V`. ✅ if Desktop's is the same or newer; ⚠️ remedy: "Desktop's bundled
+   Claude Code is <x>, older than the terminal's <y> — Claude menu → Check for Updates…". If there's
+   no record or no `cliVersion`, mark it skipped with a one-line note ("no Desktop session record
+   yet") rather than ⚠️.
 
 8. **Docker + local dev DB up (auto-start if down).** SERP's local dev stack runs in Docker
    (Docker Desktop on this Mac — no Colima) via `SERP/docker-compose.yml`: the local MySQL is the
@@ -282,7 +286,9 @@ started …` if it booted them; `♻️ repaired …` if it restarted an unhealt
     of the app's process tree, because pm2's own `monit.memory` shows only the ~10 MB wrapper. - **Stop stale servers** using the same rule as `/shutdown` step 3b. Stop an app (`pm2 stop <app>`,
     never `delete`) only if it has been up **≥ 5 days**, **no** live `claude` process has its cwd
     inside `pm_cwd`, and the worktree has **no unpushed commits**. Leave the worktree and branch alone.
-    Keep the app running if a peer session's tab title (`herdr agent list`) names that worktree. - **Report only, never kill:** Chrome for Testing / Playwright browsers. They belong to other
+    Keep the app running if a peer session names that worktree: a Herdr tab title
+    (`herdr agent list`), or a Desktop session's `ListAgents` title or its recent transcript
+    (`~/.claude/projects/<slug>/<sid>.jsonl`). - **Report only, never kill:** Chrome for Testing / Playwright browsers. They belong to other
     sessions' MCP servers, so list them with their age and leave them running. - **Snapshot after** and report the difference, e.g. `🔧 memory: stopped 6 stale pm2 servers
 (fmea-native 22d, …) · swap 22.7→11.6 GB · free 30→35%`. Give ⚠️ when swap free is still
     < 2 GB after the stops, and name the top remaining hogs with a one-line remedy.
@@ -789,8 +795,8 @@ Render each as a markdown link on the channel/person so the briefing line stays 
 
 Where Step 0 asks "is the plumbing up _right now_," this asks "what actually went _wrong_ over
 the last few days, and how do we prevent it." They pair: a cluster here often has its live
-confirmation in Step 0 (e.g. recurring go-launcher Accessibility denials ↔ Step 0's
-go-launcher check).
+confirmation in Step 0 (e.g. recurring "This model needs a newer version" errors ↔ Step 0's
+Desktop version check).
 
 1. **Mine the transcripts — BOTH tool-errors AND Jack's corrections.** Two signals, both load-bearing:
 
@@ -954,8 +960,8 @@ stash`, no making a read-only repo writable) — those are always `note`s, enfor
 > - `kind: "config"`, `target: shell` (e.g. `pip install …`) → run it if it's a safe, idempotent
 >   install; otherwise surface it as a one-liner for Jack. (Not a repo file — no PR.)
 > - `kind: "repo"`, `target: repo:SERP` → **do NOT edit SERP inline from the hub.** Auto-`/launch`
->   a session to implement the fix: run `~/.claude/scripts/launch-repo-session.sh --keep-original
-/Users/jackkief/Desktop/Projects/SERP "<payload task prompt>"` (fire-and-forget — it opens a real
+>   a session to implement the fix: run `~/.claude/scripts/launch-repo-session.sh
+/Users/jackkief/Desktop/Projects/SERP --keep-original "<payload task prompt>"` (fire-and-forget — it opens a real
 >   SERP session in a new tab that researches→builds→PRs the change; don't block on it). **The
 >   `--keep-original` flag is MANDATORY here:** this launch fires from the long-lived HUB tab, and
 >   `launch-repo-session.sh` closes the originating tab BY DEFAULT — omitting the flag closes the
@@ -1113,7 +1119,7 @@ before ending the turn.
   setup-friction → tickets → deploy/PRs → saved-for-later → KB → meeting-notes → worktrees →
   triage, so Jack scans it in a stable order.
 - **Step 0 is non-blocking and report-only, with one opted-in exception.** It surfaces broken
-  plumbing (MCP down, missing go-launcher extension, bastion unreachable, etc.) but never restarts,
+  plumbing (MCP down, stale Desktop bundled version, bastion unreachable, etc.) but never restarts,
   reinstalls, prunes a worktree, or stops the routine — **except check 8 (Docker + local dev DB),
   which Jack opted to let auto-start if down** (bounded poll, no `timeout` binary on this Mac, ⚠️ and
   move on if it can't come up), check 9 (reminder services), and **check 10 (memory audit), which

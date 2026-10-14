@@ -7,7 +7,28 @@ Gives every Claude Code session a custom name/status on its terminal tab
 the auto-generated conversation summary. Driven by `/serp-analyze`, the global
 "Terminal Tab Status" standard in `~/CLAUDE.md`, and `/tab-title <name>`.
 
-## Herdr sessions (primary since 2026-08)
+## Claude Desktop sessions (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`)
+
+Desktop has no terminal tab, so none of the OSC machinery applies there:
+
+- **The title is the session title**, set only by the built-in
+  `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title }`. Call it
+  directly. Titles follow `<emoji> <repo>-<slug> <words>` (set by
+  `launch-repo-session.sh`); only the emoji and the words change, so the
+  `<repo>-<slug>` token stays stable. The title is also the name other sessions
+  see in `ListAgents` and address with `SendMessage`. Jack renames a session by
+  clicking its title.
+- **`set-tab-title.sh` is only for `--did`.** In Desktop it skips the OSC and
+  Herdr writes, still writes the state files and the `<sid>.log` done-log, and
+  prints only a `desktop: now call mcp__ccd_session_mgmt__set_session_title …`
+  line.
+- **The hooks don't run there.** `tab-title-hook.sh` and `tab-title-default.sh`
+  exit 0 immediately, so the `· <activity>` / `❓ question` overlays, the
+  floor title and the reply auto-demote don't exist in Desktop.
+- **No close.** Nothing can archive or close a Desktop session; `close-own-tab.sh`
+  prints "archive it from the sidebar (right-click → Archive)" and exits 0.
+
+## Herdr sessions (terminal, since 2026-08)
 
 Sessions launched by `/go`/`/launch` open as **Herdr tabs** when the `herdr`
 server is running (one workspace per repo, one tab per task — see
