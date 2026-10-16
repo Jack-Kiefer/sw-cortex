@@ -62,7 +62,7 @@ UNLOCK_MAX_SECONDS = 3600 + 60
 _REQUIRE_ROOT_OWNED = True  # tests flip this in-process; the hook always runs with True
 TAMPER_UNLOCK_RE = re.compile(r"prod-guard-unlock(?!\s+status\s*(?:$|[;&|)\n]))")
 TAMPER_PATH_RE = re.compile(r"ClaudeCode/(prod-guard|managed-settings)|managed-settings\.(json|d)")
-TAMPER_WRITE_RE = re.compile(r"\b(sudo|rm|mv|cp|tee|install|chmod|chown|chflags|ln|touch|truncate|dd|perl|python3?|sed\s+-i)\b|>")
+TAMPER_WRITE_RE = re.compile(r"\bsudo\b")  # the managed dir is root-owned: only sudo can change it
 
 MAX_DEPTH = 8
 MAX_FILE_BYTES = 512 * 1024
@@ -439,6 +439,8 @@ def analyze_shell(text, ctx, v, bodies=None):
         segments = split_segments(body_text)
     except ValueError:
         raw_scan(body_text, ctx, v)
+        if TAMPER_UNLOCK_RE.search(body_text):
+            v.tamper.append("prod-guard-unlock can only be run by Jack in his own terminal")
         if PROD_INDICATOR_RE.search(body_text) or UNPARSEABLE_RISK_RE.search(body_text):
             v.add(ASK, "prod-guard could not parse this command (unbalanced quotes) and it mentions prod/cluster tooling")
         return
@@ -477,7 +479,9 @@ def analyze_words(words, ctx, v, stdin_text, stdin_known=True):
         return
     prog = os.path.basename(w[0])
     args = w[1:]
-    if prog in ("bash", "sh", "zsh", "dash", "ksh", "fish"):
+    if prog == "prod-guard-unlock" and args[:1] != ["status"]:
+        v.tamper.append("prod-guard-unlock can only be run by Jack in his own terminal")
+    elif prog in ("bash", "sh", "zsh", "dash", "ksh", "fish"):
         shell_cmd(args, ctx, v, stdin_text, stdin_known)
     elif prog == "eval":
         analyze_shell(" ".join(args), ctx.child(), v)
@@ -1194,8 +1198,6 @@ def decide(payload):
         cmd = ti.get("command") or ""
         if name != "Bash":
             cwd = ti.get("cwd") or cwd
-        if TAMPER_UNLOCK_RE.search(cmd):
-            v.tamper.append("prod-guard-unlock can only be run by Jack in his own terminal")
         if TAMPER_PATH_RE.search(cmd) and TAMPER_WRITE_RE.search(cmd):
             v.tamper.append("changes to the managed prod-guard policy can only be made by Jack")
         analyze_shell(cmd, Ctx("local", cwd), v)
@@ -1262,7 +1264,11 @@ def respond(payload):
         return None
     sid = payload.get("session_id") or ""
     if v.tamper:
-        return emit(DENY, [(DENY, r) for r in v.tamper], sid)
+        return {"hookSpecificOutput": {
+            "hookEventName": "PreToolUse", "permissionDecision": "deny",
+            "permissionDecisionReason": "prod-guard BLOCKED: %s. A session can never unlock or change "
+            "prod-guard itself, and an unlock does not lift this. Do not retry it in another form."
+            % "; ".join(dict.fromkeys(v.tamper))}}
     if v.level == DENY:
         exp = unlock_expiry(sid)
         if exp:

@@ -240,7 +240,16 @@ TAMPER = [
     ("deny", "Bash", "prod-guard-unlock 60 all"),
     ("deny", "mcp__terminal__run_in_terminal", "sudo prod-guard-unlock 15 abcdef12-3456"),
     ("deny", "Bash", "sudo rm -rf '/Library/Application Support/ClaudeCode/prod-guard'"),
-    ("deny", "Bash", "echo '{}' > '/Library/Application Support/ClaudeCode/managed-settings.d/50-prod-guard.json'"),
+    # root-owned dir: a write without sudo fails on its own, so only sudo forms are tamper
+    ("allow", "Bash", "echo '{}' > '/Library/Application Support/ClaudeCode/managed-settings.d/50-prod-guard.json'"),
+    ("deny", "Bash", "echo '{}' | sudo tee '/Library/Application Support/ClaudeCode/managed-settings.d/50-prod-guard.json'"),
+    ("deny", "Bash", "bash -c 'sudo prod-guard-unlock 60 all'"),
+    ("deny", "Bash", "ssh localhost /usr/local/bin/prod-guard-unlock 60 all"),
+    ("deny", "Bash", "x=$(sudo prod-guard-unlock 15 abcdef12-3456)"),
+    ("deny", "Bash", "eval 'sudo -n prod-guard-unlock 60 all'"),
+    # mentioning the command as text (docs, notes, grep) is not running it
+    ("allow", "Bash", "printf '%s\\n' '- on a deny show Jack: sudo prod-guard-unlock 15 <sid>' >> /tmp/notes.md"),
+    ("allow", "Bash", "grep -rn 'prod-guard-unlock' /Users/jackkief/Desktop/Projects/sw-cortex/docs | head"),
     ("deny", "Bash", "sudo touch '/Library/Application Support/ClaudeCode/prod-guard/unlock/_all'"),
     ("allow", "Bash", "prod-guard-unlock status"),
     ("allow", "Bash", "cat '/Library/Application Support/ClaudeCode/managed-settings.d/50-prod-guard.json'"),
@@ -297,6 +306,8 @@ def unlock_tests():
     results.append(("ask says it is normally blocked", "normally BLOCKED" in out["hookSpecificOutput"]["permissionDecisionReason"], True))
     results.append(("unlock does not cover another session", decision(dict(nuke, session_id=other))[0], "deny"))
     results.append(("unlock never covers tampering", decision(tamper)[0], "deny"))
+    results.append(("tamper deny never offers an unlock",
+                    "prod-guard-unlock 15" in decision(tamper)[1]["hookSpecificOutput"]["permissionDecisionReason"], False))
     results.append(("reads unaffected while unlocked", decision(read)[0], "allow"))
     clear()
     put("_all", now + 900)
