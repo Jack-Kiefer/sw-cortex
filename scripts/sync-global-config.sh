@@ -75,7 +75,11 @@ merge_settings_json() {
         // Merge permissions.allow (deduplicate)
         const sourceAllow = source.permissions?.allow || [];
         const targetAllow = target.permissions?.allow || [];
-        const mergedAllow = [...new Set([...targetAllow, ...sourceAllow])];
+        // Prod-reaching allow rules are never kept: in auto mode a matching allow rule skips the
+        // classifier, and Bash(ssh:*) was the path of the 2026-10-16 'kubectl delete namespace serp'
+        // incident. Filtered here because the union above would otherwise re-add them forever.
+        const prodReach = /^Bash\((ssh|scp|rsync|sftp|kubectl|helm|mysql|mariadb|psql|sudo|aws|systemctl|argocd|k3s)\b/;
+        const mergedAllow = [...new Set([...targetAllow, ...sourceAllow])].filter((r) => !prodReach.test(r));
 
         // Merge hooks (source overwrites)
         const merged = {

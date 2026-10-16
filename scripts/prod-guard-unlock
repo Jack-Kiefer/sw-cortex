@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# prod-guard-unlock — temporarily turn prod-guard denies into approval prompts.
+#
+# Run by Jack, in a terminal, with sudo. A Claude session cannot run it: it has no way to give
+# sudo your password, and prod-guard itself refuses any Bash call that mentions this command.
+#
+#   sudo prod-guard-unlock 15 <session-id>   unlock ONE session for 15 minutes (max 60)
+#   sudo prod-guard-unlock 15 all            unlock every session for 15 minutes
+#   sudo prod-guard-unlock off [session-id]  re-lock now (all unlocks, or one session)
+#   prod-guard-unlock status                 show active unlocks (no sudo needed)
+#
+# A prod-guard deny message prints the exact command with the session id filled in.
+# While unlocked, commands prod-guard would deny become ASKS: you still approve each one, they
+# just aren't hard-blocked. Unlocks expire on their own.
+#
+# State lives in a root-owned directory; the hook only trusts root-owned, non-writable files
+# whose expiry is at most 60 minutes out.
+
+set -euo pipefail
+
+DIR="/Library/Application Support/ClaudeCode/prod-guard/unlock"
+MAX_MIN=60
+
+usage() { sed -n '4,10p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+
+status() {
+  [ -d "$DIR" ] || { echo "no active unlocks"; return; }
+  now=$(date +%s); any=0
+  for f in "$DIR"/*; do
+    [ -f "$f" ] || continue
+    exp=$(cat "$f" 2>/dev/null || echo 0)
+    if [ "$exp" -gt "$now" ] 2>/dev/null; then
+      any=1
+      printf '%-40s unlocked until %s (%d min left)\n' "$(basename "$f")" "$(date -r "$exp" '+%H:%M:%S')" $(( (exp - now + 59) / 60 ))
+    fi
+  done
+  [ "$any" = 1 ] || echo "no active unlocks"
+}
+
+case "${1:-}" in
+  status) status; exit 0 ;;
+  ""|-h|--help) usage ;;
+esac
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Run with sudo: sudo prod-guard-unlock $*" >&2
+  exit 1
+fi
+
+install -d -o root -g wheel -m 0755 "$DIR"
+
+if [ "$1" = "off" ]; then
+  if [ -n "${2:-}" ] && [ "$2" != "all" ]; then
+    [[ "$2" =~ ^[A-Za-z0-9_-]{8,64}$ ]] || { echo "not a session id: $2" >&2; exit 1; }
+    rm -f "$DIR/${2}"
+  else
+    rm -f "$DIR"/*
+  fi
+  echo "🔒 prod-guard re-locked${2:+ for $2}"
+  exit 0
+fi
+
+min="$1"
+target="${2:-}"
+if ! [[ "$min" =~ ^[0-9]+$ ]] || [ "$min" -lt 1 ]; then
+  echo "minutes must be a whole number from 1 to $MAX_MIN" >&2
+  exit 1
+fi
+[ "$min" -le "$MAX_MIN" ] || { echo "capped at $MAX_MIN minutes"; min=$MAX_MIN; }
+if [ -z "$target" ]; then
+  echo "Name the session (from the prod-guard message) or 'all': sudo prod-guard-unlock $min <session-id|all>" >&2
+  exit 1
+fi
+if [ "$target" = "all" ]; then
+  name="_all"
+elif [[ "$target" =~ ^[A-Za-z0-9_-]{8,64}$ ]]; then
+  name="$target"
+else
+  echo "not a session id: $target" >&2
+  exit 1
+fi
+
+exp=$(( $(date +%s) + min * 60 ))
+tmp="$(mktemp)"
+printf '%s\n' "$exp" > "$tmp"
+install -o root -g wheel -m 0644 "$tmp" "$DIR/$name"
+rm -f "$tmp"
+echo "🔓 prod-guard unlocked for ${target} until $(date -r "$exp" '+%H:%M:%S') ($min min). Blocked commands now ask instead."
+echo "   Re-lock early: sudo prod-guard-unlock off${target:+ $target}"
