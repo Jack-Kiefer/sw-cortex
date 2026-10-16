@@ -21,7 +21,7 @@
     "Notification": []
   },
   "permissions": {
-    "defaultMode": "acceptEdits",
+    "defaultMode": "auto",
     "allow": [
       "mcp__slack-search",
       "mcp__logs",
