@@ -12,6 +12,23 @@ The local layer (L3) ships in the same sw-cortex PR as this doc. It is a PreTool
 
 Owner: **Munyr** for L1 (nodes, ArgoCD), **Jack** for L2. Nothing here has been applied. Review and apply in a maintenance window.
 
+## Day to day (L3, for Jack)
+
+- **Reads, logs, dev deploys, feature work:** no change.
+- **Prod changes** (`set env`, `scale`, `rollout restart`, a SERP `main` merge, which is a deploy): Claude shows an approval prompt and you click allow.
+- **Blocked actions** (namespace or secret deletes, `DROP`, force-push to `main`, …): the session gets a message containing a one-line command for *that* session, and shows it to you as a code block. Click **Run**, or paste it into a terminal, and enter your password or Touch ID:
+
+  ```bash
+  sudo prod-guard-unlock 15 <session-id>
+  ```
+
+  For the next 15 minutes (60 max), that session's blocked commands become approval prompts instead. Other sessions stay locked.
+  - `sudo prod-guard-unlock off` re-locks early.
+  - `prod-guard-unlock status` shows what's unlocked.
+  - A session can't run the unlock itself: it has no way to give sudo your password, and the guard refuses any call that mentions it.
+- **Bypass mode** is still available per session from the mode picker. The guard runs in every mode, including bypass.
+- **One-time setup after merge:** `sudo bash scripts/install-managed-prod-guard.sh`. It installs the root-owned guard and `/usr/local/bin/prod-guard-unlock`. Until then the user-level guard runs, but there's no unlock command.
+
 ---
 
 ## L1 — Cluster side

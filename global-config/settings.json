@@ -132,8 +132,7 @@
       "Read(//Users/jackkief/Desktop/Projects/SERP/.env)",
       "Read(//Users/jackkief/Desktop/Projects/SERP/.worktrees/*/.env)",
       "Read(//Users/jackkief/Desktop/Projects/sw-cortex/.env)"
-    ],
-    "disableBypassPermissionsMode": "disable"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": false,
@@ -227,7 +226,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|mcp__db__query_database|mcp__db__query_database_from_file|mcp__serp-orm__serp_sql|mcp__serp-orm__serp_unlink|mcp__serp-api__api_call|mcp__serpy__serpy_approve|mcp__serpy__serpy_reject|mcp__serpy-dev__serpy_approve|mcp__serpy-dev__serpy_reject|mcp__python__run_python",
+        "matcher": "Bash|mcp__db__query_database|mcp__db__query_database_from_file|mcp__serp-orm__serp_sql|mcp__serp-orm__serp_unlink|mcp__serp-api__api_call|mcp__serpy__serpy_approve|mcp__serpy__serpy_reject|mcp__serpy-dev__serpy_approve|mcp__serpy-dev__serpy_reject|mcp__python__run_python|mcp__terminal__run_in_terminal",
         "hooks": [
           {
             "type": "command",

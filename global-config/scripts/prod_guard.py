@@ -56,6 +56,14 @@ RISKY_TOKEN_RE = re.compile(
 
 UNPARSEABLE_RISK_RE = re.compile(r"\b(kubectl|k3s|helm|argocd)\b|5\.161\.", re.I)
 
+# Root-owned unlock state written by `sudo prod-guard-unlock` (scripts/prod-guard-unlock).
+UNLOCK_DIR = "/Library/Application Support/ClaudeCode/prod-guard/unlock"
+UNLOCK_MAX_SECONDS = 3600 + 60
+_REQUIRE_ROOT_OWNED = True  # tests flip this in-process; the hook always runs with True
+TAMPER_UNLOCK_RE = re.compile(r"prod-guard-unlock(?!\s+status\s*(?:$|[;&|)\n]))")
+TAMPER_PATH_RE = re.compile(r"ClaudeCode/(prod-guard|managed-settings)|managed-settings\.(json|d)")
+TAMPER_WRITE_RE = re.compile(r"\b(sudo|rm|mv|cp|tee|install|chmod|chown|chflags|ln|touch|truncate|dd|perl|python3?|sed\s+-i)\b|>")
+
 MAX_DEPTH = 8
 MAX_FILE_BYTES = 512 * 1024
 
@@ -64,6 +72,7 @@ class Verdict:
     def __init__(self):
         self.level = ALLOW
         self.reasons = []
+        self.tamper = []  # attempts on the guard itself: always denied, never unlockable
 
     def add(self, level, reason):
         if level > ALLOW:
@@ -1181,46 +1190,99 @@ def decide(payload):
     name = payload.get("tool_name") or ""
     ti = payload.get("tool_input") or {}
     cwd = payload.get("cwd") or os.getcwd()
-    if name == "Bash":
-        analyze_shell(ti.get("command") or "", Ctx("local", cwd), v)
+    if name in ("Bash", "mcp__terminal__run_in_terminal"):
+        cmd = ti.get("command") or ""
+        if name != "Bash":
+            cwd = ti.get("cwd") or cwd
+        if TAMPER_UNLOCK_RE.search(cmd):
+            v.tamper.append("prod-guard-unlock can only be run by Jack in his own terminal")
+        if TAMPER_PATH_RE.search(cmd) and TAMPER_WRITE_RE.search(cmd):
+            v.tamper.append("changes to the managed prod-guard policy can only be made by Jack")
+        analyze_shell(cmd, Ctx("local", cwd), v)
     elif name.startswith("mcp__"):
         mcp_tool(name, ti, cwd, v)
     return v
 
 
-def emit(level, reasons):
+def _trusted_expiry(path, now):
+    """Expiry epoch from a root-owned, non-writable unlock file, or None."""
+    try:
+        d = os.stat(os.path.dirname(path))
+        st = os.stat(path)
+        if _REQUIRE_ROOT_OWNED and (d.st_uid != 0 or d.st_mode & 0o022 or st.st_uid != 0 or st.st_mode & 0o022):
+            return None
+        with open(path) as fh:
+            exp = int(fh.read().strip())
+    except (OSError, ValueError):
+        return None
+    return exp if now < exp <= now + UNLOCK_MAX_SECONDS else None
+
+
+def unlock_expiry(session_id, now=None):
+    """Latest valid unlock covering this session (its own file or `_all`), or None."""
+    import time
+    now = now or int(time.time())
+    names = ["_all"]
+    if session_id and re.fullmatch(r"[A-Za-z0-9_-]{8,64}", session_id):
+        names.append(session_id)
+    exps = [e for e in (_trusted_expiry(os.path.join(UNLOCK_DIR, n), now) for n in names) if e]
+    return max(exps) if exps else None
+
+
+def emit(level, reasons, session_id="", note=""):
     seen, uniq = set(), []
     for lvl, r in sorted(reasons, key=lambda x: -x[0]):
         if r not in seen and lvl == level:
             seen.add(r)
             uniq.append(r)
     msg = "; ".join(uniq[:4])
+    sid = session_id if re.fullmatch(r"[A-Za-z0-9_-]{8,64}", session_id or "") else "<session-id>"
     if level == DENY:
         reason = ("prod-guard BLOCKED: %s. This is a destructive production action and cannot be run "
-                  "from Claude. If Jack really wants it, he runs it himself in a terminal. Do not "
-                  "retry it in another form." % msg)
+                  "from Claude. Do not retry it in another form. If Jack wants it, he can unlock this "
+                  "session for a few minutes (blocked commands then ask him instead) by running in "
+                  "his own terminal. Tell Jack this, and give him the command alone in its own "
+                  "```bash code block (Desktop shows a Run button on it) exactly as written:\n"
+                  "sudo prod-guard-unlock 15 %s\nDo not run it yourself." % (msg, sid))
     else:
-        reason = "prod-guard: production change, needs Jack's confirmation: %s." % msg
-    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
-                                             "permissionDecision": LEVEL_NAME[level],
-                                             "permissionDecisionReason": reason}}))
+        reason = "prod-guard: production change, needs Jack's confirmation: %s%s." % (msg, note)
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+                                   "permissionDecision": LEVEL_NAME[level],
+                                   "permissionDecisionReason": reason}}
 
 
-def main():
-    raw = sys.stdin.read()
-    try:
-        payload = json.loads(raw)
-    except ValueError:
-        return 0
+def respond(payload):
+    """Hook output dict for a PreToolUse payload, or None to allow."""
     try:
         v = decide(payload)
     except Exception as exc:  # degrade to ask, only where something risky is mentioned
         text = json.dumps(payload.get("tool_input") or {})
         if PROD_INDICATOR_RE.search(text) or RISKY_TOKEN_RE.search(text):
-            emit(ASK, [(ASK, "prod-guard hit an internal error (%s) on a command touching prod/infra tooling" % type(exc).__name__)])
-        return 0
+            return emit(ASK, [(ASK, "prod-guard hit an internal error (%s) on a command touching prod/infra tooling" % type(exc).__name__)])
+        return None
+    sid = payload.get("session_id") or ""
+    if v.tamper:
+        return emit(DENY, [(DENY, r) for r in v.tamper], sid)
+    if v.level == DENY:
+        exp = unlock_expiry(sid)
+        if exp:
+            import time
+            return emit(ASK, [(ASK, r) for _, r in v.reasons], sid,
+                        " [normally BLOCKED; prod-guard is unlocked for this session until %s]"
+                        % time.strftime("%H:%M", time.localtime(exp)))
     if v.level > ALLOW:
-        emit(v.level, v.reasons)
+        return emit(v.level, v.reasons, sid)
+    return None
+
+
+def main():
+    try:
+        payload = json.loads(sys.stdin.read())
+    except ValueError:
+        return 0
+    out = respond(payload)
+    if out:
+        print(json.dumps(out))
     return 0
 
 

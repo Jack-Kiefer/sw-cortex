@@ -234,6 +234,88 @@ MCP = [
 ]
 
 
+# Bash / terminal-panel commands that touch the guard itself: always denied, even when unlocked.
+TAMPER = [
+    ("deny", "Bash", "sudo prod-guard-unlock 15 abcdef12-3456"),
+    ("deny", "Bash", "prod-guard-unlock 60 all"),
+    ("deny", "mcp__terminal__run_in_terminal", "sudo prod-guard-unlock 15 abcdef12-3456"),
+    ("deny", "Bash", "sudo rm -rf '/Library/Application Support/ClaudeCode/prod-guard'"),
+    ("deny", "Bash", "echo '{}' > '/Library/Application Support/ClaudeCode/managed-settings.d/50-prod-guard.json'"),
+    ("deny", "Bash", "sudo touch '/Library/Application Support/ClaudeCode/prod-guard/unlock/_all'"),
+    ("allow", "Bash", "prod-guard-unlock status"),
+    ("allow", "Bash", "cat '/Library/Application Support/ClaudeCode/managed-settings.d/50-prod-guard.json'"),
+    ("deny", "mcp__terminal__run_in_terminal", "ssh jack@5.161.95.56 'kubectl delete namespace serp'"),
+    ("ask", "mcp__terminal__run_in_terminal", "ssh jack@5.161.95.56 'kubectl -n serp rollout restart deploy/serp-backend'"),
+    ("allow", "mcp__terminal__run_in_terminal", "ssh jack@5.161.95.56 'kubectl logs -n serp deploy/serp-backend -f'"),
+]
+
+
+def unlock_tests():
+    """Exercise the timed unlock in-process against a temp unlock dir (root ownership can't be
+    faked in a test, so that one check is switched off here; the hook always enforces it)."""
+    import importlib.util
+    import time
+    spec = importlib.util.spec_from_file_location("prod_guard", os.path.join(ROOT, "global-config", "scripts", "prod_guard.py"))
+    pg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pg)
+    d = tempfile.mkdtemp(prefix="pg-unlock-")
+    pg.UNLOCK_DIR = d
+    sid, other = "sess-aaaa1111", "sess-bbbb2222"
+    nuke = {"tool_name": "Bash", "session_id": sid, "cwd": ROOT,
+            "tool_input": {"command": "ssh jack@5.161.95.56 'kubectl delete namespace serp'"}}
+    tamper = dict(nuke, tool_input={"command": "sudo prod-guard-unlock 60 all"})
+    read = dict(nuke, tool_input={"command": "ssh jack@5.161.95.56 'kubectl get pods -n serp'"})
+
+    def decision(payload):
+        out = pg.respond(payload)
+        return (out or {}).get("hookSpecificOutput", {}).get("permissionDecision", "allow"), out
+
+    def put(name, exp):
+        with open(os.path.join(d, name), "w") as fh:
+            fh.write(str(exp))
+
+    def clear():
+        for f in os.listdir(d):
+            os.remove(os.path.join(d, f))
+
+    now = int(time.time())
+    results = []
+
+    pg._REQUIRE_ROOT_OWNED = True
+    put(sid, now + 600)
+    results.append(("user-owned unlock file is ignored", decision(nuke)[0], "deny"))
+    pg._REQUIRE_ROOT_OWNED = False
+    clear()
+    got, out = decision(nuke)
+    results.append(("locked: deny", got, "deny"))
+    reason = out["hookSpecificOutput"]["permissionDecisionReason"]
+    results.append(("deny message names this session's unlock command",
+                    "sudo prod-guard-unlock 15 %s" % sid in reason and "```bash" in reason, True))
+    put(sid, now + 900)
+    got, out = decision(nuke)
+    results.append(("unlocked session: deny becomes ask", got, "ask"))
+    results.append(("ask says it is normally blocked", "normally BLOCKED" in out["hookSpecificOutput"]["permissionDecisionReason"], True))
+    results.append(("unlock does not cover another session", decision(dict(nuke, session_id=other))[0], "deny"))
+    results.append(("unlock never covers tampering", decision(tamper)[0], "deny"))
+    results.append(("reads unaffected while unlocked", decision(read)[0], "allow"))
+    clear()
+    put("_all", now + 900)
+    results.append(("unlock all covers any session", decision(dict(nuke, session_id=other))[0], "ask"))
+    clear()
+    put(sid, now - 5)
+    results.append(("expired unlock: deny", decision(nuke)[0], "deny"))
+    clear()
+    put(sid, now + 5 * 3600)
+    results.append(("forged >60 min expiry is ignored", decision(nuke)[0], "deny"))
+    clear()
+    put(sid, "garbage")
+    results.append(("malformed unlock file is ignored", decision(nuke)[0], "deny"))
+    clear()
+    put("x", now + 600)
+    results.append(("path-like session id cannot match", decision(dict(nuke, session_id="../" + os.path.basename(d) + "/x"))[0], "deny"))
+    return results
+
+
 def run(tool, tool_input):
     payload = {"session_id": "t", "cwd": ROOT, "permission_mode": "auto", "hook_event_name": "PreToolUse",
                "tool_name": tool, "tool_input": tool_input}
@@ -250,7 +332,7 @@ def run(tool, tool_input):
 def main():
     fails = 0
     total = 0
-    cases = [(e, "Bash", {"command": c}) for e, c in BASH] + MCP
+    cases = [(e, "Bash", {"command": c}) for e, c in BASH] + MCP + [(e, t, {"command": c}) for e, t, c in TAMPER]
     for expected, tool, ti in cases:
         total += 1
         got, reason = run(tool, ti)
@@ -262,6 +344,14 @@ def main():
         counts[e] = counts.get(e, 0) + 1
     print("%d/%d passed (deny %d, ask %d, allow %d)" % (total - fails, total, counts.get("deny", 0),
                                                         counts.get("ask", 0), counts.get("allow", 0)))
+    ufails = 0
+    ures = unlock_tests()
+    for name, got, want in ures:
+        if got != want:
+            ufails += 1
+            print("FAIL unlock: %s (got %r, want %r)" % (name, got, want))
+    print("%d/%d unlock tests passed" % (len(ures) - ufails, len(ures)))
+    fails += ufails
     return 1 if fails else 0
 
 
