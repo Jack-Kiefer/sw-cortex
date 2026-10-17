@@ -22,9 +22,13 @@ Desktop has no terminal tab, so none of the OSC machinery applies there:
   Herdr writes, still writes the state files and the `<sid>.log` done-log, and
   prints only a `desktop: now call mcp__ccd_session_mgmt__set_session_title …`
   line.
-- **The hooks don't run there.** `tab-title-hook.sh` and `tab-title-default.sh`
-  exit 0 immediately, so the `· <activity>` / `❓ question` overlays, the
-  floor title and the reply auto-demote don't exist in Desktop.
+- **The hook nudges instead of painting.** In Desktop `tab-title-hook.sh` counts
+  tool calls in `<sid>.desk`; after 4 without a `set_session_title` it injects a
+  PostToolUse reminder, and at Stop it blocks once (`decision: block`) if the turn
+  used tools but never retitled. Titles are compact:
+  `<emoji> <repo>-<slug> <current step> · <what's done so far>`, ≤ ~60 chars.
+  `tab-title-default.sh` still exits 0, so the `· <activity>` / `❓ question`
+  overlays, the floor title and the reply auto-demote don't exist in Desktop.
 - **No close.** Nothing can archive or close a Desktop session; `close-own-tab.sh`
   prints "archive it from the sidebar (right-click → Archive)" and exits 0.
 

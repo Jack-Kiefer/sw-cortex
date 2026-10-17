@@ -20,10 +20,51 @@
 # status (🔍/🔨/🧪…) is preserved; the next re-assert (or the model's own update) restores
 # the clean title, and a question popup / live activity is layered on top only while relevant.
 
-# Claude Desktop has no terminal tab to title.
-[ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ] && exit 0
-
 input=$(cat)
+
+# Claude Desktop has no terminal tab: its sidebar title changes only when the model calls
+# set_session_title, so here the hook nudges it instead. PostToolUse injects a reminder every
+# DESK_EVERY tool calls without a title update; Stop blocks once if the turn used tools but never
+# retitled. Subagent calls (agent_id set) are ignored.
+if [ "${CLAUDE_CODE_ENTRYPOINT:-}" = "claude-desktop" ]; then
+  [ -n "$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null)" ] && exit 0
+  sid=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
+  [ -n "$sid" ] || sid="$CLAUDE_CODE_SESSION_ID"
+  [ -n "$sid" ] || exit 0
+  D="$HOME/.claude/tab-titles/$sid.desk"
+  mkdir -p "$HOME/.claude/tab-titles"
+  DESK_EVERY=4
+  fmt='Format: "<emoji> <repo>-<slug> <current step> · <what is done so far>", at most ~60 chars, e.g. "🔨 serp-WW3776 editing print svc · found sleeve bug". Keep the <repo>-<slug> token; use the status emoji table.'
+  event=$(printf '%s' "$input" | jq -r '.hook_event_name // empty' 2>/dev/null)
+  case "$event" in
+    PostToolUse)
+      if [ "$(printf '%s' "$input" | jq -r '.tool_name // empty')" = "mcp__ccd_session_mgmt__set_session_title" ]; then
+        printf '0 1\n' > "$D"
+        exit 0
+      fi
+      n=0 set=0
+      [ -f "$D" ] && read -r n set < "$D"
+      n=$(( ${n:-0} + 1 ))
+      if [ "$n" -ge "$DESK_EVERY" ]; then
+        printf '0 %s\n' "${set:-0}" > "$D"
+        jq -nc --arg c "Session title is stale ($n tool calls since it last changed). In parallel with your next tool call, update it: mcp__ccd_session_mgmt__set_session_title {session_id:\"self\"}. $fmt" \
+          '{suppressOutput:true, hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$c}}'
+      else
+        printf '%s %s\n' "$n" "${set:-0}" > "$D"
+      fi
+      ;;
+    Stop)
+      [ "$(printf '%s' "$input" | jq -r '.stop_hook_active // false')" = "true" ] && exit 0
+      [ -f "$D" ] || exit 0
+      read -r n set < "$D"
+      rm -f "$D"
+      [ "${set:-0}" = "1" ] && exit 0
+      jq -nc --arg r "Before ending the turn, set this session's title to its current status plus a short summary of what it has done: mcp__ccd_session_mgmt__set_session_title {session_id:\"self\"}. Idle states (🙋 ❓ 📦 ✅) belong here. $fmt Then stop; no other output." \
+        '{decision:"block", reason:$r}'
+      ;;
+  esac
+  exit 0
+fi
 
 # Prefer the session id from the hook payload; fall back to the inherited env var.
 sid=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
