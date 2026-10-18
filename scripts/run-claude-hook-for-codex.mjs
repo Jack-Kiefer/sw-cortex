@@ -36,6 +36,10 @@ const result = spawnSync('/bin/bash', ['-lc', hook.command], {
     ...process.env,
     CLAUDE_PROJECT_DIR: process.cwd(),
     CLAUDE_CODE_SESSION_ID: input.session_id ?? input.thread_id ?? '',
+    // A Codex run launched from a Claude Desktop session (e.g. `codex exec` reviewers)
+    // inherits CLAUDE_CODE_ENTRYPOINT=claude-desktop; hooks must not treat Codex as that
+    // Desktop session, or tab-title-hook.sh blocks Stop demanding a set_session_title call.
+    CLAUDE_CODE_ENTRYPOINT: 'codex',
   },
   input: JSON.stringify(input),
   encoding: 'utf8',
