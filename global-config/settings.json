@@ -288,6 +288,15 @@
             "command": "/Users/jackkief/.claude/scripts/agent-route-guard.sh"
           }
         ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jackkief/.claude/scripts/askuserquestion-guard.sh"
+          }
+        ]
       }
     ],
     "SessionStart": [
