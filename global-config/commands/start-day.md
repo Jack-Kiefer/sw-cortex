@@ -129,7 +129,7 @@ Then **every** tracked-file write in the run targets `$WT`, never `$CX`:
 | Step                     | Writes                             | Where it must go                                                        |
 | ------------------------ | ---------------------------------- | ----------------------------------------------------------------------- |
 | **3** (KB touch-up)      | `DICTIONARY.md`                    | `$WT/DICTIONARY.md` — Edit the worktree copy                            |
-| **3b** (column manifest) | `knowledge/COLUMN_MANIFEST.md`     | run the generator **with `cwd: $WT`**: `cd "$WT" && npm run kb:columns` |
+| **3b** (column manifest) | `knowledge/COLUMN_MANIFEST.md`     | run `$WT`'s generator from the hub cwd (needs the hub `.env`) — see Step 3b |
 | **5** (friction fixes)   | `global-config/*`, commands, hooks | `$WT/global-config/…` (already specified below)                         |
 
 **Not covered by this rule** (they are outside the repo, so they need no worktree and no PR):
@@ -718,8 +718,13 @@ guard fires in one 7-day audit). It only helps if it matches live — **a stale 
 than none**, so regenerate it every morning:
 
 ```bash
-# Run it INSIDE the run's worktree so the hub is never dirtied (see "The hub is never left dirty").
-cd "$WT" && npm run kb:columns
+# The output path comes from the SCRIPT's location ($WT), but dotenv reads .env from the CWD —
+# and $WT has no .env (deny-read, never copy it). So run $WT's script from the hub's cwd, with
+# the hub's node_modules symlinked in for the imports. `cd "$WT" && npm run kb:columns` connects
+# with empty creds and rewrites the manifest with most tables missing.
+ln -sfn "$CX/node_modules" "$WT/node_modules"
+cd "$CX" && npx tsx "$WT/scripts/generate-column-manifest.ts"
+rm "$WT/node_modules"
 ```
 
 This is a deterministic, read-only command (DESCRIBE / `information_schema` only) — no judgment
