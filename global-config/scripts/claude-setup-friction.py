@@ -8,16 +8,18 @@ gaps, API/overload errors, and user rejections. The /start-day "Claude-setup
 diagnostic" step reads this output and turns the clusters into concrete fixes.
 
 Usage:
-  claude-setup-friction.py [--days N] [--root DIR] [--json]
-    --days N   look back N days (default 3)
-    --root DIR projects dir (default ~/.claude/projects)
-    --json     emit machine-readable JSON (default: human summary)
+  claude-setup-friction.py [--days N] [--root DIR] [--json] [--include-remote]
+    --days N          look back N days (default 3)
+    --root DIR        projects dir (default ~/.claude/projects)
+    --json            emit machine-readable JSON (default: human summary)
+    --include-remote  count SSH project dirs (ssh-*) in the clusters
 
 Read-only. Stdlib only — deliberately no third-party imports, since a missing
 module is one of the very failures this script diagnoses.
 """
 import json, sys, os, glob, time, re, argparse
 from collections import Counter, defaultdict
+from datetime import datetime
 
 # ── friction taxonomy ──────────────────────────────────────────────────────
 # Each bucket: (key, label, matcher). Order matters — first match wins, so the
@@ -31,6 +33,8 @@ BUCKETS = [
     ("repo_write_guard", "write/git denied in a read-only repo (repo-write-guard)", True,
      lambda s: "repo-write-guard" in s or "read-only" in s and "repo" in s
                or ("not serp/swac/sw-cortex" in s)),
+    ("hook_guard", "PreToolUse hook denial (guard working)", True,
+     lambda s: "pretooluse" in s and "hook error" in s),
     # broken-setup signals — these are fixable
     ("mcp_roots", "MCP file access outside allowed roots", False,
      lambda s: "outside allowed roots" in s or "allowed roots:" in s),
@@ -69,6 +73,13 @@ def signature(text, bucket_key):
         if ln:
             first = ln
             break
+    # "Exit code N" says nothing about the failure — key on the line that does.
+    if re.match(r"exit code \d+", first, re.I):
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()][1:]
+        cause = next((ln for ln in lines
+                      if re.search(r"not found|no such file|fatal:|error|denied|refus", ln, re.I)),
+                     lines[-1] if lines else "")
+        first = "exit: " + cause
     first = first.lower()[:160]
     first = re.sub(r"req_[a-z0-9]+", "REQID", first)        # anthropic request ids
     first = re.sub(r'"request_id"\s*:\s*"[^"]*"', '"request_id":"REQID"', first)
@@ -106,6 +117,17 @@ def result_text(blk):
     return json.dumps(c)[:500] if c else ""
 
 
+def before_cutoff(ts, cutoff):
+    """True when an ISO 8601 event timestamp predates the window. A long transcript
+    touched today still holds old events, so file mtime alone can't bound the window."""
+    if not isinstance(ts, str):
+        return False
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() < cutoff
+    except ValueError:
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
@@ -113,6 +135,8 @@ def main():
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--top", type=int, default=15,
                     help="max clusters in the human summary (default 15)")
+    ap.add_argument("--include-remote", action="store_true",
+                    help="count SSH project dirs (ssh-*) in the clusters")
     args = ap.parse_args()
 
     cutoff = time.time() - args.days * 86400
@@ -128,9 +152,12 @@ def main():
     clusters = defaultdict(lambda: {"count": 0, "label": "", "guardrail": False,
                                     "repos": Counter(), "sample": ""})
     totals = Counter()
+    remote_events = 0
 
     for fn in files:
-        repo = os.path.basename(os.path.dirname(fn)).split("-")[-1] or "?"
+        project = os.path.basename(os.path.dirname(fn))
+        repo = project.split("-")[-1] or "?"
+        remote = project.startswith("ssh-") and not args.include_remote
         try:
             fh = open(fn)
         except OSError:
@@ -139,6 +166,8 @@ def main():
             try:
                 d = json.loads(line)
             except Exception:
+                continue
+            if before_cutoff(d.get("timestamp"), cutoff):
                 continue
             t = d.get("type")
             errs = []
@@ -165,6 +194,9 @@ def main():
             for e in errs:
                 if not e or not e.strip():
                     continue
+                if remote:
+                    remote_events += 1
+                    continue
                 totals["all"] += 1
                 key, label, guard = classify(e)
                 sig = signature(e, key)
@@ -185,6 +217,7 @@ def main():
             "window_days": args.days,
             "files_scanned": len(files),
             "total_friction_events": totals["all"],
+            "remote_friction_events": remote_events,
             "by_bucket": {k: v for k, v in totals.items() if k != "all"},
             "clusters": [
                 {
