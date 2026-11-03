@@ -76,6 +76,8 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    each must `return` exactly the compact result block that step specifies — give each a `schema`
    (or a tight "return only this panel" instruction) so the returns come back clean. These have no
    inter-dependencies, so a single `parallel([...])` barrier collecting them all is correct here.
+   - Every agent prompt must say: "Never call update_plan or wrap_up (main thread only)." Workflow
+     agents otherwise follow the main-thread task-list rule and trip the hook (92× in 2 days).
    - Step 0 and Step 5 both touch the live setup; Step 0 owns the **only** live MCP probes (Step 5
      stays transcript-only) — keep that split in their prompts so they don't double-probe.
    - **Step 5's agent is read-only but its `fixes` get APPLIED by the orchestrator after Wave A**
