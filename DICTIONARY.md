@@ -1401,7 +1401,7 @@ SugarWish's core model is **recipient-choice gifting**: an eCard is sent, the re
 3-table hierarchy: **`preselect_master_ids`** (grouping/ID allocator — only `id` + timestamps; mints batch master IDs) → **`preselect_order_billing_details`** (aggregate payment) → **`preselect_orders`** (individual shipments). Payment methods: `stripe` (card), `checkmo` (check/invoice). One master can have 10K+ children (e.g. master `700017956` = 10,033 children).
 
 - `preselect_orders.type` enum (CHANNEL, separate from status): `preselect | sweet-shoppe | sweetificate`.
-- `preselect_orders.status` enum: `pending | completed | canceled | deleted | shipped | on_hold`.
+- `preselect_orders.status` enum: `pending | completed | canceled | deleted | shipped | on_hold`. `deleted` is a legacy, barely-used status (the Laravel admin UI still exposes a delete action). A cancel that lands as `deleted` is a mistake and should be `canceled`.
 - Odoo-era `sw_id >= 600,000,000` = preselect/wholesale; bridged to the ERP via `preselect_order_id` (NOT `ec_order`); `sw_id < 600,000,000` = receiver/ec_order. In SERP the order queue routes on `serp_sale_order.ec_order_id` vs `preselect_order_id`, not on `sw_id`.
 - **Data-integrity gaps:** ~70,799 preselect orders have a `master_id` that doesn't exist in `preselect_master_ids`; ~387 orphaned (NULL `master_id`). `preselect_orders` has **NO `batch_date`** column.
 
