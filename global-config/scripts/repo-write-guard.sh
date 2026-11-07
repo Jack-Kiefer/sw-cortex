@@ -24,6 +24,11 @@ WRITABLE_ROOTS=(
   "/Users/jackkief/Desktop/Projects/livery"
 )
 
+# --- Scope: the guard governs only repos under the SugarWish projects folder ---
+# Repos elsewhere (e.g. Jack's personal ~/Desktop/Projects-Personal) are not the hub's
+# business: every write there is allowed.
+GUARDED_PREFIX="/Users/jackkief/Desktop/Projects/"
+
 # --- Worktree-only repos: TRACKED files in the MAIN CLONE are read-only ---
 # All work in these repos goes in a worktree (CLAUDE.md: "NEVER git checkout a branch in the
 # hub working copy"; SERP/SWAC edits belong in a worktree, not the main clone). Edits still
@@ -77,6 +82,13 @@ is_writable_root() {
   for w in "${WRITABLE_ROOTS[@]}"; do
     [ "$root" = "$(cd "$w" 2>/dev/null && pwd -P)" ] && return 0
   done
+  return 1
+}
+
+is_guarded_root() {
+  case "$1/" in
+    "$(cd "$GUARDED_PREFIX" 2>/dev/null && pwd -P)"/*) return 0 ;;
+  esac
   return 1
 }
 
@@ -134,6 +146,8 @@ case "$tool_name" in
     root="$(repo_root_for_dir "$fp")"
     # No git repo (e.g. /tmp, ~/.claude) → not a tracked spoke; allow.
     [ -n "$root" ] || exit 0
+    # Repo outside the SugarWish projects folder → not governed; allow.
+    is_guarded_root "$root" || exit 0
     if ! is_writable_root "$root"; then
       deny "Blocked write to read-only repo $(readonly_name "$root"). Only SERP, SWAC, sw-cortex, sw-design, livery and sugarwish-infrastructure are writable from the hub. Diagnose freely, but produce a hand-off note (what's wrong + file/line + the owner to ask) instead of editing. (repo-write-guard)"
     fi
@@ -167,6 +181,7 @@ Untracked and gitignored files (.env, scratch/) are still editable in the clone.
         [ -n "$tok" ] || continue
         root="$(repo_root_for_dir "$tok")"
         [ -n "$root" ] || continue
+        is_guarded_root "$root" || continue
         checked_any=1
         if ! is_writable_root "$root"; then
           deny "Blocked git/gh write targeting read-only repo $(readonly_name "$root"). Only SERP, SWAC, sw-cortex, sw-design, livery and sugarwish-infrastructure are writable from the hub — produce a hand-off note to the owner instead. (repo-write-guard)"
