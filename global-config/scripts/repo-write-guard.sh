@@ -22,6 +22,7 @@ WRITABLE_ROOTS=(
   "/Users/jackkief/Desktop/Projects/sugarwish-infrastructure"
   "/Users/jackkief/Desktop/Projects/sw-design"
   "/Users/jackkief/Desktop/Projects/livery"
+  "/Users/jackkief/Desktop/Projects-Personal/mtg-sim"
 )
 
 # --- Worktree-only repos: TRACKED files in the MAIN CLONE are read-only ---
@@ -34,6 +35,7 @@ WORKTREE_ONLY_ROOTS=(
   "/Users/jackkief/Desktop/Projects/SWAC"
   "/Users/jackkief/Desktop/Projects/sw-cortex"
   "/Users/jackkief/Desktop/Projects/sw-design"
+  "/Users/jackkief/Desktop/Projects-Personal/mtg-sim"
 )
 
 input="$(cat)"
@@ -135,7 +137,7 @@ case "$tool_name" in
     # No git repo (e.g. /tmp, ~/.claude) → not a tracked spoke; allow.
     [ -n "$root" ] || exit 0
     if ! is_writable_root "$root"; then
-      deny "Blocked write to read-only repo $(readonly_name "$root"). Only SERP, SWAC, sw-cortex, sw-design, livery and sugarwish-infrastructure are writable from the hub. Diagnose freely, but produce a hand-off note (what's wrong + file/line + the owner to ask) instead of editing. (repo-write-guard)"
+      deny "Blocked write to read-only repo $(readonly_name "$root"). Only SERP, SWAC, sw-cortex, sw-design, livery, sugarwish-infrastructure and mtg-sim are writable from the hub. Diagnose freely, but produce a hand-off note (what's wrong + file/line + the owner to ask) instead of editing. (repo-write-guard)"
     fi
     # Writable repo, but a TRACKED file in the MAIN CLONE → must go in a worktree.
     if is_worktree_only_root "$root" && in_main_working_tree "$fp" && is_tracked_file "$fp"; then
@@ -169,7 +171,7 @@ Untracked and gitignored files (.env, scratch/) are still editable in the clone.
         [ -n "$root" ] || continue
         checked_any=1
         if ! is_writable_root "$root"; then
-          deny "Blocked git/gh write targeting read-only repo $(readonly_name "$root"). Only SERP, SWAC, sw-cortex, sw-design, livery and sugarwish-infrastructure are writable from the hub — produce a hand-off note to the owner instead. (repo-write-guard)"
+          deny "Blocked git/gh write targeting read-only repo $(readonly_name "$root"). Only SERP, SWAC, sw-cortex, sw-design, livery, sugarwish-infrastructure and mtg-sim are writable from the hub — produce a hand-off note to the owner instead. (repo-write-guard)"
         fi
       done < <(
         # -C <dir> arguments
