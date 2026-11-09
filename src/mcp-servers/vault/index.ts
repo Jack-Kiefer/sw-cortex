@@ -26,8 +26,9 @@ import { z } from 'zod';
 
 import { parseEnv, readEnvFile, toMap, upsertEnv, writeEnvFile } from '../../services/vault/env-file.js';
 import { askLocalModel, VAULT_MODEL } from '../../services/vault/ollama.js';
+import { createItem, OP_REF_RE, readRef } from '../../services/vault/onepassword.js';
 import { assertAllowed, DROP_BOX } from '../../services/vault/paths.js';
-import { describeValue, redact, type Secret } from '../../services/vault/redact.js';
+import { describeValue, MIN_SECRET_LEN, redact, type Secret } from '../../services/vault/redact.js';
 
 const fileProp = { type: 'string', description: 'Absolute path to an allowlisted .env file' };
 const keysProp = { type: 'array', items: { type: 'string' } };
@@ -82,6 +83,30 @@ const tools: Tool[] = [
     },
   },
   {
+    name: 'env_to_1password',
+    description:
+      'Move secrets from an .env file into one 1Password item (a concealed field per key), value-blind. ' +
+      'With rewrite_env=true the .env lines become op:// references, so the app must then be started ' +
+      'via `op run --env-file=<file> -- <cmd>`. Default false: store only, leave the file as is.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: fileProp,
+        vault: { type: 'string', description: '1Password vault name' },
+        item: { type: 'string', description: 'Item title, e.g. "serp-local-env" (no slashes)' },
+        keys: { ...keysProp, description: 'Keys to move (default: every value of 6+ chars)' },
+        rewrite_env: { type: 'boolean' },
+      },
+      required: ['file', 'vault', 'item'],
+    },
+  },
+  {
+    name: 'env_check_refs',
+    description:
+      'Check that every op:// reference in an .env file resolves in 1Password. Reports ok + length per key.',
+    inputSchema: { type: 'object', properties: { file: fileProp }, required: ['file'] },
+  },
+  {
     name: 'env_ask',
     description:
       `Ask the LOCAL model (${VAULT_MODEL} via Ollama) a question that needs the real values, e.g. ` +
@@ -107,6 +132,13 @@ const Copy = z.object({
   wipe_source: z.boolean().optional(),
 });
 const SetValues = z.object({ file: z.string(), values: z.record(z.string()) });
+const ToOnePassword = z.object({
+  file: z.string(),
+  vault: z.string().min(1).regex(/^[^/]+$/),
+  item: z.string().min(1).regex(/^[^/]+$/),
+  keys: z.array(z.string()).optional(),
+  rewrite_env: z.boolean().optional(),
+});
 const Ask = z.object({ files: z.array(z.string()).min(1).max(6), question: z.string() });
 
 /** Collects every value read during one call, so the gate can strip them from the response. */
@@ -174,6 +206,39 @@ async function handle(name: string, args: unknown, scope: CallScope): Promise<un
       const updates = new Map(Object.entries(values));
       await writeEnvFile(env.path, upsertEnv(env.text, updates));
       return { file: env.path, set: [...updates.keys()] };
+    }
+    case 'env_to_1password': {
+      const { file, vault, item, keys, rewrite_env } = ToOnePassword.parse(args);
+      const env = await scope.load(file);
+      const wanted =
+        keys ?? [...env.map].filter(([, v]) => v.length >= MIN_SECRET_LEN && !OP_REF_RE.test(v)).map(([k]) => k);
+      const values = new Map<string, string>();
+      for (const k of wanted) {
+        const v = env.map.get(k);
+        if (v === undefined || v === '') throw new Error(`Key ${k} is missing or empty in ${env.path}`);
+        if (OP_REF_RE.test(v)) throw new Error(`Key ${k} is already a 1Password reference`);
+        values.set(k, v);
+      }
+      if (!values.size) throw new Error('Nothing to move');
+      const refs = await createItem(vault, item, values);
+      if (rewrite_env) await writeEnvFile(env.path, upsertEnv(env.text, refs));
+      return { file: env.path, item: `${vault}/${item}`, moved: Object.fromEntries(refs), env_rewritten: Boolean(rewrite_env) };
+    }
+    case 'env_check_refs': {
+      const { file } = ListKeys.parse(args);
+      const env = await scope.load(file);
+      const results: Record<string, string> = {};
+      for (const [k, ref] of env.map) {
+        if (!OP_REF_RE.test(ref)) continue;
+        try {
+          const value = await readRef(ref);
+          scope.secrets.push({ key: k, value });
+          results[k] = `ok len=${value.length}`;
+        } catch (err) {
+          results[k] = `FAIL ${(err as Error).message}`;
+        }
+      }
+      return { file: env.path, refs: results };
     }
     case 'env_ask': {
       const { files, question } = Ask.parse(args);
