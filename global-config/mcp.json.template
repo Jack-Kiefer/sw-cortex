@@ -32,6 +32,11 @@
         "DOTENV_CONFIG_PATH": "{{SW_CORTEX}}/.env"
       }
     },
+    "vault": {
+      "command": "node",
+      "args": ["--import", "{{SW_CORTEX}}/node_modules/tsx/dist/loader.mjs", "{{SW_CORTEX}}/src/mcp-servers/vault/index.ts"],
+      "cwd": "{{SW_CORTEX}}"
+    },
     "logs": {
       "command": "node",
       "args": ["--import", "{{SW_CORTEX}}/node_modules/tsx/dist/loader.mjs", "{{SW_CORTEX}}/src/mcp-servers/logs/index.ts"],

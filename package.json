@@ -9,6 +9,8 @@
     "db:serve": "tsx src/mcp-servers/db/index.ts",
     "slack-search:serve": "tsx src/mcp-servers/slack-search/index.ts",
     "logs:serve": "tsx src/mcp-servers/logs/index.ts",
+    "vault:serve": "tsx src/mcp-servers/vault/index.ts",
+    "vault:test": "node --import tsx --test src/services/vault/vault.test.ts",
     "qdrant:init": "tsx scripts/qdrant-init.ts",
     "qdrant:status": "tsx scripts/qdrant-status.ts",
     "slack:sync": "tsx scripts/sync-slack-encrypted.ts",

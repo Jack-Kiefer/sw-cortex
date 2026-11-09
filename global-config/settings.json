@@ -131,7 +131,8 @@
       "Read(//Users/jackkief/.mcp.json)",
       "Read(//Users/jackkief/Desktop/Projects/SERP/.env)",
       "Read(//Users/jackkief/Desktop/Projects/SERP/.worktrees/*/.env)",
-      "Read(//Users/jackkief/Desktop/Projects/sw-cortex/.env)"
+      "Read(//Users/jackkief/Desktop/Projects/sw-cortex/.env)",
+      "Read(//Users/jackkief/Desktop/Projects/SWAC/.env)"
     ]
   },
   "enableAllProjectMcpServers": true,
