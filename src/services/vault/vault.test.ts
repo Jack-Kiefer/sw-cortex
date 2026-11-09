@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -46,13 +47,7 @@ test('MCP server never returns a secret value', async () => {
   await writeFile(b, 'PORT=5004\n');
   await writeFile(drop, `NEW_TOKEN=${SECRET}xyz\n`);
   await symlink('/etc/hosts', join(dir, 'evil.env'));
-  const fakeOp = join(dir, 'op');
-  await writeFile(
-    fakeOp,
-    `#!/bin/sh\necho "$@" >> "${dir}/op-argv.log"\n` +
-      `case "$1" in item) cat > "${dir}/op-stdin.json"; echo '{}';; read) printf '%s' '${SECRET}';; esac\n`,
-    { mode: 0o755 }
-  );
+  const kcService = `sw-vault-test-${process.pid}`;
 
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -61,7 +56,7 @@ test('MCP server never returns a secret value', async () => {
       ...(process.env as Record<string, string>),
       VAULT_ALLOWED_PATHS: `${dir}/*.env,${drop}`,
       VAULT_DROP_BOX: drop,
-      VAULT_OP_BIN: fakeOp,
+      VAULT_KEYCHAIN_SERVICE: kcService,
       VAULT_FINGERPRINT_KEY_PATH: join(dir, 'fp.key'),
       VAULT_OLLAMA_URL: 'http://127.0.0.1:1',
     },
@@ -95,18 +90,24 @@ test('MCP server never returns a secret value', async () => {
     assert.equal(await readFile(drop, 'utf8'), '');
     assert.match(await readFile(b, 'utf8'), new RegExp(`NEW_TOKEN=${SECRET}xyz`));
 
-    const moved = await call('env_to_1password', { file: a, vault: 'Dev', item: 'a-env', rewrite_env: true });
+    const moved = await call('env_to_keychain', { file: a, item: 'a-env', rewrite_env: true });
     assert.ok(!moved.includes(SECRET));
-    const stored = JSON.parse(await readFile(join(dir, 'op-stdin.json'), 'utf8'));
-    assert.deepEqual(stored.fields.map((f: { label: string }) => f.label), ['STRIPE', 'ONLY_A']);
-    assert.ok(!(await readFile(join(dir, 'op-argv.log'), 'utf8')).includes(SECRET));
     const rewritten = await readFile(a, 'utf8');
-    assert.match(rewritten, /^STRIPE=op:\/\/Dev\/a-env\/STRIPE$/m);
+    assert.match(rewritten, /^STRIPE=keychain:\/\/a-env\/STRIPE$/m);
+    assert.match(rewritten, /^ONLY_A=keychain:\/\/a-env\/ONLY_A$/m);
     assert.match(rewritten, /^PORT=5003$/m);
 
     const checked = await call('env_check_refs', { file: a });
     assert.match(checked, new RegExp(`"STRIPE": "ok len=${SECRET.length}"`));
     assert.ok(!checked.includes(SECRET));
+
+    const runScript = fileURLToPath(new URL('../../mcp-servers/vault/run.ts', import.meta.url));
+    const printed = execFileSync(
+      process.execPath,
+      ['--import', 'tsx', runScript, '--env-file', a, '--', process.execPath, '-e', 'process.stdout.write(String(process.env.STRIPE === process.argv[1]))', SECRET],
+      { env: { ...process.env, VAULT_KEYCHAIN_SERVICE: kcService }, stdio: ['ignore', 'pipe', 'ignore'] }
+    ).toString();
+    assert.equal(printed, 'true');
 
     const outside = await call('env_list_keys', { file: join(dir, 'evil.env') });
     assert.match(outside, /not in the vault allowlist/);
@@ -116,5 +117,8 @@ test('MCP server never returns a secret value', async () => {
     assert.ok(!asked.includes(SECRET));
   } finally {
     await client.close();
+    for (const k of ['STRIPE', 'ONLY_A']) {
+      spawnSync('/usr/bin/security', ['delete-generic-password', '-s', `${kcService}:a-env`, '-a', k], { stdio: 'ignore' });
+    }
   }
 });

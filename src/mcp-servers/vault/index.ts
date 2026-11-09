@@ -26,7 +26,7 @@ import { z } from 'zod';
 
 import { parseEnv, readEnvFile, toMap, upsertEnv, writeEnvFile } from '../../services/vault/env-file.js';
 import { askLocalModel, VAULT_MODEL } from '../../services/vault/ollama.js';
-import { createItem, OP_REF_RE, readRef } from '../../services/vault/onepassword.js';
+import { KEYCHAIN_REF_RE, readRef, resolveEnv, storeItem } from '../../services/vault/keychain.js';
 import { assertAllowed, DROP_BOX } from '../../services/vault/paths.js';
 import { describeValue, MIN_SECRET_LEN, redact, type Secret } from '../../services/vault/redact.js';
 
@@ -83,27 +83,27 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'env_to_1password',
+    name: 'env_to_keychain',
     description:
-      'Move secrets from an .env file into one 1Password item (a concealed field per key), value-blind. ' +
-      'With rewrite_env=true the .env lines become op:// references, so the app must then be started ' +
-      'via `op run --env-file=<file> -- <cmd>`. Default false: store only, leave the file as is.',
+      'Move secrets from an .env file into the macOS login Keychain (service "sw-vault:<item>", ' +
+      'account = key), value-blind. With rewrite_env=true the .env lines become keychain://<item>/<KEY> ' +
+      'references, so the app must then be started via `npm run vault:run -- --env-file <file> -- <cmd>`. ' +
+      'Default false: store only, leave the file as is.',
     inputSchema: {
       type: 'object',
       properties: {
         file: fileProp,
-        vault: { type: 'string', description: '1Password vault name' },
-        item: { type: 'string', description: 'Item title, e.g. "serp-local-env" (no slashes)' },
+        item: { type: 'string', description: 'Group name, e.g. "serp-local" ([A-Za-z0-9_.-])' },
         keys: { ...keysProp, description: 'Keys to move (default: every value of 6+ chars)' },
         rewrite_env: { type: 'boolean' },
       },
-      required: ['file', 'vault', 'item'],
+      required: ['file', 'item'],
     },
   },
   {
     name: 'env_check_refs',
     description:
-      'Check that every op:// reference in an .env file resolves in 1Password. Reports ok + length per key.',
+      'Check that every keychain:// reference in an .env file resolves. Reports ok + length per key.',
     inputSchema: { type: 'object', properties: { file: fileProp }, required: ['file'] },
   },
   {
@@ -132,10 +132,9 @@ const Copy = z.object({
   wipe_source: z.boolean().optional(),
 });
 const SetValues = z.object({ file: z.string(), values: z.record(z.string()) });
-const ToOnePassword = z.object({
+const ToKeychain = z.object({
   file: z.string(),
-  vault: z.string().min(1).regex(/^[^/]+$/),
-  item: z.string().min(1).regex(/^[^/]+$/),
+  item: z.string().regex(/^[A-Za-z0-9_.-]+$/),
   keys: z.array(z.string()).optional(),
   rewrite_env: z.boolean().optional(),
 });
@@ -207,29 +206,29 @@ async function handle(name: string, args: unknown, scope: CallScope): Promise<un
       await writeEnvFile(env.path, upsertEnv(env.text, updates));
       return { file: env.path, set: [...updates.keys()] };
     }
-    case 'env_to_1password': {
-      const { file, vault, item, keys, rewrite_env } = ToOnePassword.parse(args);
+    case 'env_to_keychain': {
+      const { file, item, keys, rewrite_env } = ToKeychain.parse(args);
       const env = await scope.load(file);
       const wanted =
-        keys ?? [...env.map].filter(([, v]) => v.length >= MIN_SECRET_LEN && !OP_REF_RE.test(v)).map(([k]) => k);
+        keys ?? [...env.map].filter(([, v]) => v.length >= MIN_SECRET_LEN && !KEYCHAIN_REF_RE.test(v)).map(([k]) => k);
       const values = new Map<string, string>();
       for (const k of wanted) {
         const v = env.map.get(k);
         if (v === undefined || v === '') throw new Error(`Key ${k} is missing or empty in ${env.path}`);
-        if (OP_REF_RE.test(v)) throw new Error(`Key ${k} is already a 1Password reference`);
+        if (KEYCHAIN_REF_RE.test(v)) throw new Error(`Key ${k} is already a keychain reference`);
         values.set(k, v);
       }
       if (!values.size) throw new Error('Nothing to move');
-      const refs = await createItem(vault, item, values);
+      const refs = await storeItem(item, values);
       if (rewrite_env) await writeEnvFile(env.path, upsertEnv(env.text, refs));
-      return { file: env.path, item: `${vault}/${item}`, moved: Object.fromEntries(refs), env_rewritten: Boolean(rewrite_env) };
+      return { file: env.path, item, moved: Object.fromEntries(refs), env_rewritten: Boolean(rewrite_env) };
     }
     case 'env_check_refs': {
       const { file } = ListKeys.parse(args);
       const env = await scope.load(file);
       const results: Record<string, string> = {};
       for (const [k, ref] of env.map) {
-        if (!OP_REF_RE.test(ref)) continue;
+        if (!KEYCHAIN_REF_RE.test(ref)) continue;
         try {
           const value = await readRef(ref);
           scope.secrets.push({ key: k, value });
@@ -245,7 +244,10 @@ async function handle(name: string, args: unknown, scope: CallScope): Promise<un
       const blocks: string[] = [];
       for (const f of files) {
         const env = await scope.load(f);
-        blocks.push(`### ${env.path}\n${env.text}`);
+        const resolved = await resolveEnv(env.map);
+        for (const [key, value] of resolved) if (value !== env.map.get(key)) scope.secrets.push({ key, value });
+        const body = [...resolved].map(([key, value]) => `${key}=${value}`).join('\n');
+        blocks.push(`### ${env.path}\n${body}`);
       }
       const answer = await askLocalModel(blocks.join('\n\n'), question);
       return { model: VAULT_MODEL, answer };
