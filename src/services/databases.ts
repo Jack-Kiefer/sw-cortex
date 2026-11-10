@@ -624,7 +624,7 @@ function isConnectionError(err: unknown): boolean {
   const msg = (err as { message?: string }).message || '';
   return (
     (!!code && CONNECTION_ERROR_CODES.has(code)) ||
-    /connect ETIMEDOUT|connect ECONNREFUSED|Connection terminated|connection timeout|timeout expired|Client has encountered a connection error/i.test(
+    /connect ETIMEDOUT|connect ECONNREFUSED|Connection terminated|connection timeout|timeout expired|Client has encountered a connection error|Pool is closed/i.test(
       msg
     )
   );
