@@ -24,10 +24,17 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { parseEnv, readEnvFile, toMap, upsertEnv, writeEnvFile } from '../../services/vault/env-file.js';
+import {
+  parseEnv,
+  readEnvFile,
+  toMap,
+  upsertEnv,
+  writeEnvFile,
+} from '../../services/vault/env-file.js';
 import { askLocalModel, VAULT_MODEL } from '../../services/vault/ollama.js';
 import { KEYCHAIN_REF_RE, readRef, resolveEnv, storeItem } from '../../services/vault/keychain.js';
 import { assertAllowed, DROP_BOX } from '../../services/vault/paths.js';
+import { KEY_RE, promptHidden, writeSecrets } from '../../services/vault/prompt.js';
 import { describeValue, MIN_SECRET_LEN, redact, type Secret } from '../../services/vault/redact.js';
 
 const fileProp = { type: 'string', description: 'Absolute path to an allowlisted .env file' };
@@ -43,7 +50,8 @@ const tools: Tool[] = [
   },
   {
     name: 'env_diff',
-    description: 'Compare two .env files by key: only-in-a, only-in-b, same value, different value.',
+    description:
+      'Compare two .env files by key: only-in-a, only-in-b, same value, different value.',
     inputSchema: {
       type: 'object',
       properties: { file_a: fileProp, file_b: fileProp },
@@ -55,8 +63,8 @@ const tools: Tool[] = [
     description:
       'Copy the values of the given keys from one .env file to another, value-blind. Use this to ' +
       'propagate a secret to worktrees or between repos. With from = the sw-cortex drop box ' +
-      `(${DROP_BOX}) and wipe_source=true it finishes a /paste-secret: values are wired in and ` +
-      'the drop box is truncated.',
+      `(${DROP_BOX}) and wipe_source=true it drains a leftover from the retired drop box and ` +
+      'truncates it. New secrets come in through env_prompt.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -72,7 +80,7 @@ const tools: Tool[] = [
     name: 'env_set',
     description:
       'Set NON-secret values (ports, DB names, flags) that you already know. For secrets use ' +
-      '/paste-secret + env_copy so the value never passes through you.',
+      'env_prompt (/paste-secret) so the value never passes through you.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -98,6 +106,28 @@ const tools: Tool[] = [
         rewrite_env: { type: 'boolean' },
       },
       required: ['file', 'item'],
+    },
+  },
+  {
+    name: 'env_prompt',
+    description:
+      'The way to take a NEW secret from Jack (/paste-secret). Pops a native macOS dialog with a ' +
+      'hidden answer field per key; he pastes, and this process writes the value straight into ' +
+      '`file` (or into the Keychain with keychain_item, leaving keychain:// references in the ' +
+      'file). The value never touches a drop-box file, an editor, argv or you. Blocks until he ' +
+      'answers each dialog (5 min timeout each); a skipped dialog is reported, not an error.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: fileProp,
+        keys: { ...keysProp, description: 'Keys to ask for, one dialog each' },
+        keychain_item: {
+          type: 'string',
+          description:
+            'Store in the Keychain under this group ([A-Za-z0-9_.-]) instead of plain text',
+        },
+      },
+      required: ['file', 'keys'],
     },
   },
   {
@@ -138,6 +168,14 @@ const ToKeychain = z.object({
   keys: z.array(z.string()).optional(),
   rewrite_env: z.boolean().optional(),
 });
+const Prompt = z.object({
+  file: z.string(),
+  keys: z.array(z.string().regex(KEY_RE)).min(1).max(10),
+  keychain_item: z
+    .string()
+    .regex(/^[A-Za-z0-9_.-]+$/)
+    .optional(),
+});
 const Ask = z.object({ files: z.array(z.string()).min(1).max(6), question: z.string() });
 
 /** Collects every value read during one call, so the gate can strip them from the response. */
@@ -167,7 +205,12 @@ async function handle(name: string, args: unknown, scope: CallScope): Promise<un
       const { file_a, file_b } = Diff.parse(args);
       const a = await scope.load(file_a);
       const b = await scope.load(file_b);
-      const result = { only_in_a: [] as string[], only_in_b: [] as string[], same: [] as string[], different: [] as string[] };
+      const result = {
+        only_in_a: [] as string[],
+        only_in_b: [] as string[],
+        same: [] as string[],
+        different: [] as string[],
+      };
       for (const [k, v] of a.map) {
         if (!b.map.has(k)) result.only_in_a.push(k);
         else (b.map.get(k) === v ? result.same : result.different).push(k);
@@ -199,6 +242,27 @@ async function handle(name: string, args: unknown, scope: CallScope): Promise<un
         source_wiped: Boolean(wipe_source),
       };
     }
+    case 'env_prompt': {
+      const { file, keys, keychain_item } = Prompt.parse(args);
+      const env = await scope.load(file);
+      const values = new Map<string, string>();
+      const skipped: string[] = [];
+      for (const key of keys) {
+        const value = await promptHidden(key, env.path);
+        if (value === null) skipped.push(key);
+        else {
+          scope.secrets.push({ key, value });
+          values.set(key, value);
+        }
+      }
+      if (values.size) await writeSecrets(env.path, values, keychain_item);
+      return {
+        file: env.path,
+        written: [...values].map(([key, value]) => ({ key, value: describeValue(value) })),
+        skipped,
+        keychain_item: keychain_item ?? null,
+      };
+    }
     case 'env_set': {
       const { file, values } = SetValues.parse(args);
       const env = await scope.load(file);
@@ -210,18 +274,27 @@ async function handle(name: string, args: unknown, scope: CallScope): Promise<un
       const { file, item, keys, rewrite_env } = ToKeychain.parse(args);
       const env = await scope.load(file);
       const wanted =
-        keys ?? [...env.map].filter(([, v]) => v.length >= MIN_SECRET_LEN && !KEYCHAIN_REF_RE.test(v)).map(([k]) => k);
+        keys ??
+        [...env.map]
+          .filter(([, v]) => v.length >= MIN_SECRET_LEN && !KEYCHAIN_REF_RE.test(v))
+          .map(([k]) => k);
       const values = new Map<string, string>();
       for (const k of wanted) {
         const v = env.map.get(k);
-        if (v === undefined || v === '') throw new Error(`Key ${k} is missing or empty in ${env.path}`);
+        if (v === undefined || v === '')
+          throw new Error(`Key ${k} is missing or empty in ${env.path}`);
         if (KEYCHAIN_REF_RE.test(v)) throw new Error(`Key ${k} is already a keychain reference`);
         values.set(k, v);
       }
       if (!values.size) throw new Error('Nothing to move');
       const refs = await storeItem(item, values);
       if (rewrite_env) await writeEnvFile(env.path, upsertEnv(env.text, refs));
-      return { file: env.path, item, moved: Object.fromEntries(refs), env_rewritten: Boolean(rewrite_env) };
+      return {
+        file: env.path,
+        item,
+        moved: Object.fromEntries(refs),
+        env_rewritten: Boolean(rewrite_env),
+      };
     }
     case 'env_check_refs': {
       const { file } = ListKeys.parse(args);
@@ -245,7 +318,8 @@ async function handle(name: string, args: unknown, scope: CallScope): Promise<un
       for (const f of files) {
         const env = await scope.load(f);
         const resolved = await resolveEnv(env.map);
-        for (const [key, value] of resolved) if (value !== env.map.get(key)) scope.secrets.push({ key, value });
+        for (const [key, value] of resolved)
+          if (value !== env.map.get(key)) scope.secrets.push({ key, value });
         const body = [...resolved].map(([key, value]) => `${key}=${value}`).join('\n');
         blocks.push(`### ${env.path}\n${body}`);
       }
@@ -265,10 +339,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const scope = new CallScope();
   try {
     const result = await handle(request.params.name, request.params.arguments, scope);
-    return { content: [{ type: 'text', text: redact(JSON.stringify(result, null, 2), scope.secrets) }] };
+    return {
+      content: [{ type: 'text', text: redact(JSON.stringify(result, null, 2), scope.secrets) }],
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { content: [{ type: 'text', text: `Error: ${redact(message, scope.secrets)}` }], isError: true };
+    return {
+      content: [{ type: 'text', text: `Error: ${redact(message, scope.secrets)}` }],
+      isError: true,
+    };
   }
 });
 

@@ -64,8 +64,9 @@ temp/
 id_rsa*
 *.key
 
-# Secret drop box — write-only paste target for live credentials (never commit, never Read)
+# Retired secret drop box (never commit, never Read) and age-encrypted secret files
 secret.txt
+*.age
 
 # Local scratch work (CSV dumps, one-off scripts) — never committed
 scratch/

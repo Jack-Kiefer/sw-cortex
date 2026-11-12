@@ -25,12 +25,21 @@ test('parseEnv handles quotes, export, comments', () => {
 });
 
 test('upsertEnv replaces in place and appends new keys', () => {
-  const out = upsertEnv('# head\nA=1\nB=2\n', new Map([['B', 'new'], ['C', 'has space']]));
+  const out = upsertEnv(
+    '# head\nA=1\nB=2\n',
+    new Map([
+      ['B', 'new'],
+      ['C', 'has space'],
+    ])
+  );
   assert.equal(out, '# head\nA=1\nB=new\nC="has space"\n');
 });
 
 test('redact strips full values and copied fragments', () => {
-  const secrets = [{ key: 'STRIPE', value: SECRET }, { key: 'PORT', value: '5003' }];
+  const secrets = [
+    { key: 'STRIPE', value: SECRET },
+    { key: 'PORT', value: '5003' },
+  ];
   const out = redact(`full ${SECRET} part ${SECRET.slice(5, 17)} port 5003`, secrets);
   assert.ok(!out.includes(SECRET));
   assert.ok(!out.includes(SECRET.slice(5, 13)));
@@ -48,10 +57,20 @@ test('MCP server never returns a secret value', async () => {
   await writeFile(drop, `NEW_TOKEN=${SECRET}xyz\n`);
   await symlink('/etc/hosts', join(dir, 'evil.env'));
   const kcService = `sw-vault-test-${process.pid}`;
+  const promptStub = join(dir, 'prompt-stub.sh');
+  await writeFile(
+    promptStub,
+    `#!/bin/sh\nscript=$(cat)\ncase "$script" in *SKIP_ME*) echo "execution error: User canceled. (-128)" >&2; exit 1;; esac\nprintf '  ${SECRET}prompted \\n'\n`,
+    { mode: 0o755 }
+  );
 
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: ['--import', 'tsx', fileURLToPath(new URL('../../mcp-servers/vault/index.ts', import.meta.url))],
+    args: [
+      '--import',
+      'tsx',
+      fileURLToPath(new URL('../../mcp-servers/vault/index.ts', import.meta.url)),
+    ],
     env: {
       ...(process.env as Record<string, string>),
       VAULT_ALLOWED_PATHS: `${dir}/*.env,${drop}`,
@@ -59,6 +78,7 @@ test('MCP server never returns a secret value', async () => {
       VAULT_KEYCHAIN_SERVICE: kcService,
       VAULT_FINGERPRINT_KEY_PATH: join(dir, 'fp.key'),
       VAULT_OLLAMA_URL: 'http://127.0.0.1:1',
+      VAULT_PROMPT_CMD: promptStub,
     },
   });
   const client = new Client({ name: 'vault-test', version: '0' });
@@ -104,8 +124,22 @@ test('MCP server never returns a secret value', async () => {
     const runScript = fileURLToPath(new URL('../../mcp-servers/vault/run.ts', import.meta.url));
     const printed = execFileSync(
       process.execPath,
-      ['--import', 'tsx', runScript, '--env-file', a, '--', process.execPath, '-e', 'process.stdout.write(String(process.env.STRIPE === process.argv[1]))', SECRET],
-      { env: { ...process.env, VAULT_KEYCHAIN_SERVICE: kcService }, stdio: ['ignore', 'pipe', 'ignore'] }
+      [
+        '--import',
+        'tsx',
+        runScript,
+        '--env-file',
+        a,
+        '--',
+        process.execPath,
+        '-e',
+        'process.stdout.write(String(process.env.STRIPE === process.argv[1]))',
+        SECRET,
+      ],
+      {
+        env: { ...process.env, VAULT_KEYCHAIN_SERVICE: kcService },
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }
     ).toString();
     assert.equal(printed, 'true');
 
@@ -115,10 +149,24 @@ test('MCP server never returns a secret value', async () => {
     const asked = await call('env_ask', { files: [a], question: 'anything?' });
     assert.match(asked, /Local model unreachable/);
     assert.ok(!asked.includes(SECRET));
+
+    const prompted = await call('env_prompt', { file: b, keys: ['PROMPTED_KEY', 'SKIP_ME'] });
+    assert.ok(!prompted.includes(SECRET));
+    const promptedJson = JSON.parse(prompted);
+    assert.deepEqual(promptedJson.skipped, ['SKIP_ME']);
+    assert.match(promptedJson.written[0].value, new RegExp(`^len=${SECRET.length + 8} `));
+    assert.match(await readFile(b, 'utf8'), new RegExp(`^PROMPTED_KEY=${SECRET}prompted$`, 'm'));
+
+    const badKey = await call('env_prompt', { file: b, keys: ['BAD KEY"'] });
+    assert.match(badKey, /^Error:/);
   } finally {
     await client.close();
     for (const k of ['STRIPE', 'ONLY_A']) {
-      spawnSync('/usr/bin/security', ['delete-generic-password', '-s', `${kcService}:a-env`, '-a', k], { stdio: 'ignore' });
+      spawnSync(
+        '/usr/bin/security',
+        ['delete-generic-password', '-s', `${kcService}:a-env`, '-a', k],
+        { stdio: 'ignore' }
+      );
     }
   }
 });
