@@ -1177,7 +1177,10 @@ def mcp_tool(name, tool_input, cwd, v):
         endpoint = tool_input.get("endpoint") or ""
         base = tool_input.get("base_url") or ""
         url = endpoint if re.match(r"^https?://", endpoint) else base
-        if method != "GET" and url and not re.match(r"^https?://(localhost|127\.0\.0\.1|\[::1\])([:/]|$)", url):
+        # serp-test (serp_test DB) is a test env; serp-staging reads PROD serp_app, so it still asks
+        if method != "GET" and url and not re.match(
+            r"^https?://(localhost|127\.0\.0\.1|\[::1\]|serp-test\.sugarwish\.com)([:/]|$)", url, re.I
+        ):
             v.add(ASK, "serp-api %s %s on %s" % (method, endpoint, url))
     elif re.match(r"^mcp__serpy(-dev)?__serpy_(approve|reject)$", name):
         base = tool_input.get("base_url") or ""
