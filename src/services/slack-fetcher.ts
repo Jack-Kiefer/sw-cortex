@@ -293,6 +293,65 @@ export async function fetchThreadReplies(
   return messages;
 }
 
+function slackErrorCode(error: unknown): string | undefined {
+  return (error as { data?: { error?: string } })?.data?.error;
+}
+
+// ts of every indexable top-level message still in the channel since `oldest`.
+// Throws on API errors so callers never mistake a failed fetch for "all deleted".
+export async function fetchChannelMessageTs(
+  channelId: string,
+  oldest: string
+): Promise<Set<string>> {
+  const client = getClient();
+  const seen = new Set<string>();
+  let cursor: string | undefined;
+  do {
+    const result = await client.conversations.history({
+      channel: channelId,
+      oldest,
+      limit: 200,
+      cursor,
+    });
+    for (const msg of result.messages || []) {
+      if (msg.user && msg.text && msg.ts) seen.add(msg.ts);
+    }
+    cursor = result.response_metadata?.next_cursor;
+    if (cursor) await delay(RATE_LIMIT_DELAY);
+  } while (cursor);
+  return seen;
+}
+
+// ts of every indexable reply still in a thread. Empty set when the whole thread is
+// gone (thread_not_found); throws on any other error.
+export async function fetchThreadReplyTs(
+  channelId: string,
+  threadTs: string
+): Promise<Set<string>> {
+  const client = getClient();
+  const seen = new Set<string>();
+  let cursor: string | undefined;
+  try {
+    do {
+      const result = await client.conversations.replies({
+        channel: channelId,
+        ts: threadTs,
+        limit: 200,
+        cursor,
+      });
+      for (const msg of result.messages || []) {
+        if (msg.ts && msg.ts !== threadTs && msg.user && msg.text) seen.add(msg.ts);
+      }
+      cursor = result.response_metadata?.next_cursor;
+      if (cursor) await delay(RATE_LIMIT_DELAY);
+    } while (cursor);
+  } catch (error) {
+    if (slackErrorCode(error) === 'thread_not_found') return seen;
+    throw error;
+  }
+  return seen;
+}
+
 // Test connection
 export async function testSlackConnection(): Promise<{
   connected: boolean;

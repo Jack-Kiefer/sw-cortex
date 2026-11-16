@@ -22,6 +22,8 @@ import {
   getEncryptedSyncStatus,
   resetEncryptedSyncState,
   searchSlackMessagesEncrypted,
+  reconcileDeletedMessages,
+  purgeSlackMessages,
 } from '../src/services/slack-sync-encrypted';
 import { testSlackConnection } from '../src/services/slack-fetcher';
 import { testOpenAIConnection, getEmbeddingModelInfo } from '../src/services/embeddings';
@@ -47,6 +49,15 @@ const flags = {
   all: args.includes('--all'), // Override to fetch all messages (no limit)
   threads: !args.includes('--no-threads'), // Threads enabled by default, use --no-threads to disable
   backfillThreads: args.includes('--backfill-threads'), // One-time heal of stuck thread replies
+  // Standalone reconcile: --reconcile (30 days) or --reconcile=DAYS
+  reconcileDays: (() => {
+    const a = args.find((x) => x === '--reconcile' || x.startsWith('--reconcile='));
+    if (!a) return undefined;
+    return parseInt(a.split('=')[1] || '30', 10);
+  })(),
+  noReconcile: args.includes('--no-reconcile'), // skip the post-sync deletion check
+  force: args.includes('--force'),
+  purge: args.find((a) => a.startsWith('--purge='))?.split('=')[1],
   help: args.includes('--help') || args.includes('-h'),
 };
 
@@ -72,6 +83,12 @@ OPTIONS:
   --no-threads    Skip thread replies (faster, default includes threads)
   --backfill-threads  One-time heal: re-check every thread in the last 14 days and
                   index late replies stuck on old parents (re-runnable, only adds)
+  --reconcile[=DAYS]  Only remove indexed messages deleted in Slack within the last
+                  DAYS (default 30). A normal sync already does this for 7 days.
+  --no-reconcile  Skip the post-sync deletion check
+  --force         Bypass the reconcile guard that skips a channel when over half its
+                  window looks deleted
+  --purge=CH:TS[,CH:TS...]  Delete specific messages from the index by channel + ts
   --help, -h      Show this help
 
 EXAMPLES:
@@ -82,6 +99,8 @@ EXAMPLES:
   npm run slack:sync -- --limit=500           # Sync only 500 most recent per channel
   npm run slack:sync -- --reset               # Re-sync everything from scratch
   npm run slack:sync -- --search="budget"     # Search encrypted messages
+  npm run slack:sync -- --reconcile=90        # Drop messages deleted in Slack (90 days)
+  npm run slack:sync -- --purge=D0123:1700000000.000100
 
 COLLECTION: slack_messages_encrypted (AES-256-GCM encrypted)
 `);
@@ -242,10 +261,44 @@ async function runSync() {
         console.log(`  - ${error}`);
       }
     }
+
+    if (!flags.noReconcile) {
+      await runReconcile(POST_SYNC_RECONCILE_DAYS);
+    }
   } catch (error) {
     console.error('\n❌ Sync failed:', error);
     process.exit(1);
   }
+}
+
+// Deletions usually happen soon after posting, so every sync re-checks the last week.
+const POST_SYNC_RECONCILE_DAYS = 7;
+
+async function runReconcile(days: number): Promise<void> {
+  console.log(
+    `\n🧹 Reconciling deletions (last ${days} days)${flags.dryRun ? ' [DRY RUN]' : ''}...`
+  );
+  const r = await reconcileDeletedMessages({
+    days,
+    dryRun: flags.dryRun,
+    verbose: flags.verbose,
+    force: flags.force,
+  });
+  console.log(
+    `  Channels checked: ${r.channelsChecked}, messages checked: ${r.pointsChecked}, ` +
+      `${flags.dryRun ? 'would delete' : 'deleted'}: ${r.pointsDeleted}`
+  );
+  for (const error of r.errors) console.log(`  ⚠️  ${error}`);
+}
+
+async function runPurge(spec: string): Promise<void> {
+  const refs = spec.split(',').map((pair) => {
+    const [channelId, ts] = pair.split(':');
+    if (!channelId || !ts) throw new Error(`Bad --purge entry "${pair}" (want CHANNEL:TS)`);
+    return { channelId, ts };
+  });
+  const removed = await purgeSlackMessages(refs);
+  console.log(`🗑️  Purged ${removed} of ${refs.length} requested messages from the index`);
 }
 
 async function main() {
@@ -271,6 +324,16 @@ async function main() {
 
   if (flags.search) {
     await runSearch(flags.search);
+    return;
+  }
+
+  if (flags.purge) {
+    await runPurge(flags.purge);
+    return;
+  }
+
+  if (flags.reconcileDays !== undefined) {
+    await runReconcile(flags.reconcileDays);
     return;
   }
 
