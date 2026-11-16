@@ -6,6 +6,8 @@ import {
   streamChannels,
   fetchChannelMessages,
   fetchThreadReplies,
+  fetchChannelMessageTs,
+  fetchThreadReplyTs,
   testSlackConnection,
   SlackMessage,
 } from './slack-fetcher';
@@ -587,6 +589,146 @@ export async function syncSlackMessagesEncrypted(
 // Get current sync status for encrypted collection
 export function getEncryptedSyncStatus(): SyncState {
   return loadSyncState();
+}
+
+export interface ReconcileOptions {
+  days: number; // look-back window; only points newer than this are checked
+  dryRun?: boolean;
+  verbose?: boolean;
+  force?: boolean; // skip the mass-deletion guard
+}
+
+export interface ReconcileResult {
+  channelsChecked: number;
+  pointsChecked: number;
+  pointsDeleted: number;
+  errors: string[];
+}
+
+// Above this share of a channel's window, a reconcile looks like an API problem rather
+// than real deletions, so the channel is skipped unless --force.
+const MASS_DELETE_GUARD = { ratio: 0.5, minCount: 20 };
+
+interface IndexedRef {
+  pointId: string;
+  messageId: string;
+  threadTs?: string;
+}
+
+async function listIndexedRefs(channelId: string, oldest: number): Promise<IndexedRef[]> {
+  const client = getQdrantClient();
+  const refs: IndexedRef[] = [];
+  let offset: string | number | undefined;
+  do {
+    const res = await client.scroll(ENCRYPTED_COLLECTION, {
+      limit: 500,
+      offset,
+      with_payload: ['messageId', 'threadTs'],
+      with_vector: false,
+      filter: {
+        must: [
+          { key: 'channelId', match: { value: channelId } },
+          { key: 'timestamp', range: { gte: oldest } },
+        ],
+      },
+    });
+    for (const p of res.points) {
+      const pl = (p.payload ?? {}) as { messageId?: string; threadTs?: string };
+      if (pl.messageId)
+        refs.push({ pointId: String(p.id), messageId: pl.messageId, threadTs: pl.threadTs });
+    }
+    offset = (res.next_page_offset as string | number | null | undefined) ?? undefined;
+  } while (offset !== undefined);
+  return refs;
+}
+
+// Remove indexed messages that no longer exist in Slack (deleted messages and
+// threads). The incremental sync only ever upserts, so without this a message
+// deleted in Slack stays searchable forever.
+export async function reconcileDeletedMessages(
+  options: ReconcileOptions
+): Promise<ReconcileResult> {
+  const result: ReconcileResult = {
+    channelsChecked: 0,
+    pointsChecked: 0,
+    pointsDeleted: 0,
+    errors: [],
+  };
+  const client = getQdrantClient();
+  const state = loadSyncState();
+  const oldest = Date.now() / 1000 - options.days * 86400;
+
+  for (const channel of Object.values(state.channels)) {
+    const refs = await listIndexedRefs(channel.channelId, oldest);
+    if (refs.length === 0) continue;
+    result.channelsChecked++;
+    result.pointsChecked += refs.length;
+
+    const stale: IndexedRef[] = [];
+    try {
+      const liveTop = await fetchChannelMessageTs(channel.channelId, String(oldest));
+      const repliesByThread = new Map<string, IndexedRef[]>();
+      for (const ref of refs) {
+        if (!ref.threadTs || ref.threadTs === ref.messageId) {
+          if (!liveTop.has(ref.messageId)) stale.push(ref);
+        } else {
+          const list = repliesByThread.get(ref.threadTs) ?? [];
+          list.push(ref);
+          repliesByThread.set(ref.threadTs, list);
+        }
+      }
+      for (const [threadTs, replies] of repliesByThread) {
+        try {
+          const liveReplies = await fetchThreadReplyTs(channel.channelId, threadTs);
+          stale.push(...replies.filter((r) => !liveReplies.has(r.messageId)));
+        } catch (error) {
+          result.errors.push(`${channel.channelName} thread ${threadTs}: ${String(error)}`);
+        }
+      }
+    } catch (error) {
+      result.errors.push(`${channel.channelName}: ${String(error)}`);
+      continue;
+    }
+
+    if (stale.length === 0) continue;
+    const guardTripped =
+      stale.length >= MASS_DELETE_GUARD.minCount &&
+      stale.length / refs.length > MASS_DELETE_GUARD.ratio;
+    if (guardTripped && !options.force) {
+      result.errors.push(
+        `${channel.channelName}: ${stale.length}/${refs.length} points look deleted; skipped (use --force)`
+      );
+      continue;
+    }
+    if (options.verbose || options.dryRun) {
+      console.log(`  ${channel.channelName}: ${stale.length} deleted in Slack`);
+    }
+    if (!options.dryRun) {
+      await client.delete(ENCRYPTED_COLLECTION, {
+        wait: true,
+        points: stale.map((r) => r.pointId),
+      });
+    }
+    result.pointsDeleted += stale.length;
+  }
+  return result;
+}
+
+// Delete specific messages (channelId + ts) from the index. Returns how many were present.
+export async function purgeSlackMessages(
+  refs: { channelId: string; ts: string }[]
+): Promise<number> {
+  const client = getQdrantClient();
+  const ids = refs.map((r) => generatePointId(r.channelId, r.ts));
+  const present = await client.retrieve(ENCRYPTED_COLLECTION, {
+    ids,
+    with_payload: false,
+    with_vector: false,
+  });
+  if (present.length > 0) {
+    await client.delete(ENCRYPTED_COLLECTION, { wait: true, points: present.map((p) => p.id) });
+  }
+  return present.length;
 }
 
 // Reset sync state for encrypted collection
