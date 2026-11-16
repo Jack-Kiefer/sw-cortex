@@ -2695,6 +2695,11 @@ sugarwish-laravel: prod `blue`. Never assume `main` is correct.
 Workflow: search first, then pull context on interesting hits using the returned
 `channelId` + `timestamp`. Indexing syncs via `npm run slack:sync` in sw-cortex.
 
+**Gotcha: the index can return messages already deleted in Slack.** Deletions were not propagated
+to Qdrant, and a 2026-11-16 credential sweep found plaintext secrets (an AWS login, a pasted SERP
+`.env`) in such deleted messages. Treat a hit as history, not current Slack state; never print a
+secret from a hit (refer to it by type + message id); purge from the index only with Jack's yes.
+
 ### Slack posting / reading (`mcp__jack-slack__*`)
 
 | Need to...           | Do this                                                         |
