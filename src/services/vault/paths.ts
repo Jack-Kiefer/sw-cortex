@@ -9,6 +9,7 @@ const DEFAULT_GLOBS = [
   `${PROJECTS}/SERP/.env`,
   `${PROJECTS}/SERP/.worktrees/*/.env`,
   `${PROJECTS}/SWAC/.env`,
+  `${PROJECTS}/livery/.env`,
   `${PROJECTS}/sw-cortex/.env`,
   `${PROJECTS}/sw-cortex/secret.txt`,
   '/private/tmp/*/.env',
