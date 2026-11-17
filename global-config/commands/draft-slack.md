@@ -45,7 +45,7 @@ AI-written Slack messages read as robotic in specific, recognizable ways. Strip 
 - **Restating the question back.** No "Regarding your question about the inventory number...". Just answer it.
 - **Answering more than was asked.** When Jack pastes or quotes a specific message and says to respond to it, the draft answers THAT message's questions and nothing else. Don't fold in earlier context, corrections to what he said before, sequencing advice, or extra asks unless he says to add them. ("No, just respond to this. When would you like to start and what should I do on my end?")
 - **Crediting the wrong person.** Keep straight who found or said what. If the other person raised one thing and Jack noticed a second, write it that way: agree with theirs, then `I also noticed …` for his. Never "you're right on both" when they only raised one. ("but she didn't find two things. She just found that one thing.")
-- **Bullet-point walls** for something that's really one or two sentences. Write plain running sentences.
+- **Bullet-point walls** for something that's really one or two sentences. Write plain running sentences. (A real list of several items, or technical detail, is different: see the two-part shape under "Length and shape".)
 - **Effusive thanks.** No "Thank you so much, I really appreciate it!" standalone. Jack tacks a short "thanks" onto the end.
 
 ## Step 2 — Write like Jack
@@ -67,7 +67,11 @@ Jack's real voice, mined from his actual Slack messages. Match it:
 
 ### Length and shape
 
-- One line. Usually a single short fragment or sentence. Rarely more than two sentences. Never a bullet list.
+- Simple acks, status updates and asks: one line. Usually a single short fragment or sentence. Rarely more than two sentences. No bullets.
+- **Lists and technical content get a two-part shape.** When the message carries several items (changes, kits, SKUs, steps, questions) or technical detail (tables, fields, ids, root cause), split it:
+  1. **Human part on top:** one or two plain lines in Jack's voice, written the same way as everything above (greeting/`Ok`/`Yeah`, the point, any ask).
+  2. **Detail part below:** the items as a bullet list (`•` or `-`), one item per bullet, short and scannable. Technical wording, table/field names and ids are fine here, and backticks for code/ids are fine. Questions that need answers go as numbered lines.
+  Still no em dashes and no AI boilerplate in either part. Don't bullet something that's really one or two sentences.
 - Short messages get **no terminal period** (`Fixed now`, `Ok updated`, `Deploying now`). Longer sentences get a period.
 - Contractions throughout. He often drops the apostrophe (`its updated`, `Its because`) and that reads as authentic, so don't over-correct grammar.
 - No emoji in status updates, acks, thanks, or asks.
@@ -103,6 +107,15 @@ Ok thanks no rush on it actually. Just need it in the next few days.
 Do you just want to hop on a call and see if I can figure it out?
 Good morning. This is fixed now
 This change is live can you take a look when you get a chance?
+```
+
+Two-part shape (list or technical detail):
+
+```
+Ok these are all in SERP now. Can you double check the box sizes when you get a chance?
+• Deluxe Grand: 12x10x4 box, C2 spacer
+• Petite: 8x6x3 box, no insert
+• Moka pot kit: combined with the Bialetti SKU
 ```
 
 ## Output
