@@ -175,7 +175,7 @@ check stays report-only. Speed: batch the file/env/git checks into **one** Bash 
 MCP probes as parallel tool calls (a slow/erroring probe is a ⚠️, not something to wait on — keep
 timeouts tight, ~5s).
 
-Run these ten checks:
+Run these twelve checks:
 
 1. **MCP servers reachable (6).** These can only be probed from inside the session via the tools
    themselves (a shell can't see MCP state). Call one cheap read-only tool per server and mark ✅ if
@@ -274,8 +274,8 @@ started …` if it booted them; `♻️ repaired …` if it restarted an unhealt
    exits `2` / prints a **Full Disk Access** block (launchd can't read the `~/Desktop` repo without FDA
    on `/bin/bash`), surface that one-time remedy — grant FDA to `/bin/bash` in System Settings →
    Privacy & Security → Full Disk Access, then re-run the installer. These two, the Docker check (#8),
-   and the memory audit (#10) are the only Step 0 items allowed to start, restart or stop anything;
-   everything else stays report-only.
+   the memory audit (#10), the disk check (#11) and the Codex history limit (#12) are the only
+   Step 0 items allowed to start, restart, stop or delete anything; everything else stays report-only.
 
 10. **Memory audit + reclaim swap (stops stale servers).** This 16 GB Mac hard-crashed on 2026-09-02
     from swap exhaustion, and week-old SERP pm2 dev servers (~1–3 GB each) are the usual hogs. On
@@ -292,6 +292,29 @@ started …` if it booted them; `♻️ repaired …` if it restarted an unhealt
     sessions' MCP servers, so list them with their age and leave them running. - **Snapshot after** and report the difference, e.g. `🔧 memory: stopped 6 stale pm2 servers
 (fmea-native 22d, …) · swap 22.7→11.6 GB · free 30→35%`. Give ⚠️ when swap free is still
     < 2 GB after the stops, and name the top remaining hogs with a one-line remedy.
+
+11. **Disk space (clears safe caches when low).** On 2026-11-18 the 228 GB disk was down to 6.8 GB
+    free, mostly from stale worktrees (~20 GB), Codex history (~16 GB) and app caches. Read free
+    space with `df -h /`. At **≥ 15 GB free**, report ✅ with the number. Under 15 GB, clear these
+    caches, which apps rebuild on their own, and report what each freed:
+    - `~/Library/Caches/com.microsoft.VSCode.ShipIt` and
+      `~/Library/Application Support/Code/CachedExtensionVSIXs` (old VS Code update and extension downloads)
+    - `~/Library/Caches/ms-playwright`, only if no process is running from it
+      (`pgrep -f ms-playwright` prints nothing)
+    - `~/Library/Caches/Google/Chrome`, only if Chrome is not running (`pgrep -xq "Google Chrome"` fails)
+    - `npm cache clean --force`
+
+    Never touch Docker volumes, `~/.claude/projects`, the Claude app data folder, the Chrome profile
+    or any repo. If free space is still under 15 GB afterwards, give ⚠️ with the 3 largest folders
+    under `~` (`du -sh ~/* ~/.[!.]* 2>/dev/null | sort -rh | head -3`) and point at the worktree
+    report from Step 6.
+
+12. **Codex history limit (30 days).** Codex never deletes its own chat transcripts, and
+    `~/.codex/sessions` reached 13 GB. Delete transcripts older than 30 days:
+    `find ~/.codex/sessions -type f -name '*.jsonl' -mtime +30 -delete`, then
+    `find ~/.codex/sessions -type d -empty -delete`. Measure `du -sh ~/.codex/sessions` before and
+    after and report the difference. Leave `~/.codex/thread_history_*.sqlite` and everything else
+    under `~/.codex` alone.
 
 **Return:** the rendered `### 🩺 Setup health` panel (the agent does not print `✅ Step 0
 done` — the orchestrator does that when the result lands).
@@ -991,7 +1014,7 @@ stash`, no making a read-only repo writable) — those are always `note`s, enfor
 > doesn't otherwise matter; it touches only writable repos' worktrees, nothing the other steps read.
 
 Unless `skip-shutdown` was passed, run the **`/shutdown`** command's full logic (read
-`~/.claude/commands/shutdown.md` and follow it): sweep SERP + SWAC + sw-cortex and remove every
+`~/.claude/commands/shutdown.md` and follow it): sweep SERP + SWAC + sw-cortex + sw-design + livery (including their `/tmp` worktrees) and remove every
 worktree that is **not in use**, leaving anything in use untouched. Do **not** reimplement the rules
 here — `/shutdown` is the single source of truth for them. The load-bearing guarantees it enforces:
 
@@ -1092,6 +1115,11 @@ not just what was recommended — and list anything deferred under "needs Jack":
 
 ### 🧹 Worktrees
 - <N removed (clean+idle), M kept in use (dirty/unpushed/live), K protected skipped — or "none to clean">
+- <node_modules pruned from idle worktrees: N (X GB) · disk free before → after>
+- <Stale (needs Jack): <repo>/<name> idle Nd, N dirty files, PR state — one line each, or omit>
+
+### 💾 Disk
+- <free GB; caches cleared if under 15 GB; Codex transcripts trimmed (X GB)>
 
 ### 💬 Needs your attention (Slack, past 2 days)
 - [#channel](<slack-permalink>) · <person>: <the ask>  (you haven't replied)
@@ -1123,7 +1151,9 @@ before ending the turn.
   reinstalls, prunes a worktree, or stops the routine — **except check 8 (Docker + local dev DB),
   which Jack opted to let auto-start if down** (bounded poll, no `timeout` binary on this Mac, ⚠️ and
   move on if it can't come up), check 9 (reminder services), and **check 10 (memory audit), which
-  `pm2 stop`s dev servers idle ≥ 5 days to reclaim swap**. The worktree check in particular stays list-and-flag only, and
+  `pm2 stop`s dev servers idle ≥ 5 days to reclaim swap**, **check 11 (disk), which clears
+  rebuildable app caches when free space is under 15 GB**, and **check 12, which deletes Codex
+  transcripts older than 30 days**. The worktree check in particular stays list-and-flag only, and
   never touches the protected/locked worktrees. It owns the **only live MCP probes** — Step 5
   stays transcript-only so the two don't double-probe.
 - **Step 1b (meeting-notes sync) is an orchestrator step, like Step 1.** It fetches the Gemini

@@ -22,8 +22,10 @@ Writable repo roots:
 - SERP → `/Users/jackkief/Desktop/Projects/SERP`
 - SWAC → `/Users/jackkief/Desktop/Projects/SWAC`
 - sw-cortex → `/Users/jackkief/Desktop/Projects/sw-cortex`
+- sw-design → `/Users/jackkief/Desktop/Projects/sw-design`
+- livery → `/Users/jackkief/Desktop/Projects/livery`
 
-If `$ARGUMENTS` names one repo (serp / swac / cortex / sw-cortex, case-insensitive) limit to that root; otherwise sweep all three.
+Skip a root whose folder doesn't exist. If `$ARGUMENTS` names one repo (serp / swac / cortex / sw-cortex / sw-design / livery, case-insensitive) limit to that root; otherwise sweep all of them.
 
 For each root, enumerate `git -C <root> worktree list --porcelain`. A worktree is a **candidate** only if ALL of these hold — otherwise **never touch it**:
 
@@ -33,7 +35,11 @@ For each root, enumerate `git -C <root> worktree list --porcelain`. A worktree i
   - `…/SERP/.claude/worktrees/wf_817b7ab1-a1b-*` (the locked workflow worktrees)
   - `…/SERP/.claude/worktrees/agent-*` (the agent worktree)
   - `…/serp-hotfix-mo-grounding` (sibling hotfix worktree)
-- Its path is under the repo (a real managed worktree, not a stray external checkout).
+- Its path is under the repo **or** under `/tmp` / `/private/tmp` (the standard place the hub makes
+  worktrees). Most worktrees live in `/tmp`, so skipping them let 3 GB sw-design worktrees pile up
+  for weeks after their PRs merged.
+- It is **not** the worktree the current session is working in (e.g. this run's
+  `/tmp/cortex-pr-startday-<date>`).
 
 ```bash
 # protected-path guard (return 0 = skip)
@@ -86,6 +92,29 @@ If all three are true, run `pm2 stop <app>` (**stop, never `delete`**, so `pm2 s
 worktree and branch alone. Report it as `stopped stale server: <app> (up Nd)`. When
 unsure whether a peer session is using the server, keep it running.
 
+### 3c. Idle kept worktree — delete its `node_modules`, keep the work
+
+Each worktree carries its own `node_modules` (~1 GB for SERP, ~3 GB for sw-design), and kept
+worktrees are mostly kept for a few uncommitted files, not for the install. For a kept worktree
+where:
+
+- no live process has its cwd inside `<path>` and no pm2 app runs from it, **and**
+- nothing in the worktree (excluding `node_modules`) has changed in **≥ 7 days**
+  (`find <path> -path '*/node_modules' -prune -o -type f -mtime -7 -print -quit` prints nothing),
+
+remove every `node_modules` directory inside it
+(`find <path> -name node_modules -type d -prune -exec rm -rf {} +`). This only deletes installed
+packages; `npm ci` rebuilds them. Never touch tracked or untracked source files. Report it as
+`pruned node_modules: <repo>/<name> (<size>)`.
+
+### 3d. Stale dirty worktree — report it so Jack decides
+
+A worktree kept only because it has uncommitted files, with nothing changed in **≥ 14 days**, is
+probably abandoned work. Don't remove it. List it in the report under **Stale (needs Jack)**
+with its age, dirty-file count, branch and PR state (`gh pr list --head <branch> --state all`),
+so Jack can commit or drop it. Without this list, these worktrees pile up unseen (22 in SERP on
+2026-11-18).
+
 ## 4. Kill the dev server — match by cwd, verify ports freed
 
 Only for not-in-use worktrees (by definition no live session here, but a stale/orphaned server may still hold ports):
@@ -126,6 +155,9 @@ One combined summary across all repos swept:
 
 - **Removed:** `<repo>/<name>` — server stopped (ports `<fe>/<be>` freed), worktree removed, branch deleted/kept.
 - **Kept (in use):** `<repo>/<name>` — why (dirty / unpushed commits / live server / live session).
+- **Pruned node_modules:** `<repo>/<name>` — size freed (step 3c).
+- **Stale (needs Jack):** `<repo>/<name>` — idle Nd, N dirty files, branch, PR state (step 3d).
+- **Disk:** free space before → after (`df -h /`).
 - **Protected (always skipped):** count of `wf_817b7ab1-*` + `agent-*` + `serp-hotfix-mo-grounding` left untouched.
 
 Set the tab to `✅ done` at the end.
