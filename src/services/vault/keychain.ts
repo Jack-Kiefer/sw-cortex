@@ -22,7 +22,9 @@ function runSecurity(args: string[], stdin?: string): Promise<string> {
     child.stderr.on('data', (d: Buffer) => (err += d.toString()));
     child.on('error', reject);
     child.on('close', (code) =>
-      code === 0 ? resolve(out) : reject(new Error(`security ${args[0] ?? '-i'} failed: ${err.trim()}`))
+      code === 0
+        ? resolve(out)
+        : reject(new Error(`security ${args[0] ?? '-i'} failed: ${err.trim()}`))
     );
     child.stdin.end(stdin ?? '');
   });
@@ -34,11 +36,16 @@ const quote = (s: string): string => `"${s.replace(/\\/g, '\\\\').replace(/"/g, 
  * Stores each value as a generic password (service sw-vault:<item>, account <KEY>).
  * Commands go through `security -i` on stdin, so values never appear in argv / `ps`.
  */
-export async function storeItem(item: string, values: Map<string, string>): Promise<Map<string, string>> {
+export async function storeItem(
+  item: string,
+  values: Map<string, string>
+): Promise<Map<string, string>> {
   const lines: string[] = [];
   for (const [key, value] of values) {
     if (/[\r\n]/.test(value)) throw new Error(`Value for ${key} contains a newline; not supported`);
-    lines.push(`add-generic-password -U -s ${quote(service(item))} -a ${quote(key)} -w ${quote(value)}`);
+    lines.push(
+      `add-generic-password -U -s ${quote(service(item))} -a ${quote(key)} -w ${quote(value)}`
+    );
   }
   await runSecurity(['-i'], `${lines.join('\n')}\n`);
   return new Map([...values.keys()].map((k) => [k, keychainRef(item, k)]));

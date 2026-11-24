@@ -31,7 +31,12 @@ function globToRegExp(glob: string): RegExp {
 
 function allowedPatterns(): RegExp[] {
   const raw = process.env.VAULT_ALLOWED_PATHS;
-  const globs = raw ? raw.split(',').map((g) => g.trim()).filter(Boolean) : DEFAULT_GLOBS;
+  const globs = raw
+    ? raw
+        .split(',')
+        .map((g) => g.trim())
+        .filter(Boolean)
+    : DEFAULT_GLOBS;
   return globs.map(globToRegExp);
 }
 
