@@ -9,7 +9,8 @@ export const MIN_SECRET_LEN = 6;
 const WINDOW = 8;
 
 const KEY_PATH =
-  process.env.VAULT_FINGERPRINT_KEY_PATH ?? join(homedir(), '.config', 'sw-vault', 'fingerprint.key');
+  process.env.VAULT_FINGERPRINT_KEY_PATH ??
+  join(homedir(), '.config', 'sw-vault', 'fingerprint.key');
 
 let hmacKey: Buffer | undefined;
 function fingerprintKey(): Buffer {

@@ -24,7 +24,8 @@ function parseArgs(argv: string[]): { envFiles: string[]; command: string[] } {
     if (opts[i] === '--env-file' && opts[i + 1]) envFiles.push(opts[++i]);
     else throw new Error(`Unknown option: ${opts[i]}`);
   }
-  if (!command.length) throw new Error('Usage: vault-run.sh [--env-file <path>]... -- <command> [args...]');
+  if (!command.length)
+    throw new Error('Usage: vault-run.sh [--env-file <path>]... -- <command> [args...]');
   return { envFiles: envFiles.length ? envFiles : ['.env'], command };
 }
 
@@ -33,7 +34,9 @@ async function main(): Promise<void> {
   const childEnv: NodeJS.ProcessEnv = { ...process.env };
   let resolved = 0;
   for (const file of envFiles) {
-    const refs = new Map([...toMap(parseEnv(await readEnvFile(file)))].filter(([, v]) => KEYCHAIN_REF_RE.test(v)));
+    const refs = new Map(
+      [...toMap(parseEnv(await readEnvFile(file)))].filter(([, v]) => KEYCHAIN_REF_RE.test(v))
+    );
     for (const [k, v] of await resolveEnv(refs)) {
       childEnv[k] = v;
       resolved++;
@@ -42,7 +45,8 @@ async function main(): Promise<void> {
   process.stderr.write(`vault-run: resolved ${resolved} keychain secret(s)\n`);
 
   const child = spawn(command[0], command.slice(1), { stdio: 'inherit', env: childEnv });
-  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.on(sig, () => child.kill(sig));
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const)
+    process.on(sig, () => child.kill(sig));
   child.on('error', (err) => {
     process.stderr.write(`vault-run: ${err.message}\n`);
     process.exit(127);
