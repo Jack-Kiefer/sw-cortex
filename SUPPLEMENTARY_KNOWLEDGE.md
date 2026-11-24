@@ -51,7 +51,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 **Jason Kiefer** — CEO; final word on product/pricing/strategy. Despite being exec, deeply hands-on: processes WishDesk tickets, runs SQL/Retool, ships PRs, fixes data in Laravel (`design_boxes`, sw-design). Owns `jasonbkiefer` org: `SWAC` (=WishDesk), `swirl` (=WishWorks), `sw-design`. Originated: **core SKU** concept, 90% availability goal, `is_core` flag, `sa_inventory_days`, `total_inventory_days`, Inventory Days formula, canonical forecast view `serp.sugarwish.com/forecast/live-products`. Architected Proposal system, design suite, custom shoppe, Custom Merchandise + AI/SWIRL. Final escalation on discounts (`#enterprise`). Local SWAC repo: `/Users/jasonkiefer/Documents/GitHub/SWAC`.
 
-**Jack Kiefer** — the user; Solutions Engineer; sole SERP owner-dev (~95% author). jack@sugarwish.com; Colorado; `Jack-Kiefer` org; repo `Jack-Kiefer/SERP`; prod server `/opt/SERP`. De-facto PM of SERP; runs weekly SERP meeting (Tue 8 AM); plans in `#serp-planning`. Owns: SERP, SERP↔Odoo↔Laravel sync, Volume & Supplier Forecasting app, shipping report, auto-disable/drop-level workflow, order queue, darklaunch replica, n8n automations, Retool dashboards, SERPY. Joined dev team ~mid-Feb 2025. Infra/Hetzner = **Munyr** (Jack is a consumer); cross-team design/product = **Jason**.
+**Jack Kiefer** — the user; Solutions Engineer; sole SERP owner-dev (~95% author). jack@sugarwish.com; Colorado; `Jack-Kiefer` org; repo `sugarwish/SERP`; prod server `/opt/SERP`. De-facto PM of SERP; runs weekly SERP meeting (Tue 8 AM); plans in `#serp-planning`. Owns: SERP, SERP↔Odoo↔Laravel sync, Volume & Supplier Forecasting app, shipping report, auto-disable/drop-level workflow, order queue, darklaunch replica, n8n automations, Retool dashboards, SERPY. Joined dev team ~mid-Feb 2025. Infra/Hetzner = **Munyr** (Jack is a consumer); cross-team design/product = **Jason**.
 
 **Anna Kifer** — Director, Software Dev & QA; dev PM, QA gate, SERP sponsor. Owns Jira/WishWorks board; approves/assigns/triages WW-\* tickets (gated on Seth's technical approval). Gates QA, dev on-call, glitch-to-bug process, release timelines, "Tech L10". Primary liaison to Prixite/Manish; co-sponsor AWS→Hetzner. Ticket actions attributed to "Anna Kifer via WishWorks UI" in commits.
 
@@ -118,7 +118,7 @@ All report to CEO/founder **Jason Kiefer**. Technology org is co-led by **Seth F
 
 | Repo / System                              | Owner                                 | Notes                                                        |
 | ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------ |
-| `Jack-Kiefer/SERP`                         | **Jack** (solo)                       | Reviewed by Seth+Anna; sponsor Matt; `carolyn/pack-tomorrow` |
+| `sugarwish/SERP`                         | **Jack** (solo)                       | Reviewed by Seth+Anna; sponsor Matt; `carolyn/pack-tomorrow` |
 | `sethfinley/sugarwish-laravel`             | **Seth** + Prixite                    | Main/legacy e-commerce monolith                              |
 | `sethfinley/sugarwish-odoo`                | **Seth** + Prixite (Manish)           | `prixite_customization`; Odoo 15 modules                     |
 | `sethfinley/sugarwish-frontend-react`      | **Seth**                              | React receiver app                                           |
