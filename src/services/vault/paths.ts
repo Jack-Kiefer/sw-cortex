@@ -8,7 +8,10 @@ const PROJECTS = join(homedir(), 'Desktop', 'Projects');
 const DEFAULT_GLOBS = [
   `${PROJECTS}/SERP/.env`,
   `${PROJECTS}/SERP/.worktrees/*/.env`,
+  `${PROJECTS}/SERP/.claude/worktrees/*/.env`,
   `${PROJECTS}/SWAC/.env`,
+  `${PROJECTS}/SWAC/.worktrees/*/.env`,
+  `${PROJECTS}/SWAC/.claude/worktrees/*/.env`,
   `${PROJECTS}/livery/.env`,
   `${PROJECTS}/sw-cortex/.env`,
   `${PROJECTS}/sw-cortex/secret.txt`,
