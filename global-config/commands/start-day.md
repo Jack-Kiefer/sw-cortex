@@ -434,9 +434,9 @@ A quick read-only pass over SERP's repo state — what's awaiting Jack on the PR
 the repo he owns and merges; this stays SERP-only. (Fold into the Step 2 agent if you prefer one
 fewer agent — both are read-only SERP/SWIRL reads; keep their outputs distinct in the return.)
 
-**Open PRs awaiting Jack.** List open `Jack-Kiefer/SERP` PRs that involve him — authored by, assigned
+**Open PRs awaiting Jack.** List open `sugarwish/SERP` PRs that involve him — authored by, assigned
 to, or review-requested of Jack. Use `mcp__github__list_pull_requests { repo: "SERP", state: "open" }`
-(or `gh pr list --repo Jack-Kiefer/SERP --state open`). One line each: `#<num> · <title> · (yours,
+(or `gh pr list --repo sugarwish/SERP --state open`). One line each: `#<num> · <title> · (yours,
 <mergeable?> / review requested)`. If `gh`/the github MCP errors, note it and move on (don't block).
 
 **Deploy status (light count only).** Show how far SERP's `dev` is ahead of `main` — the queue for
@@ -665,7 +665,7 @@ none, return "none parked — clean slate."
 
 **Backstop the merge hook.** For each save that has a `pr` number, check whether that PR has merged
 since it was parked (a merge done from the GitHub UI or by a teammate won't have fired the
-PostToolUse hook). For SERP saves: `gh pr view <pr> --repo Jack-Kiefer/SERP --json state -q .state`
+PostToolUse hook). For SERP saves: `gh pr view <pr> --repo sugarwish/SERP --json state -q .state`
 (SWAC: `--repo <swac-repo>`). If a PR shows `MERGED`, auto-close that save and note it:
 
 ```bash

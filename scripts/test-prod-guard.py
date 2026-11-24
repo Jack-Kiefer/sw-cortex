@@ -113,8 +113,8 @@ BASH = [
     ("deny", "git push origin :main"),
     ("deny", "git push origin --delete main"),
     ("deny", "git -C /Users/jackkief/Desktop/Projects/SERP push --mirror origin"),
-    ("deny", "gh repo delete Jack-Kiefer/SERP --yes"),
-    ("deny", "gh api -X DELETE repos/Jack-Kiefer/SERP/git/refs/heads/main"),
+    ("deny", "gh repo delete sugarwish/SERP --yes"),
+    ("deny", "gh api -X DELETE repos/sugarwish/SERP/git/refs/heads/main"),
     # ---- aws ----------------------------------------------------------------------------------
     ("deny", "aws ecr batch-delete-image --repository-name serp-backend --image-ids imageTag=x"),
     ("deny", "aws rds delete-db-instance --db-instance-identifier database-1"),
@@ -180,7 +180,7 @@ BASH = [
     ("allow", "git status && git diff HEAD"),
     ("allow", "gh pr create --base main --head prod-guard --title x --body y"),
     ("allow", "gh pr view 123 --json state"),
-    ("allow", "gh api repos/Jack-Kiefer/SERP/pulls/12"),
+    ("allow", "gh api repos/sugarwish/SERP/pulls/12"),
     ("allow", "curl -s https://serp.sugarwish.com/health"),
     ("allow", "bash %s" % SAFE_SCRIPT),
     ("allow", "rm -rf node_modules dist"),
@@ -200,8 +200,8 @@ BASH = [
     # inline code cannot be told from data: a namespace-delete string inside it asks, never denies
     ("ask", "python3 - <<'PY'\np='docs/runbook.md'; s=open(p).read()\ns=s.replace('kubectl get ns','kubectl delete ns serp  # never')\nopen(p,'w').write(s)\nPY"),
     ("ask", "ssh %s \"mysql -h5.161.233.240 serp_app -e 'KILL 9058'\"" % P),
-    ("ask", "gh api -X DELETE repos/Jack-Kiefer/SERP/deployments/123"),
-    ("deny", "gh api -X DELETE repos/Jack-Kiefer/SERP"),
+    ("ask", "gh api -X DELETE repos/sugarwish/SERP/deployments/123"),
+    ("deny", "gh api -X DELETE repos/sugarwish/SERP"),
     ("deny", "ssh %s \"kubectl delete secret serp-env -n serp && kubectl create secret generic serp-env --from-env-file=/opt/SERP/.env -n serp\"" % P),
     ("allow", "ssh %s 'docker images | head'" % D),
 ]

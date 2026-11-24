@@ -4,7 +4,7 @@
  * GitHub MCP Server - Read-Only Access
  *
  * Provides read-only tools for accessing configured GitHub repositories:
- * - Jack-Kiefer/SERP
+ * - sugarwish/SERP
  * - jasonbkiefer/SWAC
  * - sethfinley/sugarwish-odoo
  * - sethfinley/sugarwish-laravel
