@@ -9,6 +9,7 @@ import ssh2, { Client as SSHClient } from 'ssh2';
 import { readFileSync } from 'fs';
 import { execFileSync } from 'child_process';
 import { createServer, Server as NetServer, AddressInfo } from 'net';
+import { sharedTunnelPort } from './shared-tunnel.js';
 
 // pg defaults parse oid 1114 (timestamp without time zone) into a JS Date by
 // interpreting the naive string as the process's local timezone. JSON.stringify
@@ -453,6 +454,13 @@ async function getConnectionDetails(
   config: DatabaseConfig
 ): Promise<{ host: string; port: number; viaTunnel: boolean }> {
   if (config.ssh) {
+    // Prefer the machine-wide jump tunnel when it already forwards this host and
+    // answers; otherwise open our own tunnel below.
+    const sharedPort = await sharedTunnelPort(config.host, config.port);
+    if (sharedPort) {
+      console.log(`[db] ${config.name}: connected via shared jump tunnel (port ${sharedPort})`);
+      return { host: '127.0.0.1', port: sharedPort, viaTunnel: true };
+    }
     let lastErr: unknown;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
