@@ -13,6 +13,7 @@ const DEFAULT_GLOBS = [
   `${PROJECTS}/SWAC/.worktrees/*/.env`,
   `${PROJECTS}/SWAC/.claude/worktrees/*/.env`,
   `${PROJECTS}/livery/.env`,
+  `${PROJECTS}/livery/.claude/worktrees/*/.env`,
   `${PROJECTS}/sw-cortex/.env`,
   `${PROJECTS}/sw-cortex/secret.txt`,
   '/private/tmp/*/.env',
