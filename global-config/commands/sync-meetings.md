@@ -32,7 +32,7 @@ so re-running **overwrites** the same points — it never stores a meeting twice
 
 ## What you (Claude) must do
 
-Set the tab title at the start: `~/.claude/scripts/set-tab-title.sh "🔨 syncing · meeting-notes"`.
+Set the title at the start: in Claude Desktop `mcp__ccd_session_mgmt__set_session_title { session_id: "self", title: "🔨 sw-cortex-meetings syncing" }`, in a terminal `~/.claude/scripts/set-tab-title.sh "🔨 syncing · meeting-notes"`.
 
 ### Step 1 — List the meeting-note Docs in Drive
 

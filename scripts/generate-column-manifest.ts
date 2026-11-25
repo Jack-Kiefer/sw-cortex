@@ -24,7 +24,7 @@
  * Usage:
  *   npx tsx scripts/generate-column-manifest.ts            # hot tables (default)
  *   npx tsx scripts/generate-column-manifest.ts --all      # every table, every DB
- *   npx tsx scripts/generate-column-manifest.ts --db serp_test,odoo
+ *   npx tsx scripts/generate-column-manifest.ts --db serp_test,serp_app
  *   npx tsx scripts/generate-column-manifest.ts --check    # CI: fail if stale
  *
  * Read-only against every database (DESCRIBE / information_schema only).
@@ -69,8 +69,6 @@ const HOT_TABLES: Record<string, string[]> = {
     'receiver_products',
     'buyer_products',
     'components',
-    'kits',
-    'component_kits',
     'product_type',
     // billing / ops
     'invoice_adjustments',
@@ -86,6 +84,11 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_published_kits',
     'inventory_reservations',
     'feature_attributes',
+    // added 2026-11-25 from 14d query counts (kits/component_kits dropped: gone from laravel_live)
+    'receiver_product_size',
+    'component_replacements',
+    'items',
+    'vinebox_states',
   ],
   serp_test: [
     'serp_sale_order',
@@ -126,26 +129,27 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_cron',
     'prelist_qty_log',
     'serp_stock_location',
-  ],
-  odoo: [
-    'sale_order',
-    'sale_order_line',
-    'stock_move',
-    'stock_move_line',
-    'stock_picking',
-    'stock_picking_type',
-    'stock_quant',
-    'stock_location',
-    'stock_valuation_layer',
-    'product_product',
-    'product_template',
-    'mrp_production',
-    'mrp_bom',
-    'mrp_bom_line',
-    'purchase_order',
-    'purchase_order_line',
-    'res_partner',
-    'res_users',
+    // SERP is the ERP of record since the 2026-09-26 cutover: the ERP tables sessions query most
+    // (14d counts to 2026-11-25)
+    'serp_product_product',
+    'serp_product_template',
+    'serp_product_family',
+    'serp_mrp_bom',
+    'serp_mrp_bom_line',
+    'serp_mrp_production',
+    'serp_stock_move',
+    'serp_stock_move_line',
+    'serp_stock_quant',
+    'serp_stock_warehouse',
+    'serp_stock_picking',
+    'serp_sale_order',
+    'serp_sale_order_line',
+    'serp_purchase_order',
+    'serp_purchase_order_line',
+    'serp_res_users',
+    'print_job',
+    'print_livery_event',
+    'print_product_setup',
   ],
   wishdesk: ['orders_tickets', 'sw_billing_tickets', 'swcrm_actions', 'proposals'],
 };
@@ -274,13 +278,35 @@ function renderDoc(
   );
 }
 
+/**
+ * Previous manifest's per-table blocks, keyed `db.table`. Used to carry a table
+ * forward when it can't be read this run (bad credentials, cold host), so one
+ * failed connection doesn't delete columns that are still correct.
+ */
+function previousBlocks(): Map<string, string> {
+  const blocks = new Map<string, string>();
+  if (!fs.existsSync(OUT_PATH)) return blocks;
+  const parts = fs.readFileSync(OUT_PATH, 'utf-8').split(/^(?=#### |## )/m);
+  for (const part of parts) {
+    const m = /^#### (\S+)/.exec(part);
+    if (m) blocks.set(m[1].replace(/\\_/g, '_'), part.trimEnd() + '\n');
+  }
+  return blocks;
+}
+
+function tableIsGone(msg: string): boolean {
+  return /doesn't exist|does not exist|Unknown table/i.test(msg);
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const targets = await resolveTargets(args);
 
   const sections: Array<{ db: string; tables: Array<{ table: string; body: string }> }> = [];
   const failures: string[] = [];
+  const previous = previousBlocks();
   let tableCount = 0;
+  let carried = 0;
 
   for (const [db, tables] of targets) {
     const rendered: Array<{ table: string; body: string }> = [];
@@ -296,7 +322,15 @@ async function main(): Promise<void> {
       } catch (err) {
         // One bad table (or one cold host) must not abort the whole manifest.
         const msg = err instanceof Error ? err.message : String(err);
-        failures.push(`${db}.${table} — ${msg.split('\n')[0].slice(0, 160)}`);
+        const reason = msg.split('\n')[0].slice(0, 160);
+        const prior = previous.get(`${db}.${table}`);
+        if (prior && !tableIsGone(msg)) {
+          rendered.push({ table, body: prior });
+          carried++;
+          failures.push(`${db}.${table} — kept previous columns (could not read: ${reason})`);
+        } else {
+          failures.push(`${db}.${table} — ${reason}`);
+        }
       }
     }
     sections.push({ db, tables: rendered });
@@ -320,7 +354,8 @@ async function main(): Promise<void> {
   fs.writeFileSync(OUT_PATH, doc);
   console.error(
     `[manifest] wrote ${path.relative(REPO_ROOT, OUT_PATH)} — ${tableCount} tables across ${sections.length} databases` +
-      (failures.length ? `, ${failures.length} unreadable` : '')
+      (failures.length ? `, ${failures.length} unreadable` : '') +
+      (carried ? ` (${carried} carried forward from the previous manifest)` : '')
   );
   for (const f of failures) console.error(`[manifest]   ! ${f}`);
 }
