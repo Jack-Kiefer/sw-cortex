@@ -13,7 +13,7 @@ Sweep **all writable repos** (SERP, SWAC, sw-cortex) and shut down every worktre
 
 # Task: $ARGUMENTS
 
-Set the tab title as you go (`🔍 scanning worktrees` → `🔨 shutting down` → `✅ done`) with `~/.claude/scripts/set-tab-title.sh`.
+Set the title as you go (`🔍 scanning worktrees` → `🔨 shutting down` → `✅ done`): in Claude Desktop with `mcp__ccd_session_mgmt__set_session_title { session_id: "self" }`, in a terminal with `~/.claude/scripts/set-tab-title.sh`. Skip it when run as a subagent.
 
 ## 1. Build the worktree list — across writable repos, hard-skip the protected set
 
