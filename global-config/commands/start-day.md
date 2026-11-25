@@ -69,7 +69,7 @@ background sync, and exactly **one** load-bearing barrier (sync → triage). Bui
    below). The sync is the **only** thing the workflow waits on.
 3. **`phase('Wave A')` — fan out the read steps with `parallel()`.** One `agent()` call each
    for **Step 0** (health-check), **Step 2** (tickets), **Step 2b** (PRs/deploy), **Step 2c**
-   (saved-for-later chats), **Step 2d** (SERPY draft integrity), **Step 2e** (SERPY sync fidelity),
+   (saved-for-later chats), **Step 2d** (SERPY draft integrity),
    **Step 3** (KB touch-up), **Step 5**
    (Claude-setup diagnostic). Each
    agent's prompt **is the step body below**;
@@ -198,9 +198,9 @@ Run these twelve checks:
    set; ⚠️ remedy: "`export SWIRL_GITHUB_TOKEN=…` in `~/.zshrc` — Step 2 will SKIP without it."
 
 4. **SSH tunnel / bastion reachable.** Reachability only — **do not run a DB query** (heavy live hit).
-   Read `LIVE_SSH_HOST` / `LIVE_SSH_TUNNEL_PORT` from `~/Desktop/Projects/sw-cortex/.env` and probe
-   with a short-timeout `nc -z -w5 "$LIVE_SSH_HOST" 22` (or `ssh -o BatchMode=yes -o ConnectTimeout=5`
-   using `LIVE_SSH_KEY_PATH`/`LIVE_SSH_USER`, running just `true`). ✅ if reachable; ⚠️ remedy:
+   Probe the bastion directly with `nc -z -w5 jump.sugarwish.com 22`. Never read
+   `sw-cortex/.env` for the host: it is deny-read, and a Bash read of it gets the whole call refused.
+   ✅ if reachable; ⚠️ remedy:
    "bastion unreachable — `laravel_live`/WishDesk DB queries will fail until it's back (check VPN/host)."
 
 5. **Stale/dead worktrees (report-only).** `git -C "$SERP" worktree list` (SERP =
@@ -360,6 +360,7 @@ for spec in "SERP:dev" "SWAC:development" "sw-cortex:main"; do
   CUR="$(git -C "$ROOT" branch --show-current)"
   [ "$CUR" = "$BR" ] || { echo "$NAME: on '$CUR', not '$BR' — skipped"; continue; }
   git -C "$ROOT" fetch origin "$BR" --quiet 2>/dev/null || { echo "$NAME: fetch failed"; continue; }
+  git -C "$ROOT" merge-base HEAD "origin/$BR" >/dev/null 2>&1 || { echo "$NAME: ⚠️ local '$BR' shares no history with origin/$BR (upstream history was rewritten) — needs Jack"; continue; }
   BEHIND="$(git -C "$ROOT" rev-list --count "HEAD..origin/$BR")"
   if [ "$BEHIND" = "0" ]; then
     echo "$NAME: up to date"
@@ -439,213 +440,94 @@ to, or review-requested of Jack. Use `mcp__github__list_pull_requests { repo: "S
 (or `gh pr list --repo sugarwish/SERP --state open`). One line each: `#<num> · <title> · (yours,
 <mergeable?> / review requested)`. If `gh`/the github MCP errors, note it and move on (don't block).
 
-**Deploy status (light count only).** Show how far SERP's `dev` is ahead of `main` — the queue for
-the next deploy — without running any gate:
+**Deploy status (light count only).** SERP's branch flow is **feature → `dev` → `staging` → `main`**
+(`/promote-to-staging` moves dev→staging; `/deploy` releases staging→main by PR, and prod deploys are
+run by hand). Count each stage's queue **without merge commits**, because every promotion and release
+adds merge commits to `main` that never land on `dev`, and counting them reports false drift:
 
 ```bash
 SERP="/Users/jackkief/Desktop/Projects/SERP"
 git -C "$SERP" fetch origin --prune --quiet
-AHEAD=$(git -C "$SERP" rev-list --count origin/main..origin/dev)
-BEHIND=$(git -C "$SERP" rev-list --count origin/dev..origin/main)
-echo "AHEAD=$AHEAD BEHIND=$BEHIND"
+TO_STAGE=$(git -C "$SERP" rev-list --count --no-merges origin/staging..origin/dev)
+TO_PROD=$(git -C "$SERP" rev-list --count --no-merges origin/main..origin/staging)
+DRIFT=$(git -C "$SERP" rev-list --count --no-merges origin/dev..origin/main)
+echo "TO_STAGE=$TO_STAGE TO_PROD=$TO_PROD DRIFT=$DRIFT"
 ```
 
-Report `SERP: dev is <AHEAD> commits ahead of main → run /pending-deploy SERP to review + gate`. If
-`BEHIND > 0`, flag drift (`main` has commits not on `dev` — hotfix not merged back?). **Do NOT run
-lint/tests here** — the readiness gate is `/pending-deploy SERP`'s job; this is just the count + a
-pointer to it. If `AHEAD = 0` and `BEHIND = 0`, say "in sync — nothing pending."
+Report `SERP: <TO_STAGE> on dev not yet on staging (/promote-to-staging) · <TO_PROD> on staging not
+yet on main (/deploy)`, with `/pending-deploy SERP` as the review + gate pointer. Flag drift only when
+`DRIFT > 0` (a real commit on `main` that isn't on `dev`, e.g. a hotfix not merged back). **Do NOT run
+lint/tests here.** If all three are 0, say "in sync — nothing pending."
 
 **Return:** the PR line(s) + the one-line deploy status.
 
-### Step 2d — SERPY draft integrity (bom↔product↔sku mismatch) · Wave A agent
+### Step 2d — SERPY draft integrity (bom↔product mismatch + stuck ops) · Wave A agent
 
 > **Workflow-agent contract.** One `agent()` in `phase('Wave A')`'s `parallel()`. **Fully
-> read-only** (`mcp__db__*` SELECTs against `serp_app` + `odoo` only — never writes). Returns the
-> rendered `### 🧯 SERPY draft integrity` panel and nothing else.
+> read-only** (`mcp__db__*` SELECTs against `serp_app` only, never writes). Returns the rendered
+> `### 🧯 SERPY draft integrity` panel and nothing else.
 
-A silent-data-loss check born from a real incident (2026-07-15, draft #1444): SERPY staged a
-manufacturing-order op whose identity fields **disagreed with each other** — `product_id`, the
-`bom_id`, and the free-text SKU each pointed at a **different** product. Odoo builds an MO's
-finished good from `product_id` but its **raw-component moves from `bom_id`**, so it made one
-product while **consuming another product's raw material** — draining RM-21-074-A by 512 units.
-The sync reported success, so nothing surfaced it for weeks; it only came out when the wrongly-
-drained RM read low after a receipt. PR #485 added a **worker-side preflight** (`_assert_bom_matches_product`
-in `workers/handlers/manufacturing.py`) that now BLOCKS this at sync time — but this Step is the
-**detective control**: it re-scans what already shipped (older ops, and any op the guard couldn't
-catch) so a hidden mismatch can't sit unnoticed.
+A silent-data-loss check born from a real incident (draft #1444): SERPY staged a manufacturing-order
+op whose `product_id`, `bom_id` and free-text SKU each pointed at a **different** product. The MO
+builds its finished good from `product_id` but its raw-component moves from `bom_id`, so it made one
+product while **consuming another product's raw material**, and the sync reported success. The
+worker-side preflight (`_assert_bom_matches_product` in `workers/handlers/manufacturing.py`) now
+blocks this at sync time; this Step is the **detective control** that re-scans what already shipped.
 
-**The check — a recent SERPY MO op is BAD when its `bom_id`'s finished product_template ≠ its
-`product_id`'s product_template.** The op payloads live in `serp_app` (MySQL); the product/BOM
-identity lives in `odoo` (Postgres) — so this is a two-query cross-DB join done in the agent, not
-one SQL statement.
+Everything lives in `serp_app` (SERP is the system of record; payload ids are SERP ids). Describe
+`serpy_sync_queue`, `serp_mrp_bom` and `serp_product_product` first (describe-first gate).
 
-1. **Pull recent SERPY MO ops** from `serp_app` (last ~2 days is enough for a daily run; widen on
-   demand). Query with `mcp__db__query_database { database: "serp_app", query: … }`:
+1. **Count recent SERPY MO creates** (so a clean result states N):
 
    ```sql
-   SELECT id AS queue_id, odoo_id AS mo_id, status, created_at,
-     CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.bom_id'))     AS UNSIGNED) AS bom_id,
-     CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.product_id')) AS UNSIGNED) AS product_id,
-     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.draft_id'))    AS draft_id,
-     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.description'))  AS descr
-   FROM serpy_sync_queue
+   SELECT COUNT(*) AS n FROM serpy_sync_queue
    WHERE entity_type='mrp_production' AND operation='create'
-     AND status IN ('synced','partial')
-     AND JSON_EXTRACT(payload,'$.bom_id') IS NOT NULL
-     AND created_at >= (NOW() - INTERVAL 2 DAY)
-   ORDER BY created_at DESC;
+     AND status IN ('synced','partial') AND JSON_EXTRACT(payload,'$.bom_id') IS NOT NULL
+     AND created_at >= (NOW() - INTERVAL 2 DAY);
    ```
 
-2. **Resolve every distinct `bom_id` and `product_id` to its `product_tmpl_id`** in one round-trip
-   each against `odoo` (dedupe the id lists first — usually a few dozen):
+2. **Find mismatches.** An op is BAD when its BOM's finished template ≠ its product's template, or
+   either id doesn't resolve. Compare at the **template** level (two variants of one template can
+   legitimately share a BOM):
 
    ```sql
-   -- BOM → finished template
-   SELECT id AS bom_id, product_tmpl_id FROM mrp_bom WHERE id IN (<distinct bom_ids>);
-   -- product → template
-   SELECT id AS product_id, product_tmpl_id FROM product_product WHERE id IN (<distinct product_ids>);
+   SELECT q.id AS queue_id, q.odoo_id AS mo_id, q.created_at,
+          JSON_UNQUOTE(JSON_EXTRACT(q.payload,'$.draft_id')) AS draft_id,
+          b.id AS bom_id, b.product_tmpl_id AS bom_tmpl,
+          p.id AS product_id, p.product_tmpl_id AS prod_tmpl, p.default_code AS prod_sku
+   FROM serpy_sync_queue q
+   LEFT JOIN serp_mrp_bom b ON b.id = CAST(JSON_UNQUOTE(JSON_EXTRACT(q.payload,'$.bom_id')) AS UNSIGNED)
+   LEFT JOIN serp_product_product p ON p.id = CAST(JSON_UNQUOTE(JSON_EXTRACT(q.payload,'$.product_id')) AS UNSIGNED)
+   WHERE q.entity_type='mrp_production' AND q.operation='create'
+     AND q.status IN ('synced','partial') AND JSON_EXTRACT(q.payload,'$.bom_id') IS NOT NULL
+     AND q.created_at >= (NOW() - INTERVAL 2 DAY)
+     AND (b.id IS NULL OR p.id IS NULL OR b.product_tmpl_id <> p.product_tmpl_id)
+   LIMIT 50;
    ```
 
-3. **Flag any op where `bom.product_tmpl_id != product.product_tmpl_id`.** That is the exact defect
-   (the MO's BOM builds a different product than its finished-good id). **Compare at the
-   product_TEMPLATE level, not the variant/product_id level** — two variants of one template can
-   legitimately share a BOM, so a template match is NOT a mismatch (avoids false positives). If a
-   `product_id` resolves to a template that has **no active BOM at all** (a raw-material or junk
-   product staged as a finished good — also seen in the incident), flag it too, tagged `(product not
-manufacturable)`.
+3. **Surface silently-STUCK ops.** `failed`/`dlq` rows are never auto-repicked, so a needed op just
+   never happens:
 
-4. **For each flag, name the real damage** so Jack can act: report `MO <mo_id> (draft #<draft_id>):
-bom <bom_id> builds <bom_sku> but product_id <product_id> is <product_sku>`. If time permits,
-   add the one line of actual over-consumption from
-   `SELECT pt.default_code, sm.product_uom_qty FROM stock_move sm JOIN product_product pp ON pp.id=sm.product_id
- JOIN product_template pt ON pt.id=pp.product_tmpl_id WHERE sm.raw_material_production_id=<mo_id> AND sm.state='done'`
-   (in `odoo`) — the wrongly-consumed RM is what actually needs reconciling.
+   ```sql
+   SELECT id, entity_type, status, created_at,
+          JSON_UNQUOTE(JSON_EXTRACT(payload,'$.draft_id')) AS draft_id,
+          JSON_UNQUOTE(JSON_EXTRACT(payload,'$.description')) AS descr,
+          LEFT(error_message,160) AS err
+   FROM serpy_sync_queue
+   WHERE status IN ('failed','dlq') AND created_at >= (NOW() - INTERVAL 2 DAY)
+   ORDER BY created_at DESC LIMIT 50;
+   ```
 
-5. **Also surface silently-STUCK ops** (the same draft that carried the mismatch, #1444, ALSO had an
-   op that hard-**failed** and was never retried — `failed` rows are never auto-repicked, so a needed
-   MO just never happened). In the same `serp_app` pull, add a second bucket: any `serpy_sync_queue`
-   row (ANY `entity_type`, not just MO) with `status IN ('failed','dlq')` and
-   `created_at >= NOW() - INTERVAL 2 DAY`. Report each as `stuck: <entity_type> "<descr>" (draft
-#<id>) — <first line of error_message>`. This is a distinct signal from the mismatch (a mismatch
-   reports success; a stuck op reports failure) — surface both, they hide in the same drafts.
-
-**Bound it:** dedupe the id lists before the `IN (…)` (don't send thousands of ids), and cap the
-window at 2 days for the daily run. If either DB errors or times out, note it in the panel and move
-on — never block the briefing.
+If the DB errors or times out, note it in the panel and move on; never block the briefing.
 
 **Return:** the `### 🧯 SERPY draft integrity` panel with up to two sub-lines:
 
-- **Mismatches** — if none, `✅ SERPY MO drafts (last 2d): all bom↔product↔sku consistent — no hidden
-mismatches.` If any, a `🔴` header (`N mismatched MO op(s) — wrong RM likely consumed, needs
-reconciling`) + one line per flagged MO (mo_id · draft · builds-vs-is · wrongly-consumed RM), and
-  the pointer "reconcile in Odoo (unbuild the MO / inventory-adjust the RM); the sync-side guard (PR
-  #485) blocks new ones."
-- **Stuck ops** — if none, omit or `✅ no failed/dlq SERPY ops in 2d`. If any, `🔴 N stuck SERPY op(s)
-never retried` + one line each (entity_type · draft · error), pointer "retry via `/api/admin/sync-queue`
-  or re-stage — failed rows are never auto-repicked."
-
-### Step 2e — SERPY sync fidelity (did the draft land in Odoo as entered?) · Wave A agent
-
-> **Workflow-agent contract.** One `agent()` in `phase('Wave A')`'s `parallel()`. **Fully
-> read-only** (`mcp__db__*` SELECTs against `serp_app` + `odoo` only — never writes). Returns the
-> rendered `### 🔬 SERPY sync fidelity` panel and nothing else.
-
-**The invariant: what the operator entered is what Odoo must show.** Step 2d asks whether an op's
-identity fields agree with _each other_; this Step asks a different question — whether the values a
-human actually typed **survived the trip into Odoo unchanged**. An op can be perfectly
-self-consistent (right BOM, right product) and still land with the wrong _numbers_.
-
-**Why this exists (the blind spot it closes).** From 2026-05-20 to 2026-07-31 a darklaunch-gated
-branch in `workers/handlers/manufacturing.py` rebuilt MO components from the BOM ratio
-(`bom_qty × product_qty/bom_qty`) instead of the payload's operator-counted quantity — **721 MOs /
-914 RM lines / 130,061 lb** of raw material recorded from a formula rather than the counted
-packing slip. Step 2d passed it every morning for ten weeks (identity was consistent — only the
-quantities were wrong), and the **drift monitor went quiet precisely because of the bug**: Odoo had
-started computing quantities the same way the replica did, so the two systems agreed. **Any check
-whose oracle is "do SERP and Odoo match" is structurally blind to this.** The only oracle that
-catches it is the operator's own input. That is what this Step compares against.
-
-**The check — for each recently-synced op, diff the payload's human-entered values against the
-Odoo record it produced.** Payloads live in `serp_app` (MySQL); the resulting records live in
-`odoo` (Postgres) — a two-query cross-DB join done in the agent, not one SQL statement.
-
-1. **Pull recent successfully-synced ops** from `serp_app`. Note the `sync_target='odoo'` filter —
-   darklaunch-targeted rows never produced a live Odoo record and would be pure false positives:
-
-   ```sql
-   SELECT id AS queue_id, odoo_id AS mo_id, entity_type, status, created_at,
-     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.draft_id'))    AS draft_id,
-     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.description'))  AS descr,
-     JSON_UNQUOTE(JSON_EXTRACT(payload,'$.author_email')) AS author,
-     CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.product_qty')) AS DECIMAL(16,4)) AS product_qty,
-     JSON_EXTRACT(payload,'$.components') AS components
-   FROM serpy_sync_queue
-   WHERE entity_type='mrp_production' AND operation='create'
-     AND status IN ('synced','partial') AND sync_target='odoo' AND odoo_id IS NOT NULL
-     AND created_at >= (NOW() - INTERVAL 2 DAY)
-   ORDER BY created_at DESC;
-   ```
-
-2. **Pull what Odoo actually recorded** for those MOs — the raw-material moves are the payload's
-   `components[]` counterpart (join on `raw_material_production_id`, NOT `production_id`, which is
-   the finished-good move):
-
-   ```sql
-   SELECT sm.raw_material_production_id AS mo_id, sm.product_id,
-          COALESCE(pp.default_code, pt.default_code) AS sku,
-          sm.product_uom_qty, sm.state
-   FROM stock_move sm
-   JOIN product_product  pp ON pp.id = sm.product_id
-   JOIN product_template pt ON pt.id = pp.product_tmpl_id
-   WHERE sm.raw_material_production_id IN (<distinct mo_ids>)
-     AND sm.state <> 'cancel';
-   -- finished-good qty + the MO's own header, same round trip:
-   SELECT id AS mo_id, product_id, product_qty, state FROM mrp_production WHERE id IN (<distinct mo_ids>);
-   ```
-
-3. **Compare, per component, payload → Odoo.** Match payload `components[].product_id` to the move's
-   `product_id`. Flag when:
-   - **QTY DRIFT** — `abs(payload.quantity − move.product_uom_qty) > 0.01` (absolute tolerance; these
-     are counted pounds/units, so anything past a rounding cent is real). **This is the darklaunch
-     signature.** When it fires, also report what the BOM ratio _would_ have given
-     (`payload.bom_qty_ratio × payload.product_qty`) — if the Odoo value equals the ratio result
-     while the payload says otherwise, say so explicitly: that is the formula-overwrote-the-count
-     failure, not a stray edit.
-   - **MISSING COMPONENT** — a payload component with no corresponding raw move (silently dropped).
-   - **EXTRA COMPONENT** — a raw move for a product the payload never listed (silently added).
-   - **HEADER DRIFT** — `mrp_production.product_qty` ≠ payload `product_qty`, or
-     `mrp_production.product_id` ≠ payload `product_id`.
-
-   **Do NOT flag** `location_id`/`location_dest_id` divergence as an error — putaway rules and the
-   unbuild location-grounding legitimately rewrite these; note them only if you flag the row for
-   another reason.
-
-4. **Report the human consequence, not the diff.** Per flagged MO:
-   `MO <mo_id> (draft #<draft_id>, <author>): <sku> entered <payload_qty> → Odoo recorded
-<odoo_qty> (Δ<diff>)` and, when it matches the ratio, `— equals BOM ratio <ratio>×<product_qty>,
-i.e. the count was overwritten`. Aggregate the total drifted quantity per SKU so the size of the
-   reconciliation is visible at a glance.
-
-**Extending to other op types (the general shape).** The framework is payload-field → Odoo-record
-comparison; MO is simply the first map, and it is the one with confirmed damage. To add an op type,
-define: which Odoo table its `odoo_id` points at, which payload fields are **operator-entered** (vs
-derived//enriched), and the tolerance for each. Natural next maps — `stock_transfer` → `stock_move`
-qty + src/dest, `po_receiving` → received qty vs entered, `inventory_adjustment` → counted qty vs
-`stock_quant`. **Only compare fields a human actually typed** — comparing derived/enriched fields
-generates noise and trains Jack to ignore the panel.
-
-**Bound it:** dedupe id lists before `IN (…)`, cap at 2 days for the daily run, and skip ops whose
-`odoo_id` no longer resolves (deleted/merged in Odoo — note, don't flag). If either DB errors or
-times out, note it in the panel and move on — never block the briefing.
-
-**Return:** the `### 🔬 SERPY sync fidelity` panel:
-
-- If clean: `✅ SERPY→Odoo fidelity (last 2d): N MO ops verified — every entered quantity matches
-Odoo.` (State N — a silent "no findings" is indistinguishable from a check that silently matched
-  nothing.)
-- If any: `🔴 N op(s) where Odoo ≠ what was entered` + one line per flagged MO per step 4, plus the
-  pointer "reconcile in Odoo (adjust the RM move / unbuild+rebuild); if the Δ equals the BOM ratio,
-  suspect a handler recomputing the payload — check whether a flag-gated branch is live."
+- **Mismatches**: if none, `✅ SERPY MO drafts (last 2d): N MO ops checked, all bom↔product
+  consistent.` If any, a `🔴` header + one line per MO (mo_id · draft · bom builds X but product is Y),
+  pointer "reconcile in SERP (unbuild the MO / adjust the RM); the sync-side guard blocks new ones."
+- **Stuck ops**: if none, `✅ no failed/dlq SERPY ops in 2d`. If any, `🔴 N stuck SERPY op(s)
+  never retried` + one line each (entity_type · draft · error), pointer "retry via
+  `/api/admin/sync-queue` or re-stage; failed rows are never auto-repicked."
 
 ### Step 2c — Saved-for-later chats · Wave A agent
 
@@ -745,13 +627,25 @@ than none**, so regenerate it every morning:
 cd "$WT" && npm run kb:columns
 ```
 
+**Before running it, give `$WT` the hub's DB credentials** with
+`mcp__vault__env_copy { from: "/Users/jackkief/Desktop/Projects/sw-cortex/.env", to: "$WT/.env" }`
+(`.env` is gitignored and deny-read, so never `cp` or `cat` it). A fresh worktree has no `.env`, and
+without it every connection fails. The generator writes only the tables it could read, so a
+credential-less run deletes most of the manifest.
+
+**Never commit a manifest that lost tables.** After the run, if `git -C "$WT" diff --stat
+knowledge/COLUMN_MANIFEST.md` shows a large net deletion, or the run listed unreadable tables that
+were present in the committed copy, revert it with `git -C "$WT" checkout -- knowledge/COLUMN_MANIFEST.md`
+and report the unreadable tables instead. A slightly old column list is better than one with tables
+missing.
+
 This is a deterministic, read-only command (DESCRIBE / `information_schema` only) — no judgment
 involved, so it runs on the **orchestrator** thread, not in a Wave A agent, and it does NOT go
 through Step 3's propose-then-apply contract.
 
 Notes:
 
-- **Partial failure is normal and non-fatal.** A cold Odoo host or a dropped tunnel makes some
+- **Partial failure is normal and non-fatal.** A dropped tunnel or bad credentials makes some
   tables unreadable; the generator isolates each table, keeps everything it did read, and lists the
   failures under "Tables that could not be read." Do **not** retry in a loop and do **not** treat it
   as broken — report the count and move on.
@@ -777,7 +671,7 @@ direct mentions of Jack, questions in his channels, threads he's in, anything ad
 since semantic search won't surface everything from one query.
 
 Focus the channels Jack actually owns/watches (from the knowledge base): `#serp-planning`,
-`#serp-bugs-features`, `#serp-errors`, `#inventorymanagement`, `#ops-and-tech`, `#odoo-prixite`,
+`#serp-bugs-features`, `#serp-errors`, `#inventorymanagement`, `#ops-and-tech`,
 plus DMs. **Skip `#jack-test` entirely** — it is the automated SERPY darklaunch
 drift/reconciliation feed (hourly `:rotating_light:` reports), not a to-do; never surface it.
 **Down-rank known noise:** `#api-autofix` is informational (Seth's standing instruction —
@@ -1091,16 +985,13 @@ not just what was recommended — and list anything deferred under "needs Jack":
 - ...
 
 ### 🚀 Deploy & PRs (SERP)
-- dev is <N> commits ahead of main → `/pending-deploy SERP` to review + gate  (or "in sync")
+- <N> on dev not on staging · <M> on staging not on main → `/pending-deploy SERP` to review + gate  (or "in sync")
 - #<num> · <title> · (yours / review requested)   — open PRs awaiting you, or "no open PRs"
 
 ### 🧯 SERPY draft integrity
 - ✅ SERPY MO drafts (last 2d): all bom↔product↔sku consistent  (or "🔴 <N> mismatched MO op(s):")
-- 🔴 MO <mo_id> (draft #<id>): bom builds <sku_a> but product is <sku_b> — wrongly consumed <RM ×qty>; reconcile in Odoo
-
-### 🔬 SERPY sync fidelity
-- ✅ SERPY→Odoo (last 2d): <N> MO ops verified — every entered quantity matches Odoo
-- 🔴 MO <mo_id> (draft #<id>, <author>): <sku> entered <qty_in> → Odoo recorded <qty_odoo> (Δ<diff>)<, equals BOM ratio — the count was overwritten>
+- 🔴 MO <mo_id> (draft #<id>): bom builds <sku_a> but product is <sku_b>; reconcile in SERP
+- 🔴 stuck: <entity_type> "<descr>" (draft #<id>) — <error>
 
 ### 🗂️ Saved for later
 - <title> · <repo> · `<branch>` · <age> — next: <one-line next step>   (`/resume-later` to pick up)
@@ -1164,7 +1055,7 @@ before ending the turn.
   already searches. It shares the `skip-sync` flag with Step 1, is incremental + idempotent
   (deterministic point IDs never double-store a meeting), and **nothing waits on it** (triage reads
   Slack, not meetings). Full logic lives in `/sync-meetings` (`~/.claude/commands/sync-meetings.md`).
-- **Step 2b (deploy/PRs) stays SERP-only and gate-free** — it's a light dev→main count plus a pointer
+- **Step 2b (deploy/PRs) stays SERP-only and gate-free** — it's a light dev→staging→main count plus a pointer
   to `/pending-deploy SERP`, which owns the real lint+test readiness gate. Don't run tests here.
 - **`DICTIONARY.md` is a living document.** Step 3 keeps it current with small daily edits —
   fold in / correct yesterday's learnings, never duplicate. The Step 3 agent **proposes**; the

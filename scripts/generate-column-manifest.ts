@@ -24,7 +24,7 @@
  * Usage:
  *   npx tsx scripts/generate-column-manifest.ts            # hot tables (default)
  *   npx tsx scripts/generate-column-manifest.ts --all      # every table, every DB
- *   npx tsx scripts/generate-column-manifest.ts --db serp_test,odoo
+ *   npx tsx scripts/generate-column-manifest.ts --db serp_test,serp_app
  *   npx tsx scripts/generate-column-manifest.ts --check    # CI: fail if stale
  *
  * Read-only against every database (DESCRIBE / information_schema only).
@@ -126,26 +126,6 @@ const HOT_TABLES: Record<string, string[]> = {
     'serp_cron',
     'prelist_qty_log',
     'serp_stock_location',
-  ],
-  odoo: [
-    'sale_order',
-    'sale_order_line',
-    'stock_move',
-    'stock_move_line',
-    'stock_picking',
-    'stock_picking_type',
-    'stock_quant',
-    'stock_location',
-    'stock_valuation_layer',
-    'product_product',
-    'product_template',
-    'mrp_production',
-    'mrp_bom',
-    'mrp_bom_line',
-    'purchase_order',
-    'purchase_order_line',
-    'res_partner',
-    'res_users',
   ],
   wishdesk: ['orders_tickets', 'sw_billing_tickets', 'swcrm_actions', 'proposals'],
 };
